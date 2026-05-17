@@ -15,6 +15,9 @@ import `in`.jphe.storyvox.source.notion.net.NotionRecordMap
 import `in`.jphe.storyvox.source.notion.net.NotionUnofficialApi
 import `in`.jphe.storyvox.source.notion.net.block
 import `in`.jphe.storyvox.source.notion.net.contentIds
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -73,7 +76,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
         val compactRoot = state.rootPageId.replace("-", "")
         return if (compactRoot == NotionDefaults.TECHEMPOWER_ROOT_PAGE_ID) {
             FictionResult.Success(
-                ListPage(items = buildTechEmpowerTiles(), page = 1, hasNext = false),
+                ListPage(items = buildTechEmpowerTiles(state), page = 1, hasNext = false),
             )
         } else {
             buildGenericRootTile(state)
@@ -106,10 +109,16 @@ internal class AnonymousNotionDelegate @Inject constructor(
         }
         val fiction = NotionDefaults.techempowerFictions.firstOrNull { it.id == sectionId }
             ?: return FictionResult.NotFound("TechEmpower section $sectionId not configured")
+        // v0.5.66 banner wire-up — resolve the fiction's tile cover
+        // alongside the chapter list so FictionDetail (which currently
+        // re-fetches a summary) sees the same banner Browse already
+        // rendered. One extra loadPageChunk on detail open; cached by
+        // NotionUnofficialApi so chapter rendering won't pay it again.
+        val cover = resolveCoverUrl(fiction.coverPageId)
         return when (fiction) {
-            is TechEmpowerFiction.PageList -> pageListDetail(fictionId, fiction)
-            is TechEmpowerFiction.CollectionRows -> collectionDetail(fictionId, fiction)
-            is TechEmpowerFiction.SinglePage -> singlePageDetail(fictionId, fiction)
+            is TechEmpowerFiction.PageList -> pageListDetail(fictionId, fiction, cover)
+            is TechEmpowerFiction.CollectionRows -> collectionDetail(fictionId, fiction, cover)
+            is TechEmpowerFiction.SinglePage -> singlePageDetail(fictionId, fiction, cover)
         }
     }
 
@@ -177,22 +186,108 @@ internal class AnonymousNotionDelegate @Inject constructor(
 
     // ─── tile builders ────────────────────────────────────────────────
 
-    /** Build the four TechEmpower tiles from [NotionDefaults]. The
-     *  fictions are stable + hand-curated, so no HTTP traffic is needed
-     *  to assemble the Browse listing — Browse loads instantly. */
-    private fun buildTechEmpowerTiles(): List<FictionSummary> =
-        NotionDefaults.techempowerFictions.map { fiction ->
+    /**
+     * Build the four TechEmpower tiles from [NotionDefaults], populating
+     * each tile's [FictionSummary.coverUrl] from the referenced
+     * [TechEmpowerFiction.coverPageId] (Notion's `format.page_cover`
+     * banner, with the body-image fallback `readBodyImageUrl` provides).
+     *
+     * v0.5.66 banner wire-up — pre-v0.5.66 this returned monogram-only
+     * tiles because `coverUrl` was hardcoded to null. JP authors banners
+     * by hitting "Add cover" on each fiction's coverPageId; on next
+     * Browse the URL surfaces here automatically.
+     *
+     * Performance: one `loadPageChunk(rootPageId)` round-trip fetches
+     * the welcome page's recordMap, which (for TechEmpower) typically
+     * contains the child page blocks for Guides / Resources / About /
+     * Donate at the top level of `recordMap.block`. We try to resolve
+     * each fiction's cover from that recordMap first (zero extra
+     * round-trips). For any coverPageId that isn't in the welcome
+     * chunk, we fan out remaining fetches in parallel via `async {}`,
+     * capping Browse-grid latency at one extra round-trip wall-clock.
+     *
+     * If the welcome chunk fails outright we fall back to null covers
+     * + monogram tiles (Browse stays usable; the BrandedCoverTile
+     * second-tier fallback in :core-ui handles the empty state).
+     */
+    private suspend fun buildTechEmpowerTiles(
+        state: NotionConfigState,
+    ): List<FictionSummary> {
+        val fictions = NotionDefaults.techempowerFictions
+        // 1. Try to pull every cover from the welcome root's recordMap
+        //    first. TechEmpower's welcome page is ~290KB and Notion's
+        //    CDN serves it with reasonable TTL, so this round-trip is
+        //    cheap relative to the alternative of N per-tile fetches.
+        val rootRecordMap = when (val r = api.loadPageChunk(state.rootPageId)) {
+            is FictionResult.Success -> r.value.recordMap
+            is FictionResult.Failure -> null
+        }
+        // 2. For each fiction, prefer the cover already in
+        //    rootRecordMap; track misses for a parallel fan-out.
+        val covers = mutableMapOf<String, String?>()
+        val misses = mutableListOf<TechEmpowerFiction>()
+        for (fiction in fictions) {
+            val coverPageId = fiction.coverPageId
+            if (coverPageId == null) {
+                covers[fiction.id] = null
+                continue
+            }
+            val fromRoot = rootRecordMap?.let { rm ->
+                extractCoverFromRecordMap(coverPageId, rm)
+            }
+            if (fromRoot != null) {
+                covers[fiction.id] = fromRoot
+            } else {
+                misses.add(fiction)
+            }
+        }
+        // 3. Fan-out the misses in parallel — bounded by the 4-fiction
+        //    cap, so this is at most a 3-call parallel batch and the
+        //    Browse-grid wall-clock stays at one extra HTTP round-trip
+        //    beyond the welcome fetch.
+        if (misses.isNotEmpty()) {
+            val resolved = coroutineScope {
+                misses.map { fiction ->
+                    async { fiction.id to resolveCoverUrl(fiction.coverPageId) }
+                }.awaitAll()
+            }
+            for ((id, url) in resolved) covers[id] = url
+        }
+        return fictions.map { fiction ->
             FictionSummary(
                 id = notionFictionId(fiction.id),
                 sourceId = SourceIds.NOTION,
                 title = fiction.title,
                 author = "TechEmpower",
                 description = fiction.description,
-                coverUrl = null,
+                coverUrl = covers[fiction.id],
                 tags = emptyList(),
                 status = FictionStatus.ONGOING,
             )
         }
+    }
+
+    /**
+     * Resolve one page id's cover URL. Same cascade as the generic
+     * root: `format.page_cover` → first body image → null. Shared
+     * between [buildTechEmpowerTiles] (Browse) and the three
+     * FictionDetail handlers so a banner change in Notion propagates
+     * to both surfaces from a single helper.
+     *
+     * Returns null when the page id is null, the chunk fetch fails,
+     * or the page genuinely has no banner and no leading image. Callers
+     * pass null straight through to FictionSummary.coverUrl — the
+     * :core-ui FictionCoverThumb already falls through to the branded
+     * synthetic cover in that case.
+     */
+    private suspend fun resolveCoverUrl(coverPageId: String?): String? {
+        if (coverPageId.isNullOrBlank()) return null
+        val chunk = when (val r = api.loadPageChunk(coverPageId)) {
+            is FictionResult.Success -> r.value
+            is FictionResult.Failure -> return null
+        }
+        return extractCoverFromRecordMap(coverPageId, chunk.recordMap)
+    }
 
     /** Generic-root single-fiction listing. Used when the user has
      *  pointed `:source-notion` at a non-TechEmpower public page (any
@@ -245,6 +340,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
     private fun pageListDetail(
         fictionId: String,
         fiction: TechEmpowerFiction.PageList,
+        coverUrl: String?,
     ): FictionResult<FictionDetail> {
         val chapters = fiction.chapters.mapIndexed { idx, (title, pageId) ->
             ChapterInfo(
@@ -261,6 +357,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
             title = fiction.title,
             author = "TechEmpower",
             description = fiction.description,
+            coverUrl = coverUrl,
             chapterCount = chapters.size,
             status = FictionStatus.ONGOING,
         )
@@ -270,6 +367,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
     private suspend fun collectionDetail(
         fictionId: String,
         fiction: TechEmpowerFiction.CollectionRows,
+        coverUrl: String?,
     ): FictionResult<FictionDetail> {
         // Step 1: discover collection_id + view_id from the configured
         // block id.
@@ -309,6 +407,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
             title = fiction.title,
             author = "TechEmpower",
             description = fiction.description,
+            coverUrl = coverUrl,
             chapterCount = chapters.size,
             status = FictionStatus.ONGOING,
         )
@@ -318,6 +417,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
     private fun singlePageDetail(
         fictionId: String,
         fiction: TechEmpowerFiction.SinglePage,
+        coverUrl: String?,
     ): FictionResult<FictionDetail> {
         val chapters = listOf(
             ChapterInfo(
@@ -334,6 +434,7 @@ internal class AnonymousNotionDelegate @Inject constructor(
             title = fiction.title,
             author = "TechEmpower",
             description = fiction.description,
+            coverUrl = coverUrl,
             chapterCount = 1,
             status = FictionStatus.ONGOING,
         )
@@ -453,6 +554,23 @@ internal sealed class TechEmpowerFiction {
     abstract val title: String
     abstract val description: String
 
+    /**
+     * v0.5.66 (banner wire-up) — compact 32-hex Notion page id whose
+     * `format.page_cover` (and body-image fallback) drives this tile's
+     * cover URL. Null means "no remote cover" — FictionCoverThumb will
+     * fall through to the BrandedCoverTile / Monogram synthetic cover
+     * for that fiction. JP authors banners by hitting "Add cover" on
+     * the referenced Notion page; on next Browse load the URL flows
+     * through automatically.
+     *
+     * Defaults in [NotionDefaults.techempowerFictions] point each
+     * fiction at a sensible page:
+     *  - PageList → first chapter's page (Guides → "How to use…")
+     *  - CollectionRows → the collection block itself (Resources DB)
+     *  - SinglePage → the fiction's own pageId (About / Donate)
+     */
+    abstract val coverPageId: String?
+
     data class PageList(
         override val id: String,
         override val title: String,
@@ -460,6 +578,7 @@ internal sealed class TechEmpowerFiction {
         /** Ordered list of (chapter title, Notion page id) for the
          *  curated chapter spine. Page ids are compact 32-hex. */
         val chapters: List<Pair<String, String>>,
+        override val coverPageId: String? = null,
     ) : TechEmpowerFiction()
 
     data class CollectionRows(
@@ -468,6 +587,7 @@ internal sealed class TechEmpowerFiction {
         override val description: String,
         /** Block id of the collection_view that wraps the database. */
         val collectionBlockId: String,
+        override val coverPageId: String? = null,
     ) : TechEmpowerFiction()
 
     data class SinglePage(
@@ -476,6 +596,7 @@ internal sealed class TechEmpowerFiction {
         override val description: String,
         /** Compact 32-hex Notion page id. */
         val pageId: String,
+        override val coverPageId: String? = null,
     ) : TechEmpowerFiction()
 }
 
@@ -506,6 +627,30 @@ internal fun readCoverUrl(block: JsonObject): String? {
     val fmt = block["format"] as? JsonObject ?: return null
     val cover = (fmt["page_cover"] as? JsonPrimitive)?.contentOrNull
     return cover?.takeIf { it.isNotBlank() }
+}
+
+/**
+ * v0.5.66 banner wire-up — pure-function cover-resolution helper.
+ * Looks up [coverPageId] in [recordMap] and returns the cover URL via
+ * the standard cascade: `format.page_cover` (Notion's banner) →
+ * `readBodyImageUrl` (first leading image). Returns null when the
+ * page isn't in the recordMap or carries neither a banner nor a
+ * leading image.
+ *
+ * Pulled out as a file-level helper so it's:
+ *  - testable without HTTP (JVM tests can hand it a recordMap and
+ *    assert the URL extraction without spinning a network),
+ *  - shareable between [AnonymousNotionDelegate.buildTechEmpowerTiles]
+ *    (extracts covers from the welcome-root recordMap inline) and
+ *    [AnonymousNotionDelegate.resolveCoverUrl] (loads a per-page
+ *    chunk, then re-uses this helper).
+ */
+internal fun extractCoverFromRecordMap(
+    coverPageId: String,
+    recordMap: NotionRecordMap,
+): String? {
+    val block = recordMap.findBlock(coverPageId) ?: return null
+    return readCoverUrl(block) ?: readBodyImageUrl(recordMap, block)
 }
 
 /**

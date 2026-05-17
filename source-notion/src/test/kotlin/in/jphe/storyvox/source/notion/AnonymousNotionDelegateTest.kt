@@ -178,6 +178,148 @@ class AnonymousNotionDelegateTest {
         assertEquals("59d8a4dab0cc484f8b044d33f240ce1d", donate.pageId)
     }
 
+    // ─── v0.5.66 banner wire-up — coverPageId pinning ─────────────────
+
+    @Test
+    fun `every TechEmpower fiction defaults pins a coverPageId for banner pickup`() {
+        // The whole point of the v0.5.66 wire-up is that
+        // FictionSummary.coverUrl is no longer hardcoded to null on
+        // TechEmpower tiles. That depends on each fiction having a
+        // coverPageId set — pin the contract so a future refactor
+        // doesn't accidentally regress to null covers.
+        val fictions = NotionDefaults.techempowerFictions
+        for (fiction in fictions) {
+            assertNotNull(
+                "Fiction ${fiction.id} must have a coverPageId set in NotionDefaults",
+                fiction.coverPageId,
+            )
+        }
+    }
+
+    @Test
+    fun `Guides coverPageId points at the first chapter page`() {
+        // Guides has no single canonical "cover" page, so we lean on
+        // the first chapter ("How to use TechEmpower.org") as the
+        // visual representative. JP banners that page to drive the
+        // Guides tile cover.
+        val guides = NotionDefaults.techempowerFictions
+            .first { it.id == "guides" } as TechEmpowerFiction.PageList
+        assertEquals(
+            "6c979ba4e43f48d7a4836e0027ea4178",
+            guides.coverPageId,
+        )
+        // And the first chapter's pageId matches — guards against
+        // accidental drift between the two values.
+        assertEquals(guides.chapters[0].second, guides.coverPageId)
+    }
+
+    @Test
+    fun `Resources coverPageId points at the collection block`() {
+        val resources = NotionDefaults.techempowerFictions
+            .first { it.id == "resources" } as TechEmpowerFiction.CollectionRows
+        assertEquals(resources.collectionBlockId, resources.coverPageId)
+        assertEquals(NotionDefaults.TECHEMPOWER_DATABASE_ID, resources.coverPageId)
+    }
+
+    @Test
+    fun `About and Donate coverPageId match their pageId`() {
+        // For SinglePage fictions, the cover comes from the fiction's
+        // own page — same id, no separate banner page needed.
+        val about = NotionDefaults.techempowerFictions
+            .first { it.id == "about" } as TechEmpowerFiction.SinglePage
+        val donate = NotionDefaults.techempowerFictions
+            .first { it.id == "donate" } as TechEmpowerFiction.SinglePage
+        assertEquals(about.pageId, about.coverPageId)
+        assertEquals(donate.pageId, donate.coverPageId)
+    }
+
+    // ─── v0.5.66 banner wire-up — extractCoverFromRecordMap helper ────
+
+    @Test
+    fun `extractCoverFromRecordMap returns format-page_cover for the named page`() {
+        // Happy path: JP set a Notion banner on the page; the
+        // unofficial API exposes it as format.page_cover; the helper
+        // returns it verbatim. This is the URL FictionSummary.coverUrl
+        // gets populated with for both Browse tiles + FictionDetail.
+        val rm = recordMapWith(
+            "dbf0ddec-e2ce-468f-b2bf-9049e6322e8a" to envelope(
+                """{"type":"page","format":{"page_cover":"https://images.unsplash.com/photo-banner.jpg"},"properties":{"title":[["About"]]}}""",
+            ),
+        )
+        assertEquals(
+            "https://images.unsplash.com/photo-banner.jpg",
+            extractCoverFromRecordMap("dbf0ddece2ce468fb2bf9049e6322e8a", rm),
+        )
+    }
+
+    @Test
+    fun `extractCoverFromRecordMap falls back to first body image when no banner`() {
+        // Many TechEmpower pages don't have a Notion banner set yet
+        // (banners are a v0.5.66 polish task), but they lead with a
+        // hero image as the first body block. Falling back to that
+        // image keeps tiles visually populated until JP gets around
+        // to setting banners.
+        val rm = recordMapWith(
+            "dbf0ddec-e2ce-468f-b2bf-9049e6322e8a" to envelope(
+                """{"type":"page","content":["img1"],"properties":{"title":[["About"]]}}""",
+            ),
+            "img1" to envelope(
+                """{"type":"image","format":{"display_source":"https://aws.notion.so/lead.png"}}""",
+            ),
+        )
+        assertEquals(
+            "https://aws.notion.so/lead.png",
+            extractCoverFromRecordMap("dbf0ddece2ce468fb2bf9049e6322e8a", rm),
+        )
+    }
+
+    @Test
+    fun `extractCoverFromRecordMap returns null when neither banner nor body image exists`() {
+        // Final fallback — both `format.page_cover` and any body
+        // image are absent. The helper returns null and callers pass
+        // that straight through to FictionSummary.coverUrl, where
+        // :core-ui's FictionCoverThumb falls through to the
+        // BrandedCoverTile / Monogram synthetic cover.
+        val rm = recordMapWith(
+            "dbf0ddec-e2ce-468f-b2bf-9049e6322e8a" to envelope(
+                """{"type":"page","content":["t1"],"properties":{"title":[["About"]]}}""",
+            ),
+            "t1" to envelope(
+                """{"type":"text","properties":{"title":[["Lead paragraph, no hero image."]]}}""",
+            ),
+        )
+        assertNull(extractCoverFromRecordMap("dbf0ddece2ce468fb2bf9049e6322e8a", rm))
+    }
+
+    @Test
+    fun `extractCoverFromRecordMap returns null when the page id is not in the recordMap`() {
+        // Defensive: if the welcome-root recordMap doesn't include the
+        // requested cover-page-id (the page is structured deeper than
+        // the chunk fetches, or the id is wrong), the helper returns
+        // null and the caller falls back to a per-page fetch.
+        val rm = recordMapWith(
+            "some-other-page" to envelope("""{"type":"page","properties":{"title":[["Other"]]}}"""),
+        )
+        assertNull(extractCoverFromRecordMap("dbf0ddece2ce468fb2bf9049e6322e8a", rm))
+    }
+
+    @Test
+    fun `extractCoverFromRecordMap accepts compact id even when recordMap key is hyphenated`() {
+        // findBlock normalizes both forms, but pin the cross-form
+        // contract here so it can't regress — the page ids we store
+        // in NotionDefaults are compact, while Notion's responses
+        // use hyphenated keys.
+        val rm = recordMapWith(
+            "59d8a4da-b0cc-484f-8b04-4d33f240ce1d" to envelope(
+                """{"type":"page","format":{"page_cover":"https://example.com/donate.jpg"}}""",
+            ),
+        )
+        assertEquals(
+            "https://example.com/donate.jpg",
+            extractCoverFromRecordMap("59d8a4dab0cc484f8b044d33f240ce1d", rm),
+        )
+    }
+
     @Test
     fun `decodeFictionId strips notion prefix and returns section id`() {
         assertEquals("guides", decodeFictionId("notion:guides"))

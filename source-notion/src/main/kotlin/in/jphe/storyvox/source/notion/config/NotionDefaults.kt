@@ -165,24 +165,37 @@ object NotionDefaults {
                 "Password manager" to "99b0ab9c7cce428e8c86e3143752aa1c",
                 "Free cell service" to "7519ef16d7b74519acd9b8262a7beb84",
             ),
+            // v0.5.66 banner wire-up — Guides has no single "cover" page,
+            // so we lean on the first chapter ("How to use TechEmpower")
+            // as the visual representative. JP can set a Notion banner
+            // there and it'll surface as the Guides tile cover.
+            coverPageId = "6c979ba4e43f48d7a4836e0027ea4178",
         ),
         `in`.jphe.storyvox.source.notion.TechEmpowerFiction.CollectionRows(
             id = "resources",
             title = "Resources",
             description = "Searchable database of free tech resources for individuals with low income, their families, and nonprofit organizations.",
             collectionBlockId = TECHEMPOWER_DATABASE_ID,
+            // v0.5.66 banner wire-up — the collection block itself
+            // carries `format.page_cover` when JP banners the
+            // database's parent surface in Notion.
+            coverPageId = TECHEMPOWER_DATABASE_ID,
         ),
         `in`.jphe.storyvox.source.notion.TechEmpowerFiction.SinglePage(
             id = "about",
             title = "About",
             description = "About TechEmpower.org.",
             pageId = "dbf0ddece2ce468fb2bf9049e6322e8a",
+            // v0.5.66 banner wire-up — same page as the fiction body.
+            coverPageId = "dbf0ddece2ce468fb2bf9049e6322e8a",
         ),
         `in`.jphe.storyvox.source.notion.TechEmpowerFiction.SinglePage(
             id = "donate",
             title = "Donate",
             description = "Support TechEmpower's mission.",
             pageId = "59d8a4dab0cc484f8b044d33f240ce1d",
+            // v0.5.66 banner wire-up — same page as the fiction body.
+            coverPageId = "59d8a4dab0cc484f8b044d33f240ce1d",
         ),
     )
 }
