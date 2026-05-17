@@ -9,6 +9,30 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.67] — 2026-05-16
+
+**Notion banners + tablet SQLite crash fix.** Two PRs caught by the v1.0 graphics-capture pass.
+
+### Added (#653) — `format.page_cover` now flows to TechEmpower tile + detail covers
+- Pre-fix: `AnonymousNotionDelegate.buildTechEmpowerTiles()` hardcoded `coverUrl = null` for all 4 TechEmpower fictions. The 3 detail handlers (`pageListDetail`/`collectionDetail`/`singlePageDetail`) also dropped covers. So Notion page banners JP set via "Add cover" never reached the Browse grid or FictionDetail screen.
+- Fix: new `coverPageId` field on `TechEmpowerFiction` sealed-class variants, pinned in `NotionDefaults`:
+  - Guides → `6c979ba4e43f48d7a4836e0027ea4178` (first chapter "How to use TechEmpower.org")
+  - Resources → `2a3d706803c649409e74e9ce5ccd4c4b` (the database block itself)
+  - About → `dbf0ddece2ce468fb2bf9049e6322e8a` (its own pageId)
+  - Donate → `59d8a4dab0cc484f8b044d33f240ce1d` (its own pageId)
+- Shared `extractCoverFromRecordMap(coverPageId, recordMap)` helper runs the standard `readCoverUrl` → `readBodyImageUrl` cascade. Browse + FictionDetail both use it.
+- HTTP cost: Browse goes from 0 → 1 `loadPageChunk(rootPageId)` call (~290 KB CDN-cached). Any cover-page-id not in the welcome chunk fans out in parallel via `coroutineScope { async }.awaitAll()`. 9 new tests pin the contract.
+
+### Fixed (#654) — Tablet Guides FictionDetail crash on second open
+Caught by the v1.0 graphics-capture agent on R83W80CAFZB:
+```
+SQLiteConstraintException: UNIQUE constraint failed: chapter.fictionId, chapter.index
+  at ChapterDao.upsertChaptersForFiction
+```
+- **Root cause traced** (kdoc'd in the new `ChapterDao` method): the original v0.5.65+ refresh succeeded ONCE — it parked "EBT spending" at `index=100004` (#349's feed-window park mechanism) while writing the 7 new chapters at indexes 0-6. The crash hit on the **second** open: `parkChapterIndexesFor` only acts on rows with `index < 100000`, so the 7 live rows got bumped to 100000-100006, and `100004` collided with the still-parked EBT-spending row.
+- Fix: rewrote `@Transaction upsertChaptersForFiction` to `deleteByFictionId(fictionId)` THEN `insertAll(chapters)`. Body-preservation for surviving chapters still happens upstream in `FictionRepositoryImpl.upsertDetail` per-PK merge, so the wipe is safe.
+- Tablet-verified (without `pm clear` so the stale DB state persists): three consecutive opens of Library → TechEmpower → Browse Resources → Guides, all clean. Logcat `grep -c SQLiteConstraint` = 0.
+
 ## [0.5.66] — 2026-05-16
 
 **Magical loading animations.** Replaces Material's sterile `CircularProgressIndicator` arc with Library Nocturne brass sigils across every loading surface. v1.0 Play Store Internal Test candidate.
