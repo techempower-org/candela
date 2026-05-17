@@ -9,6 +9,50 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.68] — 2026-05-17
+
+**Beta-channel candidate.** Five PRs closing eleven issues — the last critical-path bundle before Play Store Internal Test.
+
+### Fixed (#664) — PLOS Browse silently empty (`journal_key` retired)
+Caught by the v1.0 tablet sweep on R83W80CAFZB. Browse → PLOS rendered no content, no spinner, no error — the silent worst-case empty state. Root cause: PLOS retired the `journal_key` Solr field at some point post-2024; `fq=journal_key:PLOSONE` now returns `numFound=0`.
+- **Fix** (PR #665): swap to `journal:"PLOS ONE"` (case-insensitive Solr name match) → ~2.8M docs.
+- Layered second fix on top: `fq=doc_type:full` drops per-section sub-docs (`/title`, `/abstract`, `/body`, `/references` — PLOS indexes each article N+1 times). Without it, Browse rendered the parent article alongside 5+ DOI-fragment duplicate cards. After: ~330k unique full articles with proper titles + author bylines.
+
+### Fixed (#663) — arXiv silently empty (cleartext HTTP blocked by Android)
+Same tablet sweep caught arXiv → empty body. `http://export.arxiv.org/api/query` was the endpoint since #378, on the theory that arXiv's HTTP→HTTPS 301 would be followed transparently. That works on desktop curl but not on Android: `network_security_config.xml` only allows cleartext to `palace.jphe.in`, so the OS blocks the initial HTTP request before OkHttp can follow the 301.
+- **Fix**: switch `QUERY_BASE` const to HTTPS directly. `followRedirects` + `followSslRedirects` stay on as belt-and-suspenders.
+- Tablet verify: cs.AI papers render — *ATLAS: Agentic or Latent Visual Reasoning?*, *EntityBench*, *Quantitative Video World Model Evaluation*.
+
+### Fixed (#661) — Sync sign-in fails on R8/release: "element class t8.e is not available"
+JP hit `element class t8./e is not available` (tablet release) and `kotlinx.serialization.json.JsonArray not available` (phone debug-minified) on his first InstantDB sync. v1.0 blocker — sync sign-in is the Beta channel onboarding path.
+- **Root cause**: R8 obfuscated `kotlinx.serialization.json.JsonObject` → `t8.e`. The existing umbrella keeps `@Serializable class **` and `**$$serializer` but the JSON tree types are NOT `@Serializable` — they use hand-written serializers in `kotlinx.serialization.json.internal` that dispatch by concrete subtype name at decode time.
+- Surface: `:core-sync/WsInstantBackend.kt` calls `json.encodeToString(JsonObject.serializer(), msg)` for the InstantDB WebSocket envelope.
+- **Fix** (PR #662): add the canonical kotlinx-serialization-json keep set (`-keep class kotlinx.serialization.json.** { *; }` + `.internal.` + `.descriptors.` + module `.internal.`).
+- Verified: `strings classes*.dex | grep -c 'kotlinx/serialization/json/'` = 201 unobfuscated refs.
+
+### Fixed (#656) — Royal Road browse broken after sign-in
+`BrowseViewModel.royalRoadSignedIn` read only the DataStore `UiSettings.isSignedIn` flag, which drifted from `AuthRepository.sessionState(ROYAL_ROAD)` after sign-in paths that flipped session state without persisting. Browse stayed "logged out" with a valid session.
+- **Fix** (PR #659): OR-combine both signals. DataStore is the persisted-across-process truth; session-state covers the in-memory transition window.
+
+### Added — Seven settings + a11y fix (PR #660)
+| # | Setting | Chip values | Section |
+|---|---|---|---|
+| #590 | Particle / confetti intensity | None / Subtle / Lush | Appearance |
+| #591 | Skeleton-shimmer style | Off / Pulse / Sigil | Appearance |
+| #592 | Brass pulse intensity | Subtle / Standard / Bold | Appearance |
+| #595 | Sleep-timer shake-extend amount | 5 / 10 / 15 / 30 min | Voice & Playback |
+| #596 | Pre-render chapter count | N+1 / N+2 / N+3 / N+5 | Performance |
+| #597 | Network patience preset | Aggressive (5s) / Default (10s) / Patient (30s) | Performance |
+| #598 | Android Auto items per category | 4 / 6 / 8 / 12 | Advanced (new) |
+| #651 | Voices section-header content-desc fix | — | A11y |
+
+New `LocalParticleIntensity`, `LocalSkeletonStyle`, `LocalBrassPulseRange` CompositionLocals wired through `MainActivity`. New `AdvancedSettingsScreen.kt` + `SETTINGS_ADVANCED` route. Network-patience routed via per-call OkHttp Interceptors in royalroad / notion / rss (Dagger cycle broken by `Lazy<FictionSource>`).
+
+### Under the hood
+- Closed six v1.x deferrals as `deferred-to-v1.x`: #465 eBay, #147 knowledge graph, #244 RFC registry, #243 RR outreach, #242 RR authors, #425 CI workflow tweak.
+- Open-issue count: **22 → 7** in one session.
+- Tablet-verified backends post-merge: TechEmpower / Notion (default), arXiv, Hacker News, GitHub, Wikipedia, Wikisource, Standard Ebooks, Radio, PLOS. Auth-required correct silent state: AO3, Discord, Telegram, MemPalace, Outline.
+
 ## [0.5.67] — 2026-05-16
 
 **Notion banners + tablet SQLite crash fix.** Two PRs caught by the v1.0 graphics-capture pass.
