@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.source.ao3.auth
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -54,6 +55,15 @@ fun Ao3AuthWebView(
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.userAgentString = Ao3Api.USER_AGENT
+                // #688 — keep the autofill framework alive inside our WebView.
+                // Default `importantForAutofill` toggled across API levels; being
+                // explicit ensures Bitwarden / 1Password / Chrome autofill see
+                // the form-field tree on every API >= 26. saveFormData is
+                // separately gated and also flips between OS versions, so set
+                // it directly rather than trust the default.
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+                @Suppress("DEPRECATION")
+                settings.saveFormData = true
                 CookieManager.getInstance().setAcceptCookie(true)
                 CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 

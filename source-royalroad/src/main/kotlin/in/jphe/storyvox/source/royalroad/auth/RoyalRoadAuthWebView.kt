@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.source.royalroad.auth
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -40,6 +41,18 @@ fun RoyalRoadAuthWebView(
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.userAgentString = RoyalRoadIds.USER_AGENT
+                // #688 — keep the autofill framework alive inside our WebView.
+                // Default `importantForAutofill` toggled across API levels; being
+                // explicit ensures Bitwarden / 1Password / Chrome autofill see
+                // the form-field tree on every API >= 26. saveFormData is
+                // separately gated and also flips between OS versions, so set
+                // it directly rather than trust the default. Royal Road's
+                // login form already carries `autocomplete="email"` +
+                // `autocomplete="current-password"`, so once the WebView opts
+                // in here, password managers latch on with no DOM tweaks.
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+                @Suppress("DEPRECATION")
+                settings.saveFormData = true
                 CookieManager.getInstance().setAcceptCookie(true)
                 CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
