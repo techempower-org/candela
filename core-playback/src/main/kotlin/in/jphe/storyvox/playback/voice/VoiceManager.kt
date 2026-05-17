@@ -589,11 +589,32 @@ class VoiceManager @Inject constructor(
             // value is now present, bail without overwriting.
             if (!p[VoiceKeys.ACTIVE_ID].isNullOrBlank()) return@edit
             p[VoiceKeys.ACTIVE_ID] = firstEntry.id
-            // Don't auto-dismiss the picker — even though we picked a
-            // voice for the user, we still want to show the Voice
-            // Picker Gate on first launch so they can pick something
-            // else if they prefer. The gate's dismiss is gated by the
-            // user's explicit choice, not by our seed.
+            // Issue #682 — auto-dismiss the gate.
+            //
+            // The previous design left the gate armed even after a
+            // successful System TTS seed so "the user still gets to
+            // choose". On-device verify with R5CRB0W66MK (v0.5.70)
+            // proved that's the wrong call: the user walks "Get
+            // started → Pick a voice (Skip) → What would you like
+            // to hear? → Browse TechEmpower" and the picker
+            // RE-APPEARS with download-only Piper voices, defeating
+            // the entire #676 zero-download unlock. The 5-year-old /
+            // sight-impaired goal personas hit the SAME download
+            // barrier #676 was supposed to eliminate.
+            //
+            // When we successfully seeded a System TTS voice (i.e.
+            // the OS has at least one), the user has a working
+            // voice — first listen needs zero downloads. They can
+            // still swap voices via Settings → Voice library; the
+            // sticky-dismissed flag stops the gate from re-prompting.
+            //
+            // We only flip the flag when the seed actually wrote an
+            // active voice; if the OS has no TTS engines (verified
+            // on Samsung Tab A7 Lite with 0 voices), the early
+            // `if (roster.isEmpty()) return` above prevents us from
+            // reaching this edit block, so the gate stays armed and
+            // the user gets the download-first flow as before.
+            p[VoiceKeys.PICKER_DISMISSED] = true
         }
     }
 
