@@ -437,16 +437,70 @@ class DefaultPlaybackController @Inject constructor(
      */
     private suspend fun runBufferingWatchdog(p: EnginePlayer) {
         var watchdogJob: kotlinx.coroutines.Job? = null
+        // Issue #640 — two-tier watchdog. Distinguishes intra-chapter
+        // underrun pauses (false-positive) from genuinely stuck states
+        // (legitimate fire) by the presence of `currentSentenceRange`,
+        // and runs each on its own threshold.
+        //
+        // Before this disambiguation, the consumer's catch-up-pause branch
+        // ([EnginePlayer] line ~2161, the
+        // `bufferHeadroomMs < BUFFER_UNDERRUN_THRESHOLD_MS` path) set
+        // `isBuffering = true` mid-chapter without clearing
+        // `currentSentenceRange`. On Piper-low / Z Flip 3 (sub-realtime
+        // synth), that underrun pause held for >1.5 s as the producer
+        // caught up — the watchdog fired in the middle of chapter 1,
+        // called `advanceChapter(1)`, which interrupted the still-running
+        // consumer mid-write, and stranded chapter 2's pipeline
+        // half-constructed. The user saw "Reconnecting — please wait"
+        // (AudioOutputStuck) with audio focus held but no PCM moving.
+        //
+        // The two legitimate "buffering" states are now disambiguated by
+        // `currentSentenceRange`:
+        //
+        //   - **Chapter-transition buffering** (`currentSentenceRange == null`):
+        //     set by handleChapterDone / advanceChapter / loadAndPlay
+        //     before the new pipeline emits its first sentence. This IS
+        //     the case the watchdog is designed for — natural-end advance
+        //     failed to land, fire a fallback advance. Fast threshold
+        //     (`BUFFERING_STUCK_WATCHDOG_MS` = 1.5 s, original behaviour)
+        //     so the gap between chapters stays imperceptible.
+        //
+        //   - **Intra-chapter underrun / end-of-chapter without natural-end**
+        //     (`currentSentenceRange != null`): consumer is parked on the
+        //     bufferHeadroom flow with the last-played sentence range
+        //     still in state. On healthy CPU the producer catches up
+        //     within a few hundred ms; on Piper-low / slow CPU it can
+        //     hold for several seconds; in the worst case (the natural-
+        //     end branch silently failing to fire on Notion sources)
+        //     it holds forever. Slow threshold
+        //     (`BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS` = 12 s) gives
+        //     legitimate underruns ample time to resolve naturally, then
+        //     kicks the same fallback advance for the truly-stuck case.
+        //
+        // Triple is `(transitionBuffering, endOfChapterBuffering, chapterId)`.
+        // distinctUntilChanged emits on any transition; the collect
+        // cancels the prior watchdog and arms a new one with the right
+        // threshold for whichever state we landed in.
         p.observableState
-            .map { (it.isBuffering && it.currentChapterId != null) to it.currentChapterId }
+            .map {
+                val buffering = it.isBuffering && it.currentChapterId != null
+                val transition = buffering && it.currentSentenceRange == null
+                val endOfChapter = buffering && it.currentSentenceRange != null
+                Triple(transition, endOfChapter, it.currentChapterId)
+            }
             .distinctUntilChanged()
-            .collect { (buffering, chapterId) ->
+            .collect { (transition, endOfChapter, chapterId) ->
                 watchdogJob?.cancel()
                 watchdogJob = null
-                if (!buffering || chapterId == null) return@collect
+                if ((!transition && !endOfChapter) || chapterId == null) return@collect
                 val armedFor = chapterId
+                val threshold = if (transition) {
+                    BUFFERING_STUCK_WATCHDOG_MS
+                } else {
+                    BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS
+                }
                 watchdogJob = scope.launch {
-                    kotlinx.coroutines.delay(BUFFERING_STUCK_WATCHDOG_MS)
+                    kotlinx.coroutines.delay(threshold)
                     val nowState = p.observableState.value
                     // Only fire if we're STILL buffering AND still on
                     // the same chapter id (i.e. nothing else has
@@ -797,22 +851,37 @@ class DefaultPlaybackController @Inject constructor(
          *  [skipConfig.rewindToStartThresholdSec] Flow. */
         internal const val REWIND_TO_START_THRESHOLD_SEC = 3f
 
-        /** Issue #553 — buffering-stuck watchdog threshold. If
-         *  `isBuffering=true` holds on the same chapter id for this long
-         *  without a state transition (advance, error, user pause), fire
-         *  a fallback `advanceChapter(1)` to recover. Started at 8 s
-         *  (cautious), lowered to 1.5 s once on-device testing confirmed
-         *  the engine-side primary advance silently fails to fire at
-         *  natural chapter end on Notion sources — the watchdog is the
-         *  *only* working advance path on that backend, and 8 s is far
-         *  too noticeable as the gap between chapters (target:
-         *  Spotify/Apple Music-grade, essentially imperceptible). If
-         *  the next chapter body isn't downloaded by the time the
-         *  watchdog fires, advanceChapter itself still has a 30 s
-         *  internal timeout, so a false-positive is harmless — the
-         *  fallback advance just waits on the same future the engine-
-         *  side advance would have waited on. */
+        /** Issue #553 — buffering-stuck watchdog threshold for the
+         *  **chapter-transition** path (sentence range cleared, new
+         *  pipeline hasn't emitted yet). Kept fast (1.5 s) so the gap
+         *  between chapters stays imperceptible — Spotify/Apple
+         *  Music-grade pacing. Issue #640 added a structural gate on
+         *  `currentSentenceRange == null` (see [runBufferingWatchdog])
+         *  so the false-positive case (intra-chapter underrun) routes
+         *  to [BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS] instead. */
         internal const val BUFFERING_STUCK_WATCHDOG_MS = 1_500L
+
+        /** Issue #640 — buffering-stuck watchdog threshold for the
+         *  **intra-chapter / end-of-chapter** path (sentence range still
+         *  set). Longer (12 s) because legitimate underrun pauses on
+         *  slow CPUs (Piper-low / Z Flip 3) can hold for several
+         *  seconds before the producer catches up, and firing a
+         *  chapter advance mid-chapter is catastrophic — interrupts
+         *  the still-running consumer, strands the new chapter's
+         *  pipeline half-constructed, and leaves the user on
+         *  "Reconnecting — please wait" with audio focus held but no
+         *  PCM moving.
+         *
+         *  This path also covers the worst-case scenario where the
+         *  consumer's natural-end branch silently fails to fire (the
+         *  original #553 root cause): the producer has emitted every
+         *  sentence but END_PILL never surfaced through `nextChunk()`
+         *  on Notion sources for reasons that still resist
+         *  reproduction in unit tests. After 12 s of stuck-with-
+         *  sentence-range we conclude the chapter is genuinely over
+         *  and fire the fallback advance — same recovery path the
+         *  manual skip-next button uses. */
+        internal const val BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS = 12_000L
 
         /**
          * #531 / #550 — pure-function exports of the seek math so JVM unit
