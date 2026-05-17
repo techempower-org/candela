@@ -100,36 +100,71 @@ class PlaybackSmoothnessFollowupTest {
 
     // ─── #553: buffering-stuck watchdog ──────────────────────────────
 
-    @Test
-    fun `watchdog fires once when isBuffering stays stuck on same chapter`() = runTest {
-        val state = MutableStateFlow(
-            PlaybackState(currentChapterId = "ch1", isPlaying = true, isBuffering = true),
-        )
-        var firedFor: String? = null
-        val job = launch {
-            // Inline replica of the watchdog (slimmer than collecting
-            // the full controller's flow chain).
-            var watchdog: kotlinx.coroutines.Job? = null
-            state
-                .map { (it.isBuffering && it.currentChapterId != null) to it.currentChapterId }
-                .distinctUntilChanged()
-                .collect { (buffering, chapterId) ->
-                    watchdog?.cancel()
-                    if (!buffering || chapterId == null) return@collect
-                    val armedFor = chapterId
-                    watchdog = launch {
-                        delay(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS)
-                        val s = state.value
-                        if (
-                            s.isBuffering &&
-                            s.currentChapterId == armedFor &&
-                            s.error == null
-                        ) {
-                            firedFor = armedFor
-                        }
+    /**
+     * Inline replica of [DefaultPlaybackController.runBufferingWatchdog],
+     * trimmed to what the JVM tests need (no controller-scope, no
+     * EnginePlayer dispatch). Mirrors the production two-tier gate
+     * exactly — `currentSentenceRange == null` selects the fast
+     * 1.5 s chapter-transition threshold; sentence range set selects
+     * the slow 12 s intra-chapter / end-of-chapter threshold so we
+     * don't fire mid-chapter on a Piper-low underrun pause (the #640
+     * v1.0 blocker symptom).
+     *
+     * Returns a launched Job that records the armed chapter id into
+     * [onFire] when the watchdog actually triggers; cancel the job in
+     * tests' tearDown to avoid leaking a runTest coroutine.
+     */
+    private fun kotlinx.coroutines.CoroutineScope.runInlineWatchdog(
+        state: MutableStateFlow<PlaybackState>,
+        onFire: (String) -> Unit,
+    ) = launch {
+        var watchdog: kotlinx.coroutines.Job? = null
+        state
+            .map {
+                val buffering = it.isBuffering && it.currentChapterId != null
+                val transition = buffering && it.currentSentenceRange == null
+                val endOfChapter = buffering && it.currentSentenceRange != null
+                Triple(transition, endOfChapter, it.currentChapterId)
+            }
+            .distinctUntilChanged()
+            .collect { (transition, endOfChapter, chapterId) ->
+                watchdog?.cancel()
+                if ((!transition && !endOfChapter) || chapterId == null) return@collect
+                val armedFor = chapterId
+                val threshold = if (transition) {
+                    DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS
+                } else {
+                    DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS
+                }
+                watchdog = launch {
+                    delay(threshold)
+                    val s = state.value
+                    if (
+                        s.isBuffering &&
+                        s.currentChapterId == armedFor &&
+                        s.error == null
+                    ) {
+                        onFire(armedFor)
                     }
                 }
-        }
+            }
+    }
+
+    @Test
+    fun `watchdog fires once when isBuffering stays stuck on same chapter`() = runTest {
+        // Chapter-transition buffering: sentence range null because the
+        // new pipeline hasn't emitted its first sentence yet. This is
+        // the case the watchdog exists to recover.
+        val state = MutableStateFlow(
+            PlaybackState(
+                currentChapterId = "ch1",
+                isPlaying = true,
+                isBuffering = true,
+                currentSentenceRange = null,
+            ),
+        )
+        var firedFor: String? = null
+        val job = runInlineWatchdog(state) { firedFor = it }
         // Less than the threshold — watchdog should not have fired yet.
         advanceTimeBy(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS / 2)
         assertNull("watchdog fired prematurely", firedFor)
@@ -142,42 +177,22 @@ class PlaybackSmoothnessFollowupTest {
     @Test
     fun `watchdog cancels when chapter changes before threshold`() = runTest {
         val state = MutableStateFlow(
-            PlaybackState(currentChapterId = "ch1", isPlaying = true, isBuffering = true),
+            PlaybackState(
+                currentChapterId = "ch1",
+                isPlaying = true,
+                isBuffering = true,
+                currentSentenceRange = null,
+            ),
         )
         var firedFor: String? = null
-        val job = launch {
-            var watchdog: kotlinx.coroutines.Job? = null
-            state
-                .map { (it.isBuffering && it.currentChapterId != null) to it.currentChapterId }
-                .distinctUntilChanged()
-                .collect { (buffering, chapterId) ->
-                    watchdog?.cancel()
-                    if (!buffering || chapterId == null) return@collect
-                    val armedFor = chapterId
-                    watchdog = launch {
-                        delay(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS)
-                        val s = state.value
-                        if (
-                            s.isBuffering &&
-                            s.currentChapterId == armedFor &&
-                            s.error == null
-                        ) {
-                            firedFor = armedFor
-                        }
-                    }
-                }
-        }
-        // Chapter advances naturally before the watchdog threshold.
-        // v0.5.57 (#557) — watchdog dropped from 8 s → 1.5 s, so the
-        // "advance well before threshold" probe has to be sub-threshold.
-        // Pre-fix this advanced 2 s which now overshoots the 1.5 s
-        // watchdog, fires it, and trips the assertNull on the test below.
+        val job = runInlineWatchdog(state) { firedFor = it }
+        // Chapter advances naturally well before the watchdog threshold.
         advanceTimeBy(500L)
         state.value = state.value.copy(
             currentChapterId = "ch2",
             isBuffering = false,
         )
-        // Now well past the original threshold.
+        // Now well past the threshold.
         advanceTimeBy(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS + 1_000L)
         assertNull("watchdog should have cancelled on chapter change", firedFor)
         job.cancel()
@@ -186,35 +201,15 @@ class PlaybackSmoothnessFollowupTest {
     @Test
     fun `watchdog cancels when isBuffering clears before threshold`() = runTest {
         val state = MutableStateFlow(
-            PlaybackState(currentChapterId = "ch1", isPlaying = true, isBuffering = true),
+            PlaybackState(
+                currentChapterId = "ch1",
+                isPlaying = true,
+                isBuffering = true,
+                currentSentenceRange = null,
+            ),
         )
         var firedFor: String? = null
-        val job = launch {
-            var watchdog: kotlinx.coroutines.Job? = null
-            state
-                .map { (it.isBuffering && it.currentChapterId != null) to it.currentChapterId }
-                .distinctUntilChanged()
-                .collect { (buffering, chapterId) ->
-                    watchdog?.cancel()
-                    if (!buffering || chapterId == null) return@collect
-                    val armedFor = chapterId
-                    watchdog = launch {
-                        delay(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS)
-                        val s = state.value
-                        if (
-                            s.isBuffering &&
-                            s.currentChapterId == armedFor &&
-                            s.error == null
-                        ) {
-                            firedFor = armedFor
-                        }
-                    }
-                }
-        }
-        // v0.5.57 (#557) — watchdog dropped from 8 s → 1.5 s, so the
-        // "advance well before threshold" probe has to be sub-threshold.
-        // Pre-fix this advanced 2 s which now overshoots the 1.5 s
-        // watchdog, fires it, and trips the assertNull on the test below.
+        val job = runInlineWatchdog(state) { firedFor = it }
         advanceTimeBy(500L)
         // Buffering clears (e.g., chapter body landed, audio started).
         state.value = state.value.copy(isBuffering = false)
@@ -226,35 +221,15 @@ class PlaybackSmoothnessFollowupTest {
     @Test
     fun `watchdog does not fire when error surfaces before threshold`() = runTest {
         val state = MutableStateFlow(
-            PlaybackState(currentChapterId = "ch1", isPlaying = true, isBuffering = true),
+            PlaybackState(
+                currentChapterId = "ch1",
+                isPlaying = true,
+                isBuffering = true,
+                currentSentenceRange = null,
+            ),
         )
         var firedFor: String? = null
-        val job = launch {
-            var watchdog: kotlinx.coroutines.Job? = null
-            state
-                .map { (it.isBuffering && it.currentChapterId != null) to it.currentChapterId }
-                .distinctUntilChanged()
-                .collect { (buffering, chapterId) ->
-                    watchdog?.cancel()
-                    if (!buffering || chapterId == null) return@collect
-                    val armedFor = chapterId
-                    watchdog = launch {
-                        delay(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS)
-                        val s = state.value
-                        if (
-                            s.isBuffering &&
-                            s.currentChapterId == armedFor &&
-                            s.error == null
-                        ) {
-                            firedFor = armedFor
-                        }
-                    }
-                }
-        }
-        // v0.5.57 (#557) — watchdog dropped from 8 s → 1.5 s, so the
-        // "advance well before threshold" probe has to be sub-threshold.
-        // Pre-fix this advanced 2 s which now overshoots the 1.5 s
-        // watchdog, fires it, and trips the assertNull on the test below.
+        val job = runInlineWatchdog(state) { firedFor = it }
         advanceTimeBy(500L)
         // Error surfaces — engine already gave up; watchdog should NOT
         // double-fire an advance.
@@ -264,6 +239,89 @@ class PlaybackSmoothnessFollowupTest {
         advanceTimeBy(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS + 1_000L)
         assertNull(
             "watchdog should defer to the typed error path",
+            firedFor,
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun `watchdog defers past fast threshold when sentence range is set (issue #640)`() = runTest {
+        // #640 v1.0 blocker — on Piper-low / Z Flip 3 the consumer's
+        // catch-up-pause branch flips isBuffering=true mid-chapter when
+        // bufferHeadroomMs drops below the underrun threshold.
+        // `currentSentenceRange` stays non-null because the consumer is
+        // still inside a chapter — that's the structural marker that
+        // separates this case from chapter-transition buffering.
+        //
+        // Pre-fix the watchdog ignored currentSentenceRange, fired
+        // after the 1.5 s threshold, called advanceChapter(1) MID
+        // CHAPTER, interrupted the still-running consumer, and
+        // stranded the new pipeline. Symptom: phone shows "Reconnecting
+        // — please wait" with audio focus held but no PCM moving.
+        //
+        // Post-fix the watchdog routes sentence-range-set buffering
+        // to the slower 12 s threshold instead, giving legitimate
+        // underrun pauses ample time to resolve naturally.
+        val state = MutableStateFlow(
+            PlaybackState(
+                currentChapterId = "ch1",
+                isPlaying = true,
+                isBuffering = true,
+                // Non-null sentence range == we're still inside a
+                // chapter, this is an intra-chapter underrun, NOT a
+                // chapter-transition stuck state.
+                currentSentenceRange = SentenceRange(
+                    startCharInChapter = 100,
+                    endCharInChapter = 200,
+                    sentenceIndex = 3,
+                ),
+            ),
+        )
+        var firedFor: String? = null
+        val job = runInlineWatchdog(state) { firedFor = it }
+        // Past the FAST (chapter-transition) threshold — watchdog must
+        // NOT fire yet, because firing would interrupt the running
+        // consumer mid-chapter.
+        advanceTimeBy(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_MS + 2_000L)
+        assertNull(
+            "watchdog must NOT fire at the fast threshold while a " +
+                "sentence is still being played — that's an intra-chapter " +
+                "underrun, not a stuck chapter transition",
+            firedFor,
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun `watchdog eventually fires on truly stuck end-of-chapter (issue #640 recovery)`() = runTest {
+        // Companion to the #640 deferral test above — once we cross
+        // the slow [BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS]
+        // threshold (12 s) with sentence range still set, the
+        // watchdog DOES fire so the user isn't left forever on a
+        // chapter that has silently failed to advance through the
+        // natural-end path (the original #553 symptom that survived
+        // on Notion sources).
+        val state = MutableStateFlow(
+            PlaybackState(
+                currentChapterId = "ch1",
+                isPlaying = true,
+                isBuffering = true,
+                currentSentenceRange = SentenceRange(
+                    startCharInChapter = 100,
+                    endCharInChapter = 200,
+                    sentenceIndex = 3,
+                ),
+            ),
+        )
+        var firedFor: String? = null
+        val job = runInlineWatchdog(state) { firedFor = it }
+        // Past the slow threshold — watchdog SHOULD fire as the
+        // recovery path for a genuinely stuck consumer.
+        advanceTimeBy(DefaultPlaybackController.BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS + 1_000L)
+        assertEquals(
+            "watchdog should fire on the slow threshold to recover " +
+                "from a stuck end-of-chapter that never reached natural-end",
+            "ch1",
             firedFor,
         )
         job.cancel()
