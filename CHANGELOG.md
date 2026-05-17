@@ -9,6 +9,40 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.71] — 2026-05-17
+
+**v1.0 candidate (final).** Picker auto-dismiss patch + on-device verification.
+
+### Fixed (#682, v1.0 blocker) — Picker re-shows after Skip on first-launch (PR #683)
+Caught by on-device verify of v0.5.70 on phone R5CRB0W66MK (Google TTS, 22 voices enumerated). The user walked Welcome → Pick a voice → Skip — I'll choose later → What would you like to hear? → Browse TechEmpower, and the download-only Piper picker **re-appeared**, defeating the entire #676 zero-download unlock.
+
+Two-layer fix:
+- `VoiceManager.seedSystemTtsDefaultIfUnset()` now flips `PICKER_DISMISSED = true` when it successfully writes an active System TTS voice. The previous design ("don't auto-dismiss, the user still gets to choose") was the wrong call for the goal-hook personas — the sticky-dismissed flag stops the gate from re-blocking later flows, and Settings → Voice library is the path for users who want to swap voices.
+- `VoicePickerOnboarding` adds a `LaunchedEffect(Unit)` that checks `initialActive` on first composition: if a voice is already set (seed beat the picker), `onContinue()` immediately and skip to the next step.
+
+**Known partial**: async race between seed completion (TextToSpeech.onInit can take 100-500ms) and picker composition. When the seed loses the race, two fallbacks still work: the Skip button is a manual one-tap escape, and the dismissed flag prevents re-gating on later flows. Fully synchronous seed before any UI composes is filed as a v1.x polish (would require a "preparing your voice…" splash or a foreground-blocking init pattern).
+
+### Verified on-device (Z Flip 3 + Samsung Tab A7 Lite)
+| Surface | Tablet (no TTS engine) | Phone (Google TTS, 22 voices) |
+|---|---|---|
+| System TTS enumeration | 0 voices, graceful fallthrough | 22 voices ✓ |
+| First-launch picker | Shows download-required Piper voices (correct — no other option) | Sometimes auto-skips, otherwise Skip button works |
+| Goal-hook unlock | Doesn't apply (filed #681 for Install-Google-TTS deep-link) | Works after Skip or auto-skip |
+| Local empty-state CTA | ✓ Launches SAF picker | ✓ |
+| Readability hint | ✓ | ✓ |
+| Wikipedia titles (no &amp;lt;i&amp;gt;) | ✓ | ✓ |
+| End-of-book overlay | Pending verification (long auto-advance not re-run this session) | Pending verification |
+| Voice library subtitle | ✓ Reads "Browse and switch between available voices" | ✓ |
+
+### Open issues at v0.5.71 cut
+- #392 Propel partnership outreach (non-code, JP-actionable)
+- #678 Now-playing mini-dock (v1.x, swipe-left still works)
+- #681 TTS-less device deep-link (v1.x improvement)
+- #682 Async race remaining (v1.x polish, fallbacks cover v1.0)
+
+### Under the hood
+v0.5.71 is the AAB v1.0 candidate. Same release keystore as v0.5.68+ (SHA256 `38:9F:BD:AA…85:E0:16`).
+
 ## [0.5.70] — 2026-05-17
 
 **v1.0 candidate.** Four-PR bundle closing 8 issues caught by the parallel find-issues device sweep. Zero-download voice on first launch, terminal-state UI, three silent-empty backends fixed, three copy fixes.
