@@ -9,6 +9,38 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.63] — 2026-05-16
+
+**v1.0 phone playback blocker fix.** Caught in JP-requested end-to-end phone verification: tap-to-play timed out after 30s with no audio, no AudioFocus, no AudioTrack on R5CRB0W66MK (Z Flip 3). PR #641 root-causes + fixes.
+
+### Fixed (#641, closes #640) — phone playback timeout
+
+**Root cause**: the #553 buffering-stuck watchdog couldn't tell apart **chapter-transition buffering** (legit fast 1.5s recovery target) from **intra-chapter producer-underrun** (Piper-low synth sub-realtime on phone — normal, recovers within seconds). On phone with Piper-low voice, the consumer's catch-up-pause branch in `EnginePlayer.kt` set `isBuffering=true` mid-chapter without clearing `currentSentenceRange`. Watchdog fired at 1.5s, called `advanceChapter(1)` while chapter 1 was still playing, interrupted the live consumer, and stranded chapter 2's pipeline half-built. User saw `AudioOutputStuck` ("Reconnecting — please wait") with audio focus held but no PCM moving.
+
+The smoking-gun log line (release variant captured via diagnostic build):
+```
+W PlaybackController: #553 watchdog: isBuffering stuck on notion:guides::6c979ba4...
+   for 1500ms; firing fallback advance via nextChapter()
+```
+Fired at chapter 1 position ~56s of 78s — well before natural end.
+
+**Fix**: two-tier watchdog gated on `currentSentenceRange`:
+- `currentSentenceRange == null` → chapter-transition (fast 1.5 s threshold) — preserves the original #553 worst-case recovery.
+- `currentSentenceRange != null` → intra-chapter / end-of-chapter (slow 12 s threshold) — gives Piper-low underruns time to resolve without the watchdog stomping the live consumer.
+
+Tablet wasn't affected because its faster CPU keeps the producer ahead of the consumer — underrun never holds past 1.5 s. Phone-only failure matched the issue's observation profile.
+
+### Verified on R5CRB0W66MK (release variant)
+- Cold launch → onboarding skip → TechEmpower hero → Browse Resources → Guides → tap Play
+- Chapter 1 played to natural end (1:18)
+- Audio focus acquired (`dumpsys audio | grep storyvox` → `gain: GAIN`)
+- Mid-chapter manual skip-next transitioned to chapter 2 ("Free internet", 4:15) in **317 ms**
+- Engine logs: `advanceChapter` → body wait → `loadAndPlay` → `#569 skipping loadModel` (cache hit) → `pcm-cache MISS chapter=bb5e537b...` → `advanceChapter: complete, now playing`
+- No watchdog misfire
+
+### Under the hood
+- 10/10 watchdog tests green, including two new ones covering #640: `watchdog defers past fast threshold when sentence range is set` + `watchdog eventually fires on truly stuck end-of-chapter`.
+
 ## [0.5.62] — 2026-05-16
 
 Sweeper + Play-button-overlap fix. Closes JP's animation-speed-in-Settings directive + the misleading "library awaits" empty-state that defeated the v0.5.61 tap-to-play discoverability fix.
