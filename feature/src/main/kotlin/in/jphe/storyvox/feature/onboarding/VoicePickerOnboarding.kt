@@ -83,6 +83,17 @@ fun VoicePickerOnboarding(
     // re-emissions trigger the auto-advance only when the value
     // changes from the initial null state.
     val initialActive = remember { activeVoice }
+    // Issue #682 — if the user already has an active voice when this
+    // step composes (the #676 System TTS seed populated it before
+    // onboarding began), skip the picker entirely. The user can
+    // change voices via Settings → Voice library. Pre-fix the
+    // download-only Piper picker rendered anyway, re-blocking the
+    // exact zero-download path #676 was supposed to enable.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (initialActive != null) {
+            onContinue()
+        }
+    }
     androidx.compose.runtime.LaunchedEffect(activeVoice, downloadingId) {
         // Auto-advance when a download successfully completes:
         //   - activeVoice transitions from initial (typically null)
