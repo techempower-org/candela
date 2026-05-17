@@ -9,6 +9,34 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.66] — 2026-05-16
+
+**Magical loading animations.** Replaces Material's sterile `CircularProgressIndicator` arc with Library Nocturne brass sigils across every loading surface. v1.0 Play Store Internal Test candidate.
+
+### Added (#650) — `MagicCircularProgress` + brass ember overlay + breath shimmer
+- **`MagicCircularProgress`** in `:core-ui/.../component/MagicSpinner.kt` — layered brass sigil (outer dashed ring + inner six-pointed star + faint guide ring + center dot) at 48 dp default. Replaces Material 3 `CircularProgressIndicator` at 3 sites:
+  - `HybridReaderScreen.ExplicitArgsLoadingPrompt` (chapter-tap → controller-emit) — was the "weird arc"
+  - `SyncAuthScreen` — magic-link verify state
+  - `FictionDetailScreen` — initial fiction load
+- **`BrassEmberOverlay`** in `:core-ui/.../component/BrassEmberOverlay.kt` — 6 brass candle-embers drifting upward with sine sway, layered over `AudiobookView`'s warming cover alongside the existing MagicSpinner orbit.
+- **`WhyAreWeWaitingPanel.PulsingBrassSigil`** upgraded — 12 dp alpha-pulse dot → 14 dp `MagicSpinner` brass ring + alpha breath.
+- **`AudiobookView` "Conjuring your chapter…"** title now breathes via `shimmerAlpha()` while empty.
+- **`MagicSpinner` + `MagicSkeletonTile` + `shimmerAlpha()`** now honor `LocalAnimationSpeedScale` (#589) — previously only `LocalReducedMotion`.
+
+### Accessibility — reduced motion + Off animation speed
+Every animation has a deliberate resting pose:
+- `MagicCircularProgress` → outer 0° / inner 30° / pulse 1.0
+- `BrassEmberOverlay` → single resting ember at bottom-center, alpha 0.55
+- `MagicSpinner` → 135° resting pose
+- `MagicSkeletonTile` → 0°/30°/1.0
+- `shimmerAlpha()` → static 0.6
+- `PulsingBrassSigil` → frozen spinner, alpha 0.85
+
+Math gated by `scaleDurationMs(N, 0f) == 0`, pinned by existing `AnimationSpeedScaleTest`.
+
+### Under the hood
+- Tablet-verified visual: Library → Browse → Guides → uncached chapter → new sigil renders, content-desc reads correctly through TalkBack, panel disappears cleanly on back.
+
 ## [0.5.65] — 2026-05-16
 
 **v1.0 GREEN-LIGHT candidate.** Closes the four readiness gaps caught by the persona verification on v0.5.64 (#644 tap count, #645 TalkBack dock, #646 audio-route announce, #647 Browse-TechEmpower direct-route) PLUS the long-standing #558 Notion chapter prefetch timeout.
