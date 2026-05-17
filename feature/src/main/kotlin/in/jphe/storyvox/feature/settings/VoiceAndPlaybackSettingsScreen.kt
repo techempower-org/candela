@@ -134,6 +134,50 @@ fun VoiceAndPlaybackSettingsScreen(
                     onClick = onOpenPronunciationDict,
                 )
             }
+
+            // Issues #593 / #594 — playback transport tunables. The
+            // skip distance chip (#593) drives the +N s / -N s
+            // transport buttons; the rewind-to-start chip (#594)
+            // controls how SkipPrevious behaves mid-chapter. Bundled
+            // because the two prefs pair conceptually — users
+            // calibrate them together for their content style.
+            SettingsGroupCard {
+                // #593 — skip distance. Matches Spotify / Apple Music
+                // / Pocket Casts default of 30s; users on dense
+                // chapters often want 10/15, podcast users 45/60.
+                val skipOptions = listOf(10, 15, 30, 45, 60)
+                val skipSelectedIndex = skipOptions
+                    .indexOfFirst { it == s.skipDistanceSec }
+                    .let { if (it < 0) skipOptions.indexOf(30) else it }
+                SettingsSegmentedBlock(
+                    title = "Skip distance",
+                    subtitle = "Seconds the +N / -N buttons jump per tap.",
+                    options = skipOptions.map { "${it}s" },
+                    selectedIndex = skipSelectedIndex,
+                    onSelected = { idx -> viewModel.setSkipDistanceSec(skipOptions[idx]) },
+                )
+
+                // #594 — rewind-to-start window. When you tap
+                // SkipPrevious *past* this many seconds into a
+                // chapter, it rewinds to the chapter start. Within
+                // this window, it jumps to the previous chapter.
+                // 0 = always go to previous chapter (radio / podcast
+                // users on short content who want fast prev-track
+                // navigation).
+                val rewindOptions = listOf(0, 1, 3, 5, 10)
+                val rewindSelectedIndex = rewindOptions
+                    .indexOfFirst { it == s.rewindToStartThresholdSec }
+                    .let { if (it < 0) rewindOptions.indexOf(3) else it }
+                SettingsSegmentedBlock(
+                    title = "Skip-back: jump to start when within",
+                    subtitle = "Past this point in a chapter, the prev-track button " +
+                        "rewinds to the start. Within it, jumps to the previous chapter. " +
+                        "Off (0s) always goes to the previous chapter.",
+                    options = rewindOptions.map { if (it == 0) "Off" else "${it}s" },
+                    selectedIndex = rewindSelectedIndex,
+                    onSelected = { idx -> viewModel.setRewindToStartThresholdSec(rewindOptions[idx]) },
+                )
+            }
         }
     }
 }

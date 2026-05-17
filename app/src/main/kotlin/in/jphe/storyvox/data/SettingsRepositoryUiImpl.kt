@@ -429,6 +429,21 @@ private object Keys {
      *  values. */
     val VOICE_STEADY = booleanPreferencesKey("pref_voice_steady_v1")
 
+    /** Issue #589 — global animation-speed master multiplier (Float).
+     *  Per-device, NOT synced. Default 1.0× preserves existing behavior
+     *  on fresh installs. */
+    val ANIMATION_SPEED_SCALE = floatPreferencesKey("pref_animation_speed_scale_v1")
+
+    /** Issue #593 — skip distance in seconds (Int). Per-device, NOT
+     *  synced. Default 30s matches Spotify / Apple Music / Pocket Casts. */
+    val SKIP_DISTANCE_SEC = intPreferencesKey("pref_skip_distance_sec_v1")
+
+    /** Issue #594 — rewind-to-start threshold for SkipPrevious, in
+     *  seconds (Int). 0 = disable rewind-to-start (always jump to
+     *  previous chapter). Per-device, NOT synced. Default 3s matches
+     *  every major player. */
+    val REWIND_TO_START_THRESHOLD_SEC = intPreferencesKey("pref_rewind_to_start_threshold_sec_v1")
+
     // ── AI / LLM (issue #81) ────────────────────────────────────────
     /** Active provider — stored as the [ProviderId] enum's name.
      *  Empty/missing = AI disabled. */
@@ -728,6 +743,40 @@ private object Keys {
  *  so neither `=` nor `;` collide with valid IDs. Empty / null input
  *  parses to an empty map. Bad entries are dropped silently — the
  *  override map is non-critical state. */
+/**
+ * Issue #589 — supported animation-speed scale tiers. Mirrors the chip
+ * row in Settings → Appearance: Off / Slow / Normal / Brisk / Fast.
+ * Off is 0 (durations become 0 = instant); other tiers multiply
+ * existing tween durations.
+ *
+ * Exposed as `internal` so the Settings chip-row UI in `:feature` and
+ * the `:core-ui` tweenScaled helper can read the same canonical list
+ * without forking the values.
+ */
+internal val ANIMATION_SPEED_SCALE_TIERS: List<Float> =
+    listOf(0f, 0.5f, 1f, 1.5f, 2f)
+
+internal fun snapAnimationSpeedScale(scale: Float): Float =
+    ANIMATION_SPEED_SCALE_TIERS.minBy { kotlin.math.abs(it - scale) }
+
+/**
+ * Issue #593 — supported skip-distance tiers in seconds. Matches
+ * Spotify (15/30), Apple Music (15/30), Pocket Casts (10/15/30/45/60).
+ */
+internal val SKIP_DISTANCE_TIERS_SEC: List<Int> = listOf(10, 15, 30, 45, 60)
+
+internal fun snapSkipDistanceSec(seconds: Int): Int =
+    SKIP_DISTANCE_TIERS_SEC.minBy { kotlin.math.abs(it - seconds) }
+
+/**
+ * Issue #594 — supported rewind-to-start threshold tiers in seconds.
+ * 0 = disabled. Standard player default is 3s.
+ */
+internal val REWIND_TO_START_TIERS_SEC: List<Int> = listOf(0, 1, 3, 5, 10)
+
+internal fun snapRewindToStartThresholdSec(seconds: Int): Int =
+    REWIND_TO_START_TIERS_SEC.minBy { kotlin.math.abs(it - seconds) }
+
 private fun encodeVoiceFloatMap(map: Map<String, Float>): String =
     map.entries.joinToString(";") { (k, v) -> "$k=$v" }
 
@@ -819,6 +868,7 @@ class SettingsRepositoryUiImpl(
     AzureFallbackConfig,
     ParallelSynthConfig,
     PlaybackResumePolicyConfig,
+    `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
     PronunciationDictRepository,
     LlmConfigProvider,
     GitHubScopePreferences,
@@ -1152,6 +1202,23 @@ class SettingsRepositoryUiImpl(
             coverStyle = prefs[Keys.COVER_STYLE]
                 ?.let { runCatching { CoverStyle.valueOf(it) }.getOrNull() }
                 ?: CoverStyle.Monogram,
+            // Issue #589 — animation-speed master multiplier. Snap to
+            // the supported chip values on read so a corrupt or
+            // legacy value still renders predictably in the picker;
+            // anything off-grid maps to the nearest tier.
+            animationSpeedScale = snapAnimationSpeedScale(
+                prefs[Keys.ANIMATION_SPEED_SCALE] ?: 1.0f,
+            ),
+            // Issue #593 — skip distance in seconds. Coerce to a
+            // supported tier on read.
+            skipDistanceSec = snapSkipDistanceSec(
+                prefs[Keys.SKIP_DISTANCE_SEC] ?: 30,
+            ),
+            // Issue #594 — rewind-to-start threshold. 0 = disable
+            // (always jump to prev chapter). Snap to supported tier.
+            rewindToStartThresholdSec = snapRewindToStartThresholdSec(
+                prefs[Keys.REWIND_TO_START_THRESHOLD_SEC] ?: 3,
+            ),
         )
     }
 
@@ -1355,6 +1422,21 @@ class SettingsRepositoryUiImpl(
     }
 
     override suspend fun currentBufferChunks(): Int = playbackBufferChunks.first()
+
+    // --- PlaybackSkipConfig (issues #593 / #594, consumed by core-playback's PlaybackController) ---
+
+    override val skipDistanceSec: Flow<Int> = store.data.map { prefs ->
+        snapSkipDistanceSec(prefs[Keys.SKIP_DISTANCE_SEC] ?: 30)
+    }
+
+    override suspend fun currentSkipDistanceSec(): Int = skipDistanceSec.first()
+
+    override val rewindToStartThresholdSec: Flow<Int> = store.data.map { prefs ->
+        snapRewindToStartThresholdSec(prefs[Keys.REWIND_TO_START_THRESHOLD_SEC] ?: 3)
+    }
+
+    override suspend fun currentRewindToStartThresholdSec(): Int =
+        rewindToStartThresholdSec.first()
 
     // --- PlaybackModeConfig (issue #98) ---
 
@@ -1915,6 +1997,31 @@ class SettingsRepositoryUiImpl(
     override suspend fun setCoverStyle(style: CoverStyle) {
         store.edit { it[Keys.COVER_STYLE] = style.name }
         stampSyncedWrite()
+    }
+
+    /**
+     * Issue #589 — animation-speed master multiplier. Per-device, NOT
+     * synced (different ergonomic targets per device). Snap to the
+     * supported chip values on write so the persisted state always
+     * matches a UI tier.
+     */
+    override suspend fun setAnimationSpeedScale(scale: Float) {
+        store.edit { it[Keys.ANIMATION_SPEED_SCALE] = snapAnimationSpeedScale(scale) }
+    }
+
+    /**
+     * Issue #593 — skip distance in seconds. Per-device, NOT synced.
+     */
+    override suspend fun setSkipDistanceSec(seconds: Int) {
+        store.edit { it[Keys.SKIP_DISTANCE_SEC] = snapSkipDistanceSec(seconds) }
+    }
+
+    /**
+     * Issue #594 — rewind-to-start threshold for SkipPrevious, in
+     * seconds. 0 = disable. Per-device, NOT synced.
+     */
+    override suspend fun setRewindToStartThresholdSec(seconds: Int) {
+        store.edit { it[Keys.REWIND_TO_START_THRESHOLD_SEC] = snapRewindToStartThresholdSec(seconds) }
     }
 
     // ── Azure Speech Services BYOK (#182, PR-3) ────────────────────

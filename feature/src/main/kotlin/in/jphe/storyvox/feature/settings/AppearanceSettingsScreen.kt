@@ -144,6 +144,44 @@ fun AppearanceSettingsScreen(
                         "the cover URL has expired, or the load fails.",
                 )
             }
+
+            // Issue #589 — global animation-speed master multiplier.
+            // Drives `LocalAnimationSpeedScale` at the NavHost root;
+            // every storyvox transition that uses `tweenScaled(N)`
+            // honors the chip. Five tiers cover the design space:
+            //   Off (0×) — instant; visually identical to ReducedMotion
+            //   Slow (0.5×) — half speed, for users who want to savor
+            //     the brass-shimmer rhythm; the 5-year-old default.
+            //   Normal (1×) — Library Nocturne's hand-tuned cadence.
+            //   Brisk (1.5×) — fastpath without flicker.
+            //   Fast (2×) — power-user / tablet-audit mode.
+            //
+            // Per-device pref (not synced) — different ergonomic
+            // targets per device.
+            SettingsGroupCard {
+                val speedOptions = listOf(
+                    0f to "Off",
+                    0.5f to "Slow",
+                    1f to "Normal",
+                    1.5f to "Brisk",
+                    2f to "Fast",
+                )
+                val activeScale = s.animationSpeedScale
+                val selectedIndex = speedOptions
+                    .indexOfFirst { it.first == activeScale }
+                    .let { if (it < 0) speedOptions.indexOfFirst { p -> p.first == 1f } else it }
+                SettingsSegmentedBlock(
+                    title = "Animation speed",
+                    subtitle = "Master multiplier on every transition. " +
+                        "Off makes animations instant — useful with assistive tech " +
+                        "or on slower devices.",
+                    options = speedOptions.map { it.second },
+                    selectedIndex = selectedIndex,
+                    onSelected = { idx ->
+                        viewModel.setAnimationSpeedScale(speedOptions[idx].first)
+                    },
+                )
+            }
         }
     }
 }

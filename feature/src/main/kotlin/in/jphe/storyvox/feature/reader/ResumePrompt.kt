@@ -62,7 +62,7 @@ import kotlin.math.sin
  *    sets the "magic is at work" mood without competing with the cover.
  *  - Fiction title (titleLarge, brass) + author (bodyMedium, dim).
  *  - Chapter line + progress + "X min ago" relative time.
- *  - A brass-filled "Resume reading" Primary button with a one-shot
+ *  - A brass-filled "Start listening" Primary button (issue #601) with a one-shot
  *    diagonal shimmer sweep when the prompt first composes.
  *  - "From the start" text button below.
  *
@@ -191,8 +191,17 @@ fun ResumePrompt(
                 durationMs = motion.swipeDurationMs * 3, // a deliberate 1080ms reveal
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                // Issue #601 — "Playing" tab named for playback, so
+                // the CTA verb has to match. Pre-fix this read "Resume
+                // reading" — which sounded like the tab opened a
+                // text-reader, not an audio player. JP's audit:
+                // "Playing" → tap → see card with no audio + a
+                // "reading" button → confusion. The verb is now
+                // unambiguous: tap → audio starts. The brass-shimmer
+                // sweep is preserved (it's the moment of magic
+                // storyvox is named for).
                 BrassButton(
-                    label = "✨  Resume reading  ✨",
+                    label = "▶  Start listening",
                     onClick = onResume,
                     variant = BrassButtonVariant.Primary,
                     modifier = Modifier.fillMaxWidth(),

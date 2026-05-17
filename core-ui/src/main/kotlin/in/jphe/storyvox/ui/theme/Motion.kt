@@ -2,7 +2,12 @@ package `in`.jphe.storyvox.ui.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 
 /** Library Nocturne motion — slow, warm, deliberate. */
@@ -41,3 +46,114 @@ val LocalMotion = staticCompositionLocalOf { Motion() }
  * a provider.
  */
 val LocalReducedMotion = staticCompositionLocalOf { false }
+
+/**
+ * Issue #589 — global animation-speed master multiplier. Provided at
+ * the NavHost root from `UiSettings.animationSpeedScale`; consumers
+ * multiply this into every `tween(N)` duration via [tweenScaled] so
+ * a single user pref scales every transition in storyvox.
+ *
+ * Supported tiers (mirrored from `:app`'s ANIMATION_SPEED_SCALE_TIERS):
+ *  - `0f` = Off (instant; durations become 0)
+ *  - `0.5f` = Slow (transitions take twice as long)
+ *  - `1f` = Normal (default, identity multiplier)
+ *  - `1.5f` = Brisk (~33% faster)
+ *  - `2f` = Fast (half-duration)
+ *
+ * The multiplier is the *inverse* of duration: scale=2 means animations
+ * play at 2× speed → durations are *divided* by 2 (see [scaleDurationMs]
+ * for the exact formula). Off (scale=0) is special-cased to 0ms so
+ * `LocalReducedMotion` parity holds (consumers branch to instant
+ * transitions, not just "shorter motion").
+ *
+ * Default `1f` keeps existing behavior bit-identical for any
+ * subtree that doesn't wire the provider (previews, tests).
+ *
+ * Pairs with [LocalReducedMotion]: when ReducedMotion is on, the
+ * effective scale collapses to 0 (instant) regardless of the user
+ * pref. See [effectiveAnimationSpeedScale].
+ */
+val LocalAnimationSpeedScale = staticCompositionLocalOf { 1f }
+
+/**
+ * Read the *effective* animation-speed scale, factoring in
+ * [LocalReducedMotion]. ReducedMotion forces 0 (instant) regardless
+ * of the user-chosen pref — the system flag is a stronger statement
+ * than the in-app slider.
+ */
+@Composable
+@ReadOnlyComposable
+fun effectiveAnimationSpeedScale(): Float {
+    if (LocalReducedMotion.current) return 0f
+    return LocalAnimationSpeedScale.current
+}
+
+/**
+ * Issue #589 — scale a tween duration in milliseconds by the active
+ * [LocalAnimationSpeedScale]. The formula:
+ *  - `scale == 0f` → `0` (instant; matches LocalReducedMotion)
+ *  - else → `(durationMs / scale).toInt()`, floored at 1ms so we don't
+ *    pass 0ms to a non-Off tween (Compose's tween(0) is a degenerate
+ *    spec; better to short-circuit at the call site).
+ *
+ * Visible for testing / direct use by non-Composable seeds (e.g.
+ * AnimatedContentTransitionScope's transition specs that resolve
+ * outside the standard composable scope).
+ */
+fun scaleDurationMs(durationMs: Int, scale: Float): Int {
+    if (scale <= 0f) return 0
+    if (scale == 1f) return durationMs
+    val scaled = (durationMs / scale).toInt()
+    return scaled.coerceAtLeast(1)
+}
+
+/**
+ * Issue #589 — `tween(N)` replacement that honors
+ * [LocalAnimationSpeedScale] + [LocalReducedMotion]. Drop-in: change
+ * `tween(280)` to `tweenScaled(280)`.
+ *
+ * When the effective scale is 0 (Off OR ReducedMotion), returns a
+ * tween with `durationMillis = 0` — Compose treats that as effectively
+ * instant. Otherwise scales the duration by the inverse of the scale
+ * factor.
+ *
+ * The [easing] and [delayMillis] parameters mirror Compose's
+ * `tween(...)`; we don't scale the delay because user-perceived gating
+ * (e.g. "wait 500ms before fading the splash") is a different concern
+ * from animation rate. If a future caller wants delays scaled too,
+ * they should compose `scaleDurationMs(delay, scale)` at the call
+ * site.
+ */
+@Composable
+@ReadOnlyComposable
+fun <T> tweenScaled(
+    durationMillis: Int,
+    delayMillis: Int = 0,
+    easing: Easing = androidx.compose.animation.core.FastOutSlowInEasing,
+): TweenSpec<T> {
+    val scale = effectiveAnimationSpeedScale()
+    return tween(
+        durationMillis = scaleDurationMs(durationMillis, scale),
+        delayMillis = delayMillis,
+        easing = easing,
+    )
+}
+
+/**
+ * Non-composable variant for callers that need a [FiniteAnimationSpec]
+ * outside a composable scope (e.g. AnimatedContent transition lambdas
+ * that resolve in the parent scope). The caller passes the *current*
+ * scale explicitly; typically read once via
+ * `LocalAnimationSpeedScale.current` at the composable boundary and
+ * forwarded down.
+ */
+fun <T> tweenScaledNonComposable(
+    durationMillis: Int,
+    scale: Float,
+    delayMillis: Int = 0,
+    easing: Easing = androidx.compose.animation.core.FastOutSlowInEasing,
+): TweenSpec<T> = tween(
+    durationMillis = scaleDurationMs(durationMillis, scale),
+    delayMillis = delayMillis,
+    easing = easing,
+)

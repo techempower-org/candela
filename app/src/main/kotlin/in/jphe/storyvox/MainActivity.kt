@@ -181,11 +181,20 @@ class MainActivity : ComponentActivity() {
             val effectiveFontScale = settings?.a11yFontScaleOverride ?: 1.0f
             val readingDirection = settings?.a11yReadingDirection ?: ReadingDirection.FollowSystem
 
+            // Issue #589 — propagate the user's animation-speed pref
+            // through LocalAnimationSpeedScale. Default 1.0× when
+            // settings haven't hydrated yet so the splash mounts at
+            // native cadence; the recomposition on hydration is
+            // graceful (every tween site reads `LocalAnimationSpeedScale`
+            // each frame).
+            val effectiveAnimationSpeedScale = settings?.animationSpeedScale ?: 1.0f
+
             LibraryNocturneTheme(
                 darkTheme = darkTheme,
                 useHighContrast = useHighContrast,
                 reducedMotion = effectiveReducedMotion,
                 fontScale = effectiveFontScale,
+                animationSpeedScale = effectiveAnimationSpeedScale,
             ) {
                 val navController = rememberNavController()
                 val pending by intentFlow.collectAsState()

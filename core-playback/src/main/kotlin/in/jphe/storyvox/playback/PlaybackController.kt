@@ -187,6 +187,12 @@ class DefaultPlaybackController @Inject constructor(
      *  (monitor depends on controller, controller exposes monitor's
      *  flow). Resolved once on first [waitReason] access. */
     private val audioOutputMonitor: dagger.Lazy<AudioOutputMonitor>,
+    /** Issues #593 / #594 — user-tunable skip distance + rewind-to-start
+     *  threshold. Snapshot-read inside [skipForward30s] / [skipBack30s] /
+     *  [previousChapter]. Lazy break: we don't need it at construction
+     *  time, and a snapshot read is fine because skip taps are user-
+     *  driven and inherently bursty (not a hot loop). */
+    private val skipConfig: `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
 ) : PlaybackController {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -281,10 +287,30 @@ class DefaultPlaybackController @Inject constructor(
         audioOutputMonitor.get().waitReason
     }
 
+    /**
+     * Issues #593 / #594 — hot-cached snapshot of the user's skip
+     * distance + rewind-to-start threshold. Updated on every Flow
+     * emission below; read at skip-tap time without an extra suspend.
+     * Defaults match the seed UiSettings defaults (30s / 3s) so an
+     * early skip tap before the Flow emits still does the right thing.
+     */
+    @Volatile private var cachedSkipDistanceSec: Int = 30
+    @Volatile private var cachedRewindToStartThresholdSec: Int = 3
+
     init {
         scope.launch {
             sleepTimer.remainingMs.collect { remaining ->
                 _state.value = _state.value.copy(sleepTimerRemainingMs = remaining)
+            }
+        }
+        // #593 / #594 — keep the cached snapshots fresh so skip taps
+        // pick up the user's pref the moment they move the chip.
+        scope.launch {
+            skipConfig.skipDistanceSec.collect { v -> cachedSkipDistanceSec = v }
+        }
+        scope.launch {
+            skipConfig.rewindToStartThresholdSec.collect { v ->
+                cachedRewindToStartThresholdSec = v
             }
         }
     }
@@ -601,40 +627,42 @@ class DefaultPlaybackController @Inject constructor(
     }
 
     override fun skipForward30s() {
-        // #550 / #555 / #565 — seek by exactly 30 seconds on the
-        // media-time rail. Both position and duration live on the
-        // speed-invariant axis now, so "30 s of rail" =
-        // `baseline * 30` chars regardless of speed. At speed=2 the
-        // user hears those 30 s of chapter content in 15 wall-clock
-        // seconds; the scrubber thumb jumps the same 30 s either
-        // way, matching Spotify's "+30 s" on a sped-up podcast
-        // (which is "30 s of media-time" not "30 s of wall-clock").
+        // #593 — function name is preserved for binary-compat with
+        // the MediaSession / widget call sites that wired against
+        // `skipForward30s()` pre-#593. The "30s" in the name is now
+        // a historical anchor: actual seek distance reads the user's
+        // pref (10/15/30/45/60 chip, default 30s) via the
+        // [PlaybackSkipConfig] snapshot below.
+        //
+        // #550 / #555 / #565 — seek by the configured number of
+        // seconds on the media-time rail. Both position and duration
+        // live on the speed-invariant axis now, so "N s of rail" =
+        // `baseline * N` chars regardless of speed. At speed=2 the
+        // user hears those N s of chapter content in N/2 wall-clock
+        // seconds; the scrubber thumb jumps the same N s either way,
+        // matching Spotify's "+N s" on a sped-up podcast (which is
+        // "N s of media-time" not "N s of wall-clock").
         //
         // #565 — anchor the skip to the truthful audible position
-        // (`playbackPositionMs`) rather than `state.charOffset`.
-        // `state.charOffset` is updated by the consumer thread only
-        // at sentence boundaries (it reflects the START of the
-        // currently-being-written sentence), so a skip from mid-
-        // sentence landed "from the sentence start", off by up to
-        // 30 s of sentence length on the phone audit (`-19s to +35s`
-        // slop band). Anchoring on the position feed converts ms →
-        // chars via the same baseline math the rail uses, then adds
-        // the +30 s char delta. Net effect: skip lands exactly 30 s
-        // ahead of where the listener actually was.
+        // (`playbackPositionMs`) rather than `state.charOffset`. See
+        // the kdoc on the pre-#593 version for the slop-band
+        // rationale.
+        val seconds = cachedSkipDistanceSec.toFloat()
         val anchorMs = playbackPositionMs.value
         val anchorChars = positionMsToCharOffset(anchorMs, state.value.speed)
-        val target = (anchorChars + skipDeltaChars(30f, state.value.speed))
+        val target = (anchorChars + skipDeltaChars(seconds, state.value.speed))
             .coerceAtLeast(0)
         player?.seekToCharOffset(target)
     }
 
     override fun skipBack30s() {
-        // #550 / #555 / #565 — see [skipForward30s]. 30 s of
-        // media-time regardless of speed; anchored on the audible
-        // position rather than the sentence-aligned charOffset.
+        // #593 — see [skipForward30s]. Function name preserved for
+        // binary compat with MediaSession / widget call sites; actual
+        // distance reads the user pref.
+        val seconds = cachedSkipDistanceSec.toFloat()
         val anchorMs = playbackPositionMs.value
         val anchorChars = positionMsToCharOffset(anchorMs, state.value.speed)
-        val target = (anchorChars - skipDeltaChars(30f, state.value.speed))
+        val target = (anchorChars - skipDeltaChars(seconds, state.value.speed))
             .coerceAtLeast(0)
         player?.seekToCharOffset(target)
     }
@@ -655,17 +683,30 @@ class DefaultPlaybackController @Inject constructor(
 
     override suspend fun nextChapter() { player?.advanceChapter(direction = 1) }
     override suspend fun previousChapter() {
-        // #285 — standard media-player UX. Pressing Previous past a few
-        // seconds into the current chapter rewinds to its start; only
-        // pressing Previous *while near the start* goes to the previous
-        // chapter. Without this, a stray tap during chapter 2 silently
-        // dumps the user back to chapter 1, with no confirm, no
-        // animation, and lost reading position. Apple Music, Spotify,
-        // Pocket Casts, and every major player work this way — users
-        // expect it.
+        // #285 / #594 — standard media-player UX, now user-tunable.
+        // Pressing Previous past N seconds into the current chapter
+        // rewinds to its start; pressing Previous *while within N
+        // seconds of the start* jumps to the previous chapter.
+        //
+        // N comes from the user's [PlaybackSkipConfig.rewindToStartThresholdSec]
+        // (chip-row in Settings → Voice & Playback: 1/3/5/10/Off).
+        // Setting N = 0 disables rewind-to-start entirely: SkipPrevious
+        // *always* jumps to the previous chapter. Useful for radio /
+        // podcast users on short-chapter content who want fast prev-
+        // track navigation. The Apple Music / Spotify default is 3s.
+        //
+        // Without this, a stray tap during chapter 2 silently dumps
+        // the user back to chapter 1, with no confirm, no animation,
+        // and lost reading position.
+        val thresholdSec = cachedRewindToStartThresholdSec
+        if (thresholdSec <= 0) {
+            // Off — always go to the previous chapter.
+            player?.advanceChapter(direction = -1)
+            return
+        }
         val s = state.value
         val charsPerSec = SPEED_BASELINE_CHARS_PER_SECOND * s.speed
-        val rewindThresholdChars = (charsPerSec * REWIND_TO_START_THRESHOLD_SEC).toInt()
+        val rewindThresholdChars = (charsPerSec * thresholdSec).toInt()
         if (s.charOffset > rewindThresholdChars) {
             player?.seekToCharOffset(0)
         } else {
@@ -743,12 +784,17 @@ class DefaultPlaybackController @Inject constructor(
     }
 
     companion object {
-        /** Issue #285 — seconds-from-start threshold for the SkipPrevious
-         *  rewind-to-start UX. Past this point in a chapter, tapping
-         *  SkipPrevious seeks to char 0 of the current chapter; under it
-         *  goes to the previous chapter. 3 seconds is the de-facto
+        /** Issue #285 / #594 — seconds-from-start threshold for the
+         *  SkipPrevious rewind-to-start UX. **Default** value (now
+         *  user-tunable via [PlaybackSkipConfig] / Settings → Voice &
+         *  Playback). Past this point in a chapter, tapping
+         *  SkipPrevious seeks to char 0 of the current chapter; under
+         *  it goes to the previous chapter. 3 seconds is the de-facto
          *  standard across Apple Music, Spotify, Pocket Casts, and the
-         *  Android MediaSession default behavior. */
+         *  Android MediaSession default behavior. Kept here as a
+         *  default-anchor constant; the live value comes from
+         *  `cachedRewindToStartThresholdSec` populated by the
+         *  [skipConfig.rewindToStartThresholdSec] Flow. */
         internal const val REWIND_TO_START_THRESHOLD_SEC = 3f
 
         /** Issue #553 — buffering-stuck watchdog threshold. If

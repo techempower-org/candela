@@ -293,6 +293,14 @@ fun LibraryNocturneTheme(
     useHighContrast: Boolean = false,
     reducedMotion: Boolean? = null,
     fontScale: Float = 1.0f,
+    /**
+     * Issue #589 — global animation-speed master multiplier propagated
+     * via [LocalAnimationSpeedScale]. Default 1.0 keeps existing
+     * behavior bit-identical for callers (previews, tests, legacy
+     * mounts) that don't wire the user pref. MainActivity passes
+     * `prefs.animationSpeedScale`.
+     */
+    animationSpeedScale: Float = 1.0f,
     content: @Composable () -> Unit,
 ) {
     val colors = when {
@@ -320,6 +328,7 @@ fun LibraryNocturneTheme(
         LocalSpacing provides Spacing(),
         LocalMotion provides Motion(),
         LocalReducedMotion provides effectiveReducedMotion,
+        LocalAnimationSpeedScale provides animationSpeedScale,
     ) {
         MaterialTheme(
             colorScheme = colors,

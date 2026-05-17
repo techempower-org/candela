@@ -279,6 +279,13 @@ object AppBindings {
     fun providePlaybackResumePolicyConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.playback.PlaybackResumePolicyConfig = impl
 
+    /** Issues #593 / #594 — user-tunable skip distance + rewind-to-start
+     *  threshold. Same singleton; one DataStore, every contract.
+     *  Consumed by `core-playback`'s DefaultPlaybackController. */
+    @Provides @Singleton
+    fun providePlaybackSkipConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig = impl
+
     /**
      * Issue #135 — pronunciation dictionary contract for `core-playback`'s
      * EnginePlayer + the Settings UI. Same singleton instance as the rest;

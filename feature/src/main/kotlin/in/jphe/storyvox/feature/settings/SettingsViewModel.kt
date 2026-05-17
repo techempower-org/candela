@@ -504,6 +504,22 @@ class SettingsViewModel @Inject constructor(
     /** v0.5.59 — book-cover fallback style. See [`CoverStyle`]. */
     fun setCoverStyle(style: CoverStyle) =
         viewModelScope.launch { repo.setCoverStyle(style) }
+
+    /**
+     * Issue #589 — global animation-speed master multiplier.
+     * Snapped to the supported chip values on write.
+     */
+    fun setAnimationSpeedScale(scale: Float) =
+        viewModelScope.launch { repo.setAnimationSpeedScale(scale) }
+
+    /** Issue #593 — skip-forward / skip-back distance in seconds. */
+    fun setSkipDistanceSec(seconds: Int) =
+        viewModelScope.launch { repo.setSkipDistanceSec(seconds) }
+
+    /** Issue #594 — SkipPrevious rewind-to-start threshold in seconds.
+     *  0 = disabled (always jumps to previous chapter). */
+    fun setRewindToStartThresholdSec(seconds: Int) =
+        viewModelScope.launch { repo.setRewindToStartThresholdSec(seconds) }
 }
 
 /** Map the feature-layer enum to the :core-llm enum. The two are

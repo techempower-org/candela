@@ -1186,6 +1186,54 @@ data class UiSettings(
      * can opt back in via Settings → Appearance → Book cover style.
      */
     val coverStyle: CoverStyle = CoverStyle.Monogram,
+    /**
+     * Issue #589 — global animation-speed master multiplier. Multiplies
+     * into every Compose `tween(N)` site via the
+     * `tweenScaled(N)` helper in `:core-ui`. Values:
+     *  - `0f` = Off (durations become 0 → instant transitions)
+     *  - `0.5f` = Slow (half speed, 2× duration)
+     *  - `1f` = Normal (default, no change)
+     *  - `1.5f` = Brisk (~33% faster)
+     *  - `2f` = Fast (half-duration)
+     *
+     * Per-device pref (NOT synced) — a 5-year-old's tablet wants slow,
+     * a tablet auditor wants fast; capturing one user's preference
+     * across devices would push the same hand on every device.
+     *
+     * Default 1.0 keeps existing storyvox behavior bit-identical until
+     * the user opts in.
+     *
+     * The chip-row picker lives in Settings → Appearance.
+     */
+    val animationSpeedScale: Float = 1.0f,
+    /**
+     * Issue #593 — skip-forward / skip-back distance in seconds.
+     * Default 30 matches Spotify / Apple Music / Pocket Casts'
+     * default 30-second skip. Users on dense audiobook chapters often
+     * want shorter (10/15), while users on podcasts often want longer
+     * (45/60). Five discrete chip options: 10/15/30/45/60.
+     *
+     * Per-device pref (NOT synced). Wired through [PlaybackController]
+     * via [PlaybackSkipDistanceConfig] so the seek math reads it
+     * without taking a feature-module dep.
+     */
+    val skipDistanceSec: Int = 30,
+    /**
+     * Issue #594 — SkipPrevious rewind-to-start threshold in seconds.
+     * Tapping SkipPrevious *past* this threshold rewinds to the start
+     * of the current chapter; tapping it *within* this threshold
+     * (right after a chapter start) jumps to the previous chapter.
+     * Standard player UX (Apple Music, Spotify, Pocket Casts default
+     * to ~3s); storyvox surfaces 1/3/5/10/Off chip options.
+     *
+     * `Off` (0) means SkipPrevious ALWAYS jumps to the previous
+     * chapter — never rewinds to chapter start. Useful for radio /
+     * podcast users where every chapter is short and they want fast
+     * prev-track navigation.
+     *
+     * Per-device pref (NOT synced).
+     */
+    val rewindToStartThresholdSec: Int = 3,
 ) {
     /** Speed value the engine should run at right now — the active
      *  voice's override if set, otherwise the global default (#195). */
@@ -1498,6 +1546,27 @@ enum class CoverStyle { Monogram, Branded, CoverOnly }
 interface SettingsRepositoryUi {
     val settings: Flow<UiSettings>
     suspend fun setTheme(override: ThemeOverride)
+    /**
+     * Issue #589 — set the global animation-speed master multiplier.
+     * Snapped to the supported chip values [0f, 0.5f, 1f, 1.5f, 2f]
+     * on write. Default impl is a no-op so existing test fakes
+     * compile without overrides.
+     */
+    suspend fun setAnimationSpeedScale(scale: Float) = Unit
+    /**
+     * Issue #593 — set the skip-forward / skip-back distance in
+     * seconds. Coerced to [10, 60]. Default impl is a no-op so
+     * existing test fakes compile without overrides.
+     */
+    suspend fun setSkipDistanceSec(seconds: Int) = Unit
+    /**
+     * Issue #594 — set the SkipPrevious rewind-to-start threshold in
+     * seconds. 0 disables the rewind-to-start behavior (SkipPrevious
+     * always jumps to previous chapter); other supported values are
+     * [1, 3, 5, 10]. Default impl is a no-op so existing test fakes
+     * compile without overrides.
+     */
+    suspend fun setRewindToStartThresholdSec(seconds: Int) = Unit
     suspend fun setDefaultSpeed(speed: Float)
     suspend fun setDefaultPitch(pitch: Float)
     suspend fun setDefaultVoice(voiceId: String?)
