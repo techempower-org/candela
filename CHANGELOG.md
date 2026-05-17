@@ -9,6 +9,45 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.65] — 2026-05-16
+
+**v1.0 GREEN-LIGHT candidate.** Closes the four readiness gaps caught by the persona verification on v0.5.64 (#644 tap count, #645 TalkBack dock, #646 audio-route announce, #647 Browse-TechEmpower direct-route) PLUS the long-standing #558 Notion chapter prefetch timeout.
+
+### Fixed — #558 Notion chapter prefetch timeout (PR #648)
+ch4 → ch5 auto-advance hit a 30 s timeout in v0.5.64 because ch5's body had never been fetched. Plus the underlying root cause: one of the hardcoded Guides chapter ids (`16f7018ad93542652b2b16c44464b1c3` — "EBT spending") returned a Notion `ValidationError 400` on every retry, exhausting the timeout window.
+- `PrerenderTriggers.onChapterOpened(fictionId, chapterId)` — new trigger called from `EnginePlayer.loadAndPlay` that pre-fetches BODIES (not PCM) of the next 3 chapters. Cheap, dedupes by WorkManager `uniqueName`, `requireUnmetered=false`.
+- `DEFAULT_PRERENDER_CHAPTERS` bumped 3 → 5 to widen the PCM render window.
+- `CHAPTER_BODY_WAIT_TIMEOUT_MS` bumped 30 s → 60 s as a safety belt for cold-start mid-fiction resumes.
+- Hardcoded "EBT spending" chapter id REMOVED from the Notion Guides default list — kdoc thread documents the 400 failure mode + the restoration procedure if Notion fixes the page.
+
+**Phone-verified cascade (ch1 → ch6, ~300 ms transitions each)**:
+- ch1 → ch2: 141 ms (was already fast)
+- ch2 → ch3: 393 ms
+- ch3 → ch4: 133 ms
+- ch4 → ch5: 281 ms (was: 30 s timeout)
+- ch5 → ch6: 270 ms
+
+### Fixed — v1.0 yellow-light bundle (PR #649, closes #644 #645 #646 #647)
+**#647 — "Browse TechEmpower" auto-plays chapter 1 directly** (load-bearing fix for #644). Onboarding's FirstFictionPicker → tap "Browse TechEmpower's free guides" → new `openGuidesAndAutoPlay()` path seeds Notion tiles, refreshes `notion:guides`, takes first chapter, queues with `autoPlay=true`, routes to Playing surface. Skips both the TechEmpower Home hub AND the FictionDetail cover stop.
+
+**#644 — Tap count from cold launch to first audio: 8 → 5** (matches Play Store-ready budget):
+- Allow notifications (system)
+- "Get started"
+- "Pick this voice"
+- "Skip for now" (sync)
+- **"Browse TechEmpower's free guides" — deep-link auto-plays chapter 1 within 3 s**
+
+**#645 — TalkBack dock navigable from Reader / Voices / Settings**. `BottomTabBar.TabCell` clickable role flipped `Role.Tab` → `Role.Button` (keeping `selected = isSelected`). TalkBack no longer suppresses "double-tap to activate" on a selected tab.
+
+**#646 — `WhyAreWeWaitingPanel` single-announce**. `Modifier.semantics(mergeDescendants = true)` collapses the panel to one TalkBack focus stop. New `joinHeadlineAndBody()` kills the `..` double-period before the body line. Unit test sweeps every `WaitReason` to pin the invariant.
+
+### Verified on R5CRB0W66MK (release variant)
+- 5-tap cold-launch-to-audio flow confirmed
+- TalkBack: Library reachable via dock tap from Player + Voices + Settings
+- TalkBack: 988 Crisis Lifeline still single-tap (PR #632 intact)
+- Auto-advance ch1→ch6 cascade all sub-400ms
+- Zero "Reconnecting — please wait" surfaces (post-#642 fix)
+
 ## [0.5.64] — 2026-05-16
 
 **Chapter-2-silent-on-auto-advance fix.** v0.5.63 made auto-advance fire correctly — but chapter 2 then stayed silent. PR #643 fixes the parked consumer at natural chapter end.
