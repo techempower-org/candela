@@ -49,9 +49,13 @@ internal class PlosApi @Inject constructor(
      * Recent articles in PLOS ONE — the Browse → Popular landing.
      * PLOS doesn't expose a "top stories" feed; sorting PLOS ONE
      * (their biggest journal by volume) by publication date desc
-     * gives a stable + fresh listing. `journal_key:PLOSONE` is the
-     * Solr-side filter for PLOS ONE specifically; the
-     * Solr-internal id is the all-caps form, not the URL slug.
+     * gives a stable + fresh listing.
+     *
+     * Filter shape (post-#664): `fq=journal:"PLOS ONE"`. The legacy
+     * `journal_key:PLOSONE` field is no longer indexed — Solr returns
+     * `numFound=0` for it, surfacing as a silent empty Browse tab. The
+     * `journal` field carries the human-readable name and remains the
+     * stable filter today.
      */
     suspend fun searchRecent(
         start: Int = 0,
@@ -59,7 +63,23 @@ internal class PlosApi @Inject constructor(
     ): FictionResult<PlosSearchResponse> {
         val url = "$BASE_SEARCH" +
             "?q=" + URLEncoder.encode("*:*", "UTF-8") +
-            "&fq=" + URLEncoder.encode("journal_key:PLOSONE", "UTF-8") +
+            // Issue #664 — PLOS retired the `journal_key` field; queries
+            // against it return numFound=0 now. Two fq's together:
+            //  1. `journal:"PLOS ONE"` pins PLOS ONE (case-insensitive
+            //     — Solr matches "PLoS ONE" as well; we keep the
+            //     all-caps form in the query for human readability).
+            //  2. `doc_type:full` drops the per-section fragment docs
+            //     (`/title`, `/abstract`, `/body`, `/references`) that
+            //     would otherwise surface as separate "fictions" in
+            //     Browse — each real article is indexed N+1 times in
+            //     PLOS's Solr (one full, one per section). Without this
+            //     filter Browse → PLOS shows the parent article AND its
+            //     5+ sub-docs as duplicate cards with cryptic DOI-path
+            //     titles. ~3.4M total → ~330k full-article docs.
+            // Curl-confirmed at
+            //   https://api.plos.org/search?q=*:*&fq=journal:"PLOS ONE"&fq=doc_type:full
+            "&fq=" + URLEncoder.encode("journal:\"PLOS ONE\"", "UTF-8") +
+            "&fq=" + URLEncoder.encode("doc_type:full", "UTF-8") +
             "&sort=" + URLEncoder.encode("publication_date desc", "UTF-8") +
             "&start=$start" +
             "&rows=$rows" +
