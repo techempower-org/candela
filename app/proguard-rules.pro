@@ -88,6 +88,22 @@
 -keep,allowobfuscation class kotlinx.serialization.Serializable
 -keep,allowobfuscation class kotlinx.serialization.SerialName
 
+# Issue #661 — JsonElement tree types (JsonObject / JsonArray / JsonPrimitive)
+# are NOT @Serializable themselves. They use hand-written serializers in
+# kotlinx.serialization.json.internal that look up the concrete subtype at
+# decode time. Without these keeps, R8 obfuscates JsonObject → "t8.e" and
+# the runtime polymorphic dispatch fails with
+#     "element class t8.e is not available"
+# on the first sync transaction (#661). Surfaced because :core-sync's
+# WsInstantBackend builds raw JsonObject/JsonArray envelopes via
+# Json.encodeToString(JsonObject.serializer(), msg). Keep the public json
+# package AND its `.internal.` siblings — the descriptor lookup walks both.
+-keep class kotlinx.serialization.json.** { *; }
+-keep class kotlinx.serialization.json.internal.** { *; }
+-keep class kotlinx.serialization.descriptors.** { *; }
+-keep class kotlinx.serialization.internal.** { *; }
+-keepclassmembers class kotlinx.serialization.json.** { *; }
+
 # ----------------------------------------------------------------------
 # Hilt / Dagger — belt-and-suspenders
 # ----------------------------------------------------------------------
