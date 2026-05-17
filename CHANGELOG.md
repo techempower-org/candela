@@ -9,6 +9,56 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.70] — 2026-05-17
+
+**v1.0 candidate.** Four-PR bundle closing 8 issues caught by the parallel find-issues device sweep. Zero-download voice on first launch, terminal-state UI, three silent-empty backends fixed, three copy fixes.
+
+### Added (#676) — Native Android TTS as a voice backend (PR #679)
+The biggest goal-hook unlock of this session. Storyvox now defaults to whatever TTS engine the OS has configured (Google TTS, Samsung TTS, eSpeak, etc.) on fresh installs, so the first listen needs **zero model download**.
+
+- New `EngineType.SystemTts(engineName, voiceName)` sealed-interface variant alongside Piper/Kokoro/Kitten/Azure, with its own `VoiceFamilyIds.SYSTEM_TTS` registry tier rendered at the top of the Voice library (zero-download first-launch unlock).
+- `SystemTtsEngine` adapter (`core-playback/.../tts/SystemTtsEngine.kt`): async `onInit` lifecycle, per-utterance `UtteranceProgressListener` routing via `ConcurrentHashMap<utteranceId, CompletableDeferred<Result>>`, 44-byte WAV-header strip → raw PCM contract matching the existing engines, sample rate cached from header.
+- `SystemTtsVoiceProvider` interface (`:core-data`) + `SystemTtsVoiceRoster` impl (`:app`) — two-step enumerate (list installed engines → bind each, read voices, shut down).
+- `EnginePlayer` dispatch wired at every site (prewarm / loadAndPlay / sample-rate / recap / teardown).
+- `seedSystemTtsDefaultIfUnset()` called from `VoicePickerGateViewModel.init` so a fresh-install user gets a working voice without ever seeing the "downloading model…" spinner.
+- 14 new tests pin the WAV header at 24/16/48 kHz, catalog projection, ordering, byId behaviour.
+
+### Fixed (#677, v1.0 blocker) — End-of-book UI freeze (PR #680)
+JP caught this mid-run during the phone find-issues agent's 14-minute auto-advance test. Engine cleanly reached `BookFinished` + set `EngineState.Completed`, but no UI in `feature/*` consumed `Completed` — scrubber sat stuck at the last position with no surface explaining the book was over.
+- New `ReaderUiState.bookFinished: Boolean` latch driven by a `MutableStateFlow` in `ReaderViewModel` that flips on `PlaybackUiEvent.BookFinished`.
+- `HybridReaderScreen` renders a Material 3 `AlertDialog` end-of-book overlay with "Back to Library" + "Browse the realms" CTAs.
+- `acknowledgeBookFinished()` resets the latch on user dismiss or `resume(fromStart=true)`.
+- TalkBack-friendly (AlertDialog is a focus-claiming surface; headline reads immediately).
+
+### Fixed (#669, v1.0 blocker) — Local backend silent-empty in Browse (PR #674)
+Tablet find-issues agent caught it: tapping the **Local** chip in Browse rendered a completely blank content area — no spinner, no error, no CTA. Indistinguishable from a backend hang. Every other "not yet configured" backend (Palace, Wiki, Discord) had a clear `realm is unreachable` panel + setup path; Local did not.
+- New `LocalEmptyState` composable mirrors the `RssEmptyState` shape (issue #458).
+- `Choose folder` CTA launches the SAF `OpenDocumentTree` picker **directly from Browse** (no Settings round-trip for the first run).
+- Persistable URI grant via `takePersistableUriPermission`.
+- New `BrowseViewModel.setEpubFolderUri()` writes through `SettingsRepositoryUi`; the EPUB source re-enumerates on the next paginator tick.
+
+### Fixed (#673, v1.0 blocker) — Readability silent-empty in Browse (PR #680)
+Same pattern as #669 but on the always-on Readability backend. `popular()` intentionally returns `emptyPage()` (Readability is the URL-paste last-resort matcher, not a listing source), but the empty result fell through to silent-empty.
+- New `ReadabilityHintState` composable explains the source's purpose and points at the existing "Add fiction by URL" FAB.
+
+### Fixed (#672, v1.x polish) — Wikipedia HTML entities in titles (PR #680)
+Wikipedia REST API returns titles with embedded entity-encoded HTML (`Erik Campbell (&lt;i&gt;Final Destination&lt;/i&gt;)` for italicized works — films/albums/books). Pre-fix these rendered raw on every Wikipedia chip tap; the existing `htmlToPlainText` helper does tag-strip-then-decode which leaves the encoded tags visible.
+- New `cleanWikipediaTitle()` helper: decode-entities-FIRST, then strip the now-decoded tags.
+- Wired at all 4 call sites (SearchHit, FeaturedArticle, MostReadArticle, Summary).
+
+### Fixed (#670, v1.x copy) — Voice library subtitle truth (PR #675)
+Settings hub Voice library card subtitle promised "Pick a voice and hear samples" but no preview UI exists — tapping a row Activates the voice. Per-voice sample-play is a v1.x enhancement; subtitle rewritten to match what the screen actually does: *"Browse and switch between available voices."*
+
+### Fixed (#671, v1.x copy) — Outline empty-state copy (PR #675)
+Outline panel read terse `Outline host or API key not set` vs Palace's helpful *"Set up your Memory Palace host in Settings → Memory Palace to browse your private fictions."* Outline now mirrors that pattern.
+
+### Closed without code (#681 / no PR — informational)
+- **#681 Visual entry to Reader from Library/Browse** (now-playing mini-dock) — filed for v1.x. The classic Spotify/Apple Music pattern; planned post-v1.0 because it touches the StoryvoxNavHost layout and the Reader navigation contract. Not blocking v1.0 launch — swipe-left to the Playing tab still works.
+
+### Under the hood
+- Open issue count after this release: stable. The remaining open items are #392 (Propel partnership outreach, JP-actionable, non-code) and #678 (now-playing mini-dock, v1.x).
+- All four PRs merged in dependency order (#675 copy → #674 Local UI → #680 Readability/EOB/Wiki UI → #679 System TTS engine). #680 required a single-line rebase against #674's Browse-screen branch addition.
+
 ## [0.5.69] — 2026-05-17
 
 **Beta-channel polish pass.** Closes the last code-side gap before the first Play Console upload.
