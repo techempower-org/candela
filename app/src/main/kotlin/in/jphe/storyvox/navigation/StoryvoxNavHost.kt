@@ -47,6 +47,7 @@ import `in`.jphe.storyvox.feature.settings.AccountSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AdvancedSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AppearanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AiSettingsScreen
+import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
@@ -123,6 +124,13 @@ object StoryvoxRoutes {
     /** Settings → Advanced (v1 settings-bundle-7). Power-user knobs:
      *  Android Auto bucket size (#598) and future integration tunables. */
     const val SETTINGS_ADVANCED = "settings/advanced"
+    /** Settings → Cloud Voices (#712, follow-up to #404 + #702). Dedicated
+     *  destination for the Azure Speech BYOK key + region + test-connection
+     *  flow that previously dumped the user onto the 3,600-line legacy
+     *  [SETTINGS] long-scroll page when they tapped "configure" on the
+     *  Azure plugin row. Hosts the same [AzureSection] composable as the
+     *  legacy page, so the two surfaces stay byte-identical. */
+    const val SETTINGS_CLOUD_VOICES = "settings/cloud-voices"
     /** Settings → Account. Royal Road sign-in, GitHub OAuth + scope. */
     const val SETTINGS_ACCOUNT = "settings/account"
     /** Settings → Memory Palace. Daemon host, API key, test probe. */
@@ -930,13 +938,14 @@ private fun StoryvoxNavHostContent(
                 `in`.jphe.storyvox.feature.settings.plugins.PluginManagerScreen(
                     onNavigateBack = { navController.popBackStack() },
                     // #501 — Voice bundles section deep-links into the
-                    // Voice Library for per-family voice management and
-                    // into the long-scroll Settings for Azure BYOK key
-                    // entry. The long-scroll page anchors the Azure
-                    // card; a future dedicated Settings → Cloud Voices
-                    // subscreen would replace this target.
+                    // Voice Library for per-family voice management.
+                    // Issue #712 (follow-up to #702) — the "configure
+                    // Azure" CTA on the Azure plugin row now lands on
+                    // the dedicated [SETTINGS_CLOUD_VOICES] subscreen
+                    // instead of dumping the user onto the legacy
+                    // long-scroll page.
                     onOpenVoiceLibrary = { navController.navigate(StoryvoxRoutes.VOICE_LIBRARY) },
-                    onOpenAzureSettings = { navController.navigate(StoryvoxRoutes.SETTINGS) },
+                    onOpenAzureSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_CLOUD_VOICES) },
                 )
             }
             composable(
@@ -1067,6 +1076,24 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 AdvancedSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #712 (follow-up to #404 + #702) — Cloud Voices
+            // subscreen. Azure BYOK key + region + test-connection +
+            // offline-fallback toggle, hosted in the same [AzureSection]
+            // composable the legacy long-scroll page uses, so the two
+            // surfaces stay byte-identical. Reached from the Plugin
+            // Manager's Azure row "configure" CTA; previously that tap
+            // dumped users onto the legacy page (#712).
+            composable(
+                StoryvoxRoutes.SETTINGS_CLOUD_VOICES,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                CloudVoicesSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

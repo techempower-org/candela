@@ -1045,7 +1045,7 @@ internal fun MemoryPalaceSection(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AzureSection(
+internal fun AzureSection(
     azure: UiAzureConfig,
     probe: AzureProbeResult?,
     probing: Boolean,
