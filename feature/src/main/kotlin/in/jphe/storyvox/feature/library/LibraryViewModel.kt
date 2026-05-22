@@ -19,6 +19,7 @@ import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.UiAddByUrlResult
+import `in`.jphe.storyvox.feature.api.UiRouteCandidate
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -167,6 +168,19 @@ sealed interface AddByUrlSheetState {
 
     /** Submission in flight (network call to the source). */
     data object Submitting : AddByUrlSheetState
+
+    /**
+     * Issue #700 — magic-link resolver returned several
+     * chooser-eligible candidates for the pasted [url]. Sheet shows a
+     * picker so the user selects which backend to route to; tapping a
+     * row re-submits via [LibraryViewModel.chooseSource] with the
+     * picked sourceId. Cancel (back / dismiss) returns the sheet to
+     * [Open] with the original input so the user can edit and retry.
+     */
+    data class ChooseSource(
+        val url: String,
+        val candidates: List<UiRouteCandidate>,
+    ) : AddByUrlSheetState
 }
 
 @HiltViewModel
@@ -392,6 +406,32 @@ class LibraryViewModel @Inject constructor(
         _addByUrlState.value = AddByUrlSheetState.Hidden
     }
 
+    /**
+     * Issue #700 — user picked a backend from the multi-match chooser.
+     * Re-submits the original URL with [sourceId] as the preferred
+     * source so [FictionRepository.addByUrl] bypasses the resolver and
+     * routes straight to that backend. A no-op if the sheet isn't in
+     * [AddByUrlSheetState.ChooseSource] (defensive — the picker can
+     * only fire while that state is live, but recompositions during
+     * dismissal can race).
+     */
+    fun chooseSource(sourceId: String) {
+        val current = _addByUrlState.value as? AddByUrlSheetState.ChooseSource ?: return
+        submitAddByUrl(current.url, preferredSourceId = sourceId)
+    }
+
+    /**
+     * Issue #700 — back-out of the chooser without picking. Returns the
+     * sheet to the editable [AddByUrlSheetState.Open] state so the user
+     * can amend the URL and resubmit; a no-op when the sheet isn't
+     * showing the chooser.
+     */
+    fun cancelChooseSource() {
+        if (_addByUrlState.value is AddByUrlSheetState.ChooseSource) {
+            _addByUrlState.value = AddByUrlSheetState.Open()
+        }
+    }
+
     fun submitAddByUrl(url: String, preferredSourceId: String? = null) {
         if (_addByUrlState.value === AddByUrlSheetState.Submitting) return
         // Issue #584 — reject non-http(s) schemes before hitting the
@@ -432,18 +472,23 @@ class LibraryViewModel @Inject constructor(
                     )
                 }
                 is UiAddByUrlResult.MultipleMatches -> {
-                    // Issue #472 — v1 picks the top candidate
-                    // automatically. The chooser-modal UX is wired in
-                    // LibraryViewModel.Chooser state (see follow-up
-                    // PR) so the user can override; v1's resolver
-                    // already disambiguates most paste scenarios via
-                    // the dominance threshold in FictionRepositoryImpl.
-                    val top = result.candidates.firstOrNull()
-                    if (top != null) {
-                        submitAddByUrl(trimmed, preferredSourceId = top.sourceId)
-                    } else {
+                    // Issue #700 — surface the chooser UI rather than
+                    // silently auto-picking. The resolver already
+                    // dominance-collapses obvious wins
+                    // (FictionRepositoryImpl.maybeMultipleMatchesOr);
+                    // anything that reaches here is genuinely
+                    // ambiguous and the user gets to decide. An empty
+                    // candidate list shouldn't normally arrive — the
+                    // repository only emits MultipleMatches when there
+                    // are ≥2 — but we still degrade gracefully.
+                    if (result.candidates.isEmpty()) {
                         _addByUrlState.value = AddByUrlSheetState.Open(
                             error = "Could not pick a backend for that URL.",
+                        )
+                    } else {
+                        _addByUrlState.value = AddByUrlSheetState.ChooseSource(
+                            url = trimmed,
+                            candidates = result.candidates,
                         )
                     }
                 }

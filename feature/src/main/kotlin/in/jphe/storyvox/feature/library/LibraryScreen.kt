@@ -399,6 +399,8 @@ fun LibraryScreen(
         state = addByUrlState,
         onSubmit = viewModel::submitAddByUrl,
         onDismiss = viewModel::dismissAddByUrl,
+        onChooseSource = viewModel::chooseSource,
+        onCancelChoose = viewModel::cancelChooseSource,
     )
 
     ManageShelvesSheet(
