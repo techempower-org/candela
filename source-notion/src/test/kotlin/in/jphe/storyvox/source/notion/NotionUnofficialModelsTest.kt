@@ -5,9 +5,12 @@ import `in`.jphe.storyvox.source.notion.net.NotionQueryCollectionResponse
 import `in`.jphe.storyvox.source.notion.net.NotionRecordMap
 import `in`.jphe.storyvox.source.notion.net.NotionUnofficialError
 import `in`.jphe.storyvox.source.notion.net.contentIds
+import `in`.jphe.storyvox.source.notion.net.rowsReturned
+import `in`.jphe.storyvox.source.notion.net.rowsTotal
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -105,6 +108,51 @@ class NotionUnofficialModelsTest {
         val first = parsed.recordMap.findBlock("309a4ee6-9520-817a-aa23-ebc00eebbe32")
         assertNotNull(first)
         assertEquals("GitHub Student Developer Pack", readTitle(first!!))
+    }
+
+    @Test
+    fun `rowsTotal and rowsReturned expose pagination signal from reducer envelope`() {
+        // Issue #698 — server reports `total` separately from the
+        // capped `blockIds` array. The pagination loop in
+        // NotionUnofficialApi.queryCollection keys off both.
+        val raw = """
+        {
+          "result":{
+            "type":"reducer",
+            "reducerResults":{
+              "collection_group_results":{
+                "type":"results",
+                "total":237,
+                "blockIds":["id-a","id-b","id-c"]
+              }
+            },
+            "sizeHint":3
+          },
+          "recordMap":{"__version__":3,"block":{},"collection":{}}
+        }
+        """.trimIndent()
+        val parsed = json.decodeFromString<NotionQueryCollectionResponse>(raw)
+        assertEquals(237, parsed.rowsTotal())
+        assertEquals(3, parsed.rowsReturned())
+    }
+
+    @Test
+    fun `rowsTotal returns null when reducer envelope is missing or malformed`() {
+        // Older / unexpected response shapes — must not throw.
+        val noResult = json.decodeFromString<NotionQueryCollectionResponse>(
+            """{"recordMap":{"__version__":3,"block":{},"collection":{}}}""",
+        )
+        assertNull(noResult.rowsTotal())
+        assertEquals(0, noResult.rowsReturned())
+
+        val resultNoTotal = json.decodeFromString<NotionQueryCollectionResponse>(
+            """
+            {"result":{"reducerResults":{"collection_group_results":{"blockIds":[]}}},
+             "recordMap":{"__version__":3,"block":{},"collection":{}}}
+            """.trimIndent(),
+        )
+        assertNull(resultNoTotal.rowsTotal())
+        assertEquals(0, resultNoTotal.rowsReturned())
     }
 
     @Test
