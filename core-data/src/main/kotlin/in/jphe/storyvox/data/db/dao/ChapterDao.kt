@@ -284,6 +284,39 @@ interface ChapterDao {
     )
     suspend fun setDownloadState(id: String, state: ChapterDownloadState, now: Long, error: String?)
 
+    /**
+     * Issue #705 — DOWNLOADING is a transient state set by
+     * [`ChapterDownloadWorker`][in.jphe.storyvox.data.work.ChapterDownloadWorker]
+     * just before [FictionSource.chapter] runs. Every normal exit (Success,
+     * NotFound, AuthRequired, Cloudflare, RateLimited, NetworkError) writes
+     * a follow-up state — but if the worker is killed mid-flight (Android
+     * low-memory kill, JobScheduler timeout, process crash) or a parser
+     * throws something the worker can't catch (OOM, hard crash), the row
+     * is left at DOWNLOADING with no reaper.
+     *
+     * This query flips DOWNLOADING rows whose `lastDownloadAttemptAt` is
+     * older than `cutoff` back to QUEUED with a `stuck` error tag so the
+     * next scheduler pass picks them up again. Called from the worker
+     * itself at the top of `doWork()` so every fresh download self-heals
+     * stale siblings without needing an app-start hook.
+     *
+     * The 5-minute cutoff (per the issue's recommendation) is comfortably
+     * longer than the slowest real `source.chapter()` call observed in
+     * the wild (RR cold cache + chapter-list page-walk parser is < 30s
+     * on a bad night), so we don't race a still-running download.
+     */
+    @Query(
+        """
+        UPDATE chapter
+           SET downloadState = 'QUEUED',
+               lastDownloadAttemptAt = :now,
+               lastDownloadError = 'stuck'
+         WHERE downloadState = 'DOWNLOADING'
+           AND (lastDownloadAttemptAt IS NULL OR lastDownloadAttemptAt < :cutoff)
+        """,
+    )
+    suspend fun reapStuckDownloads(now: Long, cutoff: Long): Int
+
     @Query(
         """
         UPDATE chapter

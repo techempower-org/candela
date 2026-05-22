@@ -151,6 +151,27 @@ class ChapterRepositoryImplTest {
             publishRow(id)
         }
 
+        // Issue #705 — reaper for stuck DOWNLOADING rows. Repository never
+        // calls this directly (the worker does), but the DAO interface
+        // requires an impl. Match the live SQL: flip DOWNLOADING rows
+        // whose lastDownloadAttemptAt is NULL or < cutoff back to QUEUED.
+        override suspend fun reapStuckDownloads(now: Long, cutoff: Long): Int {
+            callLog += "reapStuckDownloads(cutoff=$cutoff)"
+            val stuck = rows.values.filter {
+                it.downloadState == ChapterDownloadState.DOWNLOADING &&
+                    (it.lastDownloadAttemptAt == null || it.lastDownloadAttemptAt < cutoff)
+            }
+            stuck.forEach { r ->
+                rows[r.id] = r.copy(
+                    downloadState = ChapterDownloadState.QUEUED,
+                    lastDownloadAttemptAt = now,
+                    lastDownloadError = "stuck",
+                )
+                publishRow(r.id)
+            }
+            return stuck.size
+        }
+
         override suspend fun setBody(
             id: String,
             html: String,
