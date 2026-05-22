@@ -204,8 +204,13 @@ internal class GutenbergSource @Inject constructor(
             }
         val idx = chapterIndexFrom(chapterId)
             ?: return FictionResult.NotFound("Malformed chapter id: $chapterId")
-        val ch = parsed.chapters.getOrNull(idx)
-            ?: return FictionResult.NotFound("Chapter $idx out of range (have ${parsed.chapters.size})")
+        // Issue #733 — chapterIdFor() encodes the original spine index
+        // in the chapter id (e.g. `gutenberg:84::1`), but the filtered
+        // list (see [withoutEmptySpineItems]) may have gaps after the
+        // cover SVG / image-only spine entries are dropped. Look up by
+        // matching the EpubChapter.index, NOT by list position.
+        val ch = parsed.chapters.firstOrNull { it.index == idx }
+            ?: return FictionResult.NotFound("Chapter $idx not in spine (filtered or out of range)")
         val info = ChapterInfo(
             id = chapterId,
             sourceChapterId = ch.id,
@@ -259,7 +264,7 @@ internal class GutenbergSource @Inject constructor(
             onDisk.writeBytes(bytes)
         }
         val parsed = try {
-            withContext(Dispatchers.IO) { EpubParser.parseFromBytes(bytes) }
+            withContext(Dispatchers.IO) { EpubParser.parseFromBytes(bytes).withoutEmptySpineItems() }
         } catch (e: EpubParseException) {
             return FictionResult.NetworkError("Could not parse Gutenberg EPUB: ${e.message}", e)
         }
@@ -275,7 +280,7 @@ internal class GutenbergSource @Inject constructor(
         }
         val bytes = withContext(Dispatchers.IO) { onDisk.readBytes() }
         val parsed = try {
-            withContext(Dispatchers.IO) { EpubParser.parseFromBytes(bytes) }
+            withContext(Dispatchers.IO) { EpubParser.parseFromBytes(bytes).withoutEmptySpineItems() }
         } catch (e: EpubParseException) {
             return FictionResult.NetworkError("Cached Gutenberg EPUB unparseable: ${e.message}", e)
         }
@@ -345,6 +350,31 @@ private fun GutendexBook.toSummary(): FictionSummary =
         tags = subjects,
         status = FictionStatus.COMPLETED,
     )
+
+/**
+ * Issue #733 — drop spine entries whose visible text content is empty
+ * after [stripTags]. Project Gutenberg's EPUB3 builds always front-load
+ * the spine with a `coverpage-wrapper` page that contains only an SVG
+ * `<image>` referencing the cover JPEG — no text. The catalog row's
+ * `<dc:title>` doesn't tell the reader this; the user sees "Chapter 1"
+ * in the chapter list, taps Play, the download succeeds but writes an
+ * empty `plainBody`, and `getChapter()` returns null because the
+ * text-required guard fires. Result: PRERENDER-SKIP-NOTEXT in the
+ * background worker forever; foreground play surfaces the
+ * `ChapterFetchFailed` error band on chapter ::0.
+ *
+ * Filtering here (vs. in [EpubParser]) keeps the parser source-agnostic
+ * — sideloaded EPUBs (`:source-epub`) may want to surface cover-only
+ * spine entries verbatim for a fully-faithful reading experience — but
+ * PG's marquee-source flow needs the first audible chapter to be the
+ * first chapter with actual prose. The remaining chapters keep their
+ * original [EpubChapter.index] so the encoded chapter id
+ * (`gutenberg:N::SPINE_INDEX`) is stable across the filter; gaps in
+ * the index sequence are fine because [chapter] looks up by
+ * `firstOrNull { it.index == idx }` rather than list position.
+ */
+internal fun EpubBook.withoutEmptySpineItems(): EpubBook =
+    copy(chapters = chapters.filter { it.htmlBody.stripTags().isNotEmpty() })
 
 /** Cheap HTML→plaintext for the chapter body the engine receives.
  *  The downstream pipeline normalizes further; this just gets the
