@@ -292,6 +292,9 @@ fun BrowseScreen(
                         // #191 — single dimension (wing) so badge counts
                         // at most 1.
                         FilterShape.MemPalace -> if (state.palaceFilter.wing != null) 1 else 0
+                        // #693 — generic filter badge counts non-default
+                        // sort + category + language + dateRange knobs.
+                        FilterShape.Generic -> state.genericFilter.activeCount()
                         FilterShape.None -> 0
                     },
                     onClick = { showFilterSheet = true },
@@ -620,13 +623,34 @@ fun BrowseScreen(
                 },
                 onDismiss = { showFilterSheet = false },
             )
-            // Plugin-seam Phase 3 (#384) — sources without a filter
-            // sheet (RSS / Epub / Outline / Gutenberg / AO3 / Standard
-            // Ebooks / Wikipedia / Wikisource / KVMR / Notion / Hacker
-            // News / arXiv / PLOS / Discord) collapse into one branch.
-            // The toolbar filter button is hidden for these sources via
+            // #693 — generic sort/category/language/dateRange sheet.
+            // Used by RSS / Outline / Gutenberg / AO3 / Standard Ebooks /
+            // Wikipedia / Wikisource / Notion / Hacker News / arXiv /
+            // PLOS. The exact rows rendered are gated by
+            // [BrowseSourceUi.genericCapabilities].
+            FilterShape.Generic -> {
+                val descriptor = state.visibleSources.firstOrNull { it.id == state.sourceId }
+                val sourceLabel = descriptor?.displayName ?: state.sourceId
+                GenericBrowseFilterSheet(
+                    sourceLabel = sourceLabel,
+                    filter = state.genericFilter,
+                    capabilities = BrowseSourceUi.genericCapabilities(state.sourceId),
+                    onApply = { applied ->
+                        viewModel.setGenericFilter(applied)
+                        showFilterSheet = false
+                    },
+                    onReset = {
+                        viewModel.resetGenericFilter()
+                        showFilterSheet = false
+                    },
+                    onDismiss = { showFilterSheet = false },
+                )
+            }
+            // Truly filterless sources (EPUB / KVMR / Discord / Matrix /
+            // Telegram / Slack / Radio / Readability / Palace) collapse
+            // here. The toolbar filter button is hidden via
             // [BrowseSourceUi.filterShape], so reaching this branch is
-            // a defensive path that just dismisses the sheet.
+            // defensive only.
             FilterShape.None -> { showFilterSheet = false }
         }
     }

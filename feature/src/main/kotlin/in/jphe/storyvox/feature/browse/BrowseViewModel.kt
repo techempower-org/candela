@@ -13,6 +13,9 @@ import `in`.jphe.storyvox.feature.api.BrowseFilter
 import `in`.jphe.storyvox.feature.api.BrowsePaginator
 import `in`.jphe.storyvox.feature.api.BrowseRepositoryUi
 import `in`.jphe.storyvox.feature.api.BrowseSource
+import `in`.jphe.storyvox.feature.api.GenericBrowseFilter
+import `in`.jphe.storyvox.feature.api.GenericDateRange
+import `in`.jphe.storyvox.feature.api.GenericSortOrder
 import `in`.jphe.storyvox.feature.api.GitHubSearchFilter
 import `in`.jphe.storyvox.feature.api.MemPalaceFilter
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
@@ -73,6 +76,13 @@ data class BrowseUiState(
     val isGitHubFilterActive: Boolean = false,
     val palaceFilter: MemPalaceFilter = MemPalaceFilter(),
     val palaceWings: List<String> = emptyList(),
+    /** #693 — generic filter for sources that share the
+     *  sort/category/language/dateRange axes (Gutenberg, arXiv, HN,
+     *  RSS, Wikipedia, Wikisource, AO3, Standard Ebooks, Notion, PLOS,
+     *  Outline). Source-specific shapes (RR, GitHub, MemPalace) keep
+     *  their own dedicated state above. */
+    val genericFilter: GenericBrowseFilter = GenericBrowseFilter(),
+    val isGenericFilterActive: Boolean = false,
     val githubSignedIn: Boolean = false,
     val hasGitHubRepoScope: Boolean = false,
     val royalRoadSignedIn: Boolean = false,
@@ -112,6 +122,7 @@ private data class ControlsView(
     val filter: BrowseFilter,
     val githubFilter: GitHubSearchFilter,
     val palaceFilter: MemPalaceFilter,
+    val genericFilter: GenericBrowseFilter,
     val githubSignedIn: Boolean,
     val hasGitHubRepoScope: Boolean,
     val royalRoadSignedIn: Boolean,
@@ -152,6 +163,7 @@ class BrowseViewModel @Inject constructor(
     private val _filter = MutableStateFlow(BrowseFilter())
     private val _githubFilter = MutableStateFlow(GitHubSearchFilter())
     private val _palaceFilter = MutableStateFlow(MemPalaceFilter())
+    private val _genericFilter = MutableStateFlow(GenericBrowseFilter())
     private val _palaceWings = MutableStateFlow<List<String>>(emptyList())
     private var palaceWingsLoaded = false
     val query: StateFlow<String> = _query.asStateFlow()
@@ -288,14 +300,19 @@ class BrowseViewModel @Inject constructor(
         val authForResolve = combine(githubSignedIn, royalRoadSignedIn, ao3SignedIn) { gh, rr, ao3 ->
             Triple(gh, rr, ao3)
         }
-        combine(baseTuple, _palaceFilter, authForResolve) { tup, palaceFilter, auth ->
+        // #693 — generic filter joins the resolver tuple alongside the
+        // palace filter. Fold (palaceFilter, genericFilter) into a Pair
+        // to stay inside the 4-arg combine overload.
+        val sourceFilters = combine(_palaceFilter, _genericFilter) { pf, gf -> pf to gf }
+        combine(baseTuple, sourceFilters, authForResolve) { tup, filters, auth ->
             resolveSource(
                 sourceId = tup.sourceId,
                 tab = tup.tab,
                 q = tup.q,
                 filter = tup.filter,
                 githubFilter = tup.ghFilter,
-                palaceFilter = palaceFilter,
+                palaceFilter = filters.first,
+                genericFilter = filters.second,
                 githubSignedIn = auth.first,
                 royalRoadSignedIn = auth.second,
                 ao3SignedIn = auth.third,
@@ -345,19 +362,23 @@ class BrowseViewModel @Inject constructor(
         ) { sourceId, tab, q, filter, ghFilter ->
             ResolveTuple(sourceId, tab, q, filter, ghFilter)
         }
+        // #693 — fold palace + generic filter into one stream to stay
+        // inside the 4-arg combine overload.
+        val sourceFilters = combine(_palaceFilter, _genericFilter) { pf, gf -> pf to gf }
         combine(
             baseTuple,
-            _palaceFilter,
+            sourceFilters,
             authSnapshot,
             enabledSourceIds,
-        ) { tup, palaceFilter, auth, enabled ->
+        ) { tup, filters, auth, enabled ->
             ControlsView(
                 sourceId = tup.sourceId,
                 tab = tup.tab,
                 query = tup.q,
                 filter = tup.filter,
                 githubFilter = tup.ghFilter,
-                palaceFilter = palaceFilter,
+                palaceFilter = filters.first,
+                genericFilter = filters.second,
                 githubSignedIn = auth.githubSignedIn,
                 hasGitHubRepoScope = auth.hasGitHubRepoScope,
                 royalRoadSignedIn = auth.royalRoadSignedIn,
@@ -386,6 +407,8 @@ class BrowseViewModel @Inject constructor(
                     isGitHubFilterActive = c.githubFilter.isActive(),
                     palaceFilter = c.palaceFilter,
                     palaceWings = wings,
+                    genericFilter = c.genericFilter,
+                    isGenericFilterActive = c.genericFilter.isActive(),
                     githubSignedIn = c.githubSignedIn,
                     hasGitHubRepoScope = c.hasGitHubRepoScope,
                     royalRoadSignedIn = c.royalRoadSignedIn,
@@ -421,6 +444,8 @@ class BrowseViewModel @Inject constructor(
                     isGitHubFilterActive = c.githubFilter.isActive(),
                     palaceFilter = c.palaceFilter,
                     palaceWings = wings,
+                    genericFilter = c.genericFilter,
+                    isGenericFilterActive = c.genericFilter.isActive(),
                     githubSignedIn = c.githubSignedIn,
                     hasGitHubRepoScope = c.hasGitHubRepoScope,
                     royalRoadSignedIn = c.royalRoadSignedIn,
@@ -458,20 +483,35 @@ class BrowseViewModel @Inject constructor(
             FilterShape.RoyalRoad -> {
                 _githubFilter.value = GitHubSearchFilter()
                 _palaceFilter.value = MemPalaceFilter()
+                _genericFilter.value = GenericBrowseFilter()
             }
             FilterShape.GitHub -> {
                 _filter.value = BrowseFilter()
                 _palaceFilter.value = MemPalaceFilter()
+                _genericFilter.value = GenericBrowseFilter()
             }
             FilterShape.MemPalace -> {
                 _filter.value = BrowseFilter()
                 _githubFilter.value = GitHubSearchFilter()
+                _genericFilter.value = GenericBrowseFilter()
                 ensurePalaceWingsLoaded()
+            }
+            // #693 — generic filter is per-source-instance state. Clearing
+            // it on source switch keeps the previous source's category /
+            // language selection from bleeding into a new chip tap (e.g.
+            // user picks "Spanish" on Wikipedia then switches to arXiv —
+            // arXiv would otherwise inherit an irrelevant language knob).
+            FilterShape.Generic -> {
+                _filter.value = BrowseFilter()
+                _githubFilter.value = GitHubSearchFilter()
+                _palaceFilter.value = MemPalaceFilter()
+                _genericFilter.value = GenericBrowseFilter()
             }
             FilterShape.None -> {
                 _filter.value = BrowseFilter()
                 _githubFilter.value = GitHubSearchFilter()
                 _palaceFilter.value = MemPalaceFilter()
+                _genericFilter.value = GenericBrowseFilter()
             }
         }
     }
@@ -495,6 +535,10 @@ class BrowseViewModel @Inject constructor(
     fun resetGitHubFilter() { _githubFilter.value = GitHubSearchFilter() }
     fun setPalaceFilter(filter: MemPalaceFilter) { _palaceFilter.value = filter }
     fun resetPalaceFilter() { _palaceFilter.value = MemPalaceFilter() }
+    /** #693 — generic filter mutators for the shared sort/category/
+     *  language/dateRange shape. */
+    fun setGenericFilter(filter: GenericBrowseFilter) { _genericFilter.value = filter }
+    fun resetGenericFilter() { _genericFilter.value = GenericBrowseFilter() }
 
     fun loadMore() {
         viewModelScope.launch { paginator.value?.loadNext() }
@@ -566,6 +610,7 @@ private fun resolveSource(
     filter: BrowseFilter,
     githubFilter: GitHubSearchFilter,
     palaceFilter: MemPalaceFilter,
+    genericFilter: GenericBrowseFilter,
     githubSignedIn: Boolean,
     royalRoadSignedIn: Boolean,
     ao3SignedIn: Boolean,
@@ -601,20 +646,55 @@ private fun resolveSource(
         else -> null
     }
     SourceIds.RSS -> when {
+        // #693 — RSS honors the generic filter (sort, date range) even
+        // when no explicit search term is set. NewReleases is the
+        // natural default when both query and filter are blank.
+        genericFilter.isActive() -> BrowseSource.GenericFiltered(
+            query = if (tab == BrowseTab.Search) q else "",
+            filter = genericFilter,
+        )
         tab == BrowseTab.Search -> if (q.isBlank()) BrowseSource.NewReleases else BrowseSource.Search(q)
         tab == BrowseTab.Popular -> BrowseSource.Popular
         tab == BrowseTab.NewReleases -> BrowseSource.NewReleases
         else -> null
     }
-    SourceIds.EPUB, SourceIds.OUTLINE -> when {
+    // #693 — EPUB still has no filter shape (FilterShape.None in
+    // BrowseSourceUi), but Outline now joins the generic filter set.
+    // Split the legacy combined branch so each can route independently.
+    SourceIds.EPUB -> when {
+        tab == BrowseTab.Search -> if (q.isBlank()) BrowseSource.Popular else BrowseSource.Search(q)
+        tab == BrowseTab.Popular -> BrowseSource.Popular
+        else -> null
+    }
+    SourceIds.OUTLINE -> when {
+        genericFilter.isActive() -> BrowseSource.GenericFiltered(
+            query = if (tab == BrowseTab.Search) q else "",
+            filter = genericFilter,
+        )
         tab == BrowseTab.Search -> if (q.isBlank()) BrowseSource.Popular else BrowseSource.Search(q)
         tab == BrowseTab.Popular -> BrowseSource.Popular
         else -> null
     }
     SourceIds.AO3 -> when (tab) {
-        BrowseTab.Popular -> BrowseSource.Popular
-        BrowseTab.NewReleases -> BrowseSource.NewReleases
-        BrowseTab.Search -> if (q.isBlank()) null else BrowseSource.Search(q)
+        // #693 — AO3 honors the generic filter for the unauthenticated
+        // browse surface (Popular / NewReleases / Search). Auth-gated
+        // tabs bypass the filter since the personal surfaces aren't
+        // tag-queryable.
+        BrowseTab.Popular -> if (genericFilter.isActive()) {
+            BrowseSource.GenericFiltered(query = "", filter = genericFilter)
+        } else {
+            BrowseSource.Popular
+        }
+        BrowseTab.NewReleases -> if (genericFilter.isActive()) {
+            BrowseSource.GenericFiltered(query = "", filter = genericFilter)
+        } else {
+            BrowseSource.NewReleases
+        }
+        BrowseTab.Search -> when {
+            genericFilter.isActive() -> BrowseSource.GenericFiltered(query = q, filter = genericFilter)
+            q.isBlank() -> null
+            else -> BrowseSource.Search(q)
+        }
         // #426 PR2 — AO3 auth-gated tabs. Resolver returns null when
         // not signed in (BrowseSourceUi.supportedTabs already gates
         // chip visibility behind ao3SignedIn; the redundant gate here
@@ -639,11 +719,27 @@ private fun resolveSource(
     }
     // Default Popular/NewReleases/Search shape — Gutenberg, Standard
     // Ebooks, Wikipedia, Wikisource, Notion, Hacker News, arXiv, PLOS,
-    // Discord all use this resolver.
+    // Discord all use this resolver. #693 — when the source has a
+    // Generic filter shape and the user has set any knob, route through
+    // BrowseSource.GenericFiltered so the adapter can translate the
+    // selection onto a `SearchQuery` of the right shape. Discord stays
+    // unfiltered because it has FilterShape.None.
     else -> when (tab) {
-        BrowseTab.Popular -> BrowseSource.Popular
-        BrowseTab.NewReleases -> BrowseSource.NewReleases
-        BrowseTab.Search -> if (q.isBlank()) null else BrowseSource.Search(q)
+        BrowseTab.Popular -> if (genericFilter.isActive()) {
+            BrowseSource.GenericFiltered(query = "", filter = genericFilter)
+        } else {
+            BrowseSource.Popular
+        }
+        BrowseTab.NewReleases -> if (genericFilter.isActive()) {
+            BrowseSource.GenericFiltered(query = "", filter = genericFilter)
+        } else {
+            BrowseSource.NewReleases
+        }
+        BrowseTab.Search -> when {
+            genericFilter.isActive() -> BrowseSource.GenericFiltered(query = q, filter = genericFilter)
+            q.isBlank() -> null
+            else -> BrowseSource.Search(q)
+        }
         else -> null
     }
 }

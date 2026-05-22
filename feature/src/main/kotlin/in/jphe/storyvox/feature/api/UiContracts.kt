@@ -270,6 +270,19 @@ sealed interface BrowseSource {
     data class ByGenre(val genre: String) : BrowseSource
 
     /**
+     * Generic filtered listing (#693). The sourceId carried alongside
+     * the paginator binding tells the adapter which source-specific
+     * `SearchQuery` translation to apply. `query` is the optional
+     * free-text term (Search tab); empty `query` + an active filter
+     * still produces a listing because most sources fall back to a
+     * filtered Popular / Recent surface when the term is blank.
+     */
+    data class GenericFiltered(
+        val query: String,
+        val filter: GenericBrowseFilter,
+    ) : BrowseSource
+
+    /**
      * Auth-gated `/user/repos` listing for the signed-in GitHub user
      * (#200). Only meaningful when `BrowseSourceKey.GitHub` is selected
      * AND `UiSettings.github` is signed-in; the BrowseViewModel gates
@@ -432,6 +445,100 @@ data class MemPalaceFilter(
     /** Wing name as returned by `MemPalaceSource.genres()`. Null = no
      *  wing filter; Browse renders the unscoped Popular tab. */
     val wing: String? = null,
+)
+
+/**
+ * Issue #693 — generic filter shape used by sources that share the
+ * sort + category + language + date-range axes. Drives Browse →
+ * Gutenberg / arXiv / HackerNews / RSS / Wikipedia / Wikisource /
+ * Standard Ebooks / Notion / PLOS / Outline / AO3.
+ *
+ * Source-specific knobs (RR tag picker, GitHub qualifier set,
+ * MemPalace wing chooser) live in their own data classes — this one
+ * is the "broadly useful subset" that maps cleanly onto each source's
+ * `SearchQuery` translation in the data adapter.
+ *
+ * The set of *visible* knobs per source is gated by
+ * [GenericFilterCapabilities] — a source that has no concept of
+ * language hides the language row entirely rather than offering a
+ * knob that does nothing.
+ */
+data class GenericBrowseFilter(
+    /** Sort axis. Mapped to `SearchQuery.orderBy` at the adapter
+     *  boundary; sources that don't honor a sort enum (HN, Wikipedia)
+     *  silently ignore it. */
+    val sortOrder: GenericSortOrder = GenericSortOrder.Default,
+    /** ISO-639-1 language code (en, es, fr, ...) or null. Honored by
+     *  Gutenberg (`languages=`), Wikipedia (host language), Wikisource. */
+    val language: String? = null,
+    /** Source-specific category / topic. Honored by arXiv (category
+     *  code like `cs.AI`), Gutenberg (topic keyword), HackerNews
+     *  (story type tag), Notion (page kind). Free-text on purpose so
+     *  the same filter shape works across very different taxonomies. */
+    val category: String? = null,
+    /** Optional date-range cutoff. Honored by HackerNews (Algolia
+     *  `numericFilters=created_at_i>X`), arXiv (recent-N-days
+     *  approximation), RSS (entry-publishedAt filter applied at the
+     *  adapter). */
+    val dateRange: GenericDateRange = GenericDateRange.Any,
+)
+
+/**
+ * Generic sort axis covering the union of the per-source options
+ * that fit into a single dropdown. Sources that support more (Royal
+ * Road, GitHub) use their own filter shape; sources that support
+ * less (Wikipedia, Outline) collapse Best/Recent into "Default".
+ */
+enum class GenericSortOrder {
+    /** Source-default sort (Popular for Gutenberg, submittedDate desc
+     *  for arXiv, points-desc for HN, ...). */
+    Default,
+    /** Newest first. Maps to `SearchQuery.LAST_UPDATE` /
+     *  `RELEASE_DATE` depending on source. */
+    Newest,
+    /** Highest-rated / most-popular first. Maps to `POPULARITY` or
+     *  `RATING` depending on source. */
+    Popular,
+    /** Alphabetical by title — Wikipedia / Wikisource / Outline. */
+    Title,
+}
+
+/**
+ * Date-range cutoff. `Any` omits the filter; the named buckets each
+ * resolve to "now - N days" at the adapter (cheaper than persisting a
+ * raw `LocalDate` and re-evaluating staleness across screen lifecycle).
+ */
+enum class GenericDateRange { Any, Last7Days, Last30Days, Last90Days, LastYear }
+
+/**
+ * Per-source capability bitmap. The filter sheet reads this to decide
+ * which rows to render — e.g. arXiv hides the language row (papers
+ * are nearly all English; the category multi-select is the meaningful
+ * axis) while Gutenberg shows it (PG has Spanish / French / German
+ * sections worth filtering to).
+ *
+ * The `availableCategories` / `availableLanguages` lists drive the
+ * picker rows — if a source has a curated category list (arXiv's CS
+ * subset, Gutenberg's seven topic chips), the sheet renders them as
+ * tappable chips. An empty list collapses the row to a free-text
+ * input, or hides it if the corresponding boolean is false.
+ */
+data class GenericFilterCapabilities(
+    val supportsSortOrder: Boolean = false,
+    val supportsLanguage: Boolean = false,
+    val supportsCategory: Boolean = false,
+    val supportsDateRange: Boolean = false,
+    /** Curated category options. Empty + supportsCategory=true → free-text. */
+    val availableCategories: List<String> = emptyList(),
+    /** Curated language options. Empty + supportsLanguage=true → free-text. */
+    val availableLanguages: List<String> = emptyList(),
+    /** Curated sort options. `Default` is always present; this list
+     *  controls which *other* options the sheet exposes. */
+    val availableSortOrders: List<GenericSortOrder> = listOf(
+        GenericSortOrder.Default,
+        GenericSortOrder.Newest,
+        GenericSortOrder.Popular,
+    ),
 )
 
 data class UiPlaybackState(
