@@ -12,6 +12,7 @@ import kotlin.math.min
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Issue #676 — adapter from Android's framework `TextToSpeech` to the
@@ -218,7 +219,21 @@ class SystemTtsEngine(
             return@withContext null
         }
 
-        val ok = deferred.await()
+        // #716 — bound the await so an engine that swallows the
+        // utterance (no onDone, no onError — observed on stock Samsung
+        // TTS firmware after a mid-synth engine-package crash) can't
+        // park this coroutine forever. A healthy sentence synthesizes
+        // in <500 ms even on slow phones; SYNTH_TIMEOUT_MS (10 s) is
+        // well outside the healthy band and matches the buffering
+        // watchdog window in PlaybackController so upstream's
+        // AudioOutputStuck recovery kicks in at the same horizon.
+        val ok = withTimeoutOrNull(SYNTH_TIMEOUT_MS) { deferred.await() }
+        if (ok == null) {
+            Log.w(TAG, "synth timed out after ${SYNTH_TIMEOUT_MS}ms text.len=${text.length}")
+            pending.remove(utteranceId)
+            runCatching { outFile.delete() }
+            return@withContext null
+        }
         if (!ok) {
             runCatching { outFile.delete() }
             return@withContext null
@@ -285,6 +300,18 @@ class SystemTtsEngine(
 
         /** Canonical RIFF/WAVE 16-bit mono LE header size in bytes. */
         const val WAV_HEADER_BYTES: Int = 44
+
+        /**
+         * Upper bound on how long we'll wait for the
+         * `UtteranceProgressListener` to fire `onDone`/`onError` for a
+         * single sentence (#716). A healthy sentence synthesizes in
+         * <500 ms even on slow phones; 10 s matches the buffering
+         * watchdog horizon in `PlaybackController`
+         * (BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS = 12 s), so a
+         * timeout here lands fractionally before upstream's
+         * AudioOutputStuck recovery — exactly the sequence we want.
+         */
+        const val SYNTH_TIMEOUT_MS: Long = 10_000
 
         /** Android TTS documented setSpeechRate bounds. */
         private const val MIN_RATE: Float = 0.1f

@@ -22,6 +22,7 @@ import `in`.jphe.storyvox.source.gutenberg.net.GutendexBook
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -94,8 +95,18 @@ internal class GutenbergSource @Inject constructor(
      * a chapter open after the first one is a hash lookup, not a
      * re-parse. The cache is per-process; rebuilds cheaply from the
      * on-disk `.epub` after a process restart.
+     *
+     * Thread safety (#717): this is a `@Singleton`, so a single map
+     * instance is shared across the prerender pipeline
+     * ([PrerenderTriggers] fires neighbour-chapter fetches in parallel
+     * with the active chapter's playback) and any direct `chapter()` /
+     * `detail()` callers. ConcurrentHashMap matches the put-then-get
+     * shape and the precedent set by
+     * `:source-notion`'s NotionUnofficialApi.pageCache. Unsynchronized
+     * HashMap under contention can split entry chains and infinite-
+     * loop on traversal — an exceptionally hard-to-diagnose hang.
      */
-    private val parsedCache = mutableMapOf<String, EpubBook>()
+    private val parsedCache = ConcurrentHashMap<String, EpubBook>()
 
     // ─── browse ────────────────────────────────────────────────────────
 
