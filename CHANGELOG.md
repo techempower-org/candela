@@ -9,6 +9,25 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.5.74] — 2026-05-22
+
+**Dream team session.** 9 PRs merged in one pass — closed all 4 open issues (#690-693) plus 6 new issues filed and 4 of those fixed same-session.
+
+### Fixed
+- **#690** a11y: wire `LocalAccessibleTouchTargets` into SettingsRow, SettingsSwitchRow, BrassButton, ChapterCard — toggle now actually enlarges touch targets (#694)
+- **#691** sync: replace broken WebSocket data plane with InstantDB admin HTTP API — `JsonArray is not a JsonObject` crash on every fetch resolved (#708)
+- **#692** auth: split pasted `code#state` blob for Anthropic Teams OAuth — `invalid_grant` on sign-in resolved (#701)
+- **#695** browse: filter Search tab from chip strip when source declares `supportsSearch=false` — Slack/Telegram no longer show empty Search (#710)
+- **#704** sync: SyncCoordinator.publish uses atomic `_status.update{}` instead of non-atomic read-modify-write — lost-update race across concurrent domain syncers fixed (#709)
+- Settings hub: route `onOpenAiSettings` CTAs from HybridReaderScreen and ChatScreen to dedicated SETTINGS_AI subscreen instead of legacy long-scroll (#702)
+
+### Added
+- **#693** browse: generic filter sheets for 11 browsable backends — Gutenberg, arXiv, HackerNews, RSS, Wikipedia, Wikisource, AO3, Standard Ebooks, Notion, PLOS, Outline now have sort/language/category/dateRange filters (#707)
+- **#697** llm: Claude Opus 4.7 and Sonnet 4.7 added to all provider model registries — Claude API, Bedrock, Anthropic Teams (#703)
+
+### Chore
+- **#696** ignore orphan `source-kvmr/` directory left by #417 rename (#706)
+
 ## [0.5.73] — 2026-05-17
 
 **TTS-less device fallback CTA.** On stock Samsung tablets (Galaxy Tab A7 Lite et al.) and other devices that ship without Google TTS pre-installed, the #676 zero-download first-listen path silently degraded to the legacy Piper download. Surface a one-liner banner + Play Store deep-link so the user knows the built-in-voices path is one tap away.
