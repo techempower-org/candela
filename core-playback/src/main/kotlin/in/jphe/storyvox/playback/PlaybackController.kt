@@ -510,10 +510,24 @@ class DefaultPlaybackController @Inject constructor(
                         nowState.currentChapterId == armedFor &&
                         nowState.error == null
                     ) {
+                        // Issue #726 — mirror the in-flight direction
+                        // instead of hardcoding +1. Pre-fix a slow
+                        // Previous-chapter tap (advanceChapter(-1)
+                        // parked on the body-wait flow.first()) was
+                        // recovered with advanceChapter(+1), turning
+                        // Previous into a forward two-skip. The pure
+                        // resolver on the companion handles the latch
+                        // semantics (mirror when set, fall back to +1
+                        // for the original #553 case where the engine
+                        // is stuck without an active advance call).
+                        val watchdogDir = watchdogRecoveryDirection(
+                            p.inFlightAdvanceDirection,
+                        )
                         android.util.Log.w(
                             "PlaybackController",
-                            "#553 watchdog: isBuffering stuck on $armedFor for " +
-                                "${BUFFERING_STUCK_WATCHDOG_MS}ms; firing fallback advance via nextChapter()",
+                            "#553/#726 watchdog: isBuffering stuck on $armedFor for " +
+                                "${BUFFERING_STUCK_WATCHDOG_MS}ms; firing fallback advance " +
+                                "direction=$watchdogDir (in-flight=${p.inFlightAdvanceDirection})",
                         )
                         // #553 follow-up — Media3's Player object is
                         // thread-confined to the application's Main
@@ -526,7 +540,7 @@ class DefaultPlaybackController @Inject constructor(
                         // uses via ReaderViewModel.viewModelScope.
                         runCatching {
                             kotlinx.coroutines.withContext(Dispatchers.Main) {
-                                p.advanceChapter(direction = 1)
+                                p.advanceChapter(direction = watchdogDir)
                             }
                         }.onFailure { t ->
                             // Issue #567 (stuck-state-fixer) — filter
@@ -882,6 +896,32 @@ class DefaultPlaybackController @Inject constructor(
          *  and fire the fallback advance — same recovery path the
          *  manual skip-next button uses. */
         internal const val BUFFERING_STUCK_WATCHDOG_END_OF_CHAPTER_MS = 12_000L
+
+        /**
+         * Issue #726 — pure-function resolver for the watchdog's
+         * recovery direction. Mirrors the in-flight advance direction
+         * when one is set (non-zero), falls back to +1 otherwise.
+         *
+         * The +1 fallback covers the original #553 case where the
+         * engine is stuck on isBuffering without any active
+         * `advanceChapter` call out (e.g. natural end-of-chapter never
+         * fired END_PILL through the consumer). The user was listening
+         * forward, so the natural recovery is forward.
+         *
+         * When the latch IS set (because the user tapped Previous or
+         * Next and the body-wait is parked), this returns whichever
+         * direction the user originally tapped — preserving the
+         * "Previous never moves forward" invariant.
+         *
+         * Inputs are normalized to {-1, 0, +1} so callers can pass the
+         * raw [EnginePlayer.inFlightAdvanceDirection] field without
+         * worrying about stale values from earlier API revisions.
+         */
+        fun watchdogRecoveryDirection(inFlightDirection: Int): Int = when {
+            inFlightDirection > 0 -> 1
+            inFlightDirection < 0 -> -1
+            else -> 1
+        }
 
         /**
          * #531 / #550 — pure-function exports of the seek math so JVM unit
