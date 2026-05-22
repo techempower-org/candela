@@ -514,7 +514,7 @@ private fun BookFinishedOverlay(
                 text = if (fictionTitle.isNullOrBlank()) {
                     "You finished this book."
                 } else {
-                    "You finished “${'$'}fictionTitle”"
+                    "You finished “$fictionTitle”"
                 },
                 style = MaterialTheme.typography.titleLarge,
             )
