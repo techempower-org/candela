@@ -622,6 +622,18 @@ private object Keys {
      */
     val VOICE_FAMILIES_ENABLED_JSON = stringPreferencesKey("pref_voice_families_enabled_v1")
 
+    /**
+     * v0.5.76 — JSON-encoded `Set<String>` of source plugin ids that
+     * the user has "starred" from the Browse carousel long-press
+     * sheet. Twin of [SOURCE_PLUGINS_ENABLED_JSON], but stores a Set
+     * (favorites have no per-source default — empty set is correct
+     * for every fresh install). Codec lives in
+     * [`in.jphe.storyvox.data.source.plugin.encodeSourceFavoritesJson`].
+     * `_v1` suffix lets us rev to a richer shape later (e.g. ordered
+     * list, per-source position) without a destructive migration.
+     */
+    val SOURCE_FAVORITES_JSON = stringPreferencesKey("pref_source_favorites_v1")
+
     // ── Sleep timer shake-to-extend (issue #150) ───────────────────
     val SLEEP_SHAKE_TO_EXTEND_ENABLED = booleanPreferencesKey("pref_sleep_shake_to_extend_enabled")
 
@@ -1149,6 +1161,12 @@ class SettingsRepositoryUiImpl(
             // when its id is absent, so no migration shim is needed.
             voiceFamiliesEnabled = `in`.jphe.storyvox.data.source.plugin.decodeVoiceFamiliesEnabledJson(
                 prefs[Keys.VOICE_FAMILIES_ENABLED_JSON],
+            ),
+            // v0.5.76 — Browse carousel "starred" sources. Empty on
+            // fresh install; no migration since there's no legacy
+            // shape to seed from.
+            favoriteSourceIds = `in`.jphe.storyvox.data.source.plugin.decodeSourceFavoritesJson(
+                prefs[Keys.SOURCE_FAVORITES_JSON],
             ),
             notionDatabaseId = notion.databaseId,
             notionTokenConfigured = notion.apiToken.isNotBlank(),
@@ -2046,6 +2064,25 @@ class SettingsRepositoryUiImpl(
             current[id] = enabled
             prefs[Keys.SOURCE_PLUGINS_ENABLED_JSON] =
                 `in`.jphe.storyvox.data.source.plugin.encodeSourcePluginsEnabledJson(current)
+        }
+    }
+
+    /**
+     * v0.5.76 — toggle a source plugin's "favorite" star. Read-modify-
+     * write the persisted Set so concurrent toggles for *different*
+     * ids in flight at the same DataStore tick don't clobber each
+     * other (DataStore serializes the edit block, so reading inside
+     * is safe). Unknown ids round-trip into the set without
+     * validation — same posture as [setSourcePluginEnabled].
+     */
+    override suspend fun setSourceFavorite(id: String, favorite: Boolean) {
+        store.edit { prefs ->
+            val current = `in`.jphe.storyvox.data.source.plugin.decodeSourceFavoritesJson(
+                prefs[Keys.SOURCE_FAVORITES_JSON],
+            ).toMutableSet()
+            if (favorite) current.add(id) else current.remove(id)
+            prefs[Keys.SOURCE_FAVORITES_JSON] =
+                `in`.jphe.storyvox.data.source.plugin.encodeSourceFavoritesJson(current)
         }
     }
 

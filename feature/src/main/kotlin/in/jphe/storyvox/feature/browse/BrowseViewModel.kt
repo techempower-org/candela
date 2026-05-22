@@ -95,8 +95,20 @@ data class BrowseUiState(
     val enabledSourceIds: Set<String> = emptySet(),
     /** Ordered list of plugin descriptors visible to the picker (the
      *  enabled subset, in registry display order). Surfaced here so the
-     *  chip strip can render without re-injecting the registry. */
+     *  chip strip can render without re-injecting the registry.
+     *
+     *  v0.5.76 — favorites are pinned to the front of this list in
+     *  registry order, non-favorites follow in registry order. The
+     *  carousel renders this list directly so the visual order matches
+     *  the data-layer order without any extra sort in the UI. */
     val visibleSources: List<SourcePluginDescriptor> = emptyList(),
+    /** v0.5.76 — ids the user has "starred" from the Browse carousel
+     *  long-press sheet. Subset of [enabledSourceIds] in practice
+     *  (favoriting a disabled source is allowed but the star only
+     *  visibly applies when the source becomes visible again). The
+     *  carousel renders a star overlay on cards whose id is in this
+     *  set. */
+    val favoriteSourceIds: Set<String> = emptySet(),
     /** Issue #443 — true when the Notion source is in anonymous-public
      *  mode (no integration token configured). The Notion listing then
      *  surfaces TechEmpower's public content as a zero-setup demo; the
@@ -129,6 +141,7 @@ private data class ControlsView(
     val ao3SignedIn: Boolean,
     val enabledSourceIds: Set<String>,
     val visibleSources: List<SourcePluginDescriptor>,
+    val favoriteSourceIds: Set<String>,
 )
 
 /**
@@ -281,6 +294,15 @@ class BrowseViewModel @Inject constructor(
                 registry.descriptors.filter { it.defaultEnabled }.map { it.id }.toSet(),
             )
 
+    /** v0.5.76 — the user's "starred" sources, surfaced to the carousel
+     *  as the membership signal for the corner star overlay AND as the
+     *  re-ordering input for `visibleSources` below. */
+    private val favoriteSourceIds: StateFlow<Set<String>> =
+        settings.settings
+            .map { it.favoriteSourceIds }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     private val paginator: StateFlow<BrowsePaginator?> = run {
         val baseTuple = combine(
             _sourceId,
@@ -365,12 +387,31 @@ class BrowseViewModel @Inject constructor(
         // #693 — fold palace + generic filter into one stream to stay
         // inside the 4-arg combine overload.
         val sourceFilters = combine(_palaceFilter, _genericFilter) { pf, gf -> pf to gf }
+        // v0.5.76 — fold favorites into the enabled-set stream so the
+        // top-level controls combine() stays at 4 args. The pair carries
+        // both into the final reducer, where visibleSources is sorted
+        // favorites-first within registry order.
+        val enabledAndFavorites = combine(enabledSourceIds, favoriteSourceIds) { e, f -> e to f }
         combine(
             baseTuple,
             sourceFilters,
             authSnapshot,
-            enabledSourceIds,
-        ) { tup, filters, auth, enabled ->
+            enabledAndFavorites,
+        ) { tup, filters, auth, ef ->
+            val (enabled, favorites) = ef
+            // Sort: favorites first (registry order), then non-favorites
+            // (registry order). Using partitionedBy on registry.descriptors
+            // — which is already in display order — keeps two passes
+            // O(n) and stable.
+            val visible = run {
+                val faves = mutableListOf<SourcePluginDescriptor>()
+                val rest = mutableListOf<SourcePluginDescriptor>()
+                for (d in registry.descriptors) {
+                    if (d.id !in enabled) continue
+                    if (d.id in favorites) faves.add(d) else rest.add(d)
+                }
+                faves + rest
+            }
             ControlsView(
                 sourceId = tup.sourceId,
                 tab = tup.tab,
@@ -384,7 +425,8 @@ class BrowseViewModel @Inject constructor(
                 royalRoadSignedIn = auth.royalRoadSignedIn,
                 ao3SignedIn = auth.ao3SignedIn,
                 enabledSourceIds = enabled,
-                visibleSources = registry.descriptors.filter { it.id in enabled },
+                visibleSources = visible,
+                favoriteSourceIds = favorites,
             )
         }
     }
@@ -415,6 +457,7 @@ class BrowseViewModel @Inject constructor(
                     ao3SignedIn = c.ao3SignedIn,
                     enabledSourceIds = c.enabledSourceIds,
                     visibleSources = c.visibleSources,
+                    favoriteSourceIds = c.favoriteSourceIds,
                     notionAnonymousActive = notionAnon,
                 )
             }
@@ -452,6 +495,7 @@ class BrowseViewModel @Inject constructor(
                     ao3SignedIn = c.ao3SignedIn,
                     enabledSourceIds = c.enabledSourceIds,
                     visibleSources = c.visibleSources,
+                    favoriteSourceIds = c.favoriteSourceIds,
                     notionAnonymousActive = notionAnon,
                 )
             }
@@ -524,6 +568,38 @@ class BrowseViewModel @Inject constructor(
                 .getOrDefault(emptyList())
             if (wings.isEmpty()) palaceWingsLoaded = false
             _palaceWings.value = wings
+        }
+    }
+
+    /**
+     * v0.5.76 — toggle a source plugin's favorite star from the Browse
+     * carousel long-press sheet. The persisted set is updated through
+     * the settings repo; the next [BrowseUiState] emission re-sorts
+     * [BrowseUiState.visibleSources] so the just-starred card slides to
+     * the front of the row.
+     *
+     * Note: favoriting a *disabled* source is allowed and persists, but
+     * the card stays hidden in the carousel until the source is
+     * re-enabled. This is intentional — the long-press sheet can star
+     * a card before disabling it, and re-enabling later restores both
+     * the visibility and the star without a second tap.
+     */
+    fun toggleFavorite(id: String) {
+        val currentFavorite = id in (uiState.value.favoriteSourceIds)
+        viewModelScope.launch {
+            settings.setSourceFavorite(id, favorite = !currentFavorite)
+        }
+    }
+
+    /**
+     * v0.5.76 — enable/disable a source plugin from the Browse carousel
+     * long-press sheet. Twin entry point to the Plugin Manager
+     * Settings row — same persistence layer, just reachable from the
+     * gesture that surfaced the question.
+     */
+    fun setSourceEnabled(id: String, enabled: Boolean) {
+        viewModelScope.launch {
+            settings.setSourcePluginEnabled(id, enabled)
         }
     }
 

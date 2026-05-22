@@ -9,10 +9,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
@@ -43,22 +46,33 @@ import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Workspaces
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -68,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
+import kotlinx.coroutines.launch
 
 /**
  * v0.5.72 — magical hero source carousel for the first-class Browse tab.
@@ -93,12 +108,27 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * The carousel auto-scrolls the selected card into view whenever
  * [selectedId] changes, so deep-links / sub-tab returns always land with
  * the active source visible.
+ *
+ * ## v0.5.76 — long-press favorites + hide
+ *
+ * Long-press any card to surface a [SourceContextSheet] with two actions:
+ * - **Star** the source so it pins to the front of the row (in registry
+ *   order within favorites). Tap the star row again to unstar.
+ * - **Hide** the source from the carousel. Settings → Plugins re-enables
+ *   it; the sheet's footer copy names that path so the user always has a
+ *   way back.
+ *
+ * Favorited cards render a small filled star in the top-right corner,
+ * persistent across selected/unselected states, in `primary` color.
  */
 @Composable
 internal fun BrowseSourceCarousel(
     selectedId: String,
     onSelect: (String) -> Unit,
     visibleSources: List<SourcePluginDescriptor>,
+    favoriteSourceIds: Set<String> = emptySet(),
+    onToggleFavorite: (String) -> Unit = {},
+    onHideSource: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -117,6 +147,12 @@ internal fun BrowseSourceCarousel(
         }
     }
 
+    // v0.5.76 — long-press target. Null when the sheet is dismissed.
+    // Held at the carousel level (rather than per-card) so dismiss flow
+    // and the sheet share one state surface and the sheet only mounts
+    // once at a time.
+    var contextSheetFor by remember { mutableStateOf<SourcePluginDescriptor?>(null) }
+
     LazyRow(
         state = listState,
         modifier = modifier
@@ -129,17 +165,38 @@ internal fun BrowseSourceCarousel(
             BrowseSourceCard(
                 descriptor = descriptor,
                 isSelected = descriptor.id == selectedId,
+                isFavorite = descriptor.id in favoriteSourceIds,
                 onClick = { onSelect(descriptor.id) },
+                onLongClick = { contextSheetFor = descriptor },
             )
         }
     }
+
+    contextSheetFor?.let { descriptor ->
+        SourceContextSheet(
+            descriptor = descriptor,
+            isFavorite = descriptor.id in favoriteSourceIds,
+            onToggleFavorite = {
+                onToggleFavorite(descriptor.id)
+                contextSheetFor = null
+            },
+            onHide = {
+                onHideSource(descriptor.id)
+                contextSheetFor = null
+            },
+            onDismiss = { contextSheetFor = null },
+        )
+    }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun BrowseSourceCard(
     descriptor: SourcePluginDescriptor,
     isSelected: Boolean,
+    isFavorite: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     // Hoist into a local so the `Modifier.semantics { selected = ... }`
     // lambda below isn't confused by Compose's `selected` property name —
@@ -202,7 +259,17 @@ private fun BrowseSourceCard(
             // hint intact even on the selected cell — same rationale as
             // BottomTabBar #645.
             .semantics { this.selected = selected }
-            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick),
+            // v0.5.76 — combinedClickable adds long-press without losing
+            // the click semantics or role. The onLongClickLabel is read by
+            // TalkBack on long-press hint announce ("Double-tap and hold
+            // for options").
+            .combinedClickable(
+                role = Role.Button,
+                onClickLabel = label,
+                onLongClickLabel = "Source options",
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
         shape = RoundedCornerShape(14.dp),
         color = Color.Transparent,
         border = BorderStroke(if (selected) 2.dp else 1.dp, borderAlpha),
@@ -242,9 +309,212 @@ private fun BrowseSourceCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+
+            // v0.5.76 — favorite star overlay. Top-right corner, primary
+            // color, soft container behind it so it reads on both gradient
+            // states (selected primaryContainer + unselected surface). The
+            // overlay is decorative — the card's selected-state semantics
+            // already include the source name; TalkBack doesn't need to
+            // announce "starred" separately for every favorite card. The
+            // long-press sheet is where star state is read and changed.
+            if (isFavorite) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = primary,
+                        modifier = Modifier.size(12.dp),
+                    )
+                }
+            }
         }
     }
 }
+
+/**
+ * v0.5.76 — long-press context sheet for a source card.
+ *
+ * Renders as a [ModalBottomSheet] anchored to the bottom of the screen,
+ * with a compact header (icon + display name + tagline) and two action
+ * rows: toggle favorite, hide-from-Browse. A footer line names the
+ * Settings → Plugins re-enable path so disabling the source never
+ * feels like a one-way door.
+ *
+ * Two rows is intentionally narrow scope. Future actions (per-source
+ * sign-in, "open in WebView", reorder) belong here too, but only after
+ * the data layer can express them; piling rows in pre-emptively would
+ * just make the favorite/hide affordance harder to find.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SourceContextSheet(
+    descriptor: SourcePluginDescriptor,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onHide: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val label = BrowseSourceUi.chipLabel(descriptor.id, descriptor.displayName)
+    val tagline = sourceTagline(descriptor.id)
+    val glyph = sourceGlyph(descriptor.id)
+
+    fun dismissThen(action: () -> Unit) {
+        // Animate-then-act so the user perceives the sheet acknowledging
+        // their tap before the underlying state shifts. Mirrors the
+        // Material 3 sample for action-then-dismiss flows.
+        scope.launch {
+            sheetState.hide()
+        }.invokeOnCompletion {
+            action()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        modifier = Modifier.testTag("source-context-sheet"),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
+            // Header — icon + name + tagline. Smaller than the carousel
+            // card, but visually identical so the user reads "this sheet
+            // is acting on THIS source".
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Icon(
+                    imageVector = glyph,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (tagline.isNotBlank()) {
+                        Text(
+                            text = tagline,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            HorizontalDivider()
+
+            // Star / unstar row.
+            SheetActionRow(
+                icon = if (isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                iconTint = if (isFavorite) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurface,
+                title = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                subtitle = if (isFavorite) {
+                    "Will keep its place in the list"
+                } else {
+                    "Pins to the front of the carousel"
+                },
+                titleColor = MaterialTheme.colorScheme.onSurface,
+                testTag = "source-context-sheet-favorite",
+                onClick = { dismissThen(onToggleFavorite) },
+            )
+
+            // Hide row.
+            SheetActionRow(
+                icon = Icons.Filled.VisibilityOff,
+                iconTint = MaterialTheme.colorScheme.error,
+                title = "Hide from Browse",
+                subtitle = "Re-enable from Settings -> Plugins",
+                titleColor = MaterialTheme.colorScheme.error,
+                testTag = "source-context-sheet-hide",
+                onClick = { dismissThen(onHide) },
+            )
+
+            Spacer(modifier = Modifier.height(spacing.sm))
+        }
+    }
+}
+
+@Composable
+private fun SheetActionRow(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    titleColor: Color,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(testTag)
+            .semantics(mergeDescendants = true) { }
+            .clip(RoundedCornerShape(8.dp))
+            // Clickable AFTER clip so the ripple stays inside the
+            // rounded corners; mergeDescendants gives TalkBack one
+            // composite announcement per row.
+            .androidxClickable(
+                onClickLabel = title,
+                onClick = onClick,
+            )
+            .padding(horizontal = spacing.xs, vertical = spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.md),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(24.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = titleColor,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Tiny helper so the sheet row Modifier chain reads top-to-bottom.
+ *  Wraps Modifier.clickable so the sheet rows stay readable without a
+ *  block-level `.clickable { ... }` mid-chain. */
+private fun Modifier.androidxClickable(onClickLabel: String, onClick: () -> Unit): Modifier =
+    this.clickable(
+        enabled = true,
+        onClickLabel = onClickLabel,
+        role = Role.Button,
+        onClick = onClick,
+    )
 
 /**
  * Short, plain-English tagline rendered under the source name in the
