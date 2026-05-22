@@ -517,6 +517,29 @@ class EnginePlayer @AssistedInject constructor(
         azureFallbackVoiceId = voiceId
     }
 
+    /**
+     * Issue #726 — direction of the currently in-flight [advanceChapter]
+     * suspension, or 0 when no advance is in flight. Set on entry to
+     * `advanceChapter`, cleared in a try/finally on exit.
+     *
+     * Read by [PlaybackController]'s buffering-stuck watchdog so the
+     * recovery advance moves in the same direction as the user's
+     * original tap. Pre-fix the watchdog hardcoded `direction = 1`,
+     * which turned a slow Previous-chapter tap into a forward two-skip
+     * (Previous targets N-1, watchdog fires Next at +1.5 s targeting
+     * N+1, body-wait then lands on whichever finishes first — never
+     * deterministic, never what the user asked for).
+     *
+     * Volatile because the writer is the coroutine running
+     * `advanceChapter` (on Main when called from the controller
+     * watchdog or from a user tap routed through ReaderViewModel) and
+     * the reader is the watchdog's `launch` block on the
+     * controller's Default-dispatcher scope.
+     */
+    @Volatile
+    var inFlightAdvanceDirection: Int = 0
+        private set
+
     private fun observeBufferConfig() {
         scope.launch {
             // Rebuild the pipeline whenever the buffer-chunks slider
@@ -3317,6 +3340,17 @@ class EnginePlayer @AssistedInject constructor(
     }
 
     suspend fun advanceChapter(direction: Int) {
+        // Issue #726 — record the direction of the in-flight advance so
+        // PlaybackController's buffering-stuck watchdog can mirror it
+        // instead of hardcoding +1. Normalize to -1 / +1 so a Previous
+        // tap (direction=-1) doesn't accidentally read back as 0 from a
+        // caller that passed direction=0. The clear happens in finally
+        // so an exception or coroutine cancellation also resets the
+        // latch — leaving it set would make the next watchdog fire
+        // mirror a stale direction.
+        val normalizedDir = if (direction >= 0) 1 else -1
+        inFlightAdvanceDirection = normalizedDir
+        try {
         val current = _observableState.value.currentChapterId ?: run {
             android.util.Log.w(
                 "EnginePlayer",
@@ -3460,6 +3494,16 @@ class EnginePlayer @AssistedInject constructor(
             "EnginePlayer",
             "advanceChapter: complete, now playing $nextId",
         )
+        } finally {
+            // Issue #726 — clear the in-flight latch on every exit
+            // path (success, early return on missing fiction/chapter
+            // ids, end-of-book, body-wait timeout, exception,
+            // cooperative cancellation from the watchdog). Leaving it
+            // set after exit would make a subsequent watchdog fire
+            // mirror a stale direction — exactly the kind of loose
+            // state machine that produced #726 in the first place.
+            inFlightAdvanceDirection = 0
+        }
     }
 
     private suspend fun handleChapterDone() {
