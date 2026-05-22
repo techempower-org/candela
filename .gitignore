@@ -51,6 +51,14 @@ storyvox-upload.keystore
 .superpowers/
 scratch/
 
+# Issue #417 — :source-kvmr was renamed to :source-radio. Older
+# checkouts of the repo still write build artifacts into
+# source-kvmr/build/ when their settings.gradle.kts still includes
+# `:source-kvmr`; ignoring the entire directory keeps those orphan
+# trees from creeping into commits via `git add .` or IDE plugins.
+# See issue #696.
+source-kvmr/
+
 # Misc
 *.bak
 *.swp
