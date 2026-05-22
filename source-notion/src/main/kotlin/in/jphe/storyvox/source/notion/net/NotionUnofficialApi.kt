@@ -36,10 +36,12 @@ import kotlin.time.Duration.Companion.seconds
  *  - **POST `/queryCollection`** — list rows of a database. Body wraps
  *    `{collection:{id}, collectionView:{id}, source, loader:{reducer...}}`.
  *    The reducer query is the same shape react-notion-x sends, with
- *    `collection_group_results` capped at 100. Larger collections are
- *    expected to page; for TechEmpower the Resources collection has
- *    ~80 rows so one call covers it. We do not yet stream — first 100
- *    rows is the visible Browse-page surface; pagination is a TODO.
+ *    `collection_group_results` whose `limit` controls the per-call cap.
+ *    The unofficial endpoint reports the full row count under
+ *    `result.reducerResults.collection_group_results.total`; when
+ *    `total > limit` we re-issue the call with `limit = total` (capped
+ *    at [MAX_COLLECTION_ROWS]) so large databases aren't silently
+ *    truncated. Issue #698.
  *
  *  - **POST `/syncRecordValuesMain`** — fetch a specific block by id
  *    (used to resolve a child page when its block payload isn't yet
@@ -102,20 +104,42 @@ internal class NotionUnofficialApi @Inject constructor(
     /**
      * Query a database (collection) for rows. The loader shape is a
      * verbatim port of the body react-notion-x sends — type:"reducer"
-     * with a single `collection_group_results` reducer at limit=100.
-     * We do not surface filters/sort yet; storyvox's Browse paginator
-     * doesn't drive them. TechEmpower's Resources collection currently
-     * has ~80 rows so a single non-paginated call covers everything.
+     * with a single `collection_group_results` reducer.
+     *
+     * Pagination (#698): the unofficial endpoint reports the full row
+     * count under `result.reducerResults.collection_group_results.total`
+     * but caps a single response at the loader's `limit`. We issue the
+     * first call at the caller's [limit]; if the server says there are
+     * more rows than we received, we re-issue with `limit = total`
+     * (capped at [MAX_COLLECTION_ROWS]) so [collectRows] sees the whole
+     * recordMap. One refetch covers any realistic Notion collection;
+     * larger-than-cap collections are truncated to [MAX_COLLECTION_ROWS]
+     * deterministically rather than silently at 100.
      */
     suspend fun queryCollection(
         collectionId: String,
         collectionViewId: String,
         limit: Int = 100,
     ): FictionResult<NotionQueryCollectionResponse> {
+        val first = queryCollectionPage(collectionId, collectionViewId, limit)
+        if (first !is FictionResult.Success) return first
+        val total = first.value.rowsTotal() ?: return first
+        val returned = first.value.rowsReturned()
+        if (total <= returned) return first
+        val widened = total.coerceAtMost(MAX_COLLECTION_ROWS)
+        if (widened <= returned) return first
+        return queryCollectionPage(collectionId, collectionViewId, widened)
+    }
+
+    private suspend fun queryCollectionPage(
+        collectionId: String,
+        collectionViewId: String,
+        limit: Int,
+    ): FictionResult<NotionQueryCollectionResponse> {
         val state = config.current()
         val collId = hyphenatePageId(collectionId)
         val viewId = hyphenatePageId(collectionViewId)
-        val safeLimit = limit.coerceIn(1, 999)
+        val safeLimit = limit.coerceIn(1, MAX_COLLECTION_ROWS)
         val body = buildString {
             append('{')
             append("\"collection\":{\"id\":\"").append(collId).append("\"},")
@@ -288,6 +312,16 @@ internal class NotionUnofficialApi @Inject constructor(
     }
 
     companion object {
+        /**
+         * Upper bound on rows we'll request in a single queryCollection
+         * call when widening for pagination (#698). A collection larger
+         * than this gets truncated deterministically rather than
+         * silently at the default 100. Sized for the largest realistic
+         * Notion database the unofficial endpoint will return without
+         * 5xx-ing; can be raised if a user reports truncation.
+         */
+        internal const val MAX_COLLECTION_ROWS: Int = 5000
+
         /**
          * Notion's unofficial API requires page ids in the hyphenated
          * UUID form (8-4-4-4-12). We accept compact 32-hex or

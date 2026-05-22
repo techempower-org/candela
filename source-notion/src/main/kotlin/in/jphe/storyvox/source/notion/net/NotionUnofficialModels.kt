@@ -92,6 +92,14 @@ internal data class NotionChunkResponse(
  * Response shape for `queryCollection`. We pull the row block ids out
  * of `result.reducerResults.collection_group_results.blockIds` and
  * resolve them in `recordMap.block`.
+ *
+ * The `result.reducerResults.collection_group_results.total` field
+ * reports the **full** row count in the collection regardless of the
+ * per-call `limit` cap — we use it to drive pagination
+ * ([rowsTotal]/[rowsReturned] helpers), since the unofficial API
+ * doesn't expose a `has_more`/`next_cursor` token on this endpoint
+ * (it caps a single call's payload and expects callers to widen
+ * `limit` or re-issue).
  */
 @Serializable
 internal data class NotionQueryCollectionResponse(
@@ -99,6 +107,39 @@ internal data class NotionQueryCollectionResponse(
     val recordMap: NotionRecordMap = NotionRecordMap(),
     val allBlockIds: List<String> = emptyList(),
 )
+
+/**
+ * Read the **total** row count the server reports for this collection
+ * out of `result.reducerResults.collection_group_results.total`.
+ * Returns null when the field is missing or non-numeric (older
+ * response shapes, or a reducer envelope we don't recognise).
+ */
+internal fun NotionQueryCollectionResponse.rowsTotal(): Int? {
+    val res = result as? JsonObject ?: return null
+    val reducers = res["reducerResults"] as? JsonObject ?: return null
+    val group = reducers["collection_group_results"] as? JsonObject ?: return null
+    val total = group["total"] as? kotlinx.serialization.json.JsonPrimitive ?: return null
+    return total.content.toIntOrNull()
+}
+
+/**
+ * How many row block ids the server actually returned in
+ * `result.reducerResults.collection_group_results.blockIds`. Counts
+ * only string primitives in the array; non-string entries are skipped
+ * defensively. Returns 0 when the field is missing.
+ */
+internal fun NotionQueryCollectionResponse.rowsReturned(): Int {
+    val res = result as? JsonObject ?: return 0
+    val reducers = res["reducerResults"] as? JsonObject ?: return 0
+    val group = reducers["collection_group_results"] as? JsonObject ?: return 0
+    val ids = group["blockIds"] as? JsonArray ?: return 0
+    var n = 0
+    for (e in ids) {
+        val p = e as? kotlinx.serialization.json.JsonPrimitive ?: continue
+        if (p.isString) n++
+    }
+    return n
+}
 
 /** `getPublicPageData` response. We use [publicAccessRole] /
  *  [requireLogin] as the "is this readable anonymously" probe. */
