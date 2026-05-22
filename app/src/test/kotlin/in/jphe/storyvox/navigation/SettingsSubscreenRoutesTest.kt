@@ -7,8 +7,9 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * Follow-up to #440 / #467 — pins the seven new subscreen route
- * constants and the rules they collectively follow:
+ * Follow-up to #440 / #467 — pins the new subscreen route constants
+ * added when the hub was wired up and the rules they collectively
+ * follow:
  *
  *  - Every settings subscreen route starts with `settings/`. The
  *    NavHost routing them is prefix-agnostic, but the prefix is a
@@ -20,6 +21,11 @@ import org.junit.Test
  *  - The legacy [StoryvoxRoutes.SETTINGS] page is preserved as an
  *    "All settings" escape hatch and stays reachable. The hub's
  *    "All settings" row routes there explicitly.
+ *
+ * Issue #713 — list grew from seven to eleven as later subscreens
+ * landed (Accessibility v0.5.42, Appearance v0.5.59, Advanced v1
+ * settings-bundle-7, Cloud Voices #712). The route constants existed
+ * but weren't pinned, leaving renames / alias-collisions undetected.
  */
 class SettingsSubscreenRoutesTest {
 
@@ -31,11 +37,17 @@ class SettingsSubscreenRoutesTest {
         StoryvoxRoutes.SETTINGS_ACCOUNT,
         StoryvoxRoutes.SETTINGS_MEMORY_PALACE,
         StoryvoxRoutes.SETTINGS_ABOUT,
+        // Issue #713 — added below after the original seven.
+        StoryvoxRoutes.SETTINGS_ACCESSIBILITY,
+        StoryvoxRoutes.SETTINGS_APPEARANCE,
+        StoryvoxRoutes.SETTINGS_ADVANCED,
+        // Issue #712 — Cloud Voices subscreen for Azure BYOK config.
+        StoryvoxRoutes.SETTINGS_CLOUD_VOICES,
     )
 
     @Test
-    fun `seven new subscreen routes are declared`() {
-        assertEquals(7, newRoutes.size)
+    fun `all hub-follow-up subscreen routes are declared`() {
+        assertEquals(11, newRoutes.size)
     }
 
     @Test
@@ -121,6 +133,35 @@ class SettingsSubscreenRoutesTest {
             "onOpenAiSettings must land on SETTINGS_AI, not the legacy long-scroll page. " +
                 "Offending targets: $nonAiTargets",
             nonAiTargets.isEmpty(),
+        )
+    }
+
+    /**
+     * Issue #712 follow-up — same regression net as the
+     * `onOpenAiSettings` pin above, but for the PluginManager's Azure
+     * BYOK "configure" CTA. Before #712, the lone NavHost call site
+     * for `onOpenAzureSettings` routed to the legacy long-scroll page;
+     * the fix routes it to the dedicated [SETTINGS_CLOUD_VOICES]
+     * subscreen.
+     */
+    @Test
+    fun `every onOpenAzureSettings call site routes to the dedicated Cloud Voices subscreen`() {
+        val navHost = locateNavHostSource()
+        val src = navHost.readText()
+        val callSiteRegex = Regex(
+            """onOpenAzureSettings\s*=\s*\{\s*navController\.navigate\(StoryvoxRoutes\.([A-Z_]+)\)""",
+        )
+        val matches = callSiteRegex.findAll(src).map { it.groupValues[1] }.toList()
+        assertTrue(
+            "Expected at least one onOpenAzureSettings = { navController.navigate(...) } " +
+                "call site in StoryvoxNavHost.kt — did the file move?",
+            matches.isNotEmpty(),
+        )
+        val nonCloudVoicesTargets = matches.filter { it != "SETTINGS_CLOUD_VOICES" }
+        assertTrue(
+            "onOpenAzureSettings must land on SETTINGS_CLOUD_VOICES, not the legacy long-scroll page. " +
+                "Offending targets: $nonCloudVoicesTargets",
+            nonCloudVoicesTargets.isEmpty(),
         )
     }
 
