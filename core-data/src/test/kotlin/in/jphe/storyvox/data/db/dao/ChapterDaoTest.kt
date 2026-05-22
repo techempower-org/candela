@@ -353,6 +353,84 @@ class ChapterDaoTest {
         assertEquals(1L, row.lastDownloadAttemptAt)
     }
 
+    // ----- reapStuckDownloads (issue #705) -------------------------------------
+
+    @Test
+    fun reapStuckDownloads_flipsAgedDownloadingRowsToQueued() = runTest {
+        fictionDao.upsert(fiction)
+        dao.upsertAll(
+            listOf(
+                chapter("c1", index = 0, downloadState = ChapterDownloadState.DOWNLOADING),
+                chapter("c2", index = 1, downloadState = ChapterDownloadState.DOWNLOADING),
+            ),
+        )
+        // c1 is old (started at t=100), c2 is fresh (started at t=900).
+        dao.setDownloadState("c1", ChapterDownloadState.DOWNLOADING, now = 100L, error = null)
+        dao.setDownloadState("c2", ChapterDownloadState.DOWNLOADING, now = 900L, error = null)
+
+        // Cutoff = 500. c1 (lastAttempt=100 < 500) is stuck; c2 (=900) is fresh.
+        val reaped = dao.reapStuckDownloads(now = 1000L, cutoff = 500L)
+
+        assertEquals(1, reaped)
+        val c1 = dao.get("c1")!!
+        val c2 = dao.get("c2")!!
+        assertEquals(ChapterDownloadState.QUEUED, c1.downloadState)
+        assertEquals("stuck", c1.lastDownloadError)
+        assertEquals(1000L, c1.lastDownloadAttemptAt)
+        // c2 untouched.
+        assertEquals(ChapterDownloadState.DOWNLOADING, c2.downloadState)
+        assertNull(c2.lastDownloadError)
+        assertEquals(900L, c2.lastDownloadAttemptAt)
+    }
+
+    @Test
+    fun reapStuckDownloads_doesNotTouchNonDownloadingRows() = runTest {
+        fictionDao.upsert(fiction)
+        dao.upsertAll(
+            listOf(
+                chapter("c1", index = 0, downloadState = ChapterDownloadState.QUEUED),
+                chapter("c2", index = 1, downloadState = ChapterDownloadState.DOWNLOADED),
+                chapter("c3", index = 2, downloadState = ChapterDownloadState.FAILED),
+                chapter("c4", index = 3, downloadState = ChapterDownloadState.NOT_DOWNLOADED),
+            ),
+        )
+        // Backdate all four with the same ancient timestamp.
+        dao.setDownloadState("c1", ChapterDownloadState.QUEUED, now = 1L, error = null)
+        dao.setDownloadState("c2", ChapterDownloadState.DOWNLOADED, now = 1L, error = null)
+        dao.setDownloadState("c3", ChapterDownloadState.FAILED, now = 1L, error = "old")
+        // c4 left untouched so lastDownloadAttemptAt is NULL.
+
+        val reaped = dao.reapStuckDownloads(now = 5000L, cutoff = 4000L)
+
+        assertEquals(0, reaped)
+        assertEquals(ChapterDownloadState.QUEUED, dao.get("c1")!!.downloadState)
+        assertEquals(ChapterDownloadState.DOWNLOADED, dao.get("c2")!!.downloadState)
+        assertEquals(ChapterDownloadState.FAILED, dao.get("c3")!!.downloadState)
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, dao.get("c4")!!.downloadState)
+    }
+
+    @Test
+    fun reapStuckDownloads_reapsRowsWithNullLastAttempt() = runTest {
+        // Belt-and-suspenders: if a chapter is somehow at DOWNLOADING with a
+        // NULL lastDownloadAttemptAt (shouldn't happen with the worker as
+        // written, but possible if the row was hand-edited or restored from
+        // a stale backup), the reaper should still flip it back to QUEUED.
+        fictionDao.upsert(fiction)
+        dao.upsert(
+            chapter("c1", index = 0, downloadState = ChapterDownloadState.DOWNLOADING),
+        )
+        // Don't call setDownloadState → lastDownloadAttemptAt stays NULL.
+        assertNull(dao.get("c1")!!.lastDownloadAttemptAt)
+
+        val reaped = dao.reapStuckDownloads(now = 1000L, cutoff = 500L)
+
+        assertEquals(1, reaped)
+        val row = dao.get("c1")!!
+        assertEquals(ChapterDownloadState.QUEUED, row.downloadState)
+        assertEquals("stuck", row.lastDownloadError)
+        assertEquals(1000L, row.lastDownloadAttemptAt)
+    }
+
     @Test
     fun setRead_setsFirstReadAtOnFirstReadOnly() = runTest {
         fictionDao.upsert(fiction)
