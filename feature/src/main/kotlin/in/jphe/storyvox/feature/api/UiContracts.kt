@@ -1068,6 +1068,20 @@ data class UiSettings(
      */
     val sourcePluginsEnabled: Map<String, Boolean> = emptyMap(),
     /**
+     * v0.5.76 — set of stable plugin ids the user has "starred" from
+     * the Browse carousel's long-press sheet. Favorited sources are
+     * pinned to the front of the carousel in registry order, ahead of
+     * non-favorites. The set is purely a UI ordering hint; it does not
+     * affect [sourcePluginsEnabled] (a source can be favorited but
+     * disabled, in which case it's still hidden until re-enabled).
+     *
+     * Storage: JSON-encoded `Set<String>` under
+     * `pref_source_favorites_v1` (see
+     * [`in.jphe.storyvox.data.source.plugin.encodeSourceFavoritesJson`]).
+     * No migration is needed — the natural default is empty.
+     */
+    val favoriteSourceIds: Set<String> = emptySet(),
+    /**
      * Plugin-seam Phase 4 (#501) — per-voice-family on/off keyed by
      * stable family id (`voice_piper`, `voice_kokoro`, `voice_kitten`,
      * `voice_azure`). Twin of [sourcePluginsEnabled] for the Plugin
@@ -2027,6 +2041,16 @@ interface SettingsRepositoryUi {
      * collapsed into this one entry point.
      */
     suspend fun setSourcePluginEnabled(id: String, enabled: Boolean)
+
+    /**
+     * v0.5.76 — toggle a source plugin's "favorite" star by stable id.
+     * Favorited ids are added to [UiSettings.favoriteSourceIds];
+     * unfavorited ids are removed. The Browse carousel projection
+     * re-sorts so favorites land at the front of the row in registry
+     * order. Favoriting a disabled source is allowed (the star will
+     * apply once the source is re-enabled).
+     */
+    suspend fun setSourceFavorite(id: String, favorite: Boolean)
 
     /**
      * Plugin-seam Phase 4 (#501) — toggle a voice family by its stable

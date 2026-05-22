@@ -187,6 +187,10 @@ fun BrowseScreen(
             selectedId = state.sourceId,
             onSelect = viewModel::selectSource,
             visibleSources = state.visibleSources,
+            // v0.5.76 — long-press → bottom sheet → favorite/hide.
+            favoriteSourceIds = state.favoriteSourceIds,
+            onToggleFavorite = viewModel::toggleFavorite,
+            onHideSource = { viewModel.setSourceEnabled(it, enabled = false) },
             modifier = Modifier.fillMaxWidth(),
         )
 
