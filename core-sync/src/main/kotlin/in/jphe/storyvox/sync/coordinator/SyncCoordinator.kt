@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -121,7 +122,10 @@ class SyncCoordinator @Inject constructor(
     }
 
     private fun publish(domain: String, status: SyncStatus) {
-        _status.value = _status.value + (domain to status)
+        // Atomic CAS-based read-modify-write so concurrent syncers
+        // running on different domains can't lose each other's updates.
+        // See #704 for the lost-update repro.
+        _status.update { it + (domain to status) }
     }
 }
 
