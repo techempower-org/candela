@@ -218,6 +218,36 @@ internal class Ao3Api @Inject constructor(
         }
     }
 
+    /**
+     * `GET /works/search?work_search[query]=<term>&page=<N>` — AO3's
+     * full-text work search. Returns an HTML listing page with the
+     * same `<li class="work blurb">` card shape that subscriptions
+     * and Marked-for-Later use, so the existing [Ao3WorksIndexParser]
+     * handles the body directly.
+     *
+     * Anonymous — no auth cookie needed. AO3's search is available to
+     * logged-out users; the results may exclude Archive-Warning-gated
+     * works but that's AO3's standard anonymous behavior.
+     */
+    suspend fun searchWorks(query: String, page: Int = 1): FictionResult<ListPage<FictionSummary>> {
+        val path = searchPath(query, page)
+        return withContext(Dispatchers.IO) {
+            when (val res = requestText(client, path)) {
+                is FictionResult.Success -> {
+                    try {
+                        FictionResult.Success(Ao3WorksIndexParser.parse(res.value, page))
+                    } catch (e: Exception) {
+                        FictionResult.NetworkError(
+                            "AO3 search results unparseable: ${e.message}",
+                            e,
+                        )
+                    }
+                }
+                is FictionResult.Failure -> res
+            }
+        }
+    }
+
     /** Generic text-body GET against the supplied client. Sync OkHttp
      *  `execute()` wrapped in `withContext(Dispatchers.IO)` for the
      *  same reason as the Gutenberg client — `suspend` alone doesn't
@@ -307,6 +337,20 @@ internal class Ao3Api @Inject constructor(
          * URL up front. If OTW Ops ever wants to reach out, the project's
          * GitHub Issues are the door.
          */
+        /**
+         * `/works/search?work_search[query]=<term>[&page=N]` — AO3's
+         * work search. Exposed package-private for URL-shape pinning
+         * in unit tests.
+         */
+        internal fun searchPath(query: String, page: Int = 1): String {
+            val encoded = java.net.URLEncoder.encode(query, Charsets.UTF_8)
+            return if (page <= 1) {
+                "/works/search?work_search%5Bquery%5D=$encoded"
+            } else {
+                "/works/search?work_search%5Bquery%5D=$encoded&page=$page"
+            }
+        }
+
         const val USER_AGENT = "storyvox-ao3/1.0 (+https://github.com/jphein/storyvox)"
 
         /**
