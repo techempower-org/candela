@@ -289,6 +289,23 @@
     <string name="voicelibrary_delete_title">Delete %1$s?</string>
     <string name="voicelibrary_default">Default</string>
 
+    <!-- Engine / Voice picker gate -->
+    <string name="engine_voice_resolving">Resolving…</string>
+
+    <!-- Debug -->
+    <string name="debug_title">Debug</string>
+
+    <!-- Follows -->
+    <string name="follows_title">Follows</string>
+
+    <!-- Chat -->
+    <string name="chat_ask_question_placeholder">Ask a question…</string>
+
+    <!-- TechEmpower intents -->
+    <string name="techempower_copy">Copy</string>
+    <string name="techempower_open_web">Open web</string>
+    <string name="techempower_close">Close</string>
+
     <!-- MemPalace filter sheet -->
     <string name="mempalace_filter_title">Filter by wing</string>
     <string name="mempalace_no_wings">No wings reachable. Confirm your palace daemon is configured under Settings → Memory Palace.</string>
