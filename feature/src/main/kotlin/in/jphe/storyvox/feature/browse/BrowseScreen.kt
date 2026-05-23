@@ -65,7 +65,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
-import `in`.jphe.storyvox.feature.api.BrowseFilter
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.cascadeReveal
@@ -1051,16 +1050,3 @@ private fun RoyalRoadSignedOutCta(
     }
 }
 
-/** Number of independent filter knobs the user has actively set. */
-private fun BrowseFilter.activeCount(): Int {
-    var n = 0
-    if (tagsInclude.isNotEmpty()) n++
-    if (tagsExclude.isNotEmpty()) n++
-    if (statuses.isNotEmpty()) n++
-    if (warningsRequire.isNotEmpty()) n++
-    if (warningsExclude.isNotEmpty()) n++
-    if (type != `in`.jphe.storyvox.feature.api.UiFictionType.All) n++
-    if (minPages != null || maxPages != null) n++
-    if (minRating != null || maxRating != null) n++
-    return n
-}
