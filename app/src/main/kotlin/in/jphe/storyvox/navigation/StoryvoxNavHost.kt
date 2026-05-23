@@ -787,6 +787,19 @@ private fun StoryvoxNavHostContent(
                     onOpenAiSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_AI) },
                     onOpenSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_HUB) },
                     onOpenChat = { fId, prefill -> navController.navigate(StoryvoxRoutes.chat(fId, prefill)) },
+                    // Issue #677 follow-up — BookFinishedOverlay's "Browse
+                    // more" CTA and ResumeEmptyPrompt's "Browse the realms"
+                    // need a working onBrowse on the drill-down reader
+                    // route, not just the PLAYING tab. Pre-fix the default
+                    // no-op `{}` made both buttons dead — the user finished
+                    // a book via FictionDetail → Reader and had no path to
+                    // Browse without OS-backing out first.
+                    onBrowse = {
+                        navController.navigate(StoryvoxRoutes.BROWSE) {
+                            popUpTo(StoryvoxRoutes.LIBRARY)
+                            launchSingleTop = true
+                        }
+                    },
                     // Issue #437 — Back arrow on deep-linked reader /
                     // audiobook destinations. Falls back to LIBRARY if
                     // the back stack was empty (cold-launch deep link).
@@ -817,6 +830,14 @@ private fun StoryvoxNavHostContent(
                     onOpenAiSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_AI) },
                     onOpenSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_HUB) },
                     onOpenChat = { fId, prefill -> navController.navigate(StoryvoxRoutes.chat(fId, prefill)) },
+                    // Issue #677 follow-up — same onBrowse wiring as the
+                    // READER route above. See the comment there.
+                    onBrowse = {
+                        navController.navigate(StoryvoxRoutes.BROWSE) {
+                            popUpTo(StoryvoxRoutes.LIBRARY)
+                            launchSingleTop = true
+                        }
+                    },
                     // Issue #437 — Back arrow on deep-linked reader /
                     // audiobook destinations. Falls back to LIBRARY if
                     // the back stack was empty (cold-launch deep link).
