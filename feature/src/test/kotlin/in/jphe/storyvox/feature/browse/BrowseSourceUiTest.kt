@@ -126,51 +126,6 @@ class BrowseSourceUiTest {
         assertEquals(withDefault, withExplicitTrue)
     }
 
-    @Test fun `filterShape routes RR GitHub MemPalace to dedicated sheets`() {
-        assertEquals(FilterShape.RoyalRoad, BrowseSourceUi.filterShape(SourceIds.ROYAL_ROAD))
-        assertEquals(FilterShape.GitHub, BrowseSourceUi.filterShape(SourceIds.GITHUB))
-        assertEquals(FilterShape.MemPalace, BrowseSourceUi.filterShape(SourceIds.MEMPALACE))
-    }
-
-    @Test fun `filterShape routes generic-shape sources to the generic sheet`() {
-        // #693 — sources sharing the sort/category/language/dateRange
-        // axes use the generic sheet. The exact knob set per source is
-        // validated separately via [genericCapabilities].
-        val genericIds = setOf(
-            SourceIds.GUTENBERG, SourceIds.ARXIV, SourceIds.HACKERNEWS,
-            SourceIds.RSS, SourceIds.WIKIPEDIA, SourceIds.WIKISOURCE,
-            SourceIds.AO3, SourceIds.STANDARD_EBOOKS, SourceIds.NOTION,
-            SourceIds.PLOS, SourceIds.OUTLINE,
-        )
-        for (id in genericIds) {
-            assertEquals(
-                "Expected Generic filter shape for $id",
-                FilterShape.Generic,
-                BrowseSourceUi.filterShape(id),
-            )
-        }
-    }
-
-    @Test fun `filterShape returns None for filterless sources`() {
-        // Filterless sources: source-only listings (EPUB, Radio/KVMR,
-        // Discord, Matrix, Telegram, Slack, Palace, Readability).
-        val dedicated = setOf(SourceIds.ROYAL_ROAD, SourceIds.GITHUB, SourceIds.MEMPALACE)
-        val genericIds = setOf(
-            SourceIds.GUTENBERG, SourceIds.ARXIV, SourceIds.HACKERNEWS,
-            SourceIds.RSS, SourceIds.WIKIPEDIA, SourceIds.WIKISOURCE,
-            SourceIds.AO3, SourceIds.STANDARD_EBOOKS, SourceIds.NOTION,
-            SourceIds.PLOS, SourceIds.OUTLINE,
-        )
-        val noFilter = IN_TREE_IDS - dedicated - genericIds
-        for (id in noFilter) {
-            assertEquals(
-                "Expected None filter shape for $id",
-                FilterShape.None,
-                BrowseSourceUi.filterShape(id),
-            )
-        }
-    }
-
     @Test fun `searchHint returns sensible copy for every in-tree source`() {
         // Issue #695 — sources that declare `supportsSearch = false`
         // (Slack, Telegram) never reach the Search tab's empty state,

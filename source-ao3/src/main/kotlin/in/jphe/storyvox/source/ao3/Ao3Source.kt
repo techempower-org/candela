@@ -3,6 +3,8 @@ package `in`.jphe.storyvox.source.ao3
 import `in`.jphe.storyvox.data.db.dao.AuthDao
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.filter.FilterDimension
+import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -12,6 +14,7 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.source.ao3.di.Ao3Cache
 import `in`.jphe.storyvox.source.ao3.net.Ao3Api
@@ -121,6 +124,75 @@ internal class Ao3Source @Inject constructor(
      * after a process restart.
      */
     private val parsedCache = mutableMapOf<String, EpubBook>()
+
+    override fun filterDimensions(): List<FilterDimension> = listOf(
+        FilterDimension.Sort(
+            options = listOf(
+                FilterDimension.SortOption("relevance", "Default"),
+                FilterDimension.SortOption("popularity", "Popular"),
+                FilterDimension.SortOption("last_update", "Newest"),
+            ),
+        ),
+        FilterDimension.Select(
+            key = "category",
+            label = "Category",
+            options = listOf(
+                "Harry Potter", "Marvel", "Star Wars", "Sherlock",
+                "Doctor Who", "Supernatural", "Original Work", "Anime",
+            ),
+        ),
+        FilterDimension.Select(
+            key = "rating",
+            label = "Rating",
+            options = listOf("General", "Teen", "Mature", "Explicit"),
+        ),
+        FilterDimension.Select(
+            key = "completion",
+            label = "Completion",
+            options = listOf("Complete", "In Progress"),
+        ),
+        // AO3's four canonical archive warnings. TagSet with
+        // allowExclude=true so users can include OR exclude — matches
+        // AO3's own search UI which has separate include/exclude pickers
+        // for warnings. Until AO3 search() is wired (currently a no-op
+        // per the comment on [search]), the chosen values flow into
+        // SearchQuery.tags/excludeTags but have no functional effect;
+        // the declaration is what surfaces the filter to the user.
+        FilterDimension.TagSet(
+            key = "warnings",
+            label = "Archive warnings",
+            options = listOf(
+                "Major Character Death",
+                "Graphic Depictions Of Violence",
+                "Rape/Non-Con",
+                "Underage",
+            ),
+            allowExclude = true,
+        ),
+    )
+
+    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
+        var q = base
+        state.stringVal("sort")?.let { sortId ->
+            q = q.copy(
+                orderBy = when (sortId) {
+                    "popularity" -> SearchOrder.POPULARITY
+                    "last_update" -> SearchOrder.LAST_UPDATE
+                    else -> SearchOrder.RELEVANCE
+                },
+            )
+        }
+        state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
+            q = q.copy(tags = q.tags + cat.lowercase())
+        }
+        state.stringSetVal("warnings")?.let { w ->
+            q = q.copy(
+                tags = q.tags + w.included.map { it.lowercase() },
+                excludeTags = q.excludeTags + w.excluded.map { it.lowercase() },
+            )
+        }
+        return q
+    }
 
     // ─── browse ────────────────────────────────────────────────────────
 

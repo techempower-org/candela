@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.source.outline
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.filter.FilterDimension
+import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -11,6 +13,7 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.model.map
 import `in`.jphe.storyvox.source.outline.net.OutlineApi
@@ -76,6 +79,30 @@ internal class OutlineSource @Inject constructor(
             confidence = 0.85f,
             label = "Outline document",
         )
+    }
+
+    override fun filterDimensions(): List<FilterDimension> = listOf(
+        FilterDimension.Sort(
+            options = listOf(
+                FilterDimension.SortOption("relevance", "Default"),
+                FilterDimension.SortOption("last_update", "Newest"),
+                FilterDimension.SortOption("title", "Title"),
+            ),
+        ),
+    )
+
+    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
+        var q = base
+        state.stringVal("sort")?.let { sortId ->
+            q = q.copy(
+                orderBy = when (sortId) {
+                    "last_update" -> SearchOrder.LAST_UPDATE
+                    "title" -> SearchOrder.TITLE
+                    else -> SearchOrder.RELEVANCE
+                },
+            )
+        }
+        return q
     }
 
     // ─── browse ────────────────────────────────────────────────────────

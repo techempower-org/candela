@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.source.gutenberg
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.filter.FilterDimension
+import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -11,6 +13,7 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.model.map
 import `in`.jphe.storyvox.source.epub.parse.EpubBook
@@ -107,6 +110,52 @@ internal class GutenbergSource @Inject constructor(
      * loop on traversal — an exceptionally hard-to-diagnose hang.
      */
     private val parsedCache = ConcurrentHashMap<String, EpubBook>()
+
+    override fun filterDimensions(): List<FilterDimension> = listOf(
+        FilterDimension.Sort(
+            options = listOf(
+                FilterDimension.SortOption("relevance", "Default"),
+                FilterDimension.SortOption("popularity", "Popular"),
+                FilterDimension.SortOption("last_update", "Newest"),
+            ),
+        ),
+        FilterDimension.Select(
+            key = "language",
+            label = "Language",
+            options = listOf("en", "fr", "de", "es", "it", "pt", "nl"),
+        ),
+        FilterDimension.Select(
+            key = "category",
+            label = "Category",
+            options = listOf(
+                "Adventure", "Fantasy", "Horror", "Mystery",
+                "Romance", "Science Fiction", "Children", "History",
+                "Philosophy", "Poetry",
+            ),
+        ),
+    )
+
+    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
+        var q = base
+        state.stringVal("sort")?.let { sortId ->
+            q = q.copy(
+                orderBy = when (sortId) {
+                    "popularity" -> SearchOrder.POPULARITY
+                    "last_update" -> SearchOrder.LAST_UPDATE
+                    else -> SearchOrder.RELEVANCE
+                },
+            )
+        }
+        state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
+            q = q.copy(genres = q.genres + cat)
+        }
+        state.stringVal("language")?.takeIf { it.isNotBlank() }?.let { lang ->
+            val composed = if (q.term.isBlank()) "language:$lang"
+                else "${q.term} language:$lang"
+            q = q.copy(term = composed)
+        }
+        return q
+    }
 
     // ─── browse ────────────────────────────────────────────────────────
 

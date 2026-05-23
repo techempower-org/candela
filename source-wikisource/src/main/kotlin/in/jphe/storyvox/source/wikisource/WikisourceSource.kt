@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.source.wikisource
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.filter.FilterDimension
+import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -90,6 +92,24 @@ internal class WikisourceSource @Inject constructor(
             confidence = 0.95f,
             label = "Wikisource work",
         )
+    }
+
+    override fun filterDimensions(): List<FilterDimension> = listOf(
+        FilterDimension.Select(
+            key = "language",
+            label = "Language",
+            options = listOf("en", "es", "fr", "de", "it", "pt"),
+        ),
+    )
+
+    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
+        var q = base
+        state.stringVal("language")?.takeIf { it.isNotBlank() }?.let { lang ->
+            val composed = if (q.term.isBlank()) "language:$lang"
+                else "${q.term} language:$lang"
+            q = q.copy(term = composed)
+        }
+        return q
     }
 
     // ─── browse ────────────────────────────────────────────────────────

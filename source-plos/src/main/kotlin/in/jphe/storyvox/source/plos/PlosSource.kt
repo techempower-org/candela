@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.source.plos
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.filter.FilterDimension
+import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import `in`.jphe.storyvox.data.source.model.FictionDetail
@@ -9,6 +11,7 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.model.map
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
@@ -94,6 +97,42 @@ internal class PlosSource @Inject constructor(
             confidence = 0.95f,
             label = "PLOS article",
         )
+    }
+
+    override fun filterDimensions(): List<FilterDimension> = listOf(
+        FilterDimension.Sort(
+            options = listOf(
+                FilterDimension.SortOption("relevance", "Default"),
+                FilterDimension.SortOption("last_update", "Newest"),
+                FilterDimension.SortOption("popularity", "Popular"),
+            ),
+        ),
+        FilterDimension.Select(
+            key = "category",
+            label = "Category",
+            options = listOf(
+                "Biology", "Medicine", "Computational Biology",
+                "Genetics", "Neuroscience", "Public Health",
+            ),
+        ),
+        FilterDimension.DateRange(),
+    )
+
+    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
+        var q = base
+        state.stringVal("sort")?.let { sortId ->
+            q = q.copy(
+                orderBy = when (sortId) {
+                    "last_update" -> SearchOrder.LAST_UPDATE
+                    "popularity" -> SearchOrder.POPULARITY
+                    else -> SearchOrder.RELEVANCE
+                },
+            )
+        }
+        state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
+            q = q.copy(genres = q.genres + cat)
+        }
+        return q
     }
 
     // ─── browse ────────────────────────────────────────────────────────
