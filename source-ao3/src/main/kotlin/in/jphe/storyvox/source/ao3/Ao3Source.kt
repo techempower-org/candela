@@ -230,16 +230,13 @@ internal class Ao3Source @Inject constructor(
         return feedAsListPage(tagId, page)
     }
 
-    /**
-     * Search is deferred per the issue spec — AO3's `/works/search`
-     * returns an HTML listing only (no Atom or JSON equivalent), and
-     * v1 commits to zero scraping. Return an empty page so the UI
-     * renders the no-results empty state cleanly; a future PR
-     * (tracked in the #381 follow-up list) can either revisit HTML
-     * parsing or layer search over the per-tag feeds.
-     */
-    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> =
-        FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
+    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
+        val term = query.term.trim()
+        if (term.isEmpty()) {
+            return FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
+        }
+        return api.searchWorks(query = term, page = query.page ?: 1)
+    }
 
     /**
      * Curated tag list for the Browse genre picker. Three fandoms

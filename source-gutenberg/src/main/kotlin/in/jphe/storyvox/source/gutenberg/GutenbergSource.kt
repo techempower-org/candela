@@ -119,6 +119,11 @@ internal class GutenbergSource @Inject constructor(
                 FilterDimension.SortOption("last_update", "Newest"),
             ),
         ),
+        FilterDimension.Text(
+            key = "author",
+            label = "Author",
+            placeholder = "e.g. Austen, Dickens, Shelley",
+        ),
         FilterDimension.Select(
             key = "language",
             label = "Language",
@@ -145,6 +150,10 @@ internal class GutenbergSource @Inject constructor(
                     else -> SearchOrder.RELEVANCE
                 },
             )
+        }
+        state.stringVal("author")?.takeIf { it.isNotBlank() }?.let { author ->
+            val composed = if (q.term.isBlank()) author else "${q.term} $author"
+            q = q.copy(term = composed)
         }
         state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
             q = q.copy(genres = q.genres + cat)
