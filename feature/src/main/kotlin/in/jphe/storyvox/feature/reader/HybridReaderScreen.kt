@@ -80,6 +80,7 @@ fun HybridReaderScreen(
     val recapState by viewModel.recap.collectAsStateWithLifecycle()
     val recapPlayback by viewModel.recapPlayback.collectAsStateWithLifecycle()
     val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
+    val chapters by viewModel.chapters.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Calliope (v0.5.00) — first-natural-chapter-completion confetti.
@@ -303,6 +304,8 @@ fun HybridReaderScreen(
                 // the cover surfaces a typed reason whenever no audio
                 // is reaching the speakers.
                 waitReason = state.waitReason,
+                chapters = chapters,
+                onPlayChapter = viewModel::playChapter,
             )
         },
         readerContent = {
