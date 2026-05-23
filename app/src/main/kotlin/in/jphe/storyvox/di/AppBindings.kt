@@ -493,6 +493,9 @@ private class RealFictionRepositoryUi(
     override suspend fun chapterTextById(chapterId: String): String? =
         chapters.getChapter(chapterId)?.text
 
+    override fun observeIsInLibrary(fictionId: String): Flow<Boolean> =
+        repo.observeIsInLibrary(fictionId)
+
     override fun chaptersFor(fictionId: String): Flow<List<UiChapter>> =
         // Issue #282 — the previous mapping hard-coded `isFinished = false`,
         // so the played-indicator on the Fiction detail chapter list never
@@ -848,12 +851,15 @@ internal class RealPlaybackControllerUi(
     override fun play() = controller.resume()
     override fun pause() = controller.pause()
     override fun seekTo(ms: Long) {
-        // UI thinks in milliseconds; the controller indexes by char offset.
-        // Reverse the same baseline conversion EnginePlayer uses for content position.
-        val s = controller.state.value
-        val charsPerSec = SPEED_BASELINE_CHARS_PER_SECOND * s.speed
-        val charOffset = ((ms / 1000.0) * charsPerSec).toInt().coerceAtLeast(0)
-        controller.seekTo(charOffset)
+        // Issue #555 follow-up — the scrubber rail and duration both live on
+        // the speed-invariant media-time axis (see EnginePlayer.estimateDurationMs
+        // and DefaultPlaybackController.seekToPositionMs). The conversion must
+        // use the baseline rate WITHOUT multiplying by speed, otherwise a seek
+        // at 2x speed jumps twice as far as intended. Pre-fix this method
+        // multiplied by `s.speed`, producing a seek overshoot proportional to
+        // the playback speed — e.g. tapping the 50% mark at 2x landed at the
+        // character offset that corresponds to 100% of the chapter.
+        controller.seekToPositionMs(ms)
     }
     override fun seekToChar(charOffset: Int) {
         controller.seekTo(charOffset.coerceAtLeast(0))

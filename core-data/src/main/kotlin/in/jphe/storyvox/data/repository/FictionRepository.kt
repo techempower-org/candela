@@ -20,6 +20,7 @@ import `in`.jphe.storyvox.data.source.model.SearchQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -34,6 +35,15 @@ interface FictionRepository {
     fun observeLibrary(): Flow<List<FictionSummary>>
     fun observeFollowsRemote(): Flow<List<FictionSummary>>
     fun observeFiction(id: String): Flow<FictionDetail?>
+
+    /**
+     * Targeted boolean stream: true when the fiction row exists in the
+     * user's library. Unlike [observeLibrary] (which emits the entire
+     * list on any library change), this flow is scoped to a single row
+     * and only re-emits when *this* fiction's `inLibrary` column flips.
+     * Used by FictionDetailViewModel to avoid the O(n) full-list scan.
+     */
+    fun observeIsInLibrary(id: String): Flow<Boolean>
 
     /**
      * Browse the popular fictions on [sourceId]. Defaults to
@@ -209,6 +219,11 @@ class FictionRepositoryImpl @Inject constructor(
             rows.map { it.toSummary(supportsFollow = supportsFollowFor(it.sourceId)) }
         }
 
+    override fun observeIsInLibrary(id: String): Flow<Boolean> =
+        fictionDao.observe(id)
+            .map { it?.inLibrary == true }
+            .distinctUntilChanged()
+
     override fun observeFiction(id: String): Flow<FictionDetail?> =
         fictionDao.observe(id).combine(chapterDao.observeChapterInfosByFiction(id)) { fiction, chapters ->
             fiction?.let {
@@ -278,43 +293,44 @@ class FictionRepositoryImpl @Inject constructor(
         // `followsList`. When step 3f wires GitHub PAT auth, this
         // becomes a per-source flow and the kdoc on the interface
         // method should grow a `sourceId` parameter to match.
-        when (val result = sourceFor(SourceIds.ROYAL_ROAD).followsList(page = 1)) {
-            is FictionResult.Success -> {
-                val now = System.currentTimeMillis()
-                val incoming = result.value.items
-                val incomingIds = incoming.map { it.id }.toSet()
-
-                // Upsert each follow, preserving prior fields (the follows
-                // page is row-shape only — author/status/rating come from
-                // detail-page refresh later) and flipping followedRemotely.
-                incoming.forEach { summary ->
-                    val existing = fictionDao.get(summary.id)
-                    val merged = if (existing != null) {
-                        existing.copy(
-                            // Refresh whatever the rows do carry without
-                            // clobbering richer detail-page fields.
-                            title = summary.title.ifBlank { existing.title },
-                            coverUrl = summary.coverUrl ?: existing.coverUrl,
-                            tags = summary.tags.ifEmpty { existing.tags },
-                            followedRemotely = true,
-                        )
-                    } else {
-                        summary.toEntity(now).copy(followedRemotely = true)
-                    }
-                    fictionDao.upsert(merged)
+        val source = sourceFor(SourceIds.ROYAL_ROAD)
+        val allIncoming = mutableListOf<FictionSummary>()
+        var page = 1
+        while (true) {
+            when (val result = source.followsList(page = page)) {
+                is FictionResult.Success -> {
+                    allIncoming.addAll(result.value.items)
+                    if (!result.value.hasNext) break
+                    page++
                 }
-
-                // Clear followedRemotely on rows that aren't in the latest
-                // list (user unfollowed remotely on the website).
-                val previously = fictionDao.followsSnapshot().map { it.id }.toSet()
-                (previously - incomingIds).forEach { gone ->
-                    fictionDao.setFollowedRemote(gone, false)
-                }
-
-                FictionResult.Success(Unit)
+                is FictionResult.Failure -> return@withContext result
             }
-            is FictionResult.Failure -> result
         }
+
+        val now = System.currentTimeMillis()
+        val incomingIds = allIncoming.map { it.id }.toSet()
+
+        allIncoming.forEach { summary ->
+            val existing = fictionDao.get(summary.id)
+            val merged = if (existing != null) {
+                existing.copy(
+                    title = summary.title.ifBlank { existing.title },
+                    coverUrl = summary.coverUrl ?: existing.coverUrl,
+                    tags = summary.tags.ifEmpty { existing.tags },
+                    followedRemotely = true,
+                )
+            } else {
+                summary.toEntity(now).copy(followedRemotely = true)
+            }
+            fictionDao.upsert(merged)
+        }
+
+        val previously = fictionDao.followsSnapshot().map { it.id }.toSet()
+        (previously - incomingIds).forEach { gone ->
+            fictionDao.setFollowedRemote(gone, false)
+        }
+
+        FictionResult.Success(Unit)
     }
 
     override suspend fun addToLibrary(id: String, mode: DownloadMode?) = withContext(Dispatchers.IO) {

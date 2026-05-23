@@ -27,17 +27,21 @@ internal object FollowsParser {
         data object NotAuthenticated : FollowsResult
     }
 
-    fun parse(html: String, finalUrl: String): FollowsResult {
-        // The follows endpoint resolves to /home when unauthed (302 → /).
+    fun parse(html: String, finalUrl: String, currentPage: Int = 1): FollowsResult {
         if (looksUnauthed(finalUrl, html)) return FollowsResult.NotAuthenticated
 
         val doc = Jsoup.parse(html, RoyalRoadIds.BASE_URL)
         HoneypotFilter.strip(doc)
 
         val items = doc.select("div.fiction-list-item.row").mapNotNull(::parseRow)
-        // The follows page is single-screen for typical users; we don't
-        // paginate. hasNext = false unless RR adds it later.
-        return FollowsResult.Ok(ListPage(items = items, page = 1, hasNext = false))
+        val hasNext = hasNextPage(doc, currentPage)
+        return FollowsResult.Ok(ListPage(items = items, page = currentPage, hasNext = hasNext))
+    }
+
+    private fun hasNextPage(doc: Document, currentPage: Int): Boolean {
+        val pages = doc.select("ul.pagination li a[data-page]")
+            .mapNotNull { it.attr("data-page").toIntOrNull() }
+        return pages.any { it > currentPage }
     }
 
     private fun looksUnauthed(finalUrl: String, html: String): Boolean {

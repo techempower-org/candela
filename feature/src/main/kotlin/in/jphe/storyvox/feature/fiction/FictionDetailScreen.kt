@@ -666,7 +666,7 @@ private fun Hero(fiction: UiFiction) {
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(spacing.xxs),
         ) {
-            Text(fiction.title, style = MaterialTheme.typography.headlineSmall, maxLines = 3)
+            Text(fiction.title, style = MaterialTheme.typography.headlineSmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
             // Issue #463 — without an explicit "by" prefix, the author
             // line read as a subtitle of the title (especially for
             // GitHub fictions whose book.toml authors[] can carry an

@@ -244,7 +244,7 @@ class RoyalRoadSource @Inject internal constructor(
         // /account/login?ReturnUrl=/my/follows, which FollowsParser detects
         // and surfaces as AuthRequired.
         when (val outcome = fetcher.fetchHtml("${RoyalRoadIds.BASE_URL}/my/follows" + if (page > 1) "?page=$page" else "")) {
-            is FetchOutcome.Body -> when (val res = FollowsParser.parse(outcome.html, outcome.finalUrl)) {
+            is FetchOutcome.Body -> when (val res = FollowsParser.parse(outcome.html, outcome.finalUrl, page)) {
                 is FollowsParser.FollowsResult.Ok -> FictionResult.Success(res.items)
                 FollowsParser.FollowsResult.NotAuthenticated -> FictionResult.AuthRequired(
                     message = "Sign in to Royal Road to view your follows",

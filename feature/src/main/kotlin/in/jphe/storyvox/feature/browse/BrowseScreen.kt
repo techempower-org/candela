@@ -481,7 +481,13 @@ fun BrowseScreen(
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             ErrorBlock(
                                 title = "Couldn't refresh",
-                                message = state.error ?: "We couldn't reach Royal Road.",
+                                // Use friendlyErrorMessage for consistency
+                                // with the full-screen error block above.
+                                // The pre-fix fallback "We couldn't reach
+                                // Royal Road." was dead code (the if-guard
+                                // ensures non-null) but also wrong for
+                                // non-RR sources.
+                                message = friendlyErrorMessage(state.error),
                                 onRetry = { viewModel.loadMore() },
                                 placement = ErrorPlacement.Banner,
                             )
