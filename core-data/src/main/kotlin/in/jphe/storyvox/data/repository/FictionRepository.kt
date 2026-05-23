@@ -293,43 +293,44 @@ class FictionRepositoryImpl @Inject constructor(
         // `followsList`. When step 3f wires GitHub PAT auth, this
         // becomes a per-source flow and the kdoc on the interface
         // method should grow a `sourceId` parameter to match.
-        when (val result = sourceFor(SourceIds.ROYAL_ROAD).followsList(page = 1)) {
-            is FictionResult.Success -> {
-                val now = System.currentTimeMillis()
-                val incoming = result.value.items
-                val incomingIds = incoming.map { it.id }.toSet()
-
-                // Upsert each follow, preserving prior fields (the follows
-                // page is row-shape only — author/status/rating come from
-                // detail-page refresh later) and flipping followedRemotely.
-                incoming.forEach { summary ->
-                    val existing = fictionDao.get(summary.id)
-                    val merged = if (existing != null) {
-                        existing.copy(
-                            // Refresh whatever the rows do carry without
-                            // clobbering richer detail-page fields.
-                            title = summary.title.ifBlank { existing.title },
-                            coverUrl = summary.coverUrl ?: existing.coverUrl,
-                            tags = summary.tags.ifEmpty { existing.tags },
-                            followedRemotely = true,
-                        )
-                    } else {
-                        summary.toEntity(now).copy(followedRemotely = true)
-                    }
-                    fictionDao.upsert(merged)
+        val source = sourceFor(SourceIds.ROYAL_ROAD)
+        val allIncoming = mutableListOf<FictionSummary>()
+        var page = 1
+        while (true) {
+            when (val result = source.followsList(page = page)) {
+                is FictionResult.Success -> {
+                    allIncoming.addAll(result.value.items)
+                    if (!result.value.hasNext) break
+                    page++
                 }
-
-                // Clear followedRemotely on rows that aren't in the latest
-                // list (user unfollowed remotely on the website).
-                val previously = fictionDao.followsSnapshot().map { it.id }.toSet()
-                (previously - incomingIds).forEach { gone ->
-                    fictionDao.setFollowedRemote(gone, false)
-                }
-
-                FictionResult.Success(Unit)
+                is FictionResult.Failure -> return@withContext result
             }
-            is FictionResult.Failure -> result
         }
+
+        val now = System.currentTimeMillis()
+        val incomingIds = allIncoming.map { it.id }.toSet()
+
+        allIncoming.forEach { summary ->
+            val existing = fictionDao.get(summary.id)
+            val merged = if (existing != null) {
+                existing.copy(
+                    title = summary.title.ifBlank { existing.title },
+                    coverUrl = summary.coverUrl ?: existing.coverUrl,
+                    tags = summary.tags.ifEmpty { existing.tags },
+                    followedRemotely = true,
+                )
+            } else {
+                summary.toEntity(now).copy(followedRemotely = true)
+            }
+            fictionDao.upsert(merged)
+        }
+
+        val previously = fictionDao.followsSnapshot().map { it.id }.toSet()
+        (previously - incomingIds).forEach { gone ->
+            fictionDao.setFollowedRemote(gone, false)
+        }
+
+        FictionResult.Success(Unit)
     }
 
     override suspend fun addToLibrary(id: String, mode: DownloadMode?) = withContext(Dispatchers.IO) {
