@@ -237,6 +237,58 @@
     <string name="reader_step_next">Next →</string>
     <string name="reader_ask_ai_subtitle">Chat about plot, characters, pacing, and craft</string>
 
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <string name="library_resume">Resume</string>
+    <string name="library_mark_all_read">Mark all read</string>
+    <string name="library_shelf_all">All</string>
+    <string name="library_add_by_url_label">URL</string>
+    <string name="library_add_by_url_placeholder">https://…</string>
+
+    <!-- Sessions -->
+    <string name="sessions_title">Sessions</string>
+    <string name="sessions_delete_dialog_title">Delete this session?</string>
+    <string name="sessions_delete">Delete</string>
+    <string name="sessions_cancel">Cancel</string>
+    <string name="sessions_open">Open</string>
+
+    <!-- Sync -->
+    <string name="sync_title">Sync</string>
+    <string name="sync_email_label">Email</string>
+    <string name="sync_send_code">Send code</string>
+    <string name="sync_code_label">6-digit code</string>
+    <string name="sync_verify">Verify</string>
+    <string name="sync_different_email">Use a different email</string>
+    <string name="sync_done">Done</string>
+    <string name="sync_sign_out">Sign out</string>
+
+    <!-- Fiction detail -->
+    <string name="fiction_clear_cache_title">Clear cached audio for %1$s?</string>
+    <string name="fiction_clear_cache_body">Removes the PCM cache for every chapter of this fiction across every voice variant. Replays will re-render once. The fiction stays in your library; your read progress and library state are not affected.</string>
+    <string name="fiction_clear">Clear</string>
+    <string name="fiction_cancel">Cancel</string>
+    <string name="fiction_remove">Remove</string>
+    <string name="fiction_default_title">this fiction</string>
+    <string name="fiction_remove_title">Remove %1$s from your library?</string>
+    <string name="fiction_remove_body">Your read progress will be lost. You can re-add it from Browse anytime, but the position you\'ve reached won\'t be restored.</string>
+    <string name="fiction_building_epub">Building .epub…</string>
+    <string name="fiction_export_epub">Export as EPUB…</string>
+    <string name="fiction_clear_cache">Clear fiction cache…</string>
+    <string name="fiction_chapter_count">%1$d ch</string>
+    <string name="fiction_separator">·</string>
+    <string name="fiction_name_label">Name</string>
+    <string name="fiction_one_line_description">One-line description</string>
+
+    <!-- Voice library -->
+    <string name="voicelibrary_title">Voice library</string>
+    <string name="voicelibrary_search_placeholder">Search voices</string>
+    <string name="voicelibrary_female">♀ Female</string>
+    <string name="voicelibrary_male">♂ Male</string>
+    <string name="voicelibrary_neutral">Neutral</string>
+    <string name="voicelibrary_multilingual">Multilingual</string>
+    <string name="voicelibrary_delete_title">Delete %1$s?</string>
+    <string name="voicelibrary_default">Default</string>
+
     <!-- MemPalace filter sheet -->
     <string name="mempalace_filter_title">Filter by wing</string>
     <string name="mempalace_no_wings">No wings reachable. Confirm your palace daemon is configured under Settings → Memory Palace.</string>
