@@ -367,7 +367,10 @@ fun BrowseScreen(
             // it), so the CTA is suppressed when the user is on Search.
             state.sourceId == SourceIds.ROYAL_ROAD &&
                 !state.royalRoadSignedIn &&
-                state.tab != BrowseTab.Search -> RoyalRoadSignedOutCta(onOpenRoyalRoadSignIn)
+                state.tab != BrowseTab.Search -> RoyalRoadSignedOutCta(
+                    onOpenSignIn = onOpenRoyalRoadSignIn,
+                    onSearchAnonymously = { viewModel.selectTab(BrowseTab.Search) },
+                )
             state.isLoading && state.items.isEmpty() -> SkeletonGrid()
             state.tab == BrowseTab.Search && state.query.isBlank() && !state.isFilterActive ->
                 SearchHint(state.sourceId, state.visibleSources)
@@ -1041,7 +1044,10 @@ private fun ActiveWingChip(
  * knows (not anonymous discovery of the catalog).
  */
 @Composable
-private fun RoyalRoadSignedOutCta(onOpenSignIn: () -> Unit) {
+private fun RoyalRoadSignedOutCta(
+    onOpenSignIn: () -> Unit,
+    onSearchAnonymously: () -> Unit,
+) {
     val spacing = LocalSpacing.current
     Column(
         modifier = Modifier.fillMaxSize().padding(spacing.lg),
@@ -1072,6 +1078,12 @@ private fun RoyalRoadSignedOutCta(onOpenSignIn: () -> Unit) {
             label = "Sign in to Royal Road",
             onClick = onOpenSignIn,
             variant = BrassButtonVariant.Primary,
+        )
+        Spacer(Modifier.height(spacing.xs))
+        BrassButton(
+            label = "Search without signing in",
+            onClick = onSearchAnonymously,
+            variant = BrassButtonVariant.Text,
         )
     }
 }
