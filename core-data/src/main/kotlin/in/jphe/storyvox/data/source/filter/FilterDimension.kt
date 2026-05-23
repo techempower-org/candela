@@ -49,6 +49,12 @@ sealed interface FilterDimension {
         val default: Boolean = false,
     ) : FilterDimension
 
+    data class Text(
+        override val key: String,
+        override val label: String,
+        val placeholder: String = "",
+    ) : FilterDimension
+
     companion object {
         val DEFAULT_DATE_PRESETS = listOf(
             DatePreset("any", "Any time"),

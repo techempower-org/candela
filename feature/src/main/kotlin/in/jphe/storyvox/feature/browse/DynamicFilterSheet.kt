@@ -17,6 +17,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -74,6 +75,7 @@ fun DynamicFilterSheet(
                     is FilterDimension.NumberRange -> NumberRangeSection(dim, local) { local = it }
                     is FilterDimension.DateRange -> DateRangeSection(dim, local) { local = it }
                     is FilterDimension.Toggle -> ToggleSection(dim, local) { local = it }
+                    is FilterDimension.Text -> TextSection(dim, local) { local = it }
                 }
                 HorizontalDivider()
             }
@@ -330,6 +332,28 @@ private fun ToggleSection(
             },
         )
     }
+}
+
+@Composable
+private fun TextSection(
+    dim: FilterDimension.Text,
+    state: FilterState,
+    onChange: (FilterState) -> Unit,
+) {
+    val value = state.stringVal(dim.key).orEmpty()
+    SectionLabel(dim.label)
+    OutlinedTextField(
+        value = value,
+        onValueChange = { text ->
+            if (text.isBlank()) onChange(state.without(dim.key))
+            else onChange(state.with(dim.key, FilterValue.StringVal(text.trim())))
+        },
+        placeholder = if (dim.placeholder.isNotEmpty()) {
+            { Text(dim.placeholder, style = MaterialTheme.typography.bodyMedium) }
+        } else null,
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
