@@ -510,7 +510,12 @@ private fun ResumeCard(entry: ContinueListeningEntry, onResume: () -> Unit) {
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.library_resume), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Text(entry.fiction.title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                Text(
+                    entry.fiction.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
                 // #265 — when chapter.title is blank (RSS feeds where only
                 // the index was parsed, first-cold-launch state), the old
                 // format produced "Ch. 0 · " with a dangling separator
@@ -525,6 +530,7 @@ private fun ResumeCard(entry: ContinueListeningEntry, onResume: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 if (fraction != null) {
                     // BrassProgressBar smooth-animates the fill on resume —
@@ -787,10 +793,15 @@ private fun LibraryGridBody(
                             onLongClick = { onLongPress(fiction) },
                         ),
                 )
+                // Issue #272 parity — BrowseScreen's grid added
+                // TextOverflow.Ellipsis so long titles end with "..."
+                // instead of cutting mid-token. The Library grid was
+                // missed; same fix for both title and author.
                 Text(
                     fiction.title,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 if (fiction.author.isNotBlank()) {
                     Text(
@@ -798,6 +809,7 @@ private fun LibraryGridBody(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -872,6 +884,7 @@ private fun HistoryRow(entry: HistoryEntry, onClick: () -> Unit) {
                     text = entry.fictionTitle ?: "(removed)",
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 // Match Resume card formatting: "Ch. N · title" with the
                 // dangling-separator guard for blank titles (see #265).
@@ -887,6 +900,7 @@ private fun HistoryRow(entry: HistoryEntry, onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
                     text = relativeTimeLabel(entry.openedAt),
@@ -1087,6 +1101,7 @@ private fun InboxRow(event: InboxEvent, onClick: () -> Unit) {
                     text = event.title,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 event.body?.takeIf { it.isNotBlank() }?.let { body ->
                     Text(
@@ -1094,6 +1109,7 @@ private fun InboxRow(event: InboxEvent, onClick: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
                 Row(
