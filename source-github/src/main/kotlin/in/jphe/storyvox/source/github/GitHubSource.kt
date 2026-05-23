@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.source.github
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.filter.FilterDimension
+import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -74,6 +76,100 @@ internal class GitHubSource @Inject constructor(
 
     override val id: String = SourceIds.GITHUB
     override val displayName: String = "GitHub"
+
+    override fun filterDimensions(): List<FilterDimension> = listOf(
+        FilterDimension.Sort(
+            options = listOf(
+                FilterDimension.SortOption("relevance", "Best match"),
+                FilterDimension.SortOption("popularity", "Stars"),
+                FilterDimension.SortOption("last_update", "Updated"),
+            ),
+        ),
+        FilterDimension.NumberRange(
+            key = "minStars",
+            label = "Minimum stars",
+            min = 0f,
+            max = 100000f,
+            step = 100f,
+        ),
+        FilterDimension.Select(
+            key = "language",
+            label = "Language",
+            options = listOf(
+                "kotlin", "java", "python", "javascript", "typescript",
+                "go", "rust", "swift", "ruby", "c", "cpp", "csharp",
+            ),
+        ),
+        FilterDimension.DateRange(
+            key = "pushedSince",
+            label = "Pushed since",
+            presets = listOf(
+                FilterDimension.DatePreset("any", "Any time"),
+                FilterDimension.DatePreset("7d", "Last 7 days"),
+                FilterDimension.DatePreset("30d", "Last 30 days"),
+                FilterDimension.DatePreset("90d", "Last 90 days"),
+                FilterDimension.DatePreset("1y", "Last year"),
+            ),
+        ),
+        FilterDimension.TagSet(
+            key = "topics",
+            label = "Topics",
+            options = emptyList(),
+            allowExclude = false,
+        ),
+        FilterDimension.Toggle(
+            key = "excludeArchived",
+            label = "Exclude archived",
+        ),
+    )
+
+    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
+        // GitHub's `/search/repositories?q=...` consumes qualifier-laden
+        // query strings (`stars:>=N language:X pushed:>=DATE topic:T
+        // archived:false sort:stars`). We compose those qualifiers into
+        // the SearchQuery.term so `GitHubSource.search()` passes the
+        // augmented term verbatim to the API. SearchQuery's structured
+        // fields (genres, tags, statuses, ...) don't translate to GitHub
+        // search and are intentionally left untouched.
+        val parts = mutableListOf<String>()
+        if (base.term.isNotBlank()) parts += base.term.trim()
+
+        state.rangeVal("minStars")?.min?.let { minStars ->
+            if (minStars > 0f) parts += "stars:>=${minStars.toInt()}"
+        }
+        state.stringVal("language")?.takeIf { it.isNotBlank() }?.let { lang ->
+            parts += "language:${lang.lowercase()}"
+        }
+        state.stringVal("pushedSince")?.takeIf { it != "any" && it.isNotBlank() }?.let { preset ->
+            val today = java.time.LocalDate.now()
+            val cutoff = when (preset) {
+                "7d" -> today.minusDays(7)
+                "30d" -> today.minusDays(30)
+                "90d" -> today.minusDays(90)
+                "1y" -> today.minusYears(1)
+                else -> null
+            }
+            if (cutoff != null) parts += "pushed:>=${cutoff}"
+        }
+        state.stringSetVal("topics")?.let { topics ->
+            topics.included.forEach { tag ->
+                val clean = tag.trim().lowercase()
+                if (clean.isNotEmpty()) parts += "topic:$clean"
+            }
+        }
+        if (state.boolVal("excludeArchived") == true) {
+            parts += "archived:false"
+        }
+        state.stringVal("sort")?.let { sortId ->
+            when (sortId) {
+                "popularity" -> parts += "sort:stars"
+                "last_update" -> parts += "sort:updated"
+                else -> Unit
+            }
+        }
+
+        return base.copy(term = parts.joinToString(" "))
+    }
 
     override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> =
         registryPage(page) { entries ->
