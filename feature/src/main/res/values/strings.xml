@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Shared utility -->
+    <string name="empty_string"></string>
     <!-- Browse -->
     <string name="browse_title">Browse</string>
     <string name="browse_search_hint">Search %1$s</string>
@@ -131,6 +133,109 @@
     <!-- Generic filter sheet -->
     <string name="generic_filter_title">Filter %1$s</string>
     <string name="generic_filter_chip_any">Any</string>
+
+    <!-- Reader / ReaderView -->
+    <string name="reader_ask_ai_title">Ask AI: who is \"%1$s\"?</string>
+    <string name="reader_ask_ai_body">The librarian-companion will answer based on what you\'ve read so far — no spoilers from later chapters.</string>
+    <string name="reader_ask_ai">Ask AI</string>
+    <string name="reader_cancel">Cancel</string>
+
+    <!-- Reader / HybridReaderScreen -->
+    <string name="reader_empty_library_title">Your library awaits</string>
+    <string name="reader_browse_realms">Browse the realms</string>
+    <string name="reader_back_to_library">Back to Library</string>
+    <string name="reader_back">Back</string>
+    <string name="reader_retry">Retry</string>
+    <string name="reader_voice_engine_slow_body">The voice engine is taking longer than expected. Try again, or back out to the chapter list.</string>
+    <string name="reader_still_loading">Still loading…</string>
+    <string name="reader_still_loading_subtitle">Cold-start of a slow voice or large chapter can take a moment.</string>
+    <string name="reader_loading_chapter">Loading chapter…</string>
+    <string name="reader_book_finished_no_title">You finished this book.</string>
+    <string name="reader_book_finished_with_title">You finished “%1$s”</string>
+    <string name="reader_book_finished_body">Beautiful work. The story is over — for now. Where would you like to go next?</string>
+
+    <!-- Reader / NowPlayingDock -->
+    <string name="reader_now_playing">Now playing</string>
+    <string name="reader_pause">Pause</string>
+    <string name="reader_play">Play</string>
+    <string name="reader_open_reader">Open reader</string>
+    <string name="reader_dock_card_description">Now playing: %1$s. %2$s. Tap to open reader.</string>
+
+    <!-- Reader / ResumePrompt -->
+    <string name="reader_from_the_start">From the start</string>
+    <string name="reader_start_listening">▶  Start listening</string>
+    <string name="reader_empty_library_body">Pick up an audiobook to listen and storyvox remembers your place.</string>
+    <string name="reader_browse_realms_arrow">Browse the realms →</string>
+
+    <!-- Reader / RecapModal -->
+    <string name="reader_recap_so_far">Recap so far</string>
+    <string name="reader_close">Close</string>
+    <string name="reader_open_settings">Open Settings</string>
+    <string name="reader_try_again">Try again</string>
+    <string name="reader_pause_read_aloud">Pause read aloud</string>
+    <string name="reader_read_aloud">Read aloud</string>
+    <string name="reader_recap_asking_librarian">  Asking the librarian…</string>
+    <string name="reader_recap_subtitle_in_flight">Asking the librarian about the last few chapters.</string>
+    <string name="reader_recap_subtitle_done">Here\'s what happened in the last few chapters.</string>
+    <string name="reader_recap_subtitle_error">Quick chapter summaries from your AI provider.</string>
+
+    <!-- Reader / VoiceQuickSheet -->
+    <string name="reader_voice_header">Voice</string>
+    <string name="reader_pick_voice">Pick voice</string>
+    <string name="reader_pick_a_voice">Pick a voice</string>
+    <string name="reader_voice_tap_to_change">Tap to change</string>
+    <string name="reader_voice_collapse_advanced">Collapse advanced</string>
+    <string name="reader_voice_expand_advanced">Expand advanced</string>
+    <string name="reader_voice_advanced">Advanced</string>
+    <string name="reader_voice_custom">Custom</string>
+    <string name="reader_voice_custom_more">Custom…</string>
+    <string name="reader_voice_hide_custom_slider">Hide custom slider</string>
+    <string name="reader_voice_show_custom_slider">Show custom slider</string>
+    <string name="reader_voice_speed_header">Speed</string>
+    <string name="reader_voice_pitch_header">Pitch</string>
+    <string name="reader_voice_sentence_silence_header">Sentence silence</string>
+    <string name="reader_voice_speech_speed_cd">Speech speed</string>
+    <string name="reader_voice_pitch_cd">Pitch</string>
+    <string name="reader_voice_inter_sentence_pause_cd">Inter-sentence pause</string>
+    <string name="reader_voice_playback_speed_cd">Playback speed %1$s</string>
+    <string name="reader_voice_pitch_value_cd">Pitch %1$s</string>
+    <string name="reader_voice_sentence_silence_value_cd">Sentence silence %1$s</string>
+    <string name="reader_voice_high_quality_title">High-quality pitch</string>
+    <string name="reader_voice_high_quality_on">Smoother pitch-shifted audio. Applies on next chapter.</string>
+    <string name="reader_voice_high_quality_off">Faster pitch shifting. Grittier at non-neutral pitch.</string>
+    <string name="reader_voice_advanced_open_label">Open per-voice lexicon and Kokoro language</string>
+    <string name="reader_voice_per_voice_lexicon">Per-voice lexicon + Kokoro language</string>
+    <string name="reader_voice_per_voice_lexicon_subtitle">Open Voice Library for per-voice pronunciation rules and phonemizer overrides.</string>
+
+    <!-- Reader / WhyAreWeWaitingPanel -->
+    <string name="reader_wait_open_settings">Open settings</string>
+    <string name="reader_wait_resume">Resume</string>
+
+    <!-- Reader / AudiobookView -->
+    <string name="reader_voice_settings">Voice settings</string>
+    <string name="reader_open_voice_library">Open Voice Library</string>
+    <string name="reader_pick_different_voice">Pick a different voice</string>
+    <string name="reader_chapters">Chapters</string>
+    <string name="reader_couldnt_load_chapter">Couldn\'t load this chapter</string>
+    <string name="reader_couldnt_load_message">The voice or chapter text is taking longer than expected. Try again, or pick a different voice — some take a moment to warm up.</string>
+    <string name="reader_sleep_step_by_sentence">Step by sentence</string>
+    <string name="reader_sleep_timer">Sleep timer</string>
+    <string name="reader_sleep_off">Off</string>
+    <string name="reader_sleep_minutes">%1$dm</string>
+    <string name="reader_sleep_end">End</string>
+    <string name="reader_sleep_sleeping_in">Sleeping in %1$d:%2$02d</string>
+    <string name="reader_bookmark_header">Bookmark</string>
+    <string name="reader_bookmark_here">Bookmark here</string>
+    <string name="reader_bookmark_here_subtitle">Drop a marker at the current position</string>
+    <string name="reader_jump_to_bookmark">Jump to bookmark</string>
+    <string name="reader_jump_to_bookmark_subtitle">Resume from the marker you set</string>
+    <string name="reader_smart_features">Smart features</string>
+    <string name="reader_recap_subtitle">Ask the librarian to summarize the last few chapters</string>
+    <string name="reader_ask_the_ai">Ask the AI</string>
+    <string name="reader_open_librarian_chat">Open librarian chat</string>
+    <string name="reader_step_previous">← Previous</string>
+    <string name="reader_step_next">Next →</string>
+    <string name="reader_ask_ai_subtitle">Chat about plot, characters, pacing, and craft</string>
 
     <!-- MemPalace filter sheet -->
     <string name="mempalace_filter_title">Filter by wing</string>
