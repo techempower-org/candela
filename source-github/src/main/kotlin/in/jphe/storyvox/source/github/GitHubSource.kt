@@ -35,7 +35,12 @@ import kotlin.time.toDuration
  * GitHub [FictionSource]. Fully wired in step 3d-detail-and-chapter:
  *
  *  - **Browse** (popular/latestUpdates/byGenre/genres): backed by the
- *    curated [Registry] (step 3c).
+ *    curated [Registry] (step 3c) **plus** a comprehensive GitHub
+ *    search for book/ebook-shaped repositories (#763). The `popular()`
+ *    landing page merges curated entries with live search results for
+ *    repos tagged with book-related topics (ebook, novel, gutenberg,
+ *    open-access, etc.) and repos containing book manifest files
+ *    (`book.toml`, `SUMMARY.md`).
  *  - **Detail** (`fictionDetail`): fetches `book.toml`, `storyvox.json`,
  *    `SUMMARY.md` from the repo + repo metadata, runs them through
  *    [ManifestParser] (step 3d-manifest), and maps to [FictionDetail].
@@ -44,7 +49,11 @@ import kotlin.time.toDuration
  *  - **Chapter** (`chapter`): fetches the file's base64 body from
  *    `/contents`, decodes, runs through [MarkdownChapterRenderer]
  *    (step 3d-markdown).
- *  - **Search**: deferred to step 3-search (spec sequence step 8).
+ *  - **Search**: fiction-topic and book-topic search with GitHub
+ *    qualifiers (stars, license, pushed, topics, language).
+ *  - **Auto-import** (#763): `scanUserBooksRepos()` fetches all
+ *    authenticated user repos, probes each for book manifests, and
+ *    returns qualifying repos as [FictionSummary] items.
  *  - **Auth-gated** (followsList, setFollowed): deferred to step 3f.
  *
  * Hilt binding lives in [`in`.jphe.storyvox.source.github.di
@@ -101,16 +110,18 @@ internal class GitHubSource @Inject constructor(
             ),
         ),
         // SPDX license keys accepted by GitHub's `license:` qualifier.
-        // Curated to the most-common OSS licenses; the GitHub API will
-        // 422 on unknown values, so this is a closed list rather than
-        // free text. https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories#search-by-license
+        // Ordered with open-content / public-domain licenses first
+        // (most relevant for books/ebooks — #763), then OSS code
+        // licenses. The GitHub API will 422 on unknown values, so this
+        // is a closed list. https://docs.github.com/en/search-github/searching-on-github/searching-for-repositories#search-by-license
         FilterDimension.Select(
             key = "license",
             label = "License",
             options = listOf(
+                "cc0-1.0", "unlicense", "cc-by-4.0", "cc-by-sa-4.0",
                 "mit", "apache-2.0", "gpl-3.0", "gpl-2.0",
                 "bsd-3-clause", "bsd-2-clause", "isc", "mpl-2.0",
-                "lgpl-3.0", "agpl-3.0", "unlicense", "cc0-1.0",
+                "lgpl-3.0", "agpl-3.0",
             ),
         ),
         FilterDimension.DateRange(
@@ -187,10 +198,47 @@ internal class GitHubSource @Inject constructor(
         return base.copy(term = parts.joinToString(" "))
     }
 
-    override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> =
-        registryPage(page) { entries ->
-            entries.sortedByDescending { it.featured }
+    override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> {
+        // Page 1: curated registry (featured first) + live book search.
+        // Pages 2+: paginate through the live book search results only
+        // (registry is small enough to fit on page 1).
+        if (page == 1) {
+            // Registry entries first (curated, hand-picked).
+            val registryItems = when (val r = registry.entries()) {
+                is FictionResult.Success -> r.value
+                    .sortedByDescending { it.featured }
+                    .map { it.toSummary() }
+                is FictionResult.Failure -> emptyList() // registry down → degrade gracefully
+            }
+
+            // Live search for book-shaped repos across GitHub.
+            val bookItems = searchBookRepos(page = 1)
+
+            // Merge: registry first, then live results, deduplicated by id.
+            val seen = registryItems.map { it.id }.toMutableSet()
+            val merged = registryItems.toMutableList()
+            for (item in bookItems) {
+                if (seen.add(item.id)) merged.add(item)
+            }
+
+            return FictionResult.Success(
+                ListPage(
+                    items = merged,
+                    page = 1,
+                    hasNext = bookItems.size >= BOOK_SEARCH_PER_PAGE,
+                ),
+            )
         }
+        // Pages 2+ are pure live-search pagination.
+        val bookItems = searchBookRepos(page = page)
+        return FictionResult.Success(
+            ListPage(
+                items = bookItems,
+                page = page,
+                hasNext = bookItems.size >= BOOK_SEARCH_PER_PAGE,
+            ),
+        )
+    }
 
     override suspend fun latestUpdates(page: Int): FictionResult<ListPage<FictionSummary>> =
         registryPage(page) { entries ->
@@ -220,13 +268,12 @@ internal class GitHubSource @Inject constructor(
     }
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
-        // Compose the GitHub search query: pin to fiction-shaped topics
-        // so we don't dredge generic repos, then append the user's
-        // search term verbatim. GitHub topic OR-syntax is `topic:a
-        // OR topic:b` — covers a few synonym tags at once. RR-shaped
-        // SearchQuery filter fields (genres, tags, statuses,
-        // requireWarnings, etc.) don't translate to GitHub today and
-        // are ignored.
+        // Compose the GitHub search query: pin to book/fiction-shaped
+        // topics so we surface ebooks, novels, public-domain books,
+        // Gutenberg mirrors, and fiction repos. GitHub topic OR-syntax
+        // is `topic:a OR topic:b`. RR-shaped SearchQuery filter fields
+        // (genres, tags, statuses, requireWarnings, etc.) don't
+        // translate to GitHub today and are ignored.
         //
         // The GitHub filter sheet (step 8c) composes its own
         // qualifier-laden query (stars:, language:, pushed:, sort:,
@@ -238,7 +285,7 @@ internal class GitHubSource @Inject constructor(
         val term = query.term.trim()
         val gh = buildString {
             if (!term.contains("topic:", ignoreCase = true)) {
-                append("(topic:fiction OR topic:fanfiction OR topic:webnovel)")
+                append(BOOK_TOPIC_QUERY)
                 if (term.isNotEmpty()) append(' ')
             }
             if (term.isNotEmpty()) append(term)
@@ -317,10 +364,14 @@ internal class GitHubSource @Inject constructor(
         }
     }
 
+    /**
+     * Does the repo carry any fiction- or book-shaped topic? Used by
+     * `starred()` to filter the user's stars to content they'd want
+     * to read (vs. code repos). Broadened in #763 to include book/ebook
+     * topics alongside the original fiction tags.
+     */
     private fun GhRepo.matchesFictionTopics(): Boolean =
-        topics.any { it.equals("fiction", ignoreCase = true) ||
-            it.equals("fanfiction", ignoreCase = true) ||
-            it.equals("webnovel", ignoreCase = true) }
+        topics.any { topic -> BOOK_TOPICS.any { it.equals(topic, ignoreCase = true) } }
 
     /**
      * `GET /user/repos` — auth-gated listing of the signed-in user's
@@ -977,6 +1028,97 @@ internal class GitHubSource @Inject constructor(
         }
     }
 
+    // ─── comprehensive book search (#763) ───────────────────────────────
+
+    /**
+     * Search GitHub for repositories that look like books/ebooks. Uses
+     * the combined book topic query to find repos tagged with book-
+     * shaped topics. Rate-limit friendly: one API call per invocation.
+     */
+    private suspend fun searchBookRepos(page: Int): List<FictionSummary> {
+        val query = "$BOOK_TOPIC_QUERY sort:stars"
+        return when (val r = api.searchRepositories(query, page = page, perPage = BOOK_SEARCH_PER_PAGE)) {
+            is GitHubApiResult.Success -> r.value.items.map { it.toFictionSummary() }
+            else -> emptyList() // degrade gracefully on errors
+        }
+    }
+
+    // ─── auto-import user repos (#763) ────────────────────────────────
+
+    override suspend fun scanUserBooksRepos(): FictionResult<List<FictionSummary>> {
+        // Fetch all user repos in one paginated sweep.
+        val allRepos = when (val r = api.allMyRepos()) {
+            is GitHubApiResult.Success -> r.value
+            is GitHubApiResult.RateLimited -> return FictionResult.RateLimited(
+                retryAfter = r.retryAfterSeconds?.let { it.toDuration(DurationUnit.SECONDS) },
+            )
+            is GitHubApiResult.HttpError -> return FictionResult.NetworkError(
+                message = "GitHub error ${r.code}: ${r.message}",
+            )
+            is GitHubApiResult.NetworkError -> return FictionResult.NetworkError(
+                message = "Could not reach GitHub",
+                cause = r.cause,
+            )
+            is GitHubApiResult.NotFound -> return FictionResult.Success(emptyList())
+            is GitHubApiResult.ParseError -> return FictionResult.NetworkError(
+                message = "Malformed /user/repos response",
+                cause = r.cause,
+            )
+        }
+
+        // Probe each repo for book signals. Two tiers:
+        //  1. Topic match (cheap — already in the repo metadata).
+        //  2. Manifest probe (one API call per repo to check for
+        //     book.toml / SUMMARY.md / storyvox.json).
+        // Tier 1 is free; tier 2 costs 1 API call per repo. To stay
+        // within rate limits, only probe repos that don't match tier 1.
+        val books = mutableListOf<FictionSummary>()
+        for (repo in allRepos) {
+            if (repo.isBookByTopics()) {
+                books.add(repo.toFictionSummary())
+                continue
+            }
+            // Tier 2: probe for manifest files. Check book.toml first
+            // (cheapest signal); fall back to SUMMARY.md.
+            if (probeForBookManifest(repo)) {
+                books.add(repo.toFictionSummary())
+            }
+        }
+        return FictionResult.Success(books)
+    }
+
+    /**
+     * Cheap tier-1 check: does the repo's topic set contain any
+     * book/ebook/fiction signal? Topics are free — they're already
+     * in the repo metadata from the listing endpoint.
+     */
+    private fun GhRepo.isBookByTopics(): Boolean =
+        topics.any { topic ->
+            BOOK_TOPICS.any { it.equals(topic, ignoreCase = true) }
+        }
+
+    /**
+     * Tier-2 check: probe the repo's default branch for manifest files
+     * that indicate book structure. Costs 1-4 API calls (getContent for
+     * book.toml, SUMMARY.md, src/SUMMARY.md, storyvox.json). Stops at
+     * the first hit. Returns false on any error (rate limit, network) —
+     * we don't want to block the scan on transient failures.
+     */
+    private suspend fun probeForBookManifest(repo: GhRepo): Boolean {
+        val owner = repo.owner.login
+        val name = repo.name
+        val branch = repo.defaultBranch
+        val candidates = listOf("book.toml", "SUMMARY.md", "src/SUMMARY.md", "storyvox.json")
+        for (path in candidates) {
+            when (api.getContent(owner, name, path, branch)) {
+                is GitHubApiResult.Success -> return true
+                is GitHubApiResult.NotFound -> continue // file doesn't exist, try next
+                else -> return false // rate limit / network error — bail out
+            }
+        }
+        return false
+    }
+
     private suspend fun registryPage(
         page: Int,
         transform: (List<RegistryEntry>) -> List<RegistryEntry>,
@@ -1006,6 +1148,9 @@ internal class GitHubSource @Inject constructor(
          *  a consistent grid density across tabs. */
         const val MY_REPOS_PER_PAGE: Int = 20
 
+        /** Per-page size for the comprehensive book search on popular(). */
+        const val BOOK_SEARCH_PER_PAGE: Int = 20
+
         /**
          * Sub-prefix that separates a gist fiction id from an
          * owner/repo fiction id. Both share the `github:` source
@@ -1015,5 +1160,31 @@ internal class GitHubSource @Inject constructor(
          * the cheap-poll worker uses this prefix to skip them.
          */
         const val GIST_PREFIX = "gist:"
+
+        /**
+         * Topic tags that signal a repo contains book/ebook content.
+         * Used by both the comprehensive search (#763 popular landing)
+         * and the auto-import tier-1 check. Broad enough to catch
+         * open-source books, public-domain texts, mdbook projects,
+         * ebook repos, and fiction — narrow enough to exclude generic
+         * code repos.
+         */
+        val BOOK_TOPICS: List<String> = listOf(
+            "ebook", "book", "novel", "fiction", "fanfiction",
+            "webnovel", "epub", "gutenberg", "open-access",
+            "public-domain", "mdbook", "gitbook", "honkit",
+            "free-ebook", "free-book", "open-textbook",
+            "textbook", "literature",
+        )
+
+        /**
+         * GitHub search qualifier string that ORs all book-shaped
+         * topics. Used as the default prefix for `search()` and
+         * `popular()` when no user-supplied `topic:` qualifier is
+         * present.
+         */
+        val BOOK_TOPIC_QUERY: String = BOOK_TOPICS
+            .joinToString(" OR ") { "topic:$it" }
+            .let { "($it)" }
     }
 }

@@ -57,4 +57,20 @@ interface GitHubAuthedSource {
      * flow; not surfaced in Browse today.
      */
     suspend fun userGists(user: String, page: Int): FictionResult<ListPage<FictionSummary>>
+
+    /**
+     * Scan ALL of the authenticated user's repositories and return
+     * those that look like books (#763). A repo qualifies if it
+     * contains `book.toml`, `SUMMARY.md`, `storyvox.json`, or has
+     * book-related topic tags (ebook, novel, fiction, gutenberg, etc.).
+     *
+     * This is the auto-import entry point: call on first login (or
+     * re-trigger from settings) to populate the library with the
+     * user's book-shaped repos without requiring manual add-by-URL.
+     *
+     * Returns all qualifying repos as [FictionSummary] items in a
+     * single non-paginated list. The scan paginates internally via
+     * `allMyRepos` + per-repo manifest probes, bounded by rate limits.
+     */
+    suspend fun scanUserBooksRepos(): FictionResult<List<FictionSummary>>
 }
