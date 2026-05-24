@@ -459,12 +459,21 @@ private fun StoryvoxNavHostContent(
             // Pop everything above the start destination so tab
             // switches don't accumulate, then push the target.
             // `launchSingleTop` collapses repeated taps on the active
-            // tab. See the historical comment block in the old
-            // bottomBar lambda for why we deliberately don't use
-            // saveState/restoreState here.
+            // tab.
+            //
+            // Issue #761 — saveState / restoreState preserve scroll
+            // position, search queries, selected sub-tabs, and ViewModel
+            // state across bottom-nav switches. Compose Navigation saves
+            // the entire composable tree's SavedStateHandle when the tab
+            // is popped, and restores it when the user returns. This is
+            // the standard Compose bottom-nav pattern from the Now in
+            // Android reference app and the official navigation docs.
             navController.navigate(target) {
-                popUpTo(StoryvoxRoutes.LIBRARY)
+                popUpTo(StoryvoxRoutes.LIBRARY) {
+                    saveState = true
+                }
                 launchSingleTop = true
+                restoreState = true
             }
         }
     }
@@ -625,8 +634,11 @@ private fun StoryvoxNavHostContent(
                         // CTA's verb still matches its destination
                         // exactly.
                         navController.navigate(StoryvoxRoutes.BROWSE) {
-                            popUpTo(StoryvoxRoutes.LIBRARY)
+                            popUpTo(StoryvoxRoutes.LIBRARY) {
+                                saveState = true
+                            }
                             launchSingleTop = true
+                            restoreState = true
                         }
                     },
                     // Issue #437 — Back arrow on the PLAYING destination.
@@ -796,8 +808,11 @@ private fun StoryvoxNavHostContent(
                     // Browse without OS-backing out first.
                     onBrowse = {
                         navController.navigate(StoryvoxRoutes.BROWSE) {
-                            popUpTo(StoryvoxRoutes.LIBRARY)
+                            popUpTo(StoryvoxRoutes.LIBRARY) {
+                                saveState = true
+                            }
                             launchSingleTop = true
+                            restoreState = true
                         }
                     },
                     // Issue #437 — Back arrow on deep-linked reader /
@@ -834,8 +849,11 @@ private fun StoryvoxNavHostContent(
                     // READER route above. See the comment there.
                     onBrowse = {
                         navController.navigate(StoryvoxRoutes.BROWSE) {
-                            popUpTo(StoryvoxRoutes.LIBRARY)
+                            popUpTo(StoryvoxRoutes.LIBRARY) {
+                                saveState = true
+                            }
                             launchSingleTop = true
+                            restoreState = true
                         }
                     },
                     // Issue #437 — Back arrow on deep-linked reader /
@@ -1272,8 +1290,11 @@ private fun StoryvoxNavHostContent(
                         // tile set (Guides / Resources / About /
                         // Donate) immediately.
                         navController.navigate(StoryvoxRoutes.BROWSE) {
-                            popUpTo(StoryvoxRoutes.LIBRARY)
+                            popUpTo(StoryvoxRoutes.LIBRARY) {
+                                saveState = true
+                            }
                             launchSingleTop = true
+                            restoreState = true
                         }
                     },
                     onOpenAbout = {
