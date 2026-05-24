@@ -51,10 +51,9 @@ internal class NotionTechEmpowerSource @Inject constructor(
      *  hex blob with hyphens stripped. */
     override fun matchUrl(url: String): RouteMatch? {
         val m = NOTION_URL_PATTERN.matchEntire(url.trim()) ?: return null
-        val pageId = m.groupValues[1].replace("-", "")
         return RouteMatch(
             sourceId = SourceIds.NOTION_TECHEMPOWER,
-            fictionId = "${SourceIds.NOTION}:$pageId",
+            fictionId = notionFictionId(m.groupValues[1]),
             confidence = 0.85f,
             label = "Notion page",
         )
