@@ -222,6 +222,37 @@ internal open class GitHubApi @Inject constructor(
         return get("$BASE_URL/gists/$safeId")
     }
 
+    /**
+     * `GET /user/repos` with exhaustive pagination. Fetches ALL repos
+     * for the authenticated user (owner + collaborator), not just one
+     * page. Used by the auto-import flow (#763) to discover book-shaped
+     * repos across the user's entire GitHub account.
+     *
+     * Returns the accumulated list across all pages. Stops when a page
+     * comes back shorter than [perPage] (no more pages). Caps at
+     * [maxPages] to bound runtime for users with thousands of repos.
+     */
+    open suspend fun allMyRepos(
+        perPage: Int = 100,
+        maxPages: Int = 50,
+    ): GitHubApiResult<List<GhRepo>> {
+        val all = mutableListOf<GhRepo>()
+        for (page in 1..maxPages) {
+            when (val r = myRepos(page = page, perPage = perPage)) {
+                is GitHubApiResult.Success -> {
+                    all.addAll(r.value)
+                    if (r.value.size < perPage) break
+                }
+                is GitHubApiResult.NotFound -> break
+                is GitHubApiResult.RateLimited -> return r
+                is GitHubApiResult.HttpError -> return r
+                is GitHubApiResult.NetworkError -> return r
+                is GitHubApiResult.ParseError -> return r
+            }
+        }
+        return GitHubApiResult.Success(all, etag = null)
+    }
+
     private suspend inline fun <reified T> get(url: String): GitHubApiResult<T> =
         withContext(Dispatchers.IO) {
             val req = Request.Builder()

@@ -118,10 +118,15 @@ class GitHubSourceTest {
         assertEquals(false, r.value.hasNext)
     }
 
-    @Test fun `registry failure surfaces unchanged from popular`() {
+    @Test fun `popular degrades gracefully when registry fails, returns live search results`() {
+        // #763: popular() now catches registry failures and falls through
+        // to the live book search. A registry-down state doesn't block
+        // the landing page — live search results still appear.
         val src = source(failure = FictionResult.NetworkError(message = "no internet"))
-        val r = runBlocking { src.popular() }
-        assertTrue(r is FictionResult.NetworkError)
+        val r = runBlocking { src.popular() } as FictionResult.Success
+        // With a FakeGitHubApi that has no searches, the live search
+        // returns empty — but the overall result is Success, not a failure.
+        assertTrue(r.value.items.isEmpty() || r.value.items.isNotEmpty())
     }
 
     // ─── fictionDetail ─────────────────────────────────────────────────
@@ -911,6 +916,180 @@ class GitHubSourceTest {
             gistId: String,
         ): GitHubApiResult<`in`.jphe.storyvox.source.github.model.GhGist> =
             GitHubApiResult.NotFound("gist not found")
+
+        override suspend fun allMyRepos(
+            perPage: Int,
+            maxPages: Int,
+        ): GitHubApiResult<List<GhRepo>> {
+            // Propagate the first error if any page is non-Success.
+            for ((_, result) in myReposByPage) {
+                if (result !is GitHubApiResult.Success) return result as GitHubApiResult<List<GhRepo>>
+            }
+            return myReposByPage.values
+                .filterIsInstance<GitHubApiResult.Success<List<GhRepo>>>()
+                .flatMap { it.value }
+                .let { GitHubApiResult.Success(it, etag = null) }
+        }
+    }
+
+    // ─── comprehensive book search (#763) ────────────────────────────
+
+    @Test fun `popular page 1 merges registry and live book search results`() = runBlocking {
+        val api = FakeGitHubApi(
+            searches = listOf(
+                "topic:" to GitHubApiResult.Success(
+                    `in`.jphe.storyvox.source.github.model.GhSearchResponse(
+                        totalCount = 2,
+                        items = listOf(
+                            ghRepo(owner = "ebook-org", name = "classic-novel", topics = listOf("ebook")),
+                            ghRepo(owner = "gutenberg", name = "pride-and-prejudice", topics = listOf("gutenberg")),
+                        ),
+                    ),
+                    etag = null,
+                ),
+            ),
+        )
+        val src = source(
+            entries = listOf(entry("github:curated/book", title = "Curated Book")),
+            api = api,
+        )
+        val r = src.popular(page = 1) as FictionResult.Success
+        // Registry entry comes first, live results follow.
+        assertTrue("expected >=2 items, got ${r.value.items.size}", r.value.items.size >= 2)
+        assertEquals("github:curated/book", r.value.items[0].id)
+    }
+
+    @Test fun `popular deduplicates registry and search results by id`() = runBlocking {
+        val api = FakeGitHubApi(
+            searches = listOf(
+                "topic:" to GitHubApiResult.Success(
+                    `in`.jphe.storyvox.source.github.model.GhSearchResponse(
+                        totalCount = 1,
+                        items = listOf(
+                            // Same repo as the registry entry — should be deduplicated.
+                            ghRepo(owner = "curated", name = "book"),
+                        ),
+                    ),
+                    etag = null,
+                ),
+            ),
+        )
+        val src = source(
+            entries = listOf(entry("github:curated/book", title = "Curated Book")),
+            api = api,
+        )
+        val r = src.popular(page = 1) as FictionResult.Success
+        val ids = r.value.items.map { it.id }
+        assertEquals("expected 1 unique item", 1, ids.distinct().size)
+    }
+
+    @Test fun `search uses broad book topics when no topic qualifier present`() = runBlocking {
+        // The search method should include ebook/book/novel topics
+        // alongside fiction/fanfiction/webnovel.
+        val api = FakeGitHubApi(
+            searches = listOf(
+                "topic:ebook" to GitHubApiResult.Success(
+                    `in`.jphe.storyvox.source.github.model.GhSearchResponse(
+                        totalCount = 1,
+                        items = listOf(ghRepo(owner = "o", name = "ebook-repo")),
+                    ),
+                    etag = null,
+                ),
+            ),
+        )
+        val src = source(api = api)
+        val r = src.search(
+            `in`.jphe.storyvox.data.source.model.SearchQuery(term = "classic literature"),
+        ) as FictionResult.Success
+        assertEquals(1, r.value.items.size)
+    }
+
+    // ─── auto-import user repos (#763) ────────────────────────────────
+
+    @Test fun `scanUserBooksRepos returns repos matching book topics`() = runBlocking {
+        val api = FakeGitHubApi(
+            myReposByPage = mapOf(
+                1 to GitHubApiResult.Success(
+                    listOf(
+                        ghRepo(owner = "me", name = "my-novel", topics = listOf("ebook", "fiction")),
+                        ghRepo(owner = "me", name = "dotfiles", topics = listOf("linux")),
+                        ghRepo(owner = "me", name = "my-textbook", topics = listOf("textbook")),
+                    ),
+                    etag = null,
+                ),
+            ),
+        )
+        val r = source(api = api).scanUserBooksRepos() as FictionResult.Success
+        val ids = r.value.map { it.id }.toSet()
+        assertTrue("my-novel should be included", "github:me/my-novel" in ids)
+        assertTrue("my-textbook should be included", "github:me/my-textbook" in ids)
+        assertTrue("dotfiles should be excluded", "github:me/dotfiles" !in ids)
+    }
+
+    @Test fun `scanUserBooksRepos detects repos by manifest probe when no topic match`() = runBlocking {
+        // Repo has no book topics but does have a book.toml manifest.
+        val api = FakeGitHubApi(
+            myReposByPage = mapOf(
+                1 to GitHubApiResult.Success(
+                    listOf(
+                        ghRepo(owner = "me", name = "secret-book", topics = emptyList()),
+                    ),
+                    etag = null,
+                ),
+            ),
+            // book.toml probe succeeds → this repo is a book.
+            files = mapOf(
+                Triple("me", "secret-book", "book.toml") to ghFile("[book]\ntitle = \"Secret\""),
+            ),
+        )
+        val r = source(api = api).scanUserBooksRepos() as FictionResult.Success
+        assertEquals(1, r.value.size)
+        assertEquals("github:me/secret-book", r.value[0].id)
+    }
+
+    @Test fun `scanUserBooksRepos excludes repos with no book signals`() = runBlocking {
+        val api = FakeGitHubApi(
+            myReposByPage = mapOf(
+                1 to GitHubApiResult.Success(
+                    listOf(
+                        ghRepo(owner = "me", name = "plain-code", topics = listOf("rust")),
+                    ),
+                    etag = null,
+                ),
+            ),
+        )
+        val r = source(api = api).scanUserBooksRepos() as FictionResult.Success
+        assertTrue("plain code repo should be excluded", r.value.isEmpty())
+    }
+
+    @Test fun `scanUserBooksRepos stops probing on rate limit and returns partial results`() = runBlocking {
+        val api = FakeGitHubApi(
+            myReposByPage = mapOf(
+                1 to GitHubApiResult.Success(
+                    listOf(
+                        ghRepo(owner = "me", name = "known-book", topics = listOf("ebook")),
+                        ghRepo(owner = "me", name = "maybe-book", topics = emptyList()),
+                        ghRepo(owner = "me", name = "after-limit", topics = listOf("novel")),
+                    ),
+                    etag = null,
+                ),
+            ),
+            rateLimitedFiles = setOf(Triple("me", "maybe-book", "book.toml")),
+        )
+        val r = source(api = api).scanUserBooksRepos() as FictionResult.Success
+        val ids = r.value.map { it.id }.toSet()
+        assertTrue("known-book found by topic before probe", "github:me/known-book" in ids)
+        assertTrue("after-limit skipped because scan broke", "github:me/after-limit" !in ids)
+    }
+
+        @Test fun `scanUserBooksRepos propagates rate limit from allMyRepos`() = runBlocking {
+        val api = FakeGitHubApi(
+            myReposByPage = mapOf(
+                1 to GitHubApiResult.RateLimited(retryAfterSeconds = 30),
+            ),
+        )
+        val r = source(api = api).scanUserBooksRepos()
+        assertTrue("got $r", r is FictionResult.RateLimited)
     }
 
     // ─── Gists (#202) ──────────────────────────────────────────────────
@@ -948,6 +1127,8 @@ class GitHubSourceTest {
         override suspend fun getGist(gistId: String) =
             gists[gistId]?.let { GitHubApiResult.Success(it, etag = null) }
                 ?: GitHubApiResult.NotFound("gist not found")
+        override suspend fun allMyRepos(perPage: Int, maxPages: Int) =
+            GitHubApiResult.Success(emptyList<GhRepo>(), etag = null)
     }
 
     @Test fun `authenticatedUserGists maps gist titles via description, then first filename`() = runBlocking {

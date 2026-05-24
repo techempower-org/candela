@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
@@ -30,7 +29,6 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
@@ -78,7 +76,6 @@ import androidx.compose.ui.text.style.TextAlign
 fun LibraryScreen(
     onOpenFiction: (String) -> Unit,
     onOpenReader: (String, String) -> Unit,
-    onOpenSettings: () -> Unit = {},
     /**
      * Issue #472 — when non-null, opens the Magic-add sheet pre-filled
      * with this URL on first composition. Set by the share-intent path
@@ -178,38 +175,30 @@ fun LibraryScreen(
                 actions = {
                     // Issue #533 — top-bar action icons used to pack
                     // flush together at 0dp gap on the Flip3 (1080dp
-                    // narrow). Four 48dp Boxes (2x TechEmpower help +
-                    // SyncCloudIcon + Settings IconButton) lined up
-                    // edge-to-edge made mis-taps trivial. Inserting an
-                    // 8dp Spacer between each icon adds the visual
-                    // breathing room (and tap-target separation) that
-                    // Material 3 spec recommends for grouped action
-                    // icons without bumping the row past Flip3 width.
+                    // narrow). Inserting an 8dp Spacer between each icon
+                    // adds the visual breathing room (and tap-target
+                    // separation) that Material 3 spec recommends for
+                    // grouped action icons without bumping the row past
+                    // Flip3 width.
                     //
                     // Issue #517 — TechEmpower help icons (phone +
                     // Discord) — leftmost so the cross-cutting "I
                     // need help" affordances read before the
-                    // engine-specific cloud-icon and settings gear.
+                    // engine-specific cloud-icon.
                     // Phone is tap = 211, long-press = 988; Discord
                     // opens the peer-support invite URL. See
                     // [TechEmpowerHelpIcons] for the design rationale.
                     TechEmpowerHelpIcons()
                     Spacer(Modifier.width(spacing.xs))
                     // Issue #500 — brass cloud-icon affordance for the
-                    // InstantDB sync surface. Sits to the LEFT of the
-                    // Settings gear so the "primary" cross-cutting state
-                    // (am I synced?) reads before the secondary (settings).
-                    // The three icon states (signed-in checkmark / spinner /
-                    // question-mark) drive off [SyncStatusViewModel] —
-                    // see [SyncCloudIcon] for the mapping. Tap opens
+                    // InstantDB sync surface. The three icon states
+                    // (signed-in checkmark / spinner / question-mark)
+                    // drive off [SyncStatusViewModel] — see
+                    // [SyncCloudIcon] for the mapping. Tap opens
                     // [SyncStatusSheet] inline.
                     `in`.jphe.storyvox.feature.sync.SyncCloudIcon(
                         onClick = { syncSheetOpen = true },
                     )
-                    Spacer(Modifier.width(spacing.xs))
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
-                    }
                 },
             )
         },
@@ -349,7 +338,6 @@ fun LibraryScreen(
                     FollowsScreen(
                         onOpenFiction = onOpenFiction,
                         onOpenSignIn = onOpenFollowsSignIn,
-                        onOpenSettings = onOpenSettings,
                         embedded = true,
                     )
                 }

@@ -89,7 +89,6 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 @Composable
 fun VoiceLibraryScreen(
-    onOpenSettings: () -> Unit = {},
     viewModel: VoiceLibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -106,19 +105,6 @@ fun VoiceLibraryScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.voicelibrary_title)) },
-                // Voice Library was promoted to a first-class home tab
-                // (issue #264 follow-up), so it no longer has a back
-                // arrow — peer of Library/Browse/Follows/Playing. The
-                // gear here matches the other home screens' per-screen
-                // Settings affordance.
-                actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(
-                            Icons.Outlined.Settings,
-                            contentDescription = "Settings",
-                        )
-                    }
-                },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
