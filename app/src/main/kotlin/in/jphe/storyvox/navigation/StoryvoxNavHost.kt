@@ -670,7 +670,6 @@ private fun StoryvoxNavHostContent(
                     sharedUrl = sharedUrl,
                     onOpenFiction = { id -> navController.navigate(StoryvoxRoutes.fictionDetail(id)) },
                     onOpenReader = { f, c -> navController.navigate(StoryvoxRoutes.reader(f, c)) },
-                    onOpenSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_HUB) },
                     // v0.5.72 — Browse is a first-class bottom-nav tab
                     // now; the standalone Browse route owns RR + AO3
                     // sign-in deep-links. Follows is still embedded
@@ -732,7 +731,6 @@ private fun StoryvoxNavHostContent(
                 FollowsScreen(
                     onOpenFiction = { id -> navController.navigate(StoryvoxRoutes.fictionDetail(id)) },
                     onOpenSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
-                    onOpenSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_HUB) },
                 )
             }
             composable(
@@ -750,6 +748,8 @@ private fun StoryvoxNavHostContent(
                     onOpenRoyalRoadSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
                     // #426 PR2 — AO3 sign-in CTA on the Browse → AO3 chip.
                     onOpenAo3SignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.AO3)) },
+                    // Still wired for the Notion demo banner's "Connect
+                    // your own workspace" CTA — not a top-bar cog.
                     onOpenSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_HUB) },
                 )
             }
@@ -1177,9 +1177,7 @@ private fun StoryvoxNavHostContent(
                 popEnterTransition = homeEnter,
                 popExitTransition = homeExit,
             ) {
-                VoiceLibraryScreen(
-                    onOpenSettings = { navController.navigate(StoryvoxRoutes.SETTINGS_HUB) },
-                )
+                VoiceLibraryScreen()
             }
             composable(
                 StoryvoxRoutes.AUTH_WEBVIEW,

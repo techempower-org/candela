@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FilterAlt
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Badge
@@ -90,7 +89,6 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 @Composable
 private fun BrowseScaffoldOrFrame(
     embedded: Boolean,
-    onOpenSettings: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     if (embedded) {
@@ -101,11 +99,6 @@ private fun BrowseScaffoldOrFrame(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = { Text(stringResource(R.string.browse_title), style = MaterialTheme.typography.titleMedium) },
-                    actions = {
-                        IconButton(onClick = onOpenSettings) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "Settings")
-                        }
-                    },
                 )
             },
         ) { scaffoldPadding ->
@@ -173,7 +166,6 @@ fun BrowseScreen(
     // uses `Modifier.align(Alignment.BottomEnd)` against it.
     BrowseScaffoldOrFrame(
         embedded = embedded,
-        onOpenSettings = onOpenSettings,
     ) {
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
