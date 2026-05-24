@@ -45,8 +45,9 @@ fun RoyalRoadAuthWebView(
     // which is the behavior we want. A null guard covers the brief
     // moment before AndroidView's factory has run.
     var webView: WebView? by remember { mutableStateOf(null) }
+    var canGoBack by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = webView?.canGoBack() == true) {
+    BackHandler(enabled = canGoBack) {
         webView?.goBack()
     }
 
@@ -84,6 +85,7 @@ fun RoyalRoadAuthWebView(
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
+                        canGoBack = view?.canGoBack() == true
                         tryCapture()
                     }
 

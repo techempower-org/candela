@@ -57,8 +57,9 @@ fun Ao3AuthWebView(
     // why `canGoBack()` is read inside the BackHandler `enabled`
     // lambda rather than snapshotted into Compose state.
     var webView: WebView? by remember { mutableStateOf(null) }
+    var canGoBack by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = webView?.canGoBack() == true) {
+    BackHandler(enabled = canGoBack) {
         webView?.goBack()
     }
 
@@ -94,6 +95,7 @@ fun Ao3AuthWebView(
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
+                        canGoBack = view?.canGoBack() == true
                         tryCapture(url)
                     }
 
