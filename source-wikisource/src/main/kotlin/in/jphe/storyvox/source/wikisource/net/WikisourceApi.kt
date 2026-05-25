@@ -90,15 +90,25 @@ internal class WikisourceApi @Inject constructor(
      * with image references). Restricting to ns0 gives us the parent
      * work pages users actually want to listen to.
      */
-    suspend fun search(term: String, limit: Int = 20): FictionResult<List<WikisourceSearchHit>> {
+    suspend fun search(
+        term: String,
+        limit: Int = 20,
+        sort: String = "relevance",
+    ): FictionResult<List<WikisourceSearchHit>> {
         val q = term.trim()
         if (q.isEmpty()) return FictionResult.Success(emptyList())
+        // MediaWiki's `srsort` accepts a small set of stable values:
+        // relevance (default), last_edit_desc, last_edit_asc,
+        // create_timestamp_desc, create_timestamp_asc. Unknown values
+        // are silently ignored server-side, so a typo here just falls
+        // back to relevance rather than 4xx-ing the request.
         val url = BASE_URL +
             "/w/api.php?action=query" +
             "&list=search" +
             "&srsearch=" + URLEncoder.encode(q, "UTF-8") +
             "&srnamespace=0" +
             "&srlimit=$limit" +
+            "&srsort=" + URLEncoder.encode(sort, "UTF-8") +
             "&format=json"
         return getJson<WikisourceSearchQueryResponse>(url).let { res ->
             when (res) {

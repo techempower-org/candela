@@ -2,8 +2,6 @@ package `in`.jphe.storyvox.source.wikipedia
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
-import `in`.jphe.storyvox.data.source.filter.FilterDimension
-import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -92,25 +90,14 @@ internal class WikipediaSource @Inject constructor(
         )
     }
 
-    override fun filterDimensions(): List<FilterDimension> = listOf(
-        FilterDimension.Select(
-            key = "language",
-            label = "Language",
-            options = listOf("en", "es", "fr", "de", "it", "ja", "zh", "ru", "pt", "ar"),
-        ),
-    )
-
-    override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
-        // Language is silently stored on the SearchQuery term so it
-        // survives the round-trip; host switching is a follow-up.
-        var q = base
-        state.stringVal("language")?.takeIf { it.isNotBlank() }?.let { lang ->
-            val composed = if (q.term.isBlank()) "language:$lang"
-                else "${q.term} language:$lang"
-            q = q.copy(term = composed)
-        }
-        return q
-    }
+    // Wikipedia exposes no per-search filter dimensions today. The
+    // article language is a settings-level choice persisted through
+    // [WikipediaConfig] (DataStore); a one-shot Browse filter would
+    // need a config-write side-effect we don't surface from here.
+    // Pre-fix this declared a "language" Select whose applyFilters
+    // appended `language:<code>` to SearchQuery.term — opensearch then
+    // searched for that string literally, breaking every faceted
+    // query. Removed entirely until a proper language-picker UI lands.
 
     // ─── browse ────────────────────────────────────────────────────────
 

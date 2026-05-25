@@ -13,6 +13,7 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.source.wikisource.net.WikisourceApi
 import `in`.jphe.storyvox.source.wikisource.net.WikisourceCategoryMember
@@ -95,19 +96,29 @@ internal class WikisourceSource @Inject constructor(
     }
 
     override fun filterDimensions(): List<FilterDimension> = listOf(
-        FilterDimension.Select(
-            key = "language",
-            label = "Language",
-            options = listOf("en", "es", "fr", "de", "it", "pt"),
+        // MediaWiki's `srsort` is the only per-search facet that's
+        // wired in v1. Pre-fix this declared a "language" Select that
+        // poisoned the search term with `language:<code>` — Wikisource
+        // is pinned to en.wikisource.org by [WikisourceApi.BASE_URL]
+        // anyway, so the filter never had infra behind it. Dropped
+        // entirely until a per-language host config lands.
+        FilterDimension.Sort(
+            options = listOf(
+                FilterDimension.SortOption("relevance", "Default"),
+                FilterDimension.SortOption("last_update", "Recently edited"),
+            ),
         ),
     )
 
     override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
         var q = base
-        state.stringVal("language")?.takeIf { it.isNotBlank() }?.let { lang ->
-            val composed = if (q.term.isBlank()) "language:$lang"
-                else "${q.term} language:$lang"
-            q = q.copy(term = composed)
+        state.stringVal("sort")?.let { sortId ->
+            q = q.copy(
+                orderBy = when (sortId) {
+                    "last_update" -> SearchOrder.LAST_UPDATE
+                    else -> SearchOrder.RELEVANCE
+                },
+            )
         }
         return q
     }
@@ -153,7 +164,11 @@ internal class WikisourceSource @Inject constructor(
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim()
         if (term.isEmpty()) return popular(1)
-        return when (val r = api.search(term)) {
+        val sort = when (query.orderBy) {
+            SearchOrder.LAST_UPDATE -> "last_edit_desc"
+            else -> "relevance"
+        }
+        return when (val r = api.search(term, sort = sort)) {
             is FictionResult.Success ->
                 FictionResult.Success(
                     ListPage(
