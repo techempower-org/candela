@@ -571,6 +571,35 @@ class BrowseViewModel @Inject constructor(
         viewModelScope.launch { paginator.value?.loadNext() }
     }
 
+    // #776 — pull-to-refresh state. Distinct from the paginator's own
+    // [BrowseUiState.isLoading] flag (which drives the skeleton grid on
+    // first page fetch) — `isRefreshing` overlays the M3 spinner on top
+    // of the existing items so the user keeps seeing what they had while
+    // a fresh page-1 fetch lands underneath. Cleared when `loadNext`
+    // returns regardless of success/failure, so a network blip during
+    // refresh still drops the indicator and surfaces the cached items
+    // banner via [BrowseUiState.error] like any other refresh failure.
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    /** #776 — pull-to-refresh entry point. Resets the current paginator
+     *  to page 1 then immediately re-fetches; the existing
+     *  source-tuple-change `LaunchedEffect` would only fire on tab/query
+     *  changes, so refresh has to push `loadNext()` itself. No-op when
+     *  no paginator is active (e.g. Search tab with empty query). */
+    fun refresh() {
+        val p = paginator.value ?: return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                p.refresh()
+                p.loadNext()
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
     // ─── Local EPUB folder picker (#669) ─────────────────────────────────
     //
     // Browse → Local chip empty-state CTA writes the picked SAF tree URI
