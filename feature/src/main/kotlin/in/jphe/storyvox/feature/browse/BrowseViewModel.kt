@@ -571,6 +571,31 @@ class BrowseViewModel @Inject constructor(
         viewModelScope.launch { paginator.value?.loadNext() }
     }
 
+    /** Issue #776 — true while a user-initiated pull-to-refresh round-trip
+     *  is in flight. Distinct from [BrowseUiState.isLoading] (first-load
+     *  skeleton) and [BrowseUiState.isAppending] (next-page spinner)
+     *  because the PullToRefreshBox spinner has its own lifetime that
+     *  the screen drives independently. */
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    /** Issue #776 — pull-to-refresh handler for the Browse grid. Resets
+     *  the current paginator to page 1 and re-fetches. The
+     *  [BrowsePaginator.refresh] call already clears items + error and
+     *  the follow-up [BrowsePaginator.loadNext] emits the fresh page. */
+    fun refresh() {
+        val p = paginator.value ?: return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                p.refresh()
+                p.loadNext()
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
     // ─── Local EPUB folder picker (#669) ─────────────────────────────────
     //
     // Browse → Local chip empty-state CTA writes the picked SAF tree URI

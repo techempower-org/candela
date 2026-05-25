@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
@@ -460,6 +461,18 @@ fun BrowseScreen(
                             if (!s.isAppending && !s.isLoading) viewModel.loadMore()
                         }
                 }
+                // Issue #776 — pull-to-refresh. Wraps the grid in
+                // PullToRefreshBox; the VM's refresh() resets the paginator
+                // to page 1 and re-fetches. isRefreshing is a separate
+                // StateFlow distinct from state.isLoading (first-load
+                // skeleton) so the spinner only shows on user-initiated
+                // pulls, not initial paint.
+                val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                 LazyVerticalGrid(
                     state = gridState,
                     columns = GridCells.Adaptive(minSize = 140.dp),
@@ -575,6 +588,7 @@ fun BrowseScreen(
                         }
                     }
                 }
+                }  // PullToRefreshBox
             }
         }
     }
