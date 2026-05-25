@@ -87,6 +87,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
@@ -205,6 +207,7 @@ fun AudiobookView(
     val spacing = LocalSpacing.current
     val motion = LocalMotion.current
     val reducedMotion = LocalReducedMotion.current
+    val haptic = LocalHapticFeedback.current
     // Spinner enter/exit transitions for the warmup state. Honors
     // LocalReducedMotion: when true, visibility flips instantly (reduce
     // motion = absent motion, not shorter motion — same pattern as
@@ -518,6 +521,7 @@ fun AudiobookView(
                                     // the wrong icon for ~16-100 ms.
                                     feedbackShowsPause = state.isPlaying
                                     coverFeedbackAtMs = System.currentTimeMillis()
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onPlayPause()
                                 },
                             ),
@@ -671,10 +675,16 @@ fun AudiobookView(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onPreviousChapter) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onPreviousChapter()
+                }) {
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous chapter", modifier = Modifier.size(32.dp))
                 }
-                IconButton(onClick = onSkipBack) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSkipBack()
+                }) {
                     // Issue #268 — Replay30 / Forward30 show the literal '30'
                     // inside a curved-arrow glyph, so the seek interval is
                     // legible at a glance instead of just an abstract
@@ -736,6 +746,7 @@ fun AudiobookView(
                         state.chapterId != null
                     FilledIconButton(
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             if (isAtNaturalEndForClick) {
                                 onSeekTo(0L)
                             }
@@ -789,10 +800,16 @@ fun AudiobookView(
                         }
                     }
                 }
-                IconButton(onClick = onSkipForward) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSkipForward()
+                }) {
                     Icon(Icons.Filled.Forward30, contentDescription = "Skip forward 30 seconds", modifier = Modifier.size(32.dp))
                 }
-                IconButton(onClick = onNextChapter) {
+                IconButton(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onNextChapter()
+                }) {
                     Icon(Icons.Filled.SkipNext, contentDescription = "Next chapter", modifier = Modifier.size(32.dp))
                 }
             }
@@ -1205,6 +1222,7 @@ private fun PlayerOverflowSheet(
     onJumpToBookmark: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
+    val haptic = LocalHapticFeedback.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1257,7 +1275,10 @@ private fun PlayerOverflowSheet(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.reader_bookmark_here), onClick = onBookmarkHere)
+                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.reader_bookmark_here), onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onBookmarkHere()
+                })
                 .padding(vertical = spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -1279,7 +1300,10 @@ private fun PlayerOverflowSheet(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.reader_jump_to_bookmark), onClick = onJumpToBookmark)
+                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.reader_jump_to_bookmark), onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onJumpToBookmark()
+                })
                 .padding(vertical = spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),

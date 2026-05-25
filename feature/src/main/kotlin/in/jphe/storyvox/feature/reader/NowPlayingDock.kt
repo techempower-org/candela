@@ -29,6 +29,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -102,6 +104,7 @@ internal fun NowPlayingDockContent(
     modifier: Modifier = Modifier,
 ) {
     val isTablet = isAtLeastTablet()
+    val haptic = LocalHapticFeedback.current
     val fictionTitle = state.fictionTitle.ifBlank { stringResource(R.string.reader_now_playing) }
     val chapterTitle = state.chapterTitle
     val cardDescription = stringResource(R.string.reader_dock_card_description, fictionTitle, chapterTitle)
@@ -178,7 +181,10 @@ internal fun NowPlayingDockContent(
                     }
                 }
                 IconButton(
-                    onClick = onTogglePlayPause,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onTogglePlayPause()
+                    },
                     modifier = Modifier
                         .size(48.dp)
                         .semantics { contentDescription = playPauseLabel },
@@ -194,7 +200,10 @@ internal fun NowPlayingDockContent(
                     // transport control; phones stay at one button so the
                     // 40dp thumb + ellipsized two-line title can breathe.
                     IconButton(
-                        onClick = onNextChapter,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onNextChapter()
+                        },
                         modifier = Modifier
                             .size(48.dp)
                             .semantics { contentDescription = "Next chapter" },
