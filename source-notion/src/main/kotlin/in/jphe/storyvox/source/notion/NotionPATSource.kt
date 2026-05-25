@@ -118,7 +118,15 @@ internal class NotionPATSource @Inject constructor(
                         summary.title.lowercase().contains(term) ||
                         summary.description?.lowercase()?.contains(term) == true
                 }
-            ListPage(items = items, page = 1, hasNext = false)
+            // Notion's PAT page summary doesn't carry a last_edited_time
+            // to this layer, so LAST_UPDATE falls through to the
+            // database's natural order (Notion's own sort) — TITLE
+            // alphabetizes in memory.
+            val ordered = when (query.orderBy) {
+                SearchOrder.TITLE -> items.sortedBy { it.title.lowercase() }
+                else -> items
+            }
+            ListPage(items = ordered, page = 1, hasNext = false)
         }
     }
 

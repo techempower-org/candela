@@ -164,10 +164,18 @@ internal class AnonymousNotionDelegate @Inject constructor(
      * do an in-memory filter over the tiles we already built. Keeps the
      * source consistent with the FictionSource contract (returns
      * ListPage even on empty match).
+     *
+     * [order] sorts the filtered set in memory:
+     *   - [SearchOrder.TITLE] → alphabetical
+     *   - any other → preserves the tile order from [popular]
+     * (The anonymous surface has no per-tile last-update timestamp to
+     * sort against, so LAST_UPDATE is a no-op rather than a wrong sort.)
      */
     suspend fun search(
         state: NotionConfigState,
         term: String,
+        order: `in`.jphe.storyvox.data.source.model.SearchOrder =
+            `in`.jphe.storyvox.data.source.model.SearchOrder.RELEVANCE,
     ): FictionResult<ListPage<FictionSummary>> {
         val popularResult = popular(state, page = 1)
         val all = when (popularResult) {
@@ -179,8 +187,13 @@ internal class AnonymousNotionDelegate @Inject constructor(
             it.title.lowercase().contains(termLc) ||
                 it.description?.lowercase()?.contains(termLc) == true
         }
+        val ordered = when (order) {
+            `in`.jphe.storyvox.data.source.model.SearchOrder.TITLE ->
+                matches.sortedBy { it.title.lowercase() }
+            else -> matches
+        }
         return FictionResult.Success(
-            ListPage(items = matches, page = 1, hasNext = false),
+            ListPage(items = ordered, page = 1, hasNext = false),
         )
     }
 

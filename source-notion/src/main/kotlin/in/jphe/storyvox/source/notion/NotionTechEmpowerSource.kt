@@ -104,7 +104,7 @@ internal class NotionTechEmpowerSource @Inject constructor(
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val state = config.current()
-        return anonymous.search(state, query.term)
+        return anonymous.search(state, query.term, query.orderBy)
     }
 
     // ─── detail ────────────────────────────────────────────────────────
