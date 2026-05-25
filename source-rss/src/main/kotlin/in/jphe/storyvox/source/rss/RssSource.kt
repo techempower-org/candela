@@ -121,14 +121,18 @@ internal class RssSource @Inject constructor(
     }
 
     override fun filterDimensions(): List<FilterDimension> = listOf(
+        // Subscription summaries don't carry publish timestamps (we
+        // skip the network storm of fetching every feed on Browse
+        // open), so the only sort with a meaningful effect is Title.
+        // Default/Newest both fall through to natural subscription
+        // order; keep them as options for parity with other sources'
+        // Sort dimensions.
         FilterDimension.Sort(
             options = listOf(
                 FilterDimension.SortOption("relevance", "Default"),
-                FilterDimension.SortOption("last_update", "Newest"),
                 FilterDimension.SortOption("title", "Title"),
             ),
         ),
-        FilterDimension.DateRange(),
     )
 
     override fun applyFilters(base: SearchQuery, state: FilterState): SearchQuery {
@@ -136,7 +140,6 @@ internal class RssSource @Inject constructor(
         state.stringVal("sort")?.let { sortId ->
             q = q.copy(
                 orderBy = when (sortId) {
-                    "last_update" -> SearchOrder.LAST_UPDATE
                     "title" -> SearchOrder.TITLE
                     else -> SearchOrder.RELEVANCE
                 },
@@ -166,10 +169,20 @@ internal class RssSource @Inject constructor(
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim().lowercase()
-        if (term.isEmpty()) return listSubscriptions(sortByMostRecent = true)
         val all = subscriptionSummaries()
-        val filtered = all.filter { it.title.lowercase().contains(term) }
-        return FictionResult.Success(ListPage(items = filtered, page = 1, hasNext = false))
+        val matched = if (term.isEmpty()) all else all.filter {
+            it.title.lowercase().contains(term)
+        }
+        // Sort dimension is the only one with a meaningful effect at
+        // this layer — we don't fan-out to fetch publish dates for the
+        // landing summaries (see [listSubscriptions]), so LAST_UPDATE
+        // falls through to natural subscription order. TITLE
+        // alphabetizes in memory.
+        val ordered = when (query.orderBy) {
+            SearchOrder.TITLE -> matched.sortedBy { it.title.lowercase() }
+            else -> matched
+        }
+        return FictionResult.Success(ListPage(items = ordered, page = 1, hasNext = false))
     }
 
     private suspend fun listSubscriptions(
