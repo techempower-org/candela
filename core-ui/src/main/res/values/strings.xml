@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Issue #789 — friendlyErrorMessage user-facing copy. The mapping
+         logic lives in FriendlyError.kt; these are the localizable copies
+         the user actually reads. -->
+    <string name="friendly_error_generic">Something went wrong. Try again in a moment.</string>
+    <string name="friendly_error_network_lost">Connection lost. Check your network and try again.</string>
+    <string name="friendly_error_cloudflare_challenge">Royal Road asked us to wait. Try again in a moment.</string>
+    <string name="friendly_error_rate_limited">We\'re sending requests too fast — slow down and try again.</string>
+    <string name="friendly_error_server_error">The realm is having trouble. Try again in a moment.</string>
+    <string name="friendly_error_auth_failed">We couldn\'t sign in. Re-paste your credentials in Settings.</string>
+    <string name="friendly_error_not_configured">This source isn\'t set up yet. Open Settings to configure it.</string>
+    <string name="friendly_error_unexpected_response">The realm returned an unexpected response. Try again later.</string>
+</resources>
