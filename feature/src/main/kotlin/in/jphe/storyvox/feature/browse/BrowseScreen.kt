@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
@@ -139,6 +140,11 @@ fun BrowseScreen(
     viewModel: BrowseViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // #776 — pull-to-refresh state lives off the ViewModel so the
+    // M3 spinner overlay's `isRefreshing` flag survives recomposition
+    // and matches the paginator refresh lifecycle (cleared in the
+    // finally block of refresh()).
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
     var showFilterSheet by remember { mutableStateOf(false) }
     /** Issue #247 — RSS feed management moved out of Settings into a
@@ -460,6 +466,20 @@ fun BrowseScreen(
                             if (!s.isAppending && !s.isLoading) viewModel.loadMore()
                         }
                 }
+                // #776 — wrap the grid in PullToRefreshBox so the user
+                // can swipe-down to re-fetch the current paginator. The
+                // M3 spinner overlays on top of the existing items
+                // (rather than replacing them with a skeleton grid like
+                // the first-page fetch path does at line ~372), so the
+                // user keeps their visual context through the refresh.
+                // viewModel.refresh() resets the paginator + immediately
+                // calls loadNext(); isRefreshing flips false when that
+                // returns (success OR failure).
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                 LazyVerticalGrid(
                     state = gridState,
                     columns = GridCells.Adaptive(minSize = 140.dp),
@@ -575,6 +595,7 @@ fun BrowseScreen(
                         }
                     }
                 }
+                }  // #776 PullToRefreshBox
             }
         }
     }
