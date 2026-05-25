@@ -58,18 +58,22 @@ internal class ArxivApi @Inject constructor(
 
     /**
      * Free-form search. Builds an `all:<term>` query — `all` matches the
-     * paper's title, abstract, authors, and comments. We keep the
-     * sort-order at submittedDate desc so the user sees the most recent
-     * matches first; arXiv's relevance-sort isn't exposed via the
-     * public API (only `submittedDate`, `lastUpdatedDate`, and
-     * `relevance` with the latter known to be flaky).
+     * paper's title, abstract, authors, and comments. Optionally
+     * narrows by [category] (`cat:<code>`) and overrides the default
+     * `submittedDate desc` sort via [sortBy].
+     *
+     * arXiv only documents three sortBy values — `submittedDate`,
+     * `lastUpdatedDate`, and `relevance` — anything else is silently
+     * ignored by the API and falls back to `submittedDate`.
      */
     suspend fun search(
         term: String,
         start: Int = 0,
         maxResults: Int = DEFAULT_PAGE_SIZE,
+        category: String? = null,
+        sortBy: String = "submittedDate",
     ): FictionResult<ArxivAtomFeed> {
-        val url = composeSearchUrl(term, start, maxResults)
+        val url = composeSearchUrl(term, start, maxResults, category, sortBy)
         return getAtom(url)
     }
 
@@ -221,18 +225,35 @@ internal fun composeRecentUrl(
 /**
  * Compose the URL for a free-form `all:<term>` search call. Pure
  * function for test pinning — see [ArxivApiUrlTest].
+ *
+ * When [category] is non-blank we AND it into the query as
+ * `all:<term>+AND+cat:<code>`, mirroring the arXiv query-language
+ * shape documented at https://info.arxiv.org/help/api/user-manual.html.
+ * A blank term + non-blank category becomes a pure `cat:` query (the
+ * filter-only browse case).
  */
 internal fun composeSearchUrl(
     term: String,
     start: Int = 0,
     maxResults: Int = ArxivApi.DEFAULT_PAGE_SIZE,
+    category: String? = null,
+    sortBy: String = "submittedDate",
 ): String {
-    // `all:` matches title + abstract + authors + comments. Trim before
-    // URL-encoding so a stray newline / leading space doesn't break the
-    // query syntax on arXiv's side.
-    val q = "all:" + URLEncoder.encode(term.trim(), "UTF-8")
+    val trimmedTerm = term.trim()
+    val cat = category?.trim()?.takeIf { it.isNotBlank() }
+    // Build search_query: `all:term`, `cat:code`, or both joined by AND.
+    val parts = buildList {
+        if (trimmedTerm.isNotEmpty()) add("all:" + URLEncoder.encode(trimmedTerm, "UTF-8"))
+        if (cat != null) add("cat:" + URLEncoder.encode(cat, "UTF-8"))
+    }
+    val searchQuery = parts.joinToString("+AND+").ifEmpty {
+        // arXiv's query API requires *something* in search_query; fall
+        // back to the default browse category so a bare facet-less,
+        // term-less call still returns rows.
+        "cat:" + URLEncoder.encode(ArxivApi.DEFAULT_CATEGORY, "UTF-8")
+    }
     return ArxivApi.QUERY_BASE +
-        "?search_query=" + q +
-        "&sortBy=submittedDate&sortOrder=descending" +
+        "?search_query=" + searchQuery +
+        "&sortBy=$sortBy&sortOrder=descending" +
         "&start=$start&max_results=$maxResults"
 }

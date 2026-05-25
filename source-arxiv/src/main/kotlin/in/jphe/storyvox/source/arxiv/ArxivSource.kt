@@ -116,8 +116,17 @@ internal class ArxivSource @Inject constructor(
         state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
             q = q.copy(genres = q.genres + cat)
         }
-        state.stringVal("dateRange")?.takeIf { it != "any" }?.let {
-            q = q.copy(orderBy = SearchOrder.LAST_UPDATE)
+        // arXiv's API only supports two sort orders (submittedDate,
+        // lastUpdatedDate); a "this last 30 days" filter realistically
+        // maps onto "sort by lastUpdatedDate descending" — there's no
+        // server-side date-range param. We persist the preset in tags
+        // so [search] can both flip the sort and (in future) filter
+        // client-side once results come back.
+        state.stringVal("dateRange")?.takeIf { it != "any" && it.isNotBlank() }?.let { preset ->
+            q = q.copy(
+                orderBy = SearchOrder.LAST_UPDATE,
+                tags = q.tags + "dateRange:$preset",
+            )
         }
         return q
     }
@@ -170,12 +179,24 @@ internal class ArxivSource @Inject constructor(
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim()
-        if (term.isEmpty()) return popular(1)
+        val category = query.genres.firstOrNull()?.takeIf { it.isNotBlank() }
+        val sortBy = when (query.orderBy) {
+            SearchOrder.LAST_UPDATE -> "lastUpdatedDate"
+            SearchOrder.RELEVANCE -> "relevance"
+            else -> "submittedDate"
+        }
+        // Empty term AND no facets → fall back to the popular landing.
+        if (term.isEmpty() && category == null && query.orderBy == SearchOrder.RELEVANCE) {
+            return popular(query.page.coerceAtLeast(1))
+        }
         val pageIdx = (query.page - 1).coerceAtLeast(0)
         val start = pageIdx * ArxivApi.DEFAULT_PAGE_SIZE
-        return api.search(term = term, start = start).map { feed ->
-            feed.toListPage(query.page)
-        }
+        return api.search(
+            term = term,
+            start = start,
+            category = category,
+            sortBy = sortBy,
+        ).map { feed -> feed.toListPage(query.page) }
     }
 
     // ─── detail ────────────────────────────────────────────────────────
