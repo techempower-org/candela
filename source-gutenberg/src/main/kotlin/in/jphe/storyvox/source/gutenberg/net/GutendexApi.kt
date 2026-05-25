@@ -52,14 +52,44 @@ internal class GutendexApi @Inject constructor(
         get("/books?sort=descending&page=$page")
 
     /**
-     * `GET /books?search=...` — Gutendex matches against title +
-     * authors. The query is URL-encoded so search terms with spaces
-     * land verbatim.
+     * Compose a Gutendex query that pairs `search=` with the catalog
+     * facets the filter sheet exposes — `topic=` (matches both subjects
+     * and bookshelves, fuzzy), `languages=` (two-letter codes), and
+     * `sort=` (popular | ascending | descending). Empty term + active
+     * facets is a legitimate shape (filter-only browse), so we omit the
+     * `search=` param when [term] is blank rather than sending `search=`.
+     *
+     * All params are URL-encoded; unknown sort values fall through to
+     * Gutendex's default ranking.
      */
-    suspend fun search(term: String, page: Int): FictionResult<GutendexListPage> {
-        val encoded = java.net.URLEncoder.encode(term, Charsets.UTF_8)
-        return get("/books?search=$encoded&page=$page")
+    suspend fun browse(
+        term: String,
+        page: Int,
+        topic: String? = null,
+        language: String? = null,
+        sort: String? = null,
+    ): FictionResult<GutendexListPage> {
+        val params = buildList {
+            if (term.isNotBlank()) {
+                add("search" to term.trim())
+            }
+            if (!topic.isNullOrBlank()) add("topic" to topic.trim())
+            if (!language.isNullOrBlank()) add("languages" to language.trim())
+            if (!sort.isNullOrBlank()) add("sort" to sort)
+            add("page" to page.toString())
+        }
+        val qs = params.joinToString("&") { (k, v) ->
+            k + "=" + java.net.URLEncoder.encode(v, Charsets.UTF_8)
+        }
+        return get("/books?$qs")
     }
+
+    /**
+     * Legacy term-only search retained for callers that haven't migrated
+     * to [browse]. Identical to `browse(term, page)` with no facets.
+     */
+    suspend fun search(term: String, page: Int): FictionResult<GutendexListPage> =
+        browse(term = term, page = page)
 
     /**
      * `GET /books/{id}` — single-row detail. Returns the same shape

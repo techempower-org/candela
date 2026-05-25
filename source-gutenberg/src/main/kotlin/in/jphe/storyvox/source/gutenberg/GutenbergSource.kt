@@ -151,17 +151,29 @@ internal class GutenbergSource @Inject constructor(
                 },
             )
         }
+        // Author is a free-text filter; Gutendex's `search=` matches
+        // against both title and author, so the safe way to apply it is
+        // by appending to the search term. (Gutendex has no dedicated
+        // `author=` param — its API is title+author OR'd into a single
+        // search field.)
         state.stringVal("author")?.takeIf { it.isNotBlank() }?.let { author ->
             val composed = if (q.term.isBlank()) author else "${q.term} $author"
             q = q.copy(term = composed)
         }
+        // Category lands in [SearchQuery.genres] as a display-cased
+        // label; [GutenbergSource.search] passes the first non-empty
+        // genre through as Gutendex `topic=` (fuzzy match against the
+        // subjects + bookshelves taxonomy).
         state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
             q = q.copy(genres = q.genres + cat)
         }
+        // Language is a real Gutendex facet (`languages=<iso-code>`);
+        // [GutenbergSource.search] reads it back off [SearchQuery.tags]
+        // with a `lang:` sentinel so it doesn't collide with future
+        // tag-based filters. Pre-fix this stuffed `language:en` into
+        // the search term and broke every query.
         state.stringVal("language")?.takeIf { it.isNotBlank() }?.let { lang ->
-            val composed = if (q.term.isBlank()) "language:$lang"
-                else "${q.term} language:$lang"
-            q = q.copy(term = composed)
+            q = q.copy(tags = q.tags + "lang:$lang")
         }
         return q
     }
@@ -189,10 +201,27 @@ internal class GutenbergSource @Inject constructor(
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim()
-        if (term.isEmpty()) {
+        val page = (query.page ?: 1).coerceAtLeast(1)
+        // Pull out the language sentinel set by applyFilters (see kdoc
+        // above) — we strip it from the tag list before deciding what
+        // to send to Gutendex as the topic facet.
+        val language = query.tags
+            .firstOrNull { it.startsWith("lang:") }
+            ?.removePrefix("lang:")
+            ?.takeIf { it.isNotBlank() }
+        val topic = query.genres.firstOrNull()?.takeIf { it.isNotBlank() }
+        val sort = query.orderBy.toGutendexSort()
+        val anyFacetActive = !language.isNullOrBlank() || topic != null || sort != null
+        if (term.isEmpty() && !anyFacetActive) {
             return FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
         }
-        return api.search(term, query.page ?: 1).map { it.toListPage(query.page ?: 1) }
+        return api.browse(
+            term = term,
+            page = page,
+            topic = topic,
+            language = language,
+            sort = sort,
+        ).map { it.toListPage(page) }
     }
 
     override suspend fun genres(): FictionResult<List<String>> =
@@ -357,6 +386,17 @@ internal class GutenbergSource @Inject constructor(
         val id = parseGutenbergId(fictionId) ?: return null
         return File(cacheDir, "$id.epub")
     }
+}
+
+/** Map storyvox [SearchOrder] to the Gutendex `sort` param. Gutendex
+ *  supports `popular` (download_count desc), `ascending`, and
+ *  `descending` (by id; ~recently-added). Anything else returns null
+ *  so we omit the param and Gutendex falls back to its default
+ *  relevance ranking when a search term is present. */
+private fun SearchOrder.toGutendexSort(): String? = when (this) {
+    SearchOrder.POPULARITY -> "popular"
+    SearchOrder.LAST_UPDATE, SearchOrder.RELEASE_DATE -> "descending"
+    else -> null
 }
 
 /** Issue #472 — Gutenberg URL pattern for the magic-link resolver. */
