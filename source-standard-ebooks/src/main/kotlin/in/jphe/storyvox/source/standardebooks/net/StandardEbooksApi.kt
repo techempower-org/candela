@@ -62,9 +62,28 @@ internal open class StandardEbooksApi @Inject constructor(
     suspend fun latestUpdates(page: Int): FictionResult<SeListPage> =
         getListing(page = page, sort = "default")
 
-    /** Free-form search hits the same listing endpoint with `?query=`. */
-    suspend fun search(term: String, page: Int): FictionResult<SeListPage> =
-        getListing(page = page, sort = "default", query = term)
+    /** Free-form search hits the same listing endpoint with `?query=`.
+     *  [sort] mirrors SE's own sort keys (`default`, `popularity`,
+     *  `release-date`, `author-name`, `title`). [tag] is the SE subject
+     *  slug (fiction, adventure, …) and gets passed as `tags[]=<slug>`
+     *  when present so an active category filter narrows the search. */
+    suspend fun search(
+        term: String,
+        page: Int,
+        sort: String = "default",
+        tag: String? = null,
+    ): FictionResult<SeListPage> =
+        getListing(page = page, sort = sort, query = term, tag = tag)
+
+    /** Bare listing for the Filtered-but-no-term browse case. Mirrors
+     *  [popular]/[latestUpdates] but lets callers compose sort+tag from
+     *  filter state without a query string. */
+    suspend fun listing(
+        page: Int,
+        sort: String = "default",
+        tag: String? = null,
+    ): FictionResult<SeListPage> =
+        getListing(page = page, sort = sort, tag = tag)
 
     /**
      * Subject-filtered listing. SE's `tags[]=` query param matches its

@@ -154,11 +154,29 @@ internal class StandardEbooksSource @Inject constructor(
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim()
-        if (term.isEmpty()) {
-            return FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
-        }
         val page = query.page ?: 1
-        return api.search(term, page).map { it.toListPage(page) }
+        val sort = query.orderBy.toSeSortKey()
+        // The category dimension lands in [SearchQuery.tags] as a
+        // display-cased label (e.g. "Science Fiction"); SE wants its
+        // slug form ("science-fiction"). First non-empty tag wins —
+        // SE's listing endpoint only honors a single `tags[]` value at
+        // a time.
+        val tag = query.tags.firstOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?.toSeTagSlug()
+        if (term.isEmpty()) {
+            // Filter sheet may activate without a term ("Sort by Title");
+            // the Filtered route still flows through search() here, so
+            // serve a bare listing rather than empty when a sort or tag
+            // is active.
+            return if (sort == "default" && tag == null) {
+                FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
+            } else {
+                api.listing(page = page, sort = sort, tag = tag).map { it.toListPage(page) }
+            }
+        }
+        return api.search(term = term, page = page, sort = sort, tag = tag)
+            .map { it.toListPage(page) }
     }
 
     override suspend fun genres(): FictionResult<List<String>> =
@@ -428,6 +446,18 @@ private fun SeBookEntry.toSummary(): FictionSummary =
  *  SE's lowercase-hyphenated subject slug. Keeps the surface stable
  *  even as SE adds new subjects: unknown labels fall through to a
  *  reasonable slugification (`lowercase + spaces→hyphens`). */
+/** Map storyvox [SearchOrder] to the sort keys SE's listing endpoint
+ *  accepts (`default` = release date desc, plus `popularity` / `author-name`
+ *  / `title`). Unmapped orderings fall back to `default` so the listing
+ *  always renders. */
+private fun SearchOrder.toSeSortKey(): String = when (this) {
+    SearchOrder.POPULARITY -> "popularity"
+    SearchOrder.LAST_UPDATE, SearchOrder.RELEASE_DATE -> "default"
+    SearchOrder.TITLE -> "title"
+    SearchOrder.AUTHOR -> "author-name"
+    else -> "default"
+}
+
 private fun String.toSeTagSlug(): String = when (lowercase()) {
     "fiction" -> "fiction"
     "adventure" -> "adventure"
