@@ -103,15 +103,37 @@ internal open class HackerNewsApi @Inject constructor(
     /**
      * `GET https://hn.algolia.com/api/v1/search?query=...&tags=story` —
      * Algolia-indexed full-text search over HN stories. We restrict to
-     * `tags=story` so the result set matches the Browse catalog (no
-     * comments / polls). Algolia pages with `page=N` zero-indexed; we
-     * surface storyvox's 1-indexed page param translated.
+     * `tags=<tag>` so the result set matches the Browse catalog (no
+     * comments / polls by default); callers can override [tag] with
+     * `ask_hn` / `show_hn` / `front_page` to narrow.
+     *
+     * [endpoint] picks between `/search` (relevance-ranked, the default)
+     * and `/search_by_date` (created_at_i desc). Algolia exposes both as
+     * separate paths — switching them is the canonical way to ask for
+     * "newest" vs "best match" on the same query shape.
+     *
+     * [minPoints] adds Algolia's `numericFilters=points>=N` so the
+     * minimum-score dimension actually clips the result set; the
+     * filter param is omitted when [minPoints] is null or zero so the
+     * URL stays clean on the no-filter path.
+     *
+     * Algolia pages with `page=N` zero-indexed; we translate from
+     * storyvox's 1-indexed page param.
      */
-    suspend fun searchAlgolia(query: String, page: Int = 1): FictionResult<AlgoliaSearchResponse> =
+    suspend fun searchAlgolia(
+        query: String,
+        page: Int = 1,
+        tag: String = "story",
+        endpoint: String = "search",
+        minPoints: Int? = null,
+    ): FictionResult<AlgoliaSearchResponse> =
         withContext(Dispatchers.IO) {
             val q = java.net.URLEncoder.encode(query, Charsets.UTF_8)
             val zeroIdx = (page - 1).coerceAtLeast(0)
-            val url = "$ALGOLIA_BASE/search?query=$q&tags=story&page=$zeroIdx"
+            val numericFilters = minPoints?.takeIf { it > 0 }?.let {
+                "&numericFilters=" + java.net.URLEncoder.encode("points>=$it", Charsets.UTF_8)
+            }.orEmpty()
+            val url = "$ALGOLIA_BASE/$endpoint?query=$q&tags=$tag&page=$zeroIdx$numericFilters"
             try {
                 val req = Request.Builder()
                     .url(url)

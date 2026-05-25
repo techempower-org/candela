@@ -132,9 +132,21 @@ internal class HackerNewsSource @Inject constructor(
                 },
             )
         }
+        // Category is an Algolia `tags=` value (story | ask_hn | show_hn
+        // | front_page) — we stash it on q.tags with a `tag:` sentinel
+        // so [search] can pull it back out without colliding with future
+        // free-tag filters. Pre-fix this stuffed the category into
+        // q.term, which Algolia searched for as literal text and
+        // broke every category-filtered query.
         state.stringVal("category")?.takeIf { it.isNotBlank() }?.let { cat ->
-            val composed = if (q.term.isBlank()) cat else "${q.term} $cat"
-            q = q.copy(term = composed)
+            q = q.copy(tags = q.tags + "tag:$cat")
+        }
+        // minScore lands as a NumberRange whose `min` is the floor; we
+        // persist it on minRating (the closest existing slot on the
+        // SearchQuery — HN doesn't carry a 0..5 star rating, so the
+        // field is free for re-purposing here).
+        state.rangeVal("minScore")?.min?.takeIf { it > 0f }?.let { floor ->
+            q = q.copy(minRating = floor)
         }
         return q
     }
@@ -198,11 +210,30 @@ internal class HackerNewsSource @Inject constructor(
      */
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim()
-        if (term.isEmpty()) {
+        val page = query.page.coerceAtLeast(1)
+        val tag = query.tags
+            .firstOrNull { it.startsWith("tag:") }
+            ?.removePrefix("tag:")
+            ?.takeIf { it.isNotBlank() }
+            ?: "story"
+        val endpoint = when (query.orderBy) {
+            SearchOrder.LAST_UPDATE -> "search_by_date"
+            else -> "search"
+        }
+        val minPoints = query.minRating?.toInt()?.takeIf { it > 0 }
+        val anyFacetActive = tag != "story" || endpoint != "search" || minPoints != null
+        if (term.isEmpty() && !anyFacetActive) {
             return FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
         }
-        val page = query.page.coerceAtLeast(1)
-        val resp = when (val r = api.searchAlgolia(term, page)) {
+        val resp = when (
+            val r = api.searchAlgolia(
+                query = term,
+                page = page,
+                tag = tag,
+                endpoint = endpoint,
+                minPoints = minPoints,
+            )
+        ) {
             is FictionResult.Success -> r.value
             is FictionResult.Failure -> return r
         }
