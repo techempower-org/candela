@@ -757,10 +757,10 @@ class EnginePlayer @AssistedInject constructor(
     @Volatile private var totalFramesWritten: Long = 0L
 
     /** Inter-chunk gap measurement (Tab A7 Lite TTS perf lane). Off by
-     *  default — reads a marker file at every chunkStart so a developer
-     *  can `adb shell touch /data/data/in.jphe.storyvox/files/chunk-gap-log`
-     *  and start collecting numbers without a build flip. See [ChunkGapLogger]. */
-    private val chunkGapLogger = ChunkGapLogger(context)
+     *  default — gated on [DebugLog.isEnabled] (Settings → Developer →
+     *  "Verbose logging"), so it works on release builds without root.
+     *  See [ChunkGapLogger]. */
+    private val chunkGapLogger = ChunkGapLogger()
 
     /** Dedicated playback thread. The agent that gets URGENT_AUDIO and never
      *  yields back to a coroutine pool — see the comment on [startPlaybackPipeline]
@@ -2512,8 +2512,9 @@ class EnginePlayer @AssistedInject constructor(
                     // the perf lane log gap_ms = startN - endNm1, which is
                     // the audible silence between adjacent chunks (modulo
                     // the constant ~130 ms minBuffer latency, see
-                    // ChunkGapLogger doc). No-op unless the marker file is
-                    // present, so this is free in normal operation.
+                    // ChunkGapLogger doc). No-op unless verbose logging is
+                    // enabled (Settings → Developer), so this is free in
+                    // normal operation.
                     val gapVoiceId = loadedVoiceId ?: "unknown"
                     chunkGapLogger.chunkStart(gapVoiceId, chunk.sentenceIndex)
 
