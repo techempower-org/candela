@@ -24,6 +24,14 @@ interface PlaybackPositionRepository {
      */
     fun observeMostRecentContinueListening(): Flow<ContinueListeningEntry?>
 
+    /**
+     * Issue #793 — `fictionId → lastPlayedAt` map across every saved
+     * playback position. Drives the Library "recently played" /
+     * "longest unread" sort modes; emits on any upsert/delete, and
+     * the consumer collapses the list into a map at the join site.
+     */
+    fun observeLastPlayedMap(): Flow<Map<String, Long>>
+
     suspend fun savePosition(
         fictionId: String,
         chapterId: String,
@@ -75,6 +83,11 @@ class PlaybackPositionRepositoryImpl @Inject constructor(
 
     override fun observeMostRecentContinueListening(): Flow<ContinueListeningEntry?> =
         dao.observeMostRecentContinueListening().map { row -> row?.toEntry() }
+
+    override fun observeLastPlayedMap(): Flow<Map<String, Long>> =
+        dao.observeLastPlayedTimes().map { rows ->
+            rows.associate { it.fictionId to it.updatedAt }
+        }
 
     override suspend fun savePosition(
         fictionId: String,
