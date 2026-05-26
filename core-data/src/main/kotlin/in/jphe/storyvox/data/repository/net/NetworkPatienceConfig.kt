@@ -42,6 +42,16 @@ interface NetworkPatienceConfig {
      * underlying store hasn't emitted yet.
      */
     suspend fun currentPatience(): NetworkPatience
+
+    /**
+     * Non-suspending snapshot for hot paths that can't park a thread —
+     * notably the per-request OkHttp interceptors in `:source-rss`,
+     * `:source-royalroad`, and `:source-notion` (#869). Reads a cached
+     * `StateFlow.value` the impl keeps eagerly collected; falls back to
+     * [NetworkPatience.Default] before the first emission. Prefer
+     * [currentPatience] anywhere a suspend is already available.
+     */
+    fun currentPatienceSync(): NetworkPatience
 }
 
 /**
