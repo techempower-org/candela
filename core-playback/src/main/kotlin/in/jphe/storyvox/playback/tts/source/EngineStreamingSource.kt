@@ -357,22 +357,58 @@ class EngineStreamingSource(
         // rebuilds (next chapter / seek / voice swap each spin a
         // fresh EngineStreamingSource → fresh executor).
         producerExecutor.shutdownNow()
-        // #89 — block until the executor's threads actually finish.
-        // shutdownNow() interrupts but doesn't wait; if a worker is
-        // mid-JNI generateAudioPCM the interrupt is queued and the
-        // thread keeps running until the JNI call returns. Without
-        // awaitTermination, EnginePlayer.loadAndPlay can race ahead
-        // and destroy() the secondary engines while a producer
+        // #89 / #886 — block until the executor's threads actually
+        // finish. shutdownNow() interrupts but doesn't wait; if a
+        // worker is mid-JNI generateAudioPCM the interrupt is queued
+        // (JNI calls don't observe Java interrupts — they run to
+        // completion) and the thread keeps running until the call
+        // returns. Without this await, EnginePlayer.loadAndPlay races
+        // ahead and destroy()s the secondary engines while a producer
         // thread is still inside generateAudioPCM on them — JNI
         // use-after-free on the native tts pointer.
         //
-        // Generous 5s budget covers Piper-high's worst-case sentence
-        // synth on Helio P22T (~3.5× realtime → ~7s for a 2s
-        // sentence). If we exceed that, the rogue worker thread
-        // leaks but at least subsequent state is consistent — the
-        // app re-init at next pipeline rebuild gets a fresh executor.
-        runCatching {
-            producerExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
+        // This await IS the JNI-safety gatekeeper the secondaries
+        // rely on: their workers run with useEngineMutex=false (see
+        // [runParallelWorker]), so engineMutex does NOT serialize a
+        // secondary's in-flight synth against loadAndPlay's destroy().
+        // The only thing that does is loadAndPlay calling
+        // stopPlaybackPipeline() (→ this close()) and blocking on it
+        // BEFORE entering the destroy loop. So if this await returns
+        // early while a worker is still in JNI, the destroy that
+        // follows is a use-after-free.
+        //
+        // #886 — budget raised 5s → 15s. The 5s budget was below the
+        // worst case the #89 comment itself described: Piper-high on
+        // Helio P22T runs ~3.5× realtime → ~7s for a 2s sentence, so
+        // a voice swap landing mid-long-sentence blew the 5s window
+        // and leaked a worker holding a JNI handle into a
+        // soon-destroyed engine. 15s covers that worst case with
+        // margin; the voice-swap UX already pays ~30s for a Kokoro
+        // load, so the extra in-flight-synth wait is acceptable.
+        val drained = runCatching {
+            producerExecutor.awaitTermination(15, java.util.concurrent.TimeUnit.SECONDS)
+        }.getOrDefault(false)
+        if (!drained) {
+            // #886 — exceeded even the 15s budget. The worker(s) still
+            // running hold a JNI handle to an engine EnginePlayer is
+            // about to destroy(); we can't stop a thread mid-JNI, so
+            // log the live thread state for post-mortem (which engine,
+            // which sentence) and let EnginePlayer proceed. The daemon
+            // worker dies with the process; the danger is the
+            // intervening destroy(), which we've already given the
+            // longest practical grace window.
+            runCatching {
+                val live = Thread.getAllStackTraces().keys
+                    .filter { it.name.startsWith("storyvox-tts-producer-") && it.isAlive }
+                android.util.Log.w(
+                    "EngineStreamingSource",
+                    "#886 awaitTermination exceeded 15s — ${live.size} producer " +
+                        "thread(s) still live, likely mid-JNI generateAudioPCM. " +
+                        "EnginePlayer's secondary destroy() that follows risks a " +
+                        "JNI use-after-free. Live workers: " +
+                        live.joinToString { it.name },
+                )
+            }
         }
     }
 

@@ -20,7 +20,6 @@ import dagger.multibindings.StringKey
 import dagger.Lazy
 import `in`.jphe.storyvox.data.repository.net.NetworkPatience
 import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
-import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
@@ -85,7 +84,7 @@ internal object RoyalRoadHttpModule {
                 // read is safe inside the Interceptor — by the time
                 // the first request fires, the rest of the Dagger
                 // graph is constructed.
-                val patience = runBlocking { patienceConfig.get().currentPatience() }
+                val patience = patienceConfig.get().currentPatienceSync()
                 val req = chain.request().newBuilder()
                     .header("User-Agent", RoyalRoadIds.USER_AGENT)
                     .build()

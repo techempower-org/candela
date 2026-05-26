@@ -14,7 +14,6 @@ import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.notion.NotionPATSource
 import `in`.jphe.storyvox.source.notion.NotionTechEmpowerSource
-import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -56,7 +55,7 @@ internal object NotionHttpModule {
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
-                val patience = runBlocking { patienceConfig.get().currentPatience() }
+                val patience = patienceConfig.get().currentPatienceSync()
                 chain
                     .withConnectTimeout(patience.connectTimeoutSeconds.toInt(), TimeUnit.SECONDS)
                     .withReadTimeout(patience.readTimeoutSeconds.toInt(), TimeUnit.SECONDS)

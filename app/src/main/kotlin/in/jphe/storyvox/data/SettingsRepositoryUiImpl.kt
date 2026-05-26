@@ -89,6 +89,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 internal val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "storyvox_settings",
@@ -1059,6 +1060,13 @@ class SettingsRepositoryUiImpl(
      */
     private val azureTick = kotlinx.coroutines.flow.MutableStateFlow(0L)
 
+    /** Issue #869 — app-lifetime scope backing [patienceState]. Mirrors
+     *  the `SupervisorJob() + Dispatchers.X` pattern used by the other
+     *  Singleton-scoped collectors in this package. */
+    private val patienceScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default,
+    )
+
     /** Issue #377 + #233 + #403 + #462 — non-prefs source configs
      *  bundled into a single combine so the outer combine stays
      *  inside the 5-arg overload. Palace + Wikipedia + Notion +
@@ -1652,6 +1660,22 @@ class SettingsRepositoryUiImpl(
     }
 
     override suspend fun currentPatience(): NetworkPatience = patience.first()
+
+    /** Issue #869 — eagerly-collected cache so the source OkHttp
+     *  interceptors can read the active preset synchronously instead of
+     *  `runBlocking`-ing a DataStore read on a dispatcher thread per
+     *  request. `Eagerly` (not `WhileSubscribed`) because the
+     *  interceptors read `.value` without ever collecting, so there's
+     *  no subscription to keep the upstream warm — and this is a
+     *  Singleton, so the scope lives for the app's lifetime. */
+    private val patienceState: kotlinx.coroutines.flow.StateFlow<NetworkPatience> =
+        patience.stateIn(
+            patienceScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            NetworkPatience.Default,
+        )
+
+    override fun currentPatienceSync(): NetworkPatience = patienceState.value
 
     // --- PlaybackModeConfig (issue #98) ---
 
