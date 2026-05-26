@@ -212,7 +212,7 @@ class EnginePlayer @AssistedInject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var sentences: List<Sentence> = emptyList()
-    private var currentSentenceIndex: Int = 0
+    @Volatile private var currentSentenceIndex: Int = 0
     private var currentSpeed: Float = 1.0f
     private var currentPitch: Float = 1.0f
 
@@ -3941,18 +3941,22 @@ class EnginePlayer @AssistedInject constructor(
      */
     fun setPunctuationPauseMultiplier(multiplier: Float) {
         currentPunctuationPauseMultiplier = multiplier.coerceIn(0f, 4f)
-        // #196 — push the new scale into the Kokoro engine immediately
-        // so within-sentence comma pauses take effect on the next
-        // generated sentence. The setter triggers an OfflineTts
-        // rebuild via _reloadIfActive (VoxSherpa v2.7.6+); the active
-        // sentence finishes with the old scale, the next one picks up
-        // the new value. No-op on Piper voices — VoiceEngine doesn't
-        // expose silenceScale because the issue is Kokoro-specific.
-        KokoroEngine.getInstance().setSilenceScale(
-            KOKORO_SILENCE_SCALE_BASELINE * currentPunctuationPauseMultiplier,
-        )
-        if (_observableState.value.isPlaying) startPlaybackPipeline()
-        invalidateState()
+        // Issue #870 — setSilenceScale triggers an OfflineTts rebuild
+        // via _reloadIfActive (VoxSherpa v2.7.6+). Without engineMutex
+        // the rebuild can race a concurrent generateAudioPCM on the
+        // producer thread, freeing a native pointer mid-use (SIGSEGV).
+        // Dispatch to IO + mutex, same shape as applyVoiceTuning.
+        scope.launch {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                engineMutex.withLock {
+                    KokoroEngine.getInstance().setSilenceScale(
+                        KOKORO_SILENCE_SCALE_BASELINE * currentPunctuationPauseMultiplier,
+                    )
+                }
+            }
+            if (_observableState.value.isPlaying) startPlaybackPipeline()
+            invalidateState()
+        }
     }
 
     fun setTtsVolume(v: Float) {
@@ -4077,6 +4081,17 @@ class EnginePlayer @AssistedInject constructor(
         systemTtsEngine = null
         loadedSystemTtsEngineName = null
         loadedSystemTtsVoiceName = null
+        // Issue #863 — destroy secondary engines that the type-swap
+        // branches allocated. Without this, a clean process shutdown
+        // via onDestroy → releaseEngine leaks the JNI OrtSessions
+        // (Piper ~150MB, Kokoro ~325MB, Kitten ~60-80MB each). GC
+        // finalization is unreliable for JNI pointers.
+        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
+        secondaryPiperEngines = emptyList()
+        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
+        secondaryKokoroEngines = emptyList()
+        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
+        secondaryKittenEngines = emptyList()
         // Issue #560 — release audio focus so other media apps can
         // resume playback when storyvox is dismissed. The transport-
         // level pause/resume doesn't abandon focus (we keep it for the
