@@ -133,12 +133,17 @@ class CacheFileSource private constructor(
     }
 
     override suspend fun close() = withContext(Dispatchers.IO) {
+        // #896 — Force-unmap the mmap'd buffer before releasing the file.
+        // GC-based Cleaner cleanup is too lazy: each .pcm mapping holds
+        // virtual address space (≈80 MB per 30 min chapter) until GC runs,
+        // so chapter-heavy sessions accumulate stale VM areas and trend the
+        // process toward LMK trim on low-RAM devices. Invoke the
+        // DirectByteBuffer cleaner via reflection — a private ART API that
+        // may break on future Android JVMs, hence best-effort: if it throws,
+        // we fall back to GC cleanup, which is the prior behavior.
+        forceUnmap(mapped)
         // Release the underlying RandomAccessFile so the file descriptor
-        // is returned. mmap'd MappedByteBuffer cleanup happens via
-        // GC + Cleaner; we can't force-unmap on JVM without sun.misc
-        // unsafe access. Closing the channel/file that produced the
-        // buffer is enough — the buffer remains valid until GC, and
-        // on Linux the kernel page-cache reclaim runs anyway.
+        // is returned to the OS.
         runCatching { randomAccess.close() }
         Unit
     }
@@ -183,6 +188,28 @@ class CacheFileSource private constructor(
             }
         }
         return out
+    }
+
+    /**
+     * #896 — Best-effort force-unmap of a [MappedByteBuffer] via the
+     * private `DirectByteBuffer.cleaner()` reflection trick. On ART the
+     * direct buffer exposes a no-arg `cleaner()` method returning a
+     * `Cleaner` with a no-arg `clean()` that releases the mapping
+     * immediately. Both the method lookup and invocation are wrapped in
+     * [runCatching]: this is a private API, so any failure (method
+     * renamed/removed on a future runtime, null cleaner on a non-direct
+     * buffer) silently degrades to the old GC-driven cleanup.
+     */
+    private fun forceUnmap(buffer: MappedByteBuffer?) {
+        buffer ?: return
+        runCatching {
+            val cleanerMethod = buffer.javaClass.getMethod("cleaner").apply {
+                isAccessible = true
+            }
+            val cleaner = cleanerMethod.invoke(buffer) ?: return
+            cleaner.javaClass.getMethod("clean").apply { isAccessible = true }
+                .invoke(cleaner)
+        }
     }
 
     companion object {
