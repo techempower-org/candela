@@ -1,8 +1,8 @@
 [versions]
 # Build tools
-agp = "8.7.2"
-kotlin = "2.0.21"
-ksp = "2.0.21-1.0.27"
+agp = "8.13.2"
+kotlin = "2.2.21"
+ksp = "2.2.21-2.0.5"
 # Triple-T gradle-play-publisher — `./gradlew publishReleaseBundle` uploads
 # the signed AAB to Play Console without the browser. Requires a Google
 # Cloud service-account JSON with Play Console "Release manager"
@@ -24,7 +24,7 @@ compose-bom = "2026.05.00"
 compose-material-icons = "1.7.5"
 
 # Hilt + Hilt-Work
-hilt = "2.51.1"
+hilt = "2.57.2"
 hilt-navigation-compose = "1.2.0"
 hilt-work = "1.2.0"
 

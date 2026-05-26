@@ -156,6 +156,8 @@ class PrerenderTriggersTest {
             flowOf(null)
         override fun observeMostRecentContinueListening(): kotlinx.coroutines.flow.Flow<ContinueListeningEntry?> =
             flowOf(null)
+        override fun observeLastPlayedMap(): kotlinx.coroutines.flow.Flow<Map<String, Long>> =
+            flowOf(emptyMap())
         override suspend fun savePosition(
             fictionId: String,
             chapterId: String,
