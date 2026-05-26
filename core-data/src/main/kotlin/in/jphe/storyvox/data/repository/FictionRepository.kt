@@ -552,6 +552,7 @@ internal fun Fiction.toSummary(supportsFollow: Boolean = false): FictionSummary 
     rating = rating,
     followedRemotely = followedRemotely,
     supportsFollow = supportsFollow,
+    addedAt = addedToLibraryAt,
 )
 
 internal fun FictionSummary.toEntity(now: Long): Fiction = Fiction(

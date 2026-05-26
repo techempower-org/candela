@@ -126,6 +126,8 @@ data class LibraryUiState(
     val tab: LibraryTab = LibraryTab.Library,
     /** Active chip filter (#116) — only meaningful while tab == All. */
     val filter: ShelfFilter = ShelfFilter.All,
+    /** Issue #793 — current Library "All" shelf sort mode. */
+    val sortMode: LibrarySortMode = LibrarySortMode.DEFAULT,
     val isLoading: Boolean = true,
 )
 
@@ -199,6 +201,8 @@ class LibraryViewModel @Inject constructor(
     /** #90 — read the user's last play/pause intent to decide whether
      *  the Resume CTA should auto-start playback. */
     private val resumePolicy: PlaybackResumePolicyConfig,
+    /** Issue #793 — persistent Library sort mode. */
+    private val sortStore: LibrarySortStore,
 ) : ViewModel() {
 
     private val _events = Channel<LibraryUiEvent>(Channel.BUFFERED)
@@ -238,12 +242,16 @@ class LibraryViewModel @Inject constructor(
      * the 5-arg overload. Mirrors the `NonPrefsConfigs` pattern in
      * [SettingsRepositoryUiImpl] — roll multiple deps into one
      * product type, combine once outside.
+     *
+     * Issue #793 — `sortMode` folded in here so the outer combine
+     * still fits the 5-arg overload after the sort-store wiring.
      */
     private data class TabSnapshot(
         val inboxEvents: List<InboxEvent>,
         val inboxUnreadCount: Int,
         val tab: LibraryTab,
         val filter: ShelfFilter,
+        val sortMode: LibrarySortMode,
     )
 
     private val tabSnapshot: kotlinx.coroutines.flow.Flow<TabSnapshot> =
@@ -252,24 +260,40 @@ class LibraryViewModel @Inject constructor(
             inboxRepo.observeUnreadCount(),
             _tab,
             _filter,
-        ) { events, count, tab, filter ->
-            TabSnapshot(events, count, tab, filter)
+            sortStore.observe(),
+        ) { events, count, tab, filter, sort ->
+            TabSnapshot(events, count, tab, filter, sort)
         }
 
-    val uiState: StateFlow<LibraryUiState> = combine(
+    /**
+     * Issue #793 — library rows joined with their per-fiction
+     * `lastPlayedAt` stamp so the sort step can rank by recency.
+     * `lastPlayedAt` is left null on rows the user has never started;
+     * sort comparators bucket nulls explicitly (see [sortLibrary]).
+     */
+    private val fictionsWithPlaybackFlow = combine(
         fictionsFlow,
+        positionRepo.observeLastPlayedMap(),
+    ) { library, playedMap ->
+        if (playedMap.isEmpty()) library
+        else library.map { f -> f.copy(lastPlayedAt = playedMap[f.id]) }
+    }
+
+    val uiState: StateFlow<LibraryUiState> = combine(
+        fictionsWithPlaybackFlow,
         positionRepo.observeMostRecentContinueListening(),
         historyRepo.observeAll(),
         tabSnapshot,
     ) { library, resume, history, snap ->
         LibraryUiState(
             resume = resume,
-            fictions = library,
+            fictions = sortLibrary(library, snap.sortMode),
             history = history,
             inbox = snap.inboxEvents,
             inboxUnreadCount = snap.inboxUnreadCount,
             tab = snap.tab,
             filter = snap.filter,
+            sortMode = snap.sortMode,
             isLoading = false,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
@@ -334,6 +358,13 @@ class LibraryViewModel @Inject constructor(
     /** Top-of-screen chip row taps (only visible on Tab.All). */
     fun selectFilter(filter: ShelfFilter) {
         _filter.value = filter
+    }
+
+    // ─── sort (#793) ──────────────────────────────────────────────────────
+
+    /** Dropdown menu pick — persisted via [LibrarySortStore]. */
+    fun selectSortMode(mode: LibrarySortMode) {
+        viewModelScope.launch { sortStore.set(mode) }
     }
 
     // ─── manage-shelves bottom sheet (#116) ───────────────────────────────
@@ -557,6 +588,72 @@ class LibraryViewModel @Inject constructor(
  * Exposed `internal` so a unit test can pin the spec — same pattern
  * as [isLikelyEmail] in the sync auth module.
  */
+/**
+ * Issue #793 — pure sort applied at the Library "All" join site.
+ *
+ * Comparators are stable: rows with the same primary key fall back
+ * to title ASC so the order on a tie never depends on the upstream
+ * DAO's emission order (which is `addedToLibraryAt DESC` today —
+ * different from the user's chosen sort for every mode but
+ * `RecentlyAdded`). Null timestamps always sort last on a recency
+ * sort; on [LibrarySortMode.LongestUnread] they're the entire
+ * surface — never-started rows are exactly what the mode is for.
+ *
+ * Title / Author comparisons use a case-insensitive locale-default
+ * collator (`String.lowercase()` is "good enough" for English-and-
+ * Latin-script libraries; a future i18n pass can swap in
+ * `java.text.Collator`).
+ *
+ * Exposed `internal` so [LibraryViewModelSortTest] can exercise the
+ * orderings without spinning up a full ViewModel + DAO graph.
+ */
+internal fun sortLibrary(
+    fictions: List<FictionSummary>,
+    mode: LibrarySortMode,
+): List<FictionSummary> = when (mode) {
+    LibrarySortMode.Title -> fictions.sortedWith(
+        compareBy<FictionSummary> { it.title.lowercase() }
+            .thenBy { it.id },
+    )
+    LibrarySortMode.Author -> fictions.sortedWith(
+        compareBy<FictionSummary> { it.author.lowercase() }
+            .thenBy { it.title.lowercase() }
+            .thenBy { it.id },
+    )
+    LibrarySortMode.RecentlyAdded -> fictions.sortedWith(
+        // Null addedAt → bottom (legacy rows pre-#793 mapper).
+        // Long.MIN_VALUE substitute keeps the comparator stable
+        // without an extra `compareByDescending<Long?>` wrap.
+        compareByDescending<FictionSummary> { it.addedAt ?: Long.MIN_VALUE }
+            .thenBy { it.title.lowercase() }
+            .thenBy { it.id },
+    )
+    LibrarySortMode.RecentlyPlayed -> fictions.sortedWith(
+        // Never-played rows fall to the bottom.
+        compareByDescending<FictionSummary> { it.lastPlayedAt ?: Long.MIN_VALUE }
+            .thenBy { it.title.lowercase() }
+            .thenBy { it.id },
+    )
+    LibrarySortMode.LongestUnread -> fictions.sortedWith(
+        // Two-band sort. Top band: never-played rows (lastPlayedAt
+        // null), ordered by addedAt ASC so the oldest forgotten
+        // book lands first. Bottom band: started rows, ordered by
+        // addedAt DESC (least useful here but stable + audit-friendly).
+        compareBy<FictionSummary> { if (it.lastPlayedAt == null) 0 else 1 }
+            .thenComparator { a, b ->
+                if (a.lastPlayedAt == null && b.lastPlayedAt == null) {
+                    // Oldest unread first.
+                    (a.addedAt ?: Long.MAX_VALUE).compareTo(b.addedAt ?: Long.MAX_VALUE)
+                } else {
+                    // Newest in the bottom band first.
+                    (b.addedAt ?: Long.MIN_VALUE).compareTo(a.addedAt ?: Long.MIN_VALUE)
+                }
+            }
+            .thenBy { it.title.lowercase() }
+            .thenBy { it.id },
+    )
+}
+
 internal fun isLikelyAddByUrl(raw: String): Boolean {
     val url = raw.trim()
     if (url.isEmpty()) return false

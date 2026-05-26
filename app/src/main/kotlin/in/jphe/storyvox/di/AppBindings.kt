@@ -154,6 +154,12 @@ object AppBindings {
     @Provides @Singleton
     fun provideSettingsRepositoryUi(impl: SettingsRepositoryUiImpl): SettingsRepositoryUi = impl
 
+    /** Issue #793 — DataStore-backed Library sort persistence. */
+    @Provides @Singleton
+    fun provideLibrarySortStore(
+        impl: `in`.jphe.storyvox.data.LibrarySortStoreImpl,
+    ): `in`.jphe.storyvox.feature.library.LibrarySortStore = impl
+
     /**
      * Bridges the source-mempalace [PalaceConfig] read interface to the
      * concrete app-side impl that owns DataStore + EncryptedSharedPreferences.

@@ -28,4 +28,15 @@ data class FictionSummary(
      *  button's visibility on the UI side without each consumer
      *  needing to know which sources happen to support follow. */
     val supportsFollow: Boolean = false,
+    /** Issue #793 — wall-clock time the row joined the user's library
+     *  (`fiction.addedToLibraryAt`). Null on rows the user hasn't
+     *  added (browse / search listings). Drives the Library "recently
+     *  added" / "longest unread" sort modes. */
+    val addedAt: Long? = null,
+    /** Issue #793 — wall-clock time the most-recent playback-position
+     *  upsert for this fiction. Null when the user has never started
+     *  the book. Populated only at the Library-sort join site; null
+     *  on browse / search summaries. Drives "recently played" +
+     *  "longest unread" sort modes. */
+    val lastPlayedAt: Long? = null,
 )

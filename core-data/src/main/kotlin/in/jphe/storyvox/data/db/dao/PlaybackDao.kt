@@ -58,6 +58,17 @@ interface PlaybackDao {
     suspend fun recent(limit: Int): List<RecentPlaybackRow>
 
     /**
+     * Issue #793 — `(fictionId, updatedAt)` projection across all
+     * saved positions, used by the Library sort plumbing to look up
+     * "last played" per fiction without joining the full chapter +
+     * fiction rows the Continue-listening tile needs. Emits on any
+     * playback-position upsert / delete; the Library ViewModel
+     * collapses it into a `Map<String, Long>` for the sort step.
+     */
+    @Query("SELECT fictionId, updatedAt FROM playback_position")
+    fun observeLastPlayedTimes(): Flow<List<LastPlayedRow>>
+
+    /**
      * Most-recent "Continue listening" projection — Aurora flows this directly
      * into the Library tile.
      *
@@ -143,6 +154,12 @@ data class RecentPlaybackRow(
     val bookTitle: String,
     val chapterTitle: String,
     val coverUrl: String?,
+)
+
+/** Issue #793 — slim per-fiction last-played row for the Library sort flow. */
+data class LastPlayedRow(
+    val fictionId: String,
+    val updatedAt: Long,
 )
 
 /** Slim projection of [PlaybackPosition] for sync snapshots. */

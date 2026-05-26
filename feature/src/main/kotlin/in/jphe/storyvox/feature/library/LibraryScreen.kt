@@ -317,10 +317,26 @@ fun LibraryScreen(
                     // chip in this row, so this strip is the *only* nested
                     // navigation surface for shelves now — no more
                     // duplicate-label tab/chip pair.
-                    ShelfChipRow(
-                        selected = state.filter,
-                        onSelect = viewModel::selectFilter,
-                    )
+                    //
+                    // #793 — sort dropdown sits trailing in the same row.
+                    // ShelfChipRow takes `weight(1f)` so its horizontal
+                    // scroll can grow into the available width without
+                    // pushing the sort chip off-screen.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ShelfChipRow(
+                            selected = state.filter,
+                            onSelect = viewModel::selectFilter,
+                            modifier = Modifier.weight(1f),
+                        )
+                        LibrarySortChip(
+                            selected = state.sortMode,
+                            onSelect = viewModel::selectSortMode,
+                            modifier = Modifier.padding(end = spacing.md),
+                        )
+                    }
                     // Issue #452 — LazyVerticalGrid inside a Column needs a
                     // bounded height constraint. Without `weight(1f)`, the
                     // grid was being measured with `Constraints.Infinity` on
