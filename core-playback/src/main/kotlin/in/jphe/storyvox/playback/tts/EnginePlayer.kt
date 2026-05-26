@@ -59,8 +59,10 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -3984,6 +3986,21 @@ class EnginePlayer @AssistedInject constructor(
     private var audioStreamListener: androidx.media3.common.Player.Listener? = null
 
     /**
+     * Issue #807 — retry budget for transient I/O errors on the audio
+     * stream. Incremented on each `onPlayerError` with a transient
+     * cause (`ERROR_CODE_IO_*`); reset to 0 once the stream reaches
+     * `STATE_READY`. Cap at [MAX_AUDIO_STREAM_RETRIES] before surfacing
+     * the error to the user.
+     */
+    private var audioStreamRetryAttempt: Int = 0
+
+    /** Issue #807 — in-flight backoff coroutine for an audio-stream
+     *  retry. Cancelled on [stopAudioStreamPlayer] / a fresh
+     *  [loadAndPlayAudioStream] so a teardown mid-backoff doesn't fire
+     *  `player.prepare()` against a released instance. */
+    private var audioStreamRetryJob: Job? = null
+
+    /**
      * Issue #373 — load and play an audio-stream chapter through
      * Media3's [androidx.media3.exoplayer.ExoPlayer]. Bypasses the TTS
      * pipeline entirely; the URL goes straight to ExoPlayer's
@@ -4008,6 +4025,13 @@ class EnginePlayer @AssistedInject constructor(
         stopPlaybackPipeline()
         sentences = emptyList()
         currentSentenceIndex = 0
+
+        // #807 — fresh chapter load wipes the retry budget; any pending
+        // backoff from the previous load is cancelled so it doesn't
+        // call prepare() against the new MediaItem.
+        audioStreamRetryJob?.cancel()
+        audioStreamRetryJob = null
+        audioStreamRetryAttempt = 0
 
         historyRepo.logOpen(fictionId, chapterId)
 
@@ -4077,19 +4101,20 @@ class EnginePlayer @AssistedInject constructor(
                 invalidateState()
             }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                _observableState.update {
-                    it.copy(
-                        isPlaying = false,
-                        error = PlaybackError.ChapterFetchFailed(
-                            "Audio stream error: ${error.message ?: "unknown"}",
-                        ),
-                    )
-                }
-                invalidateState()
+                handleAudioStreamError(error)
             }
             override fun onPlaybackStateChanged(state: Int) {
                 val buffering = state == androidx.media3.common.Player.STATE_BUFFERING
                 _observableState.update { it.copy(isBuffering = buffering) }
+                // #807 — the stream successfully reached ready/playing,
+                // so the previous error path is behind us; clear the
+                // retry budget so the *next* outage gets its own
+                // [MAX_AUDIO_STREAM_RETRIES] attempts rather than
+                // inheriting a half-spent count from earlier in the
+                // session.
+                if (state == androidx.media3.common.Player.STATE_READY) {
+                    audioStreamRetryAttempt = 0
+                }
                 invalidateState()
             }
         }
@@ -4103,12 +4128,105 @@ class EnginePlayer @AssistedInject constructor(
      *  and on every fresh TTS chapter load to make sure the ExoPlayer
      *  doesn't keep streaming audio under a text chapter. */
     private fun stopAudioStreamPlayer() {
+        // #807 — cancel any pending retry backoff before we release the
+        // player; otherwise the backoff coroutine wakes up against a
+        // released ExoPlayer instance.
+        audioStreamRetryJob?.cancel()
+        audioStreamRetryJob = null
+        audioStreamRetryAttempt = 0
         val p = audioStreamPlayer ?: return
         audioStreamListener?.let { p.removeListener(it) }
         audioStreamListener = null
         runCatching { p.stop() }
         runCatching { p.release() }
         audioStreamPlayer = null
+    }
+
+    /**
+     * Issue #807 — classify an ExoPlayer error and either schedule a
+     * retry with exponential backoff or surface it. Transient I/O
+     * errors (`ERROR_CODE_IO_*`) are retried up to
+     * [MAX_AUDIO_STREAM_RETRIES] times; everything else (parsing,
+     * codec, behind-live-window, unspecified) surfaces immediately as
+     * before.
+     *
+     * The retry coroutine runs on [scope] (Main) so `player.prepare()`
+     * lands on the looper ExoPlayer is pinned to. A queued retry is
+     * cancellable via [audioStreamRetryJob] so a chapter swap mid-
+     * backoff doesn't fire prepare() against a torn-down or
+     * re-targeted player.
+     */
+    private fun handleAudioStreamError(error: androidx.media3.common.PlaybackException) {
+        val transient = isTransientNetworkError(error)
+        if (transient && audioStreamRetryAttempt < MAX_AUDIO_STREAM_RETRIES) {
+            audioStreamRetryAttempt += 1
+            val attempt = audioStreamRetryAttempt
+            // 1s, 2s, 4s — bounded by MAX_AUDIO_STREAM_RETRIES.
+            val backoffMs = AUDIO_STREAM_RETRY_BASE_MS shl (attempt - 1)
+            // Clear the user-visible error and show buffering while we
+            // wait + re-prepare. isPlaying stays whatever the listener
+            // last reported (likely false from STATE_IDLE on error).
+            _observableState.update {
+                it.copy(error = null, isBuffering = true)
+            }
+            invalidateState()
+            audioStreamRetryJob?.cancel()
+            audioStreamRetryJob = scope.launch {
+                delay(backoffMs)
+                val player = audioStreamPlayer ?: return@launch
+                runCatching { player.prepare() }
+            }
+            return
+        }
+        // Non-transient, or retries exhausted — surface as before.
+        audioStreamRetryJob?.cancel()
+        audioStreamRetryJob = null
+        audioStreamRetryAttempt = 0
+        _observableState.update {
+            it.copy(
+                isPlaying = false,
+                error = PlaybackError.ChapterFetchFailed(
+                    "Audio stream error: ${error.message ?: "unknown"}",
+                ),
+            )
+        }
+        invalidateState()
+    }
+
+    /**
+     * Issue #807 — true when the error code is one of ExoPlayer's
+     * network/IO transient classes that can plausibly succeed on a
+     * retry (DNS, TCP reset, HTTP read timeout, network unreachable).
+     * Format/codec/parsing/behind-live-window errors are not retried —
+     * they'll fail the same way every time.
+     */
+    private fun isTransientNetworkError(error: androidx.media3.common.PlaybackException): Boolean {
+        return when (error.errorCode) {
+            // Clearly transient — a retry has a real chance of
+            // succeeding because the network might just be coming
+            // back.
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE,
+            androidx.media3.common.PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+            // Generic ExoPlayer timeout — usually a slow upstream
+            // server.
+            androidx.media3.common.PlaybackException.ERROR_CODE_TIMEOUT -> true
+            else -> {
+                // Underlying cause may still be IOException even when
+                // errorCode isn't one of the ERROR_CODE_IO_* values
+                // above (e.g. ERROR_CODE_UNSPECIFIED with a
+                // SocketTimeoutException). Walk the cause chain for a
+                // final safety net.
+                var cause: Throwable? = error.cause
+                while (cause != null) {
+                    if (cause is java.io.IOException) return true
+                    cause = cause.cause
+                }
+                false
+            }
+        }
     }
 
     // ----- Issue #189: one-shot recap-aloud TTS -----
@@ -4482,5 +4600,24 @@ class EnginePlayer @AssistedInject constructor(
          *  silences chain multiple writes from the same buffer. Static so
          *  every sentence reuses the same allocation. */
         val SILENCE_CHUNK: ByteArray = ByteArray(24_000 * 2 * 350 / 1000)
+
+        /** Issue #807 — max number of automatic re-prepare attempts on
+         *  a transient I/O error from the audio-stream ExoPlayer
+         *  (KVMR / future LibriVox / Internet Archive). After this
+         *  many failures back-to-back we surface a
+         *  [PlaybackError.ChapterFetchFailed] and let the user
+         *  retry. Combined with the exponential backoff
+         *  ([AUDIO_STREAM_RETRY_BASE_MS]) the worst-case wait before
+         *  giving up is ~7s (1 + 2 + 4). */
+        const val MAX_AUDIO_STREAM_RETRIES = 3
+
+        /** Issue #807 — base for exponential backoff between
+         *  audio-stream retry attempts. Attempt N waits
+         *  `BASE_MS << (N - 1)` so successive waits are 1 s, 2 s,
+         *  4 s. Short enough that a brief tunnel / Wi-Fi handoff
+         *  recovers without the user noticing more than a buffer
+         *  spinner; long enough that we're not hammering a server
+         *  that's genuinely down. */
+        const val AUDIO_STREAM_RETRY_BASE_MS = 1_000L
     }
 }
