@@ -2393,6 +2393,74 @@ class EnginePlayer @AssistedInject constructor(
                     }
 
                     if (firstSentence) {
+                        // Issue #862 — pre-buffer gate. The first chunk is
+                        // already in our hand; if we start the AudioTrack
+                        // immediately, the producer has to render chunk #1
+                        // (and chunk #2, etc.) faster than chunk #0 plays
+                        // out, or there's an audible gap before the second
+                        // sentence. On a cold engine + slow voice (Piper-
+                        // high on a Helio P22T tablet, or just the warmup
+                        // pass of any model), the first inter-chunk render
+                        // overruns the first chunk's duration and the
+                        // listener hears a gap immediately after sentence
+                        // one. At 0.75× speed the trailing silence is 33%
+                        // longer, which is exactly why the user reported
+                        // 0.75× is gapless while 1× is not.
+                        //
+                        // The existing catch-up pause (#79) only fires when
+                        // headroom drops below BUFFER_UNDERRUN_THRESHOLD_MS
+                        // = 7 s — it does nothing for the startup case
+                        // because headroom *starts* low. Wait until the
+                        // producer has rendered PREBUFFER_TARGET_CHUNKS-1
+                        // additional chunks behind the one we hold (so a
+                        // target of 3 means we hold chunk #0 + the queue
+                        // holds chunks #1 and #2), or PREBUFFER_TIMEOUT_MS
+                        // elapses — whichever first.
+                        //
+                        // Skip the gate entirely when there is no producer
+                        // queue (CacheFileSource reports
+                        // producerQueueCapacity == 0; chunks come from a
+                        // mmap'd file and inter-chunk gap risk is nil).
+                        // Skip on streaming sources too — they emit tiny
+                        // ~165 ms chunks where the depth count is a poor
+                        // proxy for "is there enough audio buffered to
+                        // outlast the next render", and Azure's first-
+                        // chunk latency is the dominant cost we don't want
+                        // to extend further.
+                        //
+                        // Honour pipelineRunning + userPaused inside the
+                        // wait so a teardown / pause tap during the gate
+                        // exits promptly (50 ms polling matches the
+                        // userPaused park above).
+                        if (source.producerQueueCapacity() > 0 && !source.isStreaming) {
+                            val deadlineNanos =
+                                System.nanoTime() + PREBUFFER_TIMEOUT_MS * 1_000_000L
+                            val target = PREBUFFER_TARGET_CHUNKS - 1
+                            while (pipelineRunning.get() &&
+                                !userPaused.get() &&
+                                source.producerQueueDepth() < target &&
+                                !source.producedAllSentences &&
+                                System.nanoTime() < deadlineNanos) {
+                                try {
+                                    Thread.sleep(25L)
+                                } catch (_: InterruptedException) {
+                                    Thread.currentThread().interrupt()
+                                    break
+                                }
+                            }
+                            runCatching {
+                                android.util.Log.i(
+                                    "EnginePlayer",
+                                    "#862 prebuffer-gate: depth=${source.producerQueueDepth()} " +
+                                        "target=$target producedAll=${source.producedAllSentences} " +
+                                        "elapsedMs=${
+                                            (System.nanoTime() - (deadlineNanos -
+                                                PREBUFFER_TIMEOUT_MS * 1_000_000L)) / 1_000_000L
+                                        }",
+                                )
+                            }
+                        }
+
                         val v = volumeRamp.current
                         runCatching { track.setVolume(v) }
                         lastVol = v
@@ -4594,6 +4662,32 @@ class EnginePlayer @AssistedInject constructor(
          *  realtime engines and produced audible gaps with all
          *  Performance & Buffering toggles ON at buffer=3000. */
         const val BUFFER_RESUME_THRESHOLD_MS = 10_000L
+
+        /** Issue #862 — target total chunks in flight before the first
+         *  [android.media.AudioTrack.play] call: 1 in the consumer's hand
+         *  plus (TARGET - 1) queued behind it. Sized so the producer has
+         *  a head start equal to two extra sentences before playback
+         *  begins, which on a cold Piper-high render (~2 s sentence ÷
+         *  0.285× realtime ≈ 7 s CPU) is enough to bridge the gap
+         *  between chunk 0's audio duration and chunk 1's render time
+         *  in the worst case we ship for. Tuned conservatively — the
+         *  startup gate is bounded by [PREBUFFER_TIMEOUT_MS] so short
+         *  content (a single sentence) doesn't pay the full wait. */
+        const val PREBUFFER_TARGET_CHUNKS = 3
+
+        /** Issue #862 — hard cap on the wait the pre-buffer gate is
+         *  allowed to add to user-perceived play latency. The gate
+         *  exits early on producedAllSentences (no second chunk is
+         *  coming — single-sentence content), userPaused, or
+         *  pipelineRunning=false, but otherwise sits up to this long.
+         *
+         *  500 ms is below the perceptual threshold for "tap → audio"
+         *  on Android (~700 ms baseline tolerance per Material motion
+         *  guidance) and well under the 7 s underrun threshold, so a
+         *  full timeout never starves the catch-up pause logic. Tune
+         *  lower if startup latency complaints surface; tune higher
+         *  if cold-engine gaps still occur on the slowest devices. */
+        const val PREBUFFER_TIMEOUT_MS = 500L
 
         /** Shared zero-filled buffer the consumer writes from to spool
          *  inter-sentence silence. Sized for one chunk @ 24 kHz mono 16-bit
