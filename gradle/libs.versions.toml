@@ -1,8 +1,8 @@
 [versions]
 # Build tools
-agp = "8.7.2"
-kotlin = "2.0.21"
-ksp = "2.0.21-1.0.27"
+agp = "8.13.2"
+kotlin = "2.2.21"
+ksp = "2.2.21-2.0.5"
 # Triple-T gradle-play-publisher — `./gradlew publishReleaseBundle` uploads
 # the signed AAB to Play Console without the browser. Requires a Google
 # Cloud service-account JSON with Play Console "Release manager"
@@ -11,35 +11,35 @@ ksp = "2.0.21-1.0.27"
 play-publisher = "3.10.1"
 
 # AndroidX core
-core-ktx = "1.13.1"
-appcompat = "1.7.0"
-activity-compose = "1.9.3"
-lifecycle = "2.8.7"
-navigation-compose = "2.8.4"
+core-ktx = "1.18.0"
+appcompat = "1.7.1"
+activity-compose = "1.13.0"
+lifecycle = "2.10.0"
+navigation-compose = "2.9.7"
 startup = "1.2.0"
-security-crypto = "1.1.0-alpha06"
+security-crypto = "1.1.0"
 
 # Compose
-compose-bom = "2026.04.01"
+compose-bom = "2026.05.00"
 compose-material-icons = "1.7.5"
 
 # Hilt + Hilt-Work
-hilt = "2.51.1"
-hilt-navigation-compose = "1.2.0"
-hilt-work = "1.2.0"
+hilt = "2.57.2"
+hilt-navigation-compose = "1.3.0"
+hilt-work = "1.3.0"
 
 # Persistence + work
-room = "2.6.1"
-work = "2.10.0"
-datastore = "1.1.1"
+room = "2.7.2"
+work = "2.11.2"
+datastore = "1.2.1"
 
 # Media3 (playback / session / Auto)
-media3 = "1.5.0"
+media3 = "1.10.0"
 
 # Networking + parsing
 okhttp = "4.12.0"
-jsoup = "1.18.1"
-commonmark = "0.24.0"
+jsoup = "1.22.2"
+commonmark = "0.28.0"
 # Readability4J — Mozilla Readability port (#472 :source-readability).
 # Catch-all article extractor for the magic-link paste flow. ~50 KB,
 # pure JVM, JSoup-backed.
@@ -48,13 +48,13 @@ androidx-webkit = "1.12.1"
 androidx-browser = "1.8.0"
 
 # Concurrency
-coroutines = "1.10.2"
+coroutines = "1.11.0"
 
 # Serialization
-kotlinx-serialization = "1.7.3"
+kotlinx-serialization = "1.10.0"
 
 # Image loading
-coil = "2.7.0"
+coil = "3.4.0"
 
 # Legacy media (MediaBrowserServiceCompat for Auto)
 androidx-media = "1.7.0"
@@ -68,7 +68,7 @@ play-services-wearable = "18.2.0"
 junit = "4.13.2"
 androidx-junit = "1.2.1"
 espresso = "3.6.1"
-robolectric = "4.14.1"
+robolectric = "4.16.1"
 
 # Baseline Profile / Macrobenchmark (#409 — cold-launch hot-path AOT).
 # benchmark provides BaselineProfileRule + MacrobenchmarkRule; the
@@ -86,7 +86,7 @@ uiautomator = "2.3.0"
 baselineprofile-gradle = "1.4.1"
 
 # Desugaring
-desugar = "2.1.3"
+desugar = "2.1.5"
 
 # Storage Access Framework helpers (#235 EPUB import)
 documentfile = "1.0.1"
@@ -165,7 +165,8 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 # Coil
-coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
 # Wear
 androidx-wear-compose-material = { module = "androidx.wear.compose:compose-material", version.ref = "wear-compose" }

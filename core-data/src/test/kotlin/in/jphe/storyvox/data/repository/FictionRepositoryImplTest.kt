@@ -235,6 +235,8 @@ class FictionRepositoryImplTest {
             return rows[id]
         }
 
+        override suspend fun exists(id: String): Boolean = rows.containsKey(id)
+
         // Issue #117 — EPUB export uses this; FictionRepository tests don't
         // exercise it directly, but the FakeChapterDao must still satisfy
         // the interface.

@@ -73,6 +73,8 @@ class ChapterRepositoryImplTest {
             callLog += "get($id)"; return rows[id]
         }
 
+        override suspend fun exists(id: String): Boolean = rows.containsKey(id)
+
         // Issue #117 — EPUB export reads every chapter row (with bodies) for
         // a fiction in one shot. The fake mirrors that by returning whatever
         // is currently in [rows] for the fictionId, sorted by index — the
