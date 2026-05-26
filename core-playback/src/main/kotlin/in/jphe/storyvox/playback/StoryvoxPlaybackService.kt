@@ -17,12 +17,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.MediaStyleNotificationHelper
-import androidx.media3.session.SimpleBitmapLoader
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
 import `in`.jphe.storyvox.playback.diagnostics.AudioOutputMonitor
@@ -44,7 +44,7 @@ import kotlinx.coroutines.cancel
  *  - [DefaultMediaNotificationProvider] turns the bound [MediaSession] into a
  *    `MediaStyleNotificationHelper.MediaStyle` notification, derives transport
  *    actions from `Player.Commands`, and re-issues on every state change.
- *  - [CacheBitmapLoader] over [SimpleBitmapLoader] resolves the `artworkUri` set
+ *  - [CacheBitmapLoader] over [DataSourceBitmapLoader] resolves the `artworkUri` set
  *    by [EnginePlayer] in its [androidx.media3.common.MediaMetadata] and caches the
  *    decoded bitmap — that bitmap is used as the notification's large icon and as
  *    the lock-screen background.
@@ -130,7 +130,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
 
         session = MediaSession.Builder(this, player)
             .setCallback(StoryvoxSessionCallback(controller, scope))
-            .setBitmapLoader(CacheBitmapLoader(SimpleBitmapLoader()))
+            .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader.Builder(this).build()))
             .setSessionActivity(buildSessionActivity(null, null))
             .build()
         mediaSessionLocator.token = session.token
