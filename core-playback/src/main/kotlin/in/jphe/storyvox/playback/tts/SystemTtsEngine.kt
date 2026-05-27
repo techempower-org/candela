@@ -169,13 +169,16 @@ class SystemTtsEngine(
         val voice = runCatching { instance.voices?.firstOrNull { it.name == voiceName } }
             .getOrNull()
         if (voice == null) {
-            Log.w(TAG, "voiceName=$voiceName not found in engine=$engineName voices")
-            // Don't fail — the framework's default voice for the engine
-            // is a graceful fallback (the user still gets audio in some
-            // locale rather than nothing). Future versions can tighten.
-        } else {
-            runCatching { instance.voice = voice }
+            // #898 — a missing voice must be a hard failure. Falling back to
+            // the engine default plays the wrong voice silently AND caches
+            // that audio under the requested voice's cache key, persisting
+            // the bug across sessions.
+            Log.w(TAG, "voiceName=$voiceName not found in engine=$engineName voices — failing load")
+            runCatching { instance.shutdown() }
+            tts = null
+            return@withContext false
         }
+        runCatching { instance.voice = voice }
 
         ready = true
         true
