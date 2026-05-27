@@ -4520,13 +4520,24 @@ class EnginePlayer @AssistedInject constructor(
     fun bufferTelemetry(): `in`.jphe.storyvox.playback.BufferTelemetry {
         val src = pcmSource
         val track = audioTrack
-        val audioBufferMs = if (track != null && track.sampleRate > 0) {
-            val head = track.playbackHeadPosition.toLong() and 0xFFFFFFFFL
-            val pendingFrames = (totalFramesWritten - head).coerceAtLeast(0)
-            pendingFrames * 1000L / track.sampleRate
-        } else {
-            0L
-        }
+        // Issue #874 — this runs off the Main thread (Debug overlay's 1Hz
+        // poll) while [stopPlaybackPipeline] can null+release the track on
+        // Main. Both `playbackHeadPosition` and `sampleRate` are JNI reads
+        // against the native handle: a concurrent release makes
+        // `playbackHeadPosition` throw IllegalStateException and leaves
+        // `sampleRate` undefined. Prefer the [pipelineSampleRate] volatile
+        // (never changes for a track's lifetime, the #539 fix) and wrap the
+        // head read in runCatching so a teardown race degrades to 0 rather
+        // than crashing the overlay.
+        val audioBufferMs = track?.let {
+            runCatching {
+                val sr = pipelineSampleRate.takeIf { rate -> rate > 0 }
+                    ?: return@runCatching 0L
+                val head = it.playbackHeadPosition.toLong() and 0xFFFFFFFFL
+                val pendingFrames = (totalFramesWritten - head).coerceAtLeast(0)
+                pendingFrames * 1000L / sr
+            }.getOrDefault(0L)
+        } ?: 0L
         return `in`.jphe.storyvox.playback.BufferTelemetry(
             producerQueueDepth = src?.producerQueueDepth() ?: 0,
             producerQueueCapacity = src?.producerQueueCapacity() ?: 0,
