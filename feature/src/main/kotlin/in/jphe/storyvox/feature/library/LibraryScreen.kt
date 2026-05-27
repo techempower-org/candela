@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.TechEmpowerLinks
 import `in`.jphe.storyvox.data.db.entity.InboxEvent
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.components.OfflineBanner
 import `in`.jphe.storyvox.data.db.entity.Shelf
 import `in`.jphe.storyvox.data.repository.ContinueListeningEntry
 import `in`.jphe.storyvox.data.repository.HistoryEntry
@@ -130,6 +131,9 @@ fun LibraryScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val addByUrlState by viewModel.addByUrlState.collectAsStateWithLifecycle()
     val manageShelvesState by viewModel.manageShelvesState.collectAsStateWithLifecycle()
+    // #786 — live network state. Cached covers render fine offline; the
+    // banner warns the user that tapping a non-downloaded cover won't fetch.
+    val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
 
     // #328 — dedupe defensively before the LazyVerticalGrid sees the list.
@@ -319,6 +323,15 @@ fun LibraryScreen(
 
             when (state.tab) {
                 LibraryTab.Library -> Column(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
+                    // #786 — offline banner above the Library grid. Cached
+                    // covers still render, but tapping a non-downloaded
+                    // fiction needs a network fetch we can't satisfy, so warn
+                    // up-front rather than letting the tap dead-end on a
+                    // timeout. No retry CTA: there's nothing to retry until
+                    // the user taps a cover, and reconnect dismisses it.
+                    if (isOffline) {
+                        OfflineBanner()
+                    }
                     // Issue #785 — search bar above the chip/sort row. Filters
                     // the library grid by title or author as the user types
                     // (debounced at 300ms in the ViewModel). Works in

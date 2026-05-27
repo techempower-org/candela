@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.auth.SessionState
+import `in`.jphe.storyvox.data.network.ConnectivityObserver
 import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
@@ -153,6 +154,10 @@ class BrowseViewModel @Inject constructor(
     // is a strictly per-source concern and the UiSettings sign-in flag
     // is RR-specific by design.
     private val authRepo: AuthRepository,
+    // #786 — observe live network state so Browse can surface an offline
+    // banner and downgrade the full-screen error to a banner when cached
+    // items exist, instead of waiting out the OkHttp socket timeout.
+    connectivity: ConnectivityObserver,
 ) : ViewModel() {
 
     /** Default selected source — first defaultEnabled plugin, or
@@ -587,6 +592,14 @@ class BrowseViewModel @Inject constructor(
     // banner via [BrowseUiState.error] like any other refresh failure.
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    // #786 — sibling flow to [uiState] (kept separate so the existing
+    // paginator combine stays untouched). The screen renders OfflineBanner
+    // above the grid when true and downgrades the first-load error block to
+    // the banner if cached items are present.
+    val isOffline: StateFlow<Boolean> = connectivity.state
+        .map { !it.isOnline }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** #776 — pull-to-refresh entry point. Resets the current paginator
      *  to page 1 then immediately re-fetches; the existing

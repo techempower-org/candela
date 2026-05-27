@@ -64,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.components.OfflineBanner
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
@@ -143,6 +144,9 @@ fun BrowseScreen(
     // and matches the paginator refresh lifecycle (cleared in the
     // finally block of refresh()).
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    // #786 — live network state. Drives the OfflineBanner above the grid
+    // and the full-screen-error → banner downgrade when cached items exist.
+    val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
     var showFilterSheet by remember { mutableStateOf(false) }
     /** Issue #247 — RSS feed management moved out of Settings into a
@@ -342,6 +346,15 @@ fun BrowseScreen(
             state.tab != BrowseTab.Search
         ) {
             Ao3SignInBanner(onOpenSignIn = onOpenAo3SignIn)
+        }
+
+        // #786 — offline banner above the grid. Rendered whenever we're
+        // offline AND have cached items to show (when there are no cached
+        // items the full-screen error block below carries the offline copy
+        // instead, so we don't stack two offline affordances). Retry reuses
+        // the same loadMore() the paginator wires to scroll-near-end.
+        if (isOffline && state.items.isNotEmpty()) {
+            OfflineBanner(onRetry = { viewModel.loadMore() })
         }
 
         when {

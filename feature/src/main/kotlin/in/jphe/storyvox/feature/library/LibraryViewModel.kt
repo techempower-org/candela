@@ -9,6 +9,7 @@ import `in`.jphe.storyvox.data.db.entity.Shelf
 import `in`.jphe.storyvox.data.repository.ContinueListeningEntry
 import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.repository.HistoryEntry
+import `in`.jphe.storyvox.data.network.ConnectivityObserver
 import `in`.jphe.storyvox.data.repository.HistoryRepository
 import `in`.jphe.storyvox.data.repository.InboxRepository
 import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
@@ -25,6 +26,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -207,10 +209,21 @@ class LibraryViewModel @Inject constructor(
     private val resumePolicy: PlaybackResumePolicyConfig,
     /** Issue #793 — persistent Library sort mode. */
     private val sortStore: LibrarySortStore,
+    /** #786 — observe network state so the Library can warn the user when
+     *  they tap a non-downloaded fiction while offline. */
+    connectivity: ConnectivityObserver,
 ) : ViewModel() {
 
     private val _events = Channel<LibraryUiEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+
+    // #786 — live offline flag. The Library grid renders cached covers fine
+    // offline, so this only gates the "tap a non-downloaded fiction" path
+    // (the cover needs a network fetch we can't satisfy) — the screen shows
+    // the OfflineBanner instead of letting the tap dead-end on a timeout.
+    val isOffline: StateFlow<Boolean> = connectivity.state
+        .map { !it.isOnline }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _addByUrlState = MutableStateFlow<AddByUrlSheetState>(AddByUrlSheetState.Hidden)
     val addByUrlState: StateFlow<AddByUrlSheetState> = _addByUrlState.asStateFlow()

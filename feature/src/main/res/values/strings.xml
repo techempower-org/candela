@@ -2,6 +2,9 @@
 <resources>
     <!-- Shared utility -->
     <string name="empty_string"></string>
+    <!-- Issue #786 — offline banner shown on network surfaces when connectivity is lost. -->
+    <string name="offline_banner_message">You\'re offline — showing cached content</string>
+    <string name="offline_banner_retry">Retry</string>
     <!-- Browse -->
     <string name="browse_title">Browse</string>
     <string name="browse_search_hint">Search %1$s</string>
