@@ -722,6 +722,11 @@ class EnginePlayer @AssistedInject constructor(
                     return@collect
                 }
                 if (s.isPlaying) {
+                    // #914 — cancel any in-flight pipeline setup from a
+                    // speed/pitch/seek tap before the voice swap so the
+                    // stale coroutine doesn't create an orphaned AudioTrack
+                    // after loadAndPlay finishes.
+                    pipelineSetupJob?.cancel()
                     // Live swap. Tear down the current pipeline FIRST so the
                     // old generator can't keep pushing old-voice PCM into
                     // the (about-to-be-replaced) queue while loadAndPlay
@@ -751,6 +756,7 @@ class EnginePlayer @AssistedInject constructor(
                         )
                     }
                 } else {
+                    pipelineSetupJob?.cancel()
                     voiceReloadPending = true
                     stopPlaybackPipeline()
                     activeEngineType = null
@@ -802,6 +808,18 @@ class EnginePlayer @AssistedInject constructor(
      *  loops so it can bail out of long [AudioTrack.write] sequences without
      *  waiting for the buffer to drain. */
     private val pipelineRunning = AtomicBoolean(false)
+
+    // #914 — serialization guard for startPlaybackPipeline. Pre-#866 the
+    // function was synchronous, so stop-then-create was atomic on Main.
+    // Post-#866 it's suspend with withContext(IO) yield points, letting
+    // two scope.launch { startPlaybackPipeline() } calls interleave:
+    // coroutine A stops → yields at IO → coroutine B stops (nothing to
+    // stop) → both resume → both create AudioTracks → orphaned track
+    // plays forever = double voice. The Mutex serializes the entire
+    // setup phase; the Job lets a new trigger cancel a stale in-flight
+    // setup so rapid taps don't queue up wasteful builds.
+    private val pipelineBuildMutex = Mutex()
+    private var pipelineSetupJob: Job? = null
 
     /**
      * Issue #540 — user-initiated pause flag. Set true by [pauseTts] when
@@ -1926,7 +1944,7 @@ class EnginePlayer @AssistedInject constructor(
      * Pre-fetching is implicit via the queue's capacity — generation runs
      * ahead of playback by however many slots are free.
      */
-    private suspend fun startPlaybackPipeline() {
+    private suspend fun startPlaybackPipeline() { pipelineBuildMutex.withLock {
         // Make sure any previous run is fully stopped.
         stopPlaybackPipeline()
 
@@ -3003,7 +3021,7 @@ class EnginePlayer @AssistedInject constructor(
             isDaemon = true
             start()
         }
-    }
+    } }
 
     /** Bridge to the singleton VoxSherpa engines via the [EngineStreamingSource]
      *  SAM. Lives here (not in the source module) so EnginePlayer can switch
@@ -3185,6 +3203,9 @@ class EnginePlayer @AssistedInject constructor(
         // single owner: the consumer thread. main only pause()s to
         // unblock the parked write; pause() is idempotent w.r.t. the
         // consumer's subsequent flush()/release().
+        // #914 — cancel any in-flight pipeline setup so it doesn't
+        // create a new AudioTrack after we've torn everything down.
+        pipelineSetupJob?.cancel()
         pipelineRunning.set(false)
         // Issue #540 — also clear the user-pause flag so the consumer's
         // park branch exits promptly. The pipelineRunning=false above
@@ -3543,7 +3564,8 @@ class EnginePlayer @AssistedInject constructor(
                 "(this creates a NEW AudioTrack; cold pause or pipeline torn down)",
         )
         _observableState.update { it.copy(isPlaying = true, error = null) }
-        scope.launch { startPlaybackPipeline() }
+        pipelineSetupJob?.cancel()
+        pipelineSetupJob = scope.launch { startPlaybackPipeline() }
         invalidateState()
     }
 
@@ -3587,7 +3609,10 @@ class EnginePlayer @AssistedInject constructor(
         // the scrubber to retreat.
         pinnedPausePositionMs = null
         lastTruthfulPositionMs = 0L
-        if (_observableState.value.isPlaying) scope.launch { startPlaybackPipeline() }
+        if (_observableState.value.isPlaying) {
+            pipelineSetupJob?.cancel()
+            pipelineSetupJob = scope.launch { startPlaybackPipeline() }
+        }
         invalidateState()
     }
 
@@ -3989,7 +4014,10 @@ class EnginePlayer @AssistedInject constructor(
         // monotonic within a chapter except across explicit seeks.
         val anchorChar = handoffChar.coerceAtLeast(_observableState.value.charOffset)
         _observableState.update { it.copy(speed = speed, charOffset = anchorChar) }
-        if (_observableState.value.isPlaying) scope.launch { startPlaybackPipeline() }
+        if (_observableState.value.isPlaying) {
+            pipelineSetupJob?.cancel()
+            pipelineSetupJob = scope.launch { startPlaybackPipeline() }
+        }
         invalidateState()
     }
 
@@ -4008,7 +4036,10 @@ class EnginePlayer @AssistedInject constructor(
         currentPitch = pitch
         val anchorChar = handoffChar.coerceAtLeast(_observableState.value.charOffset)
         _observableState.update { it.copy(pitch = pitch, charOffset = anchorChar) }
-        if (_observableState.value.isPlaying) scope.launch { startPlaybackPipeline() }
+        if (_observableState.value.isPlaying) {
+            pipelineSetupJob?.cancel()
+            pipelineSetupJob = scope.launch { startPlaybackPipeline() }
+        }
         invalidateState()
     }
 
@@ -4040,7 +4071,8 @@ class EnginePlayer @AssistedInject constructor(
         // the rebuild can race a concurrent generateAudioPCM on the
         // producer thread, freeing a native pointer mid-use (SIGSEGV).
         // Dispatch to IO + mutex, same shape as applyVoiceTuning.
-        scope.launch {
+        pipelineSetupJob?.cancel()
+        pipelineSetupJob = scope.launch {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 engineMutex.withLock {
                     KokoroEngine.getInstance().setSilenceScale(
