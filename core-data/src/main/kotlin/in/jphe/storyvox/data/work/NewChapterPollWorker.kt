@@ -52,19 +52,28 @@ class NewChapterPollWorker @AssistedInject constructor(
     /** Issue #383 — gates the inbox write per-source. A false here
      *  is the user's "don't notify me about this backend" preference. */
     private val inboxGate: InboxNotificationGate,
+    /** Issue #907 — fires an Android system notification when new
+     *  chapters land on a followed fiction. Gated by the same per-source
+     *  [inboxGate] toggle as the Inbox feed write. */
+    private val newChapterNotifier: NewChapterNotifier,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         var newChapters = 0
         var skippedByRevisionCheck = 0
 
-        // Pull a one-shot snapshot of the library — Room's Flow emits the
-        // current set immediately on subscribe.
-        val rows = fictionDao.observeLibrary().first()
+        // Issue #907 — poll every fiction the user follows on the source
+        // (followedRemotely) as well as the in-library subscribe/eager set.
+        // A pure source-side follow that isn't in the local library had no
+        // poll path before; this is the query that gives Royal Road follows
+        // their new-chapter notifications.
+        val rows = fictionDao.pollableForNewChapters()
 
         for (fiction in rows) {
-            val mode = fiction.downloadMode ?: continue
-            if (mode != DownloadMode.SUBSCRIBE && mode != DownloadMode.EAGER) continue
+            // EAGER auto-download keys off the explicit library mode below.
+            // A followed-but-not-in-library fiction has no download mode; it
+            // still gets detection + inbox + notification, just no auto-queue.
+            val mode = fiction.downloadMode
 
             // Cheap-poll: ask the source for a revision token. If we have
             // a stored token AND it matches, the upstream hasn't changed
@@ -139,6 +148,22 @@ class NewChapterPollWorker @AssistedInject constructor(
                             // (the chapter rows are already persisted).
                             Log.w(TAG, "inbox record failed for ${fiction.id}", e)
                         }
+
+                        // Issue #907 — fire the Android system notification
+                        // alongside the Inbox row. Same gate, same deep-link
+                        // target as the feed entry. Best-effort: a notifier
+                        // failure (denied POST_NOTIFICATIONS, OEM throttle)
+                        // must not fail the poll or skip the persisted rows.
+                        runCatching {
+                            newChapterNotifier.notifyNewChapters(
+                                fictionId = fiction.id,
+                                firstNewChapterId = deepLinkChapterId,
+                                fictionTitle = fiction.title,
+                                newCount = missing.size,
+                            )
+                        }.onFailure { e ->
+                            Log.w(TAG, "new-chapter notify failed for ${fiction.id}", e)
+                        }
                     }
 
                     if (mode == DownloadMode.EAGER) {
@@ -150,8 +175,10 @@ class NewChapterPollWorker @AssistedInject constructor(
                             )
                         }
                     } else {
-                        // SUBSCRIBE mode: leave them as NOT_DOWNLOADED; user
-                        // sees them in their library and can tap to play.
+                        // SUBSCRIBE mode (or a source-only follow with no
+                        // download mode): leave them NOT_DOWNLOADED. The user
+                        // sees the row in their library / follows feed and the
+                        // #907 notification, and can tap to play on demand.
                         for (m in missing) {
                             chapterDao.setDownloadState(
                                 id = m.id,

@@ -36,6 +36,23 @@ interface FictionDao {
     suspend fun followsSnapshot(): List<Fiction>
 
     /**
+     * Issue #907 — fictions the new-chapter poller should walk: anything
+     * subscribed/eager in the library (the original #383 set) PLUS anything
+     * the user follows on the source even if it isn't in the local library.
+     * A pure source-side follow (followedRemotely = 1, inLibrary = 0) had no
+     * poll path before #907, so new chapters never fired a notification.
+     */
+    @Query(
+        """
+        SELECT * FROM fiction
+         WHERE followedRemotely = 1
+            OR (inLibrary = 1 AND downloadMode IN ('SUBSCRIBE', 'EAGER'))
+         ORDER BY lastUpdatedAt DESC
+        """,
+    )
+    suspend fun pollableForNewChapters(): List<Fiction>
+
+    /**
      * Insert a fresh row and ignore conflicts — used when listing pages produce
      * fictions we already know about. Real updates go through [upsert].
      */

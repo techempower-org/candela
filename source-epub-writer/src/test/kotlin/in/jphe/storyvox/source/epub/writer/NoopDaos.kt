@@ -33,8 +33,10 @@ internal class NoopFictionDao : FictionDao {
     override suspend fun librarySnapshot(): List<Fiction> = emptyList()
     override fun observeFollowsRemote(): Flow<List<Fiction>> = flowOf(emptyList())
     override suspend fun followsSnapshot(): List<Fiction> = emptyList()
+    override suspend fun pollableForNewChapters(): List<Fiction> = emptyList()
     override suspend fun insertIfNew(fiction: Fiction): Long = 0L
     override suspend fun upsert(fiction: Fiction) = Unit
+    override suspend fun upsertMany(fictions: List<Fiction>) = Unit
     override suspend fun update(fiction: Fiction) = Unit
     override suspend fun setInLibrary(id: String, inLibrary: Boolean, now: Long) = Unit
     override suspend fun setFollowedRemote(id: String, followed: Boolean) = Unit
@@ -64,6 +66,8 @@ internal class NoopChapterDao : ChapterDao {
     override suspend fun upsertAll(chapters: List<Chapter>) = Unit
     override suspend fun parkChapterIndexesFor(fictionId: String) = Unit
     override suspend fun deleteByFictionId(fictionId: String) = Unit
+    override suspend fun chapterIdsForFiction(fictionId: String): List<String> = emptyList()
+    override suspend fun deleteByIds(ids: List<String>) = Unit
     override suspend fun insertAll(chapters: List<Chapter>) = Unit
     override suspend fun setDownloadState(id: String, state: ChapterDownloadState, now: Long, error: String?) = Unit
     override suspend fun reapStuckDownloads(now: Long, cutoff: Long): Int = 0

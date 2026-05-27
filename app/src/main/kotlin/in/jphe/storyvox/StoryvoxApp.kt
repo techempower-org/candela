@@ -16,6 +16,7 @@ import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
 import `in`.jphe.storyvox.data.repository.ShelfRepository
+import `in`.jphe.storyvox.data.work.NewChapterNotifier
 import `in`.jphe.storyvox.data.work.WorkScheduler
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.playback.VoiceEngineQualityBridge
@@ -119,6 +120,15 @@ class StoryvoxApp : Application(), Configuration.Provider {
      */
     @Inject lateinit var versionUpgradeHandler: Lazy<VersionUpgradeHandler>
 
+    /**
+     * Issue #907 — registers the "New Chapters" notification channel on
+     * cold start so it's visible in system settings before the first
+     * poll fires one, and so a user can pre-mute it. Lazy + IO like the
+     * rest of the init handlers (Issue #409 cold-launch posture); the
+     * notifier itself also self-heals the channel on each notify().
+     */
+    @Inject lateinit var newChapterNotifier: Lazy<NewChapterNotifier>
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -177,6 +187,11 @@ class StoryvoxApp : Application(), Configuration.Provider {
             // internal database; on the Helio P22T that's ~150-300ms of
             // disk I/O. Off the main thread → invisible to cold launch.
             workScheduler.get().ensurePeriodicWorkScheduled()
+        }
+        // Issue #907 — register the "New Chapters" channel up front so it
+        // shows in system notification settings before the poll fires.
+        initScope.launch {
+            newChapterNotifier.get().ensureChannel()
         }
         rehydrateRoyalRoadCookies()
         // Issue #823 — propagate the persisted "verbose logging" toggle

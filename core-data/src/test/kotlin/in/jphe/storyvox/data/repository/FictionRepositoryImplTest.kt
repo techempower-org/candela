@@ -104,6 +104,9 @@ class FictionRepositoryImplTest {
 
         override suspend fun followsSnapshot(): List<Fiction> = followsRemote.value
 
+        override suspend fun pollableForNewChapters(): List<Fiction> =
+            (library.value + followsRemote.value).distinctBy { it.id }
+
         override suspend fun insertIfNew(fiction: Fiction): Long {
             if (rows.putIfAbsent(fiction.id, fiction) == null) {
                 callLog += "insertIfNew(${fiction.id})"

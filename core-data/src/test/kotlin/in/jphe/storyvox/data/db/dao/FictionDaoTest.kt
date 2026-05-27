@@ -136,6 +136,46 @@ class FictionDaoTest {
         assertEquals(listOf("fresh", "stale"), ids)
     }
 
+    @Test
+    fun pollableForNewChapters_includesFollowsAndSubscribeEagerButNotTransient() = runTest {
+        // Issue #907 — a pure source-side follow (not in library) MUST be
+        // polled so its new chapters fire a notification.
+        dao.upsert(fixture(id = "follow", followedRemotely = true, lastUpdatedAt = 10L))
+        // In-library SUBSCRIBE / EAGER — the original #383 set.
+        dao.upsert(
+            fixture(id = "sub", inLibrary = true, lastUpdatedAt = 30L)
+                .copy(downloadMode = DownloadMode.SUBSCRIBE),
+        )
+        dao.upsert(
+            fixture(id = "eager", inLibrary = true, lastUpdatedAt = 20L)
+                .copy(downloadMode = DownloadMode.EAGER),
+        )
+        // In-library but LAZY and not followed — must be excluded (we don't
+        // poll the user's whole library, only subscribed/followed rows).
+        dao.upsert(
+            fixture(id = "lazy", inLibrary = true, lastUpdatedAt = 99L)
+                .copy(downloadMode = DownloadMode.LAZY),
+        )
+        // Transient row (neither in library nor followed) — excluded.
+        dao.upsert(fixture(id = "transient", lastUpdatedAt = 99L))
+
+        val ids = dao.pollableForNewChapters().map { it.id }
+        // Ordered by lastUpdatedAt DESC: sub(30) > eager(20) > follow(10).
+        assertEquals(listOf("sub", "eager", "follow"), ids)
+    }
+
+    @Test
+    fun pollableForNewChapters_followedAndInLibrary_isNotDuplicated() = runTest {
+        // A row that is BOTH followed and a library subscription matches both
+        // OR-clauses; SELECT * over one table can't duplicate it, but assert
+        // the contract so a future refactor to a UNION/JOIN can't regress it.
+        dao.upsert(
+            fixture(id = "both", inLibrary = true, followedRemotely = true, lastUpdatedAt = 1L)
+                .copy(downloadMode = DownloadMode.SUBSCRIBE),
+        )
+        assertEquals(listOf("both"), dao.pollableForNewChapters().map { it.id })
+    }
+
     // ----- setX queries: each must hit the right column -------------------------
 
     @Test
