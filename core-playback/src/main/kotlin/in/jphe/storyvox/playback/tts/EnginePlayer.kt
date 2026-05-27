@@ -713,7 +713,14 @@ class EnginePlayer @AssistedInject constructor(
                 val s = _observableState.value
                 val fictionId = s.currentFictionId
                 val chapterId = s.currentChapterId
-                if (fictionId == null || chapterId == null) return@collect
+                if (fictionId == null || chapterId == null) {
+                    DebugLog.d("EnginePlayer") {
+                        "observeActiveVoice: voice=$newId but no chapter loaded " +
+                            "(fiction=$fictionId chapter=$chapterId) — swap deferred " +
+                            "to next loadAndPlay, which reads activeVoice itself"
+                    }
+                    return@collect
+                }
                 if (s.isPlaying) {
                     // Live swap. Tear down the current pipeline FIRST so the
                     // old generator can't keep pushing old-voice PCM into
@@ -722,7 +729,27 @@ class EnginePlayer @AssistedInject constructor(
                     // the user hears 5–10 s of stale audio before silence
                     // and finally the new voice.
                     stopPlaybackPipeline()
-                    loadAndPlay(fictionId, chapterId, s.charOffset)
+                    // loadAndPlay can throw (network fetch, OOM on Kokoro model
+                    // load). An uncaught throw here cancels this collect on the
+                    // scope, after which voice swaps are silently ignored until
+                    // the player is recreated. runCatching keeps the collector
+                    // alive so the *next* swap still gets a chance. (#878)
+                    runCatching {
+                        loadAndPlay(fictionId, chapterId, s.charOffset)
+                    }.onFailure { t ->
+                        // Never swallow cancellation — that would let the
+                        // collector keep running after the scope is torn down,
+                        // breaking structured concurrency. Only transient
+                        // load failures should be logged-and-survived.
+                        if (t is kotlin.coroutines.cancellation.CancellationException) throw t
+                        android.util.Log.e(
+                            "EnginePlayer",
+                            "observeActiveVoice: live voice swap to $newId failed " +
+                                "(fiction=$fictionId chapter=$chapterId); collector " +
+                                "kept alive for next swap",
+                            t,
+                        )
+                    }
                 } else {
                     voiceReloadPending = true
                     stopPlaybackPipeline()
@@ -3008,13 +3035,18 @@ class EnginePlayer @AssistedInject constructor(
     /**
      * #676 — handle for System TTS voices. Mirrors [azureStreamingHandle]
      * in that it adapts an instance-based engine ([SystemTtsEngine]) to
-     * the [EngineStreamingSource.VoiceEngineHandle] contract. The
-     * underlying [SystemTtsEngine.generateAudioPCM] is suspending
-     * (block-awaits the framework's UtteranceProgressListener) so we
-     * wrap with [kotlinx.coroutines.runBlocking] on the producer worker
-     * thread — same shape Piper/Kokoro use for their synchronous JNI
-     * calls. Returns null when the engine isn't loaded yet (the
-     * pipeline's skip-empty-PCM branch handles this).
+     * the [EngineStreamingSource.VoiceEngineHandle] contract.
+     *
+     * #876 — synth runs through [SystemTtsEngine.generateAudioPCMBlocking],
+     * which does `synthesizeToFile` + the completion await synchronously
+     * on **this** producer worker thread. The previous `runBlocking { … }`
+     * wrapper dispatched the suspend body onto a `Dispatchers.IO` pool
+     * thread at DEFAULT priority, so the URGENT_AUDIO priority set just
+     * below leaked nowhere useful and the producer parked idle. The
+     * blocking variant keeps the synth on the URGENT_AUDIO thread —
+     * same shape Piper/Kokoro use for their synchronous JNI calls.
+     * Returns null when the engine isn't loaded yet (the pipeline's
+     * skip-empty-PCM branch handles this).
      */
     private fun systemTtsHandle(
         engineType: EngineType.SystemTts,
@@ -3028,7 +3060,7 @@ class EnginePlayer @AssistedInject constructor(
             ): ByteArray? {
                 AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
                 val engine = systemTtsEngine ?: return null
-                return runBlocking { engine.generateAudioPCM(text, speed, pitch) }
+                return engine.generateAudioPCMBlocking(text, speed, pitch)
             }
         }
 
@@ -3480,6 +3512,13 @@ class EnginePlayer @AssistedInject constructor(
         // gets cleared anyway. Worst case is a redundant track.play()
         // JNI call (~µs); best case (the observed bug) we skip a full
         // AudioTrack rebuild + sherpa-onnx warm-up.
+        // #888 — re-acquire audio focus before the fast path's
+        // audioTrack.play(). If another app grabbed focus while we were
+        // paused, the fast path would unpause a track that's been
+        // ducked/silenced, yielding "PLAYING + no audio". Idempotent: a
+        // no-op if we still hold focus. The slow path acquires its own
+        // focus inside startPlaybackPipeline(), so only the fast path needs this.
+        runCatching { audioFocus.acquire() }
         if (rHaveTrack && rRunning) {
             _observableState.update { it.copy(isPlaying = true, error = null) }
             userPaused.set(false)
@@ -4481,13 +4520,24 @@ class EnginePlayer @AssistedInject constructor(
     fun bufferTelemetry(): `in`.jphe.storyvox.playback.BufferTelemetry {
         val src = pcmSource
         val track = audioTrack
-        val audioBufferMs = if (track != null && track.sampleRate > 0) {
-            val head = track.playbackHeadPosition.toLong() and 0xFFFFFFFFL
-            val pendingFrames = (totalFramesWritten - head).coerceAtLeast(0)
-            pendingFrames * 1000L / track.sampleRate
-        } else {
-            0L
-        }
+        // Issue #874 — this runs off the Main thread (Debug overlay's 1Hz
+        // poll) while [stopPlaybackPipeline] can null+release the track on
+        // Main. Both `playbackHeadPosition` and `sampleRate` are JNI reads
+        // against the native handle: a concurrent release makes
+        // `playbackHeadPosition` throw IllegalStateException and leaves
+        // `sampleRate` undefined. Prefer the [pipelineSampleRate] volatile
+        // (never changes for a track's lifetime, the #539 fix) and wrap the
+        // head read in runCatching so a teardown race degrades to 0 rather
+        // than crashing the overlay.
+        val audioBufferMs = track?.let {
+            runCatching {
+                val sr = pipelineSampleRate.takeIf { rate -> rate > 0 }
+                    ?: return@runCatching 0L
+                val head = it.playbackHeadPosition.toLong() and 0xFFFFFFFFL
+                val pendingFrames = (totalFramesWritten - head).coerceAtLeast(0)
+                pendingFrames * 1000L / sr
+            }.getOrDefault(0L)
+        } ?: 0L
         return `in`.jphe.storyvox.playback.BufferTelemetry(
             producerQueueDepth = src?.producerQueueDepth() ?: 0,
             producerQueueCapacity = src?.producerQueueCapacity() ?: 0,
@@ -4616,6 +4666,23 @@ class EnginePlayer @AssistedInject constructor(
      *    advance, no position persistence.
      */
     private fun startRecapPipeline(recapSentences: List<Sentence>) {
+        // Issue #905 — claim audio focus BEFORE creating the recap
+        // AudioTrack, mirroring [startPlaybackPipeline]'s #560 fix. The
+        // main pipeline holds focus on a Play, but a cold-start recap
+        // (reader opened, Play never tapped, user taps "Read recap
+        // aloud") has no prior focus — without this the framework can
+        // silently refuse to drain the track and the recap is swallowed.
+        // Idempotent on the singleton focus request, so a recap fired
+        // while the chapter is already playing reuses the held focus.
+        val focusGranted = runCatching { audioFocus.acquire() }.getOrDefault(false)
+        if (!focusGranted) {
+            android.util.Log.w(
+                "EnginePlayer",
+                "#905 startRecapPipeline: audio focus was NOT granted; recap will be silent " +
+                    "until another app yields focus",
+            )
+        }
+
         val engineType = activeEngineType
         // Issue #582 — startRecapPipeline is reachable from main-thread
         // Compose handlers (the "play recap" button in the reader). Use
@@ -4655,7 +4722,14 @@ class EnginePlayer @AssistedInject constructor(
 
         recapConsumerThread = Thread({
             AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
-            var firstSentence = true
+            // Issue #905 — live volume mirror, mirroring the main consumer's
+            // change-detection. Pre-fix the recap consumer hardcoded
+            // setVolume(1f) on the first sentence, ignoring the sleep
+            // timer's volumeRamp: a recap fired while the timer was fading
+            // played at full volume — louder than the chapter audio the
+            // listener was last hearing. Now we read volumeRamp.current per
+            // write and skip the JNI setVolume when the ramp is idle.
+            var lastVol = -1f
             try {
                 runCatching { track.play() }
                 while (recapPipelineRunning.get()) {
@@ -4665,19 +4739,24 @@ class EnginePlayer @AssistedInject constructor(
                         null
                     } ?: break
 
-                    if (firstSentence) {
-                        runCatching { track.setVolume(1f) }
-                        firstSentence = false
-                    }
-
                     var written = 0
                     while (written < chunk.pcm.size && recapPipelineRunning.get()) {
+                        val v = volumeRamp.current
+                        if (v != lastVol) {
+                            runCatching { track.setVolume(v) }
+                            lastVol = v
+                        }
                         val n = track.write(chunk.pcm, written, chunk.pcm.size - written)
                         if (n < 0) break
                         written += n
                     }
                     var remaining = chunk.trailingSilenceBytes
                     while (remaining > 0 && recapPipelineRunning.get()) {
+                        val v = volumeRamp.current
+                        if (v != lastVol) {
+                            runCatching { track.setVolume(v) }
+                            lastVol = v
+                        }
                         val sz = remaining.coerceAtMost(SILENCE_CHUNK.size)
                         val n = track.write(SILENCE_CHUNK, 0, sz)
                         if (n < 0) break
