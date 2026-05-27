@@ -221,6 +221,16 @@
     <string name="reader_chapters">Chapters</string>
     <string name="reader_couldnt_load_chapter">Couldn\'t load this chapter</string>
     <string name="reader_couldnt_load_message">The voice or chapter text is taking longer than expected. Try again, or pick a different voice — some take a moment to warm up.</string>
+
+    <!-- Issue #805 — typed playback error banner -->
+    <string name="reader_error_retry">Retry</string>
+    <string name="reader_error_dismiss">Dismiss error</string>
+    <string name="reader_error_title_auth">Sign in required</string>
+    <string name="reader_error_title_network">No connection</string>
+    <string name="reader_error_title_throttled">Too many requests</string>
+    <string name="reader_error_title_server">Server issue</string>
+    <string name="reader_error_title_engine">Voice not available</string>
+    <string name="reader_error_title_generic">Something went wrong</string>
     <string name="reader_sleep_step_by_sentence">Step by sentence</string>
     <string name="reader_sleep_timer">Sleep timer</string>
     <string name="reader_sleep_off">Off</string>
