@@ -247,6 +247,11 @@
     <string name="library_shelf_all">All</string>
     <string name="library_add_by_url_label">URL</string>
     <string name="library_add_by_url_placeholder">https://…</string>
+    <!-- Issue #785 — Library search bar. -->
+    <string name="library_search_placeholder">Search by title or author</string>
+    <string name="library_search_clear_cd">Clear search</string>
+    <string name="library_search_no_results_title">No matches</string>
+    <string name="library_search_no_results_body">Try a different search term or clear the search to see your full library.</string>
     <!-- Issue #793 — Library sort dropdown. -->
     <string name="library_sort_chip_cd">Sort library</string>
     <string name="library_sort_title">Title</string>
