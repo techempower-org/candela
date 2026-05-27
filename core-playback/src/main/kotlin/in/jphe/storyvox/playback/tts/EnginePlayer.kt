@@ -211,6 +211,11 @@ class EnginePlayer @AssistedInject constructor(
      *  pipeline-construction time is overridden. Full concurrency is
      *  restored when the thermal status drops back below MODERATE. */
     private val thermalMonitor: ThermalMonitor,
+    /** Issue #801 — power-save monitor. Snapshot at pipeline-construction
+     *  time to lower producer thread priority and skip prerender triggers
+     *  when the device is in battery-saver mode. The consumer thread keeps
+     *  URGENT_AUDIO — audio glitches are worse than battery drain. */
+    private val powerSaveMonitor: `in`.jphe.storyvox.playback.PowerSaveMonitor,
 ) : SimpleBasePlayer(Looper.getMainLooper()) {
 
     @AssistedFactory
@@ -233,6 +238,16 @@ class EnginePlayer @AssistedInject constructor(
      *  [setPunctuationPauseMultiplier] rebuilds the pipeline if playing,
      *  so the new value takes effect on the next sentence boundary). */
     private var currentPunctuationPauseMultiplier: Float = 1f
+
+    /**
+     * Issue #801 — the thread priority the producer-side VoiceEngineHandle
+     * wrappers should use. In power-save mode the producer drops to
+     * THREAD_PRIORITY_BACKGROUND; normally it stays at URGENT_AUDIO for
+     * minimum inter-sentence jitter. Snapshotted per pipeline build.
+     */
+    private fun producerPriority(): Int =
+        if (powerSaveMonitor.isPowerSaveMode.value) AndroidProcess.THREAD_PRIORITY_BACKGROUND
+        else AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO
 
     /** Engine type for the currently-loaded voice. Set in [loadAndPlay]
      *  after a successful model load; read by the producer in
@@ -2188,9 +2203,8 @@ class EnginePlayer @AssistedInject constructor(
                     override fun generateAudioPCM(
                         text: String, speed: Float, pitch: Float,
                     ): ByteArray? {
-                        AndroidProcess.setThreadPriority(
-                            AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO,
-                        )
+                        // Issue #801 — respect power-save mode.
+                        AndroidProcess.setThreadPriority(producerPriority())
                         return eng.generateAudioPCM(text, speed, pitch)
                     }
                 }
@@ -2205,9 +2219,8 @@ class EnginePlayer @AssistedInject constructor(
                     override fun generateAudioPCM(
                         text: String, speed: Float, pitch: Float,
                     ): ByteArray? {
-                        AndroidProcess.setThreadPriority(
-                            AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO,
-                        )
+                        // Issue #801 — respect power-save mode.
+                        AndroidProcess.setThreadPriority(producerPriority())
                         return eng.generateAudioPCM(text, speed, pitch)
                     }
                 }
@@ -2226,9 +2239,8 @@ class EnginePlayer @AssistedInject constructor(
                     override fun generateAudioPCM(
                         text: String, speed: Float, pitch: Float,
                     ): ByteArray? {
-                        AndroidProcess.setThreadPriority(
-                            AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO,
-                        )
+                        // Issue #801 — respect power-save mode.
+                        AndroidProcess.setThreadPriority(producerPriority())
                         return eng.generateAudioPCM(text, speed, pitch)
                     }
                 }
@@ -2250,9 +2262,8 @@ class EnginePlayer @AssistedInject constructor(
                         override fun generateAudioPCM(
                             text: String, speed: Float, pitch: Float,
                         ): ByteArray? {
-                            AndroidProcess.setThreadPriority(
-                                AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO,
-                            )
+                            // Issue #801 — respect power-save mode.
+                            AndroidProcess.setThreadPriority(producerPriority())
                             return azureVoiceEngine.synthesize(text, voiceName, speed, pitch)
                         }
                     }
@@ -2417,6 +2428,7 @@ class EnginePlayer @AssistedInject constructor(
                 queueCapacity = queueCapacity,
                 pronunciationDictApply = pronunciationDict::apply,
                 secondaryEngines = effectiveSecondaryHandles,
+                powerSaveMode = powerSaveMonitor.isPowerSaveMode.value,
             )
         }
         pcmSource = source
@@ -3165,7 +3177,8 @@ class EnginePlayer @AssistedInject constructor(
                 }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
 
                 override fun generateAudioPCM(text: String, speed: Float, pitch: Float): ByteArray? {
-                    AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
+                    // Issue #801 — respect power-save mode on the producer thread.
+                    AndroidProcess.setThreadPriority(producerPriority())
                     return when (engineType) {
                         is EngineType.Kokoro -> KokoroEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
@@ -3205,7 +3218,8 @@ class EnginePlayer @AssistedInject constructor(
             override fun generateAudioPCM(
                 text: String, speed: Float, pitch: Float,
             ): ByteArray? {
-                AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
+                // Issue #801 — respect power-save mode on the producer thread.
+                AndroidProcess.setThreadPriority(producerPriority())
                 val engine = systemTtsEngine ?: return null
                 return engine.generateAudioPCMBlocking(text, speed, pitch)
             }
@@ -3219,7 +3233,8 @@ class EnginePlayer @AssistedInject constructor(
                 .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
 
             override fun generateAudioPCM(text: String, speed: Float, pitch: Float): ByteArray? {
-                AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
+                // Issue #801 — respect power-save mode on the producer thread.
+                AndroidProcess.setThreadPriority(producerPriority())
                 return azureVoiceEngine.synthesize(text, engineType.voiceName, speed, pitch)
             }
         }
@@ -4866,6 +4881,9 @@ class EnginePlayer @AssistedInject constructor(
             // benefits from the same inter-sentence breathing room).
             extraA11ySilenceMs = cachedA11yExtraSilenceMs,
             queueCapacity = cachedBufferChunks.coerceIn(2, 3000),
+            // Issue #801 — recap producer also lowers priority in
+            // power-save mode.
+            powerSaveMode = powerSaveMonitor.isPowerSaveMode.value,
             pronunciationDictApply = cachedPronunciationDict::apply,
         )
         recapPcmSource = source
