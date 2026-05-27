@@ -89,7 +89,7 @@ baselineprofile-gradle = "1.4.1"
 desugar = "2.1.5"
 
 # Storage Access Framework helpers (#235 EPUB import)
-documentfile = "1.0.1"
+documentfile = "1.1.0"
 
 [libraries]
 # AndroidX core
