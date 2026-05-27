@@ -1,6 +1,8 @@
 package `in`.jphe.storyvox.sync.domain
 
 import `in`.jphe.storyvox.data.db.dao.FictionDao
+import `in`.jphe.storyvox.data.db.dao.FictionShelfDao
+import `in`.jphe.storyvox.data.db.dao.PlaybackDao
 import `in`.jphe.storyvox.sync.client.InstantBackend
 import `in`.jphe.storyvox.sync.client.SignedInUser
 import `in`.jphe.storyvox.sync.coordinator.SyncOutcome
@@ -31,6 +33,8 @@ import javax.inject.Singleton
 @Singleton
 class LibrarySyncer @Inject constructor(
     private val fictionDao: FictionDao,
+    private val shelfDao: FictionShelfDao,
+    private val playbackDao: PlaybackDao,
     private val backend: InstantBackend,
     private val tombstones: TombstoneStore,
 ) : Syncer {
@@ -90,7 +94,20 @@ class LibrarySyncer @Inject constructor(
             }
         },
         localRemove = { id ->
+            // A cross-device removal flips the row out of the library, but
+            // we also have to tear down the satellite rows that a local
+            // remove-from-library would have cleaned up — otherwise they
+            // linger as invisible orphans (issue #891):
+            //  - shelf memberships: a "shelved but un-libraried" row is
+            //    filtered out of chip results, but it's still on disk and
+            //    survives a future re-add, silently re-shelving the book.
+            //  - playback position: stale offset/speed data that would
+            //    resurface on the History tab and Continue-listening tile.
+            // chapter_history is deliberately NOT touched — reading history
+            // is conservative state we keep across a removal.
             fictionDao.setInLibrary(id, inLibrary = false, now = 0L)
+            shelfDao.clearForFiction(id)
+            playbackDao.delete(id)
         },
         remote = BackendSetRemote(domain = DOMAIN, backend = backend),
     )
