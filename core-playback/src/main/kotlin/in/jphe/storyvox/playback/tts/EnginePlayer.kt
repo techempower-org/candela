@@ -44,6 +44,7 @@ import `in`.jphe.storyvox.playback.PlaybackUiEvent
 import `in`.jphe.storyvox.playback.SPEED_BASELINE_CHARS_PER_SECOND
 import `in`.jphe.storyvox.playback.SentenceRange
 import `in`.jphe.storyvox.playback.SleepTimer
+import `in`.jphe.storyvox.playback.ThermalMonitor
 import `in`.jphe.storyvox.playback.TtsVolumeRamp
 import `in`.jphe.storyvox.playback.cache.EngineMutex
 import `in`.jphe.storyvox.playback.cache.PcmAppender
@@ -203,6 +204,13 @@ class EnginePlayer @AssistedInject constructor(
      *  so chapter transitions reuse the same focus request rather than
      *  thrashing the stack. */
     private val audioFocus: `in`.jphe.storyvox.playback.AudioFocusController,
+    /** Issue #803 — thermal status monitor. When the device overheats
+     *  (THERMAL_STATUS_MODERATE+), the effective parallel-synth
+     *  concurrency is temporarily capped to reduce CPU load. The user's
+     *  saved setting is NOT modified — only the runtime value used at
+     *  pipeline-construction time is overridden. Full concurrency is
+     *  restored when the thermal status drops back below MODERATE. */
+    private val thermalMonitor: ThermalMonitor,
 ) : SimpleBasePlayer(Looper.getMainLooper()) {
 
     @AssistedFactory
@@ -276,6 +284,17 @@ class EnginePlayer @AssistedInject constructor(
      *  suspending, the consumer is sync. Defaults to 1 (serial). */
     @Volatile
     private var cachedParallelSynthInstances: Int = 1
+
+    /** Issue #803 — snapshot of [ThermalMonitor.thermalStatus] for
+     *  synchronous reads at pipeline-construction time. When >= 2
+     *  (THERMAL_STATUS_MODERATE), [startPlaybackPipeline] caps the
+     *  effective parallel-synth concurrency to 1 (serial). When >= 3
+     *  (THERMAL_STATUS_SEVERE), queue depth is also halved. The user's
+     *  saved [cachedParallelSynthInstances] is unchanged — only the
+     *  runtime value fed to [EngineStreamingSource] is overridden.
+     *  Updated by [observeThermalStatus]; defaults to 0 (no pressure). */
+    @Volatile
+    private var cachedThermalStatus: Int = ThermalMonitor.THERMAL_STATUS_NONE
 
     /** Tier 3 (#88) — list of secondary VoiceEngine / KokoroEngine
      *  instances for parallel synth. Sized at (instances-1) so the
@@ -401,6 +420,7 @@ class EnginePlayer @AssistedInject constructor(
         observeAzureErrors()
         observeAzureFallbackConfig()
         observeA11yPacing()
+        observeThermalStatus()
     }
 
     /**
@@ -414,6 +434,51 @@ class EnginePlayer @AssistedInject constructor(
         scope.launch {
             a11yPacingConfig.extraSilenceMs.collect { ms ->
                 cachedA11yExtraSilenceMs = ms.coerceIn(0, 1500)
+            }
+        }
+    }
+
+    /**
+     * Issue #803 — collect [ThermalMonitor.thermalStatus] and cache
+     * it as a volatile for the synchronous pipeline-construction path.
+     * When the status rises to MODERATE (2) or above, the next pipeline
+     * rebuild caps the effective parallel-synth concurrency to 1 (serial
+     * mode). If playback is already running, we trigger a pipeline
+     * rebuild so the cap takes effect immediately rather than waiting
+     * for the next chapter/seek/voice-swap.
+     *
+     * When the status drops back below MODERATE, the same rebuild
+     * restores the user's configured concurrency from
+     * [cachedParallelSynthInstances].
+     */
+    private fun observeThermalStatus() {
+        scope.launch {
+            thermalMonitor.thermalStatus.collect { status ->
+                val prev = cachedThermalStatus
+                cachedThermalStatus = status
+                if (prev == status) return@collect
+                DebugLog.i("EnginePlayer") {
+                    "#803 thermal status update: $prev -> $status" +
+                        if (status >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
+                            " — capping parallel synth to serial mode"
+                        } else if (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
+                            " — restoring user-configured concurrency"
+                        } else {
+                            ""
+                        }
+                }
+                // Only trigger a pipeline rebuild if the thermal status
+                // crosses the MODERATE boundary while playing. Rebuilds
+                // within the same thermal zone (e.g. SEVERE -> CRITICAL)
+                // are unnecessary — the cap is already at serial.
+                val crossedThreshold =
+                    (prev < ThermalMonitor.THERMAL_STATUS_MODERATE &&
+                        status >= ThermalMonitor.THERMAL_STATUS_MODERATE) ||
+                    (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
+                        status < ThermalMonitor.THERMAL_STATUS_MODERATE)
+                if (crossedThreshold && _observableState.value.isPlaying) {
+                    startPlaybackPipeline()
+                }
             }
         }
     }
@@ -2068,7 +2133,23 @@ class EnginePlayer @AssistedInject constructor(
         // the slider's 3000-chunk max — JP set the slider to 3000 to
         // probe the gap and got 1500 in practice. Lifted to 3000 so
         // the configured value reaches the queue verbatim.
-        val queueCapacity = cachedBufferChunks.coerceIn(2, 3000)
+        // Issue #803 — snapshot the thermal status for this pipeline.
+        val thermalStatus = cachedThermalStatus
+        val queueCapacity = run {
+            val base = cachedBufferChunks.coerceIn(2, 3000)
+            if (thermalStatus >= ThermalMonitor.THERMAL_STATUS_SEVERE) {
+                // Severe thermal pressure: halve queue depth to reduce
+                // memory + CPU headroom. Floor at 2 so the pipeline
+                // doesn't starve.
+                val capped = (base / 2).coerceAtLeast(2)
+                DebugLog.i("EnginePlayer") {
+                    "#803 thermal SEVERE+: queue depth $base -> $capped"
+                }
+                capped
+            } else {
+                base
+            }
+        }
         // Issue #135: snapshot the dict at construction time. The
         // capture is by-value (the dict is an immutable data class) so
         // a mid-chapter edit doesn't mutate the active pipeline's
@@ -2190,6 +2271,33 @@ class EnginePlayer @AssistedInject constructor(
             }
             else -> emptyList()
         }
+        // Issue #803 — thermal throttle: when the device is at
+        // THERMAL_STATUS_MODERATE or above, drop all secondaries so
+        // the pipeline runs in serial mode (single engine). The
+        // secondary engine instances stay alive in memory (they're
+        // expensive to construct) — we just don't hand them to the
+        // streaming source for this pipeline lifetime. When the
+        // thermal status drops below MODERATE, [observeThermalStatus]
+        // triggers a pipeline rebuild that passes the full set of
+        // secondaries again, restoring the user's configured
+        // concurrency without re-loading models.
+        val effectiveSecondaryHandles = if (
+            thermalStatus >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
+            secondaryHandles.isNotEmpty()
+        ) {
+            DebugLog.i("EnginePlayer") {
+                "#803 thermal MODERATE+: dropping ${secondaryHandles.size} secondary " +
+                    "engine(s) — serial mode until thermal clears"
+            }
+            android.util.Log.i(
+                "EnginePlayer",
+                "#803 thermal throttle active (status=$thermalStatus): " +
+                    "parallel synth ${secondaryHandles.size + 1} -> 1 instance(s)",
+            )
+            emptyList()
+        } else {
+            secondaryHandles
+        }
         // PR-D (#86) — build the cache key for this (chapter, voice,
         // speed, pitch, dict) tuple. All five pieces of identity must
         // be known; if any is null we skip the cache write entirely
@@ -2308,7 +2416,7 @@ class EnginePlayer @AssistedInject constructor(
                 extraA11ySilenceMs = cachedA11yExtraSilenceMs,
                 queueCapacity = queueCapacity,
                 pronunciationDictApply = pronunciationDict::apply,
-                secondaryEngines = secondaryHandles,
+                secondaryEngines = effectiveSecondaryHandles,
             )
         }
         pcmSource = source
