@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDecoration
 import `in`.jphe.storyvox.data.source.filter.FilterDimension
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.data.source.filter.FilterState
@@ -273,11 +274,12 @@ private fun TagSetChip(
         },
         label = {
             Text(
-                when {
+                text = when {
                     isExcluded -> "- $tag"
                     isIncluded -> "+ $tag"
                     else -> tag
                 },
+                textDecoration = if (isExcluded) TextDecoration.LineThrough else null,
             )
         },
         colors = FilterChipDefaults.filterChipColors(
