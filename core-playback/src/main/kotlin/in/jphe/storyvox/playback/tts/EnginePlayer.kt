@@ -4187,19 +4187,14 @@ class EnginePlayer @AssistedInject constructor(
     }
 
     fun releaseEngine() {
-        // #790 — releaseEngine is invoked from StoryvoxPlaybackService.onDestroy
-        // on the main thread. persistPosition does a Room @Upsert; a naked
-        // runBlocking here either janks the main thread or trips Android's
-        // StrictMode disk-IO-on-main detector. Launch the write fire-and-
-        // forget on the scope (already Dispatchers.Main + the suspend body
-        // hops to IO inside Room), then park the main thread for at most
-        // 500ms waiting for it. If the join times out the write keeps
-        // running until scope.cancel() below drops it — the worst case is
-        // a missed position checkpoint, not a lost user gesture.
-        val persistJob = scope.launch { persistPosition() }
-        kotlinx.coroutines.runBlocking {
-            kotlinx.coroutines.withTimeoutOrNull(500L) { persistJob.join() }
-        }
+        // #873 — releaseEngine is invoked from StoryvoxPlaybackService.onDestroy
+        // on the main thread. persistPosition does a Room @Upsert whose suspend
+        // body hops to IO inside the DAO. Fire-and-forget: the scope stays alive
+        // until scope.cancel() below, which gives the IO dispatcher time to flush
+        // the write. Worst case the cancel races the upsert and a position
+        // checkpoint is lost — acceptable, since the previous checkpoint from the
+        // periodic save is at most a few seconds stale.
+        scope.launch { persistPosition() }
         stopRecapPipeline()
         stopPlaybackPipeline()
         stopAudioStreamPlayer()
