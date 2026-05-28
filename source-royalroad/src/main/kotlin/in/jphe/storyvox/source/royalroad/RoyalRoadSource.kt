@@ -22,7 +22,7 @@ import `in`.jphe.storyvox.source.royalroad.model.RoyalRoadIds
 import `in`.jphe.storyvox.source.royalroad.model.browseUrl
 import `in`.jphe.storyvox.source.royalroad.model.chapterUrl
 import `in`.jphe.storyvox.source.royalroad.model.fictionUrl
-import `in`.jphe.storyvox.source.royalroad.net.CloudflareAwareFetcher
+import `in`.jphe.storyvox.source.royalroad.net.RoyalRoadChallengeFetcher
 import `in`.jphe.storyvox.source.royalroad.net.FetchOutcome
 import `in`.jphe.storyvox.source.royalroad.net.RateLimitedClient
 import `in`.jphe.storyvox.source.royalroad.net.RoyalRoadCookieJar
@@ -40,7 +40,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
  * is in `_unintegrated/` pending an integration pass that bridges Oneiros's
  * parser output types to Selene's [FictionSource] interface shapes.
  *
- * The auth/net infrastructure (rate-limited HTTP, Cloudflare-aware fetcher,
+ * The auth/net infrastructure (rate-limited HTTP, challenge-aware fetcher,
  * cookie jar, login WebView, honeypot filter) is wired and ready to be plumbed
  * back in. This stub returns Failure for every read so the build is green
  * end-to-end while the integration is finished separately.
@@ -60,7 +60,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 )
 @Singleton
 class RoyalRoadSource @Inject internal constructor(
-    private val fetcher: CloudflareAwareFetcher,
+    private val fetcher: RoyalRoadChallengeFetcher,
     @Suppress("unused") private val client: RateLimitedClient,
     @Suppress("unused") private val cookieJar: RoyalRoadCookieJar,
 ) : FictionSource {

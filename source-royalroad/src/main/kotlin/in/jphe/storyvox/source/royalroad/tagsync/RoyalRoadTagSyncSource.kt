@@ -1,6 +1,6 @@
 package `in`.jphe.storyvox.source.royalroad.tagsync
 
-import `in`.jphe.storyvox.source.royalroad.net.CloudflareAwareFetcher
+import `in`.jphe.storyvox.source.royalroad.net.RoyalRoadChallengeFetcher
 import `in`.jphe.storyvox.source.royalroad.net.FetchOutcome
 import `in`.jphe.storyvox.source.royalroad.net.RateLimitedClient
 import javax.inject.Inject
@@ -37,7 +37,7 @@ import okhttp3.FormBody
  */
 @Singleton
 internal class RoyalRoadTagSyncSource @Inject constructor(
-    private val fetcher: CloudflareAwareFetcher,
+    private val fetcher: RoyalRoadChallengeFetcher,
     private val client: RateLimitedClient,
 ) {
 

@@ -139,9 +139,9 @@ sealed interface FictionSourceEvent {
 }
 
 /**
- * Escape hatch for sources that hit Cloudflare or another bot-wall — implemented
- * by the source module (`:source-royalroad`) using a hidden Android WebView so
- * the JS challenge actually executes.
+ * Optional fetcher for sources whose pages require an in-browser JS runtime to
+ * render — implemented by the source module (`:source-royalroad`) using a hidden
+ * Android WebView so any interstitial script executes before the HTML is read.
  *
  * Declared in `:core-data` so the download worker can consume it without taking
  * a hard dep on the source module.

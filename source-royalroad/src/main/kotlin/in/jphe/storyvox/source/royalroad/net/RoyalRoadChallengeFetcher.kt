@@ -24,7 +24,7 @@ internal sealed interface FetchOutcome {
  * with the resulting cf_clearance.
  */
 @Singleton
-internal class CloudflareAwareFetcher @Inject constructor(
+internal class RoyalRoadChallengeFetcher @Inject constructor(
     private val client: RateLimitedClient,
 ) {
     suspend fun fetchHtml(url: String): FetchOutcome = withContext(Dispatchers.IO) {

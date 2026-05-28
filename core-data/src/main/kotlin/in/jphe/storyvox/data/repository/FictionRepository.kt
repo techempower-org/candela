@@ -160,7 +160,7 @@ sealed class AddByUrlResult {
     /** Pattern matched a known source that is wired but not yet implemented. */
     data class UnsupportedSource(val sourceId: String) : AddByUrlResult()
 
-    /** Source-layer failure (network, 404, auth, rate limit, Cloudflare, ...). */
+    /** Source-layer failure (network, 404, auth, rate limit, upstream challenge, ...). */
     data class SourceFailure(val failure: FictionResult.Failure) : AddByUrlResult()
 
     /** Issue #472 — several backends claimed the URL at chooser-eligible
@@ -576,7 +576,7 @@ internal fun FictionDetail.toEntity(existing: Fiction?, now: Long): Fiction {
         // Issue #279 — never overwrite a previously-good title / author
         // with a worse one. The RSS source falls back to the URL host
         // when the feed parse comes up blank (intermittent gateway
-        // timeouts, momentarily-malformed XML, Cloudflare 524, etc.),
+        // timeouts, momentarily-malformed XML, upstream 5xx, etc.),
         // which produced a perfectly non-blank but useless string like
         // "lionsroar.com". The result: pull-to-refresh silently corrupted
         // the Library card from 'Lion's Roar / Rev. Marvin Harada' to
