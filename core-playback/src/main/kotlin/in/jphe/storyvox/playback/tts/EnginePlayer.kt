@@ -4091,12 +4091,29 @@ class EnginePlayer @AssistedInject constructor(
         }
     }
 
-    suspend fun rewindIntoPreviousChapter(overshootChars: Int) {
-        val current = _observableState.value.currentChapterId ?: return
-        val fiction = _observableState.value.currentFictionId ?: return
+    suspend fun rewindIntoPreviousChapter(overshootChars: Int) = withContext(Dispatchers.Main) {
+        // Issue #969 — main-thread confinement. PlaybackController's
+        // `skipBack30s` dispatches this call via `scope.launch { ... }`
+        // and its `scope` is `Dispatchers.Default`, so without this hop
+        // every `invalidateState()` / `_observableState.update` /
+        // `seekToCharOffset` / `loadAndPlay` touch below lands on a
+        // Default worker thread. [EnginePlayer] is a Media3
+        // `SimpleBasePlayer`, and `invalidateState()` asserts main-thread
+        // — off-main throws `IllegalStateException: Player is accessed
+        // on the wrong thread`. The suspend repo calls inside
+        // (`getPreviousChapterId`, `getChapter`, `queueChapterDownload`)
+        // hop to IO via their own `withContext(IO)`, so this Main hop
+        // doesn't block on disk I/O. Engine-internal callers already
+        // run on the engine's own `scope` (Main), so adding the
+        // `withContext(Main)` only adds a one-frame dispatch hop for
+        // those (a no-op via Main.immediate semantics) while making
+        // every external caller safe regardless of which dispatcher
+        // they used.
+        val current = _observableState.value.currentChapterId ?: return@withContext
+        val fiction = _observableState.value.currentFictionId ?: return@withContext
         val prevId = chapterRepo.getPreviousChapterId(current) ?: run {
             seekToCharOffset(0)
-            return
+            return@withContext
         }
         _observableState.update { it.copy(isBuffering = true) }
         invalidateState()
@@ -4106,13 +4123,18 @@ class EnginePlayer @AssistedInject constructor(
             _observableState.update { it.copy(isBuffering = false) }
             invalidateState()
             seekToCharOffset(0)
-            return
+            return@withContext
         }
         val targetOffset = (prevChapter.text.length - overshootChars).coerceAtLeast(0)
         loadAndPlay(fiction, prevId, charOffset = targetOffset, autoPlay = true)
-        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-            persistPosition()
-        }
+        // Issue #969 follow-up — `loadAndPlay` now (post-#956) does a
+        // synchronous `persistPosition()` runCatching'd right after the
+        // chapter-pointer state update, so the previous unguarded
+        // `withContext(NonCancellable) { persistPosition() }` here was
+        // both redundant AND a latent crash (an unguarded suspend call
+        // on the wrong dispatcher would surface as an exception that no
+        // one catches). Removed; the chapter-changed event still fires
+        // for downstream UI.
         _uiEvents.tryEmit(PlaybackUiEvent.ChapterChanged(prevId))
     }
 
