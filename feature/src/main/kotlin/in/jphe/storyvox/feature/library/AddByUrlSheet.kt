@@ -100,7 +100,7 @@ fun AddByUrlSheet(
                 )
             } else {
                 Text(
-                    "Add by URL",
+                    stringResource(R.string.library_add_by_url_title),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(top = spacing.sm),
                 )
@@ -110,13 +110,12 @@ fun AddByUrlSheet(
                 // magic-link catch-alls; #700 wires the multi-match
                 // chooser on top of that plumbing.
                 Text(
-                    "Paste a fiction URL — we'll auto-detect the source.",
+                    stringResource(R.string.library_add_by_url_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Supported: Royal Road · AO3 · GitHub · Gutenberg · arXiv · " +
-                        "RSS · Wikipedia · direct EPUB",
+                    stringResource(R.string.library_add_by_url_supported),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -152,7 +151,7 @@ fun AddByUrlSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     BrassButton(
-                        label = "Paste",
+                        label = stringResource(R.string.library_add_by_url_paste),
                         onClick = {
                             readClipboardText(context)?.let { clip ->
                                 if (clip.isNotBlank()) input = clip
@@ -162,7 +161,10 @@ fun AddByUrlSheet(
                         enabled = !isSubmitting,
                     )
                     BrassButton(
-                        label = if (isSubmitting) "Adding…" else "Add",
+                        label = stringResource(
+                            if (isSubmitting) R.string.library_add_by_url_adding
+                            else R.string.library_add_by_url_add,
+                        ),
                         onClick = { onSubmit(input.trim()) },
                         variant = BrassButtonVariant.Primary,
                         enabled = !isSubmitting && input.isNotBlank(),
@@ -192,12 +194,12 @@ private fun ChooseSourceBody(
 ) {
     val spacing = LocalSpacing.current
     Text(
-        "Where do you want to add this from?",
+        stringResource(R.string.library_add_by_url_chooser_title),
         style = MaterialTheme.typography.titleLarge,
         modifier = Modifier.padding(top = spacing.sm),
     )
     Text(
-        "Several sources can handle this URL. Pick the one that fits best.",
+        stringResource(R.string.library_add_by_url_chooser_subtitle),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -227,7 +229,7 @@ private fun ChooseSourceBody(
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
         BrassButton(
-            label = "Back",
+            label = stringResource(R.string.library_add_by_url_chooser_back),
             onClick = onCancel,
             variant = BrassButtonVariant.Secondary,
         )
@@ -240,6 +242,7 @@ private fun CandidateRow(
     onPick: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val candidateCd = stringResource(R.string.library_add_by_url_candidate_cd, candidate.label)
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -248,7 +251,7 @@ private fun CandidateRow(
             .clickable { onPick(candidate.sourceId) }
             .semantics {
                 role = Role.Button
-                contentDescription = "Add from ${candidate.label}"
+                contentDescription = candidateCd
             },
     ) {
         Column(

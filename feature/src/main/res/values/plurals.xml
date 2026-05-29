@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Issue #943 — replaces manual `record${if (n == 1) "" else "s"}` in SyncStatusComposables.describeSyncStatus. -->
+    <plurals name="sync_status_synced_records">
+        <item quantity="one">Synced (%d record)</item>
+        <item quantity="other">Synced (%d records)</item>
+    </plurals>
+</resources>

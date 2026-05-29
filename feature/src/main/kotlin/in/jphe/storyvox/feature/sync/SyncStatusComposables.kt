@@ -19,7 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.sync.coordinator.SyncStatus
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -82,10 +85,18 @@ internal fun DomainStatusIcon(status: SyncStatus) {
     )
 }
 
-internal fun describeSyncStatus(status: SyncStatus): String = when (status) {
-    SyncStatus.Idle -> "Idle"
-    SyncStatus.Running -> "Syncing…"
-    is SyncStatus.OkAt -> "Synced (${status.records} record${if (status.records == 1) "" else "s"})"
-    is SyncStatus.Transient -> "Retrying: ${status.message}"
-    is SyncStatus.Permanent -> "Stopped: ${status.message}"
+@Composable
+internal fun describeSyncStatus(status: SyncStatus): String {
+    val context = LocalContext.current
+    return when (status) {
+        SyncStatus.Idle -> stringResource(R.string.sync_status_idle)
+        SyncStatus.Running -> stringResource(R.string.sync_status_running)
+        is SyncStatus.OkAt -> context.resources.getQuantityString(
+            R.plurals.sync_status_synced_records,
+            status.records,
+            status.records,
+        )
+        is SyncStatus.Transient -> stringResource(R.string.sync_status_transient, status.message)
+        is SyncStatus.Permanent -> stringResource(R.string.sync_status_permanent, status.message)
+    }
 }
