@@ -5,7 +5,8 @@
          the user actually reads. -->
     <string name="friendly_error_generic">Something went wrong. Try again in a moment.</string>
     <string name="friendly_error_network_lost">Connection lost. Check your network and try again.</string>
-    <string name="friendly_error_cloudflare_challenge">Royal Road asked us to wait. Try again in a moment.</string>
+    <!-- Issue #943 — generic across any Cloudflare-protected source, not just Royal Road. -->
+    <string name="friendly_error_cloudflare_challenge">The source asked us to wait. Try again in a moment.</string>
     <string name="friendly_error_rate_limited">We\'re sending requests too fast — slow down and try again.</string>
     <string name="friendly_error_server_error">The realm is having trouble. Try again in a moment.</string>
     <string name="friendly_error_auth_failed">We couldn\'t sign in. Re-paste your credentials in Settings.</string>

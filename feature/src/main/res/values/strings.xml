@@ -781,6 +781,41 @@
     <string name="settings_section_about_label">About</string>
     <string name="settings_section_about_descriptor">Build identity for bug reports.</string>
 
+    <!-- ════════════════════════════════════════════════════════════ -->
+    <!-- Issue #943 — i18n hardcoded user-facing strings              -->
+    <!-- ════════════════════════════════════════════════════════════ -->
+
+    <!-- AddByUrlSheet -->
+    <string name="library_add_by_url_title">Add by URL</string>
+    <string name="library_add_by_url_subtitle">Paste a fiction URL — we\'ll auto-detect the source.</string>
+    <string name="library_add_by_url_supported">Supported: Royal Road · AO3 · GitHub · Gutenberg · arXiv · RSS · Wikipedia · direct EPUB</string>
+    <string name="library_add_by_url_paste">Paste</string>
+    <string name="library_add_by_url_add">Add</string>
+    <string name="library_add_by_url_adding">Adding…</string>
+    <string name="library_add_by_url_chooser_title">Where do you want to add this from?</string>
+    <string name="library_add_by_url_chooser_subtitle">Several sources can handle this URL. Pick the one that fits best.</string>
+    <string name="library_add_by_url_chooser_back">Back</string>
+    <string name="library_add_by_url_candidate_cd">Add from %1$s</string>
+
+    <!-- ManageShelvesSheet -->
+    <string name="manage_shelves_title">Manage shelves</string>
+    <string name="manage_shelves_remove_from_library">Remove from library</string>
+
+    <!-- NOTE: Source-side filter labels (Wikipedia/Wikisource "Most relevant"/
+         "Newest"/"Oldest", Wikisource "Form"/"Author"/"Include proofread") are
+         strings returned from FictionSource.filterDimensions() in :source-*
+         modules with no res/ dirs. Moving those requires changing the
+         FilterDimension data classes in :core-data to carry @StringRes IDs (or
+         deferring resolution to the rendering layer in DynamicFilterSheet),
+         a contract change touching all 24 source modules. Tracked as a
+         follow-up to #943 — out of scope for this PR. -->
+
+    <!-- Sync status pluralization (replaces inline manual plural in describeSyncStatus) -->
+    <string name="sync_status_idle">Idle</string>
+    <string name="sync_status_running">Syncing…</string>
+    <string name="sync_status_transient">Retrying: %1$s</string>
+    <string name="sync_status_permanent">Stopped: %1$s</string>
+
     <!-- Settings · GitHub sign-in row -->
     <string name="settings_github_title">GitHub</string>
     <string name="settings_github_anon_subtitle">Sign in lifts the 60 req/hr anon cap to 5,000 req/hr and unlocks repository READMEs as fictions. read:user + public_repo only.</string>
