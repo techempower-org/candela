@@ -9,6 +9,17 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.0.1] -- 2026-05-29
+
+**Sync & persistence fixes.** Cloud sync worked locally but didn't round-trip — preferences never pushed on change, secrets never pulled to a second device, and a synced library arrived as a wall of "Loading…" placeholders. This release closes that cluster.
+
+### Fixed
+- **#977** Preferences now push to the cloud on every change (debounced) — source order, favorites, and enabled/disabled state propagate immediately instead of only on cold-start/manual sync
+- **#979** Secrets blob now stamps a real `updatedAt`, so encrypted secrets pull *down* to a second device (previously `updatedAt=0` meant they only ever pushed up)
+- **#980** Periodic playback-position checkpoint during continuous listening — progress survives an OS-kill mid-chapter instead of rolling back to the last pause; teardown saves made cancellation-safe
+- **#981** Synced library "Loading…" placeholders are now hydrated by a background metadata worker (with source-id repair for colon-less ids); items that genuinely can't be rebuilt show a clear state instead of spinning forever
+- **#982** "Mark all caught up" (Follows) now actually persists read-status instead of firing a fake success event
+
 ## [1.0.0] -- 2026-05-29
 
 **1.0 — the launch.** First public release on Google Play. Caps a pre-launch hardening sweep: a backup-restore crash blocker, playback-engine concurrency fixes, sync-layer robustness, signing-continuity correction, accessibility, and a per-chapter playback-position migration — all on top of the v0.7.x feature set.
