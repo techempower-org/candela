@@ -371,14 +371,24 @@ class DefaultPlaybackController @Inject constructor(
                 }
             }
         }
-        // #539 — poll the engine for the truthful audio position. Polls
-        // every 100 ms while a chapter is loaded; lower than that and the
-        // scrubber jitters from the AudioTrack frame-counter granularity
-        // (sherpa-onnx is 24 kHz, so 1 ms = 24 frames; the poll cadence
-        // dominates jitter, not the counter). Idle when no chapter
-        // loaded — we skip emissions equal to the last value so a paused
-        // chapter doesn't burn CPU. Bound to the controller's scope so
-        // it dies with bindPlayer/unbindPlayer pairs.
+        // #539 / #970 — poll the engine for the truthful audio position.
+        // Polls every 50 ms while a chapter is loaded. The original
+        // cadence (#539) was 100 ms with the rationale that lower polls
+        // would let AudioTrack frame-counter granularity dominate the
+        // scrubber's jitter (sherpa-onnx is 24 kHz, so 1 ms = 24
+        // frames; the poll cadence dominates jitter, not the counter).
+        // That reasoning is still correct — 50 ms is well above any
+        // frame-quantum floor for our sample rates — but the 100 ms
+        // cadence cost an average sampling lag of 50 ms (up to 100 ms
+        // worst-case) on the position display vs. audible output.
+        // Issue #970 surfaced that the visual position / sentence
+        // highlight catches up "a beat later" than the speaker; the
+        // poll cadence is the largest cleanly-fixable contributor.
+        // Halving the interval halves the sampling lag with negligible
+        // CPU cost (one currentPositionMs JNI read per 50 ms while
+        // playing; idle paths still skip equal-value emissions so a
+        // paused chapter doesn't burn CPU). Bound to the controller's
+        // scope so it dies with bindPlayer/unbindPlayer pairs.
         scope.launch {
             while (true) {
                 val live = player ?: break
@@ -386,7 +396,7 @@ class DefaultPlaybackController @Inject constructor(
                 if (pos != _playbackPositionMs.value) {
                     _playbackPositionMs.value = pos
                 }
-                kotlinx.coroutines.delay(100L)
+                kotlinx.coroutines.delay(50L)
             }
         }
         // Calliope (v0.5.00) — bridge the player's internal uiEvents
