@@ -9,6 +9,27 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [0.7.4] -- 2026-05-28
+
+**Magical reader polish + 7-bug sweep.** Two user-facing reader features (in-cover loading prompts overlay, magical auto-scroll toggle) plus seven audit-finding fixes across playback concurrency, sync layer, and library/browse polish.
+
+### Added
+- **#945** Loading prompts (`WhyAreWeWaitingPanel`, `PlaybackErrorBanner`, slow-hint) now render INSIDE the book cover behind a bottom-anchored gradient scrim, clipped to the cover's rounded silhouette. The cover stops jumping 60-120 dp every time a diagnostic appears.
+- **#946** Magical auto-scroll on/off toggle in reader mode — brass `SmallFloatingActionButton` (`Icons.Outlined.AutoStories`) with `AutoAwesome` sparkle cross-fade when armed. Persists via `SettingsRepositoryUi`.
+
+### Fixed
+- **#927** `currentPunctuationPauseMultiplier` thread-visibility race in `EnginePlayer` -- writer on Main, readers on IO; added `@Volatile`
+- **#928** `ChunkGapLogger` `prevChunkEndMs` / `currentChunkStartMs` not `@Volatile` -- same writer/reader-on-different-thread shape
+- **#929** `inFlightAdvanceDirection` race on concurrent `advanceChapter` -- added sequence-number token guard (`AtomicLong` + `@Volatile Long`) so a later invocation's `finally` can't clear an earlier (still-in-flight) call's latch
+- **#936** `HttpInstantBackend.JsonPrimitive.long` crashed sync round on non-numeric `updatedAt` (proxy error pages, schema drift) -- switched to `longOrNull` with explanatory comment + regression test
+- **#937** `SyncIds.toByteArray()` not guaranteed UTF-8 on all platforms -- explicit `Charsets.UTF_8`
+- **#938** Browse `customOrder` with duplicate IDs produced duplicate source descriptors -- `.distinct()` before lookup
+- **#939** Library `pendingRemoval` confirm-dialog state lost on configuration change -- `remember` -> `rememberSaveable`
+- **#940** `ManageShelvesSheet` row had `.clickable {}` before `.padding()`, excluding padded area from 48dp tap target -- modifier order reversed
+
+### Changed
+- Renamed `CloudflareAwareFetcher` -> `RoyalRoadChallengeFetcher` (file + class). Signal-reduction refactor; detection-string body and internal sealed-interface variants kept (they're real Cloudflare protocol markers and must stay accurate)
+
 ## [0.7.3] -- 2026-05-27
 
 **Deprecation warning cleanup.** Resolves all Kotlin 2.3 + Compose Material deprecation warnings introduced by the v0.7.2 dependency migration.
