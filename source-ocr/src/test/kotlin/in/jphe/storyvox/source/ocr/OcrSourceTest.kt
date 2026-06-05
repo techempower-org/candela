@@ -44,9 +44,11 @@ class OcrSourceTest {
 
     @Test
     fun `popular lists every scanned document as a fiction`() = runTest {
+        val letterTitle = "Letter"
+        val recipeTitle = "Recipe"
         val source = OcrSource(FakeConfig(listOf(
-            doc("ocr:1", "Letter", "Dear sir"),
-            doc("ocr:2", "Recipe", "Mix flour"),
+            doc("ocr:1", letterTitle, "Dear sir"),
+            doc("ocr:2", recipeTitle, "Mix flour"),
         )))
 
         val res = source.popular()
@@ -55,7 +57,7 @@ class OcrSourceTest {
         val items = (res as FictionResult.Success).value.items
         assertEquals(2, items.size)
         assertEquals(SourceIds.OCR, items[0].sourceId)
-        assertEquals(setOf("Letter", "Recipe"), items.map { it.title }.toSet())
+        assertEquals(setOf(letterTitle, recipeTitle), items.map { it.title }.toSet())
     }
 
     @Test

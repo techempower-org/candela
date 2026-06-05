@@ -41,9 +41,8 @@ class OcrConfigImplTest {
             ),
         )
 
-        val loaded = config.document(id)
-        assertTrue(loaded != null)
-        assertEquals("My letter", loaded!!.title)
+        val loaded = requireNotNull(config.document(id)) { "document should round-trip" }
+        assertEquals("My letter", loaded.title)
         assertEquals(2, loaded.pages.size)
         assertEquals("Dear friend, hello.", loaded.pages[0].text)
         assertEquals("Yours, me.", loaded.pages[1].text)

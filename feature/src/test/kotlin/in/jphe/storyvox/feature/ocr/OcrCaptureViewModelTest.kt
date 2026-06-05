@@ -53,7 +53,7 @@ class OcrCaptureViewModelTest {
             savedPages = pages
             return "ocr:saved"
         }
-        override suspend fun delete(fictionId: String) {}
+        override suspend fun delete(fictionId: String) = Unit // unused in these tests
     }
 
     private fun success(text: String, vararg blocks: String) = OcrResult.Success(

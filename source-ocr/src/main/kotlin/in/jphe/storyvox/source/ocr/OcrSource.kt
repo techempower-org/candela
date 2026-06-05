@@ -174,7 +174,7 @@ private fun OcrDocument.toSummary(): FictionSummary = FictionSummary(
     sourceId = SourceIds.OCR,
     title = title,
     author = "",
-    description = pages.firstOrNull()?.text?.take(160) ?: "",
+    description = pages.firstOrNull()?.text?.take(160).orEmpty(),
     status = FictionStatus.COMPLETED, // a scan is a static capture
     chapterCount = pages.size,
 )

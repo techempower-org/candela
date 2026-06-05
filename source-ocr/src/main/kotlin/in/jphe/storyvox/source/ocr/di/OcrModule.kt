@@ -23,11 +23,11 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
-internal abstract class OcrBindings {
+internal interface OcrBindings {
 
     @Binds
     @Singleton
     @IntoMap
     @StringKey(SourceIds.OCR)
-    abstract fun bindFictionSource(impl: OcrSource): FictionSource
+    fun bindFictionSource(impl: OcrSource): FictionSource
 }

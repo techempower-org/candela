@@ -263,7 +263,7 @@ fun LibraryScreen(
                         contentDescription = stringResource(R.string.library_scan_page_cd),
                     )
                 }
-                androidx.compose.foundation.layout.Box {
+                Box {
                     FloatingActionButton(
                         onClick = { addMenuOpen = true },
                         containerColor = MaterialTheme.colorScheme.primary,
