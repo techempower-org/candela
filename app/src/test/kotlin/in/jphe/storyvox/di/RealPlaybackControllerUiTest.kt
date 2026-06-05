@@ -304,6 +304,9 @@ class RealPlaybackControllerUiTest {
         override val epubFolderUri: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null)
         override suspend fun setEpubFolderUri(uri: String) = Unit
         override suspend fun clearEpubFolder() = Unit
+        override val pdfFolderUri: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null)
+        override suspend fun setPdfFolderUri(uri: String) = Unit
+        override suspend fun clearPdfFolder() = Unit
         override val outlineHost: kotlinx.coroutines.flow.Flow<String> = kotlinx.coroutines.flow.flowOf("")
         override suspend fun setOutlineHost(host: String) = Unit
         override suspend fun setOutlineApiKey(apiKey: String) = Unit

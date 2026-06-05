@@ -41,6 +41,9 @@ internal object BrowseSourceUi {
         SourceIds.MEMPALACE -> "Palace"
         SourceIds.RSS -> "RSS"
         SourceIds.EPUB -> "Local"
+        // #996 — PDF sits next to EPUB ("Local"); a distinct "PDFs" chip
+        // keeps the two local-file backends visually separable.
+        SourceIds.PDF -> "PDFs"
         SourceIds.OUTLINE -> "Wiki"
         SourceIds.GUTENBERG -> "Gutenberg"
         SourceIds.AO3 -> "AO3"
@@ -115,6 +118,7 @@ internal object BrowseSourceUi {
         SourceIds.MEMPALACE -> listOf(BrowseTab.Popular, BrowseTab.NewReleases)
         SourceIds.RSS -> listOf(BrowseTab.NewReleases, BrowseTab.Popular, BrowseTab.Search)
         SourceIds.EPUB -> listOf(BrowseTab.Popular, BrowseTab.Search)
+        SourceIds.PDF -> listOf(BrowseTab.Popular, BrowseTab.Search)
         SourceIds.OUTLINE -> listOf(BrowseTab.Popular, BrowseTab.Search)
         SourceIds.GUTENBERG -> listOf(BrowseTab.Popular, BrowseTab.NewReleases, BrowseTab.Search)
         // Issue #445 — AO3 declared `supportsSearch = true` on its
@@ -174,6 +178,7 @@ internal object BrowseSourceUi {
         SourceIds.MEMPALACE -> "Search your MemPalace knowledge base"
         SourceIds.RSS -> "Search your subscribed feeds"
         SourceIds.EPUB -> "Search your local EPUB library"
+        SourceIds.PDF -> "Search your local PDF library"
         SourceIds.OUTLINE -> "Search your Outline notes"
         SourceIds.GUTENBERG -> "Search Project Gutenberg's 70,000+ public-domain books"
         SourceIds.AO3 -> "Search AO3 by tag, fandom, or character"

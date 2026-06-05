@@ -296,6 +296,7 @@ private class FakeSettings : SettingsRepositoryUi {
     override val outlineHost: Flow<String> = flowOf("")
     override val rssSubscriptions: Flow<List<String>> = flowOf(emptyList())
     override val epubFolderUri: Flow<String?> = flowOf(null)
+    override val pdfFolderUri: Flow<String?> = flowOf(null)
     override val suggestedRssFeeds: Flow<List<`in`.jphe.storyvox.feature.api.SuggestedFeed>> =
         flowOf(emptyList())
     override suspend fun setTheme(override: ThemeOverride) = Unit
@@ -373,6 +374,8 @@ private class FakeSettings : SettingsRepositoryUi {
     override suspend fun removeRssFeedByUrl(url: String) = Unit
     override suspend fun setEpubFolderUri(uri: String) = Unit
     override suspend fun clearEpubFolder() = Unit
+    override suspend fun setPdfFolderUri(uri: String) = Unit
+    override suspend fun clearPdfFolder() = Unit
     override suspend fun setSleepShakeToExtendEnabled(enabled: Boolean) = Unit
     override suspend fun setAzureKey(key: String?) = Unit
     override suspend fun setAzureRegion(regionId: String) = Unit

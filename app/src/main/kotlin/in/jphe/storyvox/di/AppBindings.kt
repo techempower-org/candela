@@ -209,6 +209,20 @@ object AppBindings {
     @Provides @Singleton
     fun provideOcrTextRecognizer(impl: `in`.jphe.storyvox.data.ocr.MlKitOcrTextRecognizer): `in`.jphe.storyvox.data.ocr.OcrTextRecognizer = impl
 
+    /** Bridges the source-pdf [PdfConfig] read interface (#996) to the
+     *  concrete app-side SAF-backed impl. Exposed concretely is not
+     *  needed here (the Settings/Browse mutators go through
+     *  SettingsRepositoryUiImpl), but kept @Provides for parity. */
+    @Provides @Singleton
+    fun providePdfConfig(impl: `in`.jphe.storyvox.data.PdfConfigImpl): `in`.jphe.storyvox.source.pdf.config.PdfConfig = impl
+
+    /** Bridges the source-pdf [PdfTextProvider] seam (#996) to the
+     *  app-side PdfBox-Android-backed impl. The impl injects the
+     *  PdfOcrTextProvider (#995 seam, default no-op) for scanned-page
+     *  fallback. */
+    @Provides @Singleton
+    fun providePdfTextProvider(impl: `in`.jphe.storyvox.data.PdfBoxTextProvider): `in`.jphe.storyvox.source.pdf.parse.PdfTextProvider = impl
+
     /** Bridges source-outline OutlineConfig (#245) to the app-side
      *  DataStore + EncryptedSharedPreferences impl. */
     @Provides @Singleton

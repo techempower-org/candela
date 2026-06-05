@@ -36,6 +36,13 @@ object SourceIds {
      *  page = one chapter). Zero-network, user-owned-content backend.
      *  The assistive-tech bridge from the printed world to audio. */
     const val OCR: String = "ocr"
+    /** Local PDF files (#996) — user picks a folder via SAF, the source
+     *  enumerates .pdf files there as fictions. Text-layer PDFs extract
+     *  per-page via PdfBox-Android (app-side); scanned/image PDFs route
+     *  the rendered page bitmap through the pluggable OCR seam (#995).
+     *  Zero-network, user-owned-content backend — the VDR-class
+     *  accessibility surface for syllabi, benefit letters, manuals. */
+    const val PDF: String = "pdf"
     /** Outline (#245) — self-hosted wiki. User configures host +
      *  API token; collections become fictions, documents become
      *  chapters. Zero third-party ToS surface. */
@@ -296,6 +303,11 @@ object SourceIds {
      *    that is device-local and not rebuildable on another device even
      *    with the URI, so they are deliberately NOT in this set — their
      *    file simply doesn't exist on a second device.)
+     *
+     * [PDF] (#996) is SAF-import-only in Phase 1 (no direct-download URL
+     * variant), so — like SAF-imported EPUBs — its `content://` id is
+     * device-local and deliberately NOT in this set: the PDF file simply
+     * doesn't exist on a second device, and there is no URL to persist.
      *
      * Every other source encodes a source-native id or URL-path in its
      * fiction id (`gutenberg:84`, `ao3:123`, numeric Royal Road,

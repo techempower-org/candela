@@ -44,6 +44,11 @@ commonmark = "0.28.0"
 # Catch-all article extractor for the magic-link paste flow. ~50 KB,
 # pure JVM, JSoup-backed.
 readability4j = "1.0.8"
+# PdfBox-Android — Tom Roush's Android port of Apache PDFBox (#996
+# :source-pdf). Apache-2.0 (license-compatible). Provides PDFTextStripper
+# for text-layer extraction; scanned/image PDFs route through the
+# pluggable OCR seam (#995) since they carry no text layer.
+pdfbox-android = "2.0.27.0"
 androidx-webkit = "1.16.0"
 androidx-browser = "1.10.0"
 
@@ -171,6 +176,7 @@ okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
 readability4j = { module = "net.dankito.readability4j:readability4j", version.ref = "readability4j" }
+pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox-android" }
 androidx-webkit = { module = "androidx.webkit:webkit", version.ref = "androidx-webkit" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
 

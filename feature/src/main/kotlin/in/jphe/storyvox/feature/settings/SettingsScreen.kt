@@ -607,6 +607,7 @@ fun SettingsScreen(
             // routine adjustments; the manager's per-plugin detail
             // sheet links here too.
             EpubFolderPickerRow(viewModel = viewModel)
+            PdfFolderPickerRow(viewModel = viewModel)
             OutlineConfigRow(viewModel = viewModel)
             WikipediaLanguageRow(
                 languageCode = s.wikipediaLanguageCode,
@@ -3211,6 +3212,64 @@ private fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
             if (folder != null) {
                 androidx.compose.material3.TextButton(
                     onClick = viewModel::clearEpubFolder,
+                    modifier = Modifier.padding(start = spacing.sm),
+                ) { Text("Clear") }
+            }
+        }
+    }
+}
+
+/**
+ * Issue #996 — folder-picker row for the PDF backend. Direct sibling
+ * of [EpubFolderPickerRow]: SAF tree picker via OpenDocumentTree; the
+ * resolved URI is persistable so we don't re-prompt across launches.
+ */
+@Composable
+private fun PdfFolderPickerRow(viewModel: SettingsViewModel) {
+    val folder by viewModel.pdfFolderUri.collectAsStateWithLifecycle()
+    val spacing = LocalSpacing.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            }
+            viewModel.setPdfFolderUri(uri.toString())
+        }
+    }
+
+    Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
+        Text(
+            "PDF folder",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = spacing.xs),
+        )
+        Text(
+            text = folder?.let { abbreviateSafUri(it) }
+                ?: "No folder picked. Tap below to choose where your .pdf files live.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = spacing.sm),
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            BrassButton(
+                label = if (folder == null) "Pick folder" else "Change folder",
+                onClick = { launcher.launch(null) },
+                variant = BrassButtonVariant.Primary,
+            )
+            if (folder != null) {
+                androidx.compose.material3.TextButton(
+                    onClick = viewModel::clearPdfFolder,
                     modifier = Modifier.padding(start = spacing.sm),
                 ) { Text("Clear") }
             }
