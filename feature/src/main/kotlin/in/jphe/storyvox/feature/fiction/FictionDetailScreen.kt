@@ -130,6 +130,10 @@ fun FictionDetailScreen(
     // change without re-firing the export.
     var pendingExport by remember { mutableStateOf<EpubExportResult?>(null) }
 
+    // Issue #1003 — audiobook (.m4b) export status. Drives a progress chip
+    // while rendering and the Share / Save-As sheet when done.
+    val audiobookStatus by viewModel.audiobookExportStatus.collectAsStateWithLifecycle()
+
     // SAF "Save…" picker. Wired up as a launcher up-front so the user
     // can also kick it off from the sheet without us having to remember
     // whether we already initialized it. The contract delivers the
@@ -152,6 +156,22 @@ fun FictionDetailScreen(
                 pendingExport = source.copy(
                     warnings = source.warnings + "Save failed: ${t.message ?: t.javaClass.simpleName}",
                 )
+            }
+        }
+    }
+
+    // Issue #1003 — SAF "Save…" launcher for the finished .m4b audiobook.
+    // The path of the rendered file comes from the export status.
+    val audiobookDone = audiobookStatus as? `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Succeeded
+    val saveAudiobookLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("audio/mp4"),
+    ) { destination ->
+        val done = audiobookDone
+        if (destination != null && done != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(destination)?.use { out ->
+                    java.io.File(done.filePath).inputStream().use { it.copyTo(out) }
+                }
             }
         }
     }
@@ -331,6 +351,16 @@ fun FictionDetailScreen(
                                     onClick = {
                                         menuOpen = false
                                         viewModel.exportToEpub(context)
+                                    },
+                                )
+                                // Issue #1003 — "Make your own audiobook"
+                                // sibling: render this fiction's chapters into
+                                // a chaptered .m4b with the active voice.
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.fiction_export_audiobook)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        viewModel.exportToAudiobook()
                                     },
                                 )
                                 // PR-H (#86) — destructive cache wipe for
@@ -694,6 +724,134 @@ fun FictionDetailScreen(
             },
             onDismiss = { pendingExport = null },
         )
+    }
+
+    // Issue #1003 — audiobook export progress + Share/Save-As sheet. Shown
+    // while the .m4b renders and when it's ready; mirrors the EPUB ExportSheet.
+    AudiobookExportSheet(
+        status = audiobookStatus,
+        onShare = { done ->
+            val file = java.io.File(done.filePath)
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context, "${context.packageName}.fileprovider", file,
+            )
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "audio/mp4"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TITLE, done.fileName)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(
+                Intent.createChooser(send, "Share audiobook").also {
+                    it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                },
+            )
+            viewModel.clearAudiobookExport()
+        },
+        onSaveAs = { done ->
+            saveAudiobookLauncher.launch(done.fileName)
+            viewModel.clearAudiobookExport()
+        },
+        onDismiss = { viewModel.clearAudiobookExport() },
+    )
+}
+
+/**
+ * Issue #1003 — modal sheet for the "Export as audiobook" flow. Renders a
+ * determinate progress bar while the WorkManager job runs and a Share / Save…
+ * row when the `.m4b` is ready. Hidden while [status] is Idle.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AudiobookExportSheet(
+    status: `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus,
+    onShare: (`in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Succeeded) -> Unit,
+    onSaveAs: (`in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Succeeded) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (status is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Idle) return
+    val spacing = LocalSpacing.current
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.lg, vertical = spacing.md),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            when (status) {
+                is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Running -> {
+                    Text("Creating your audiobook…", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Narrating chapters offline. This keeps going in the background.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (status.progress <= 0f) {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { status.progress },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "${(status.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
+                is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Succeeded -> {
+                    Text("Your audiobook is ready", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${status.fileName} · ${status.chapterCount} " +
+                            "chapter${if (status.chapterCount == 1) "" else "s"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    status.warnings.forEach { w ->
+                        Text(
+                            "• $w",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        BrassButton(
+                            label = "Save…",
+                            onClick = { onSaveAs(status) },
+                            variant = BrassButtonVariant.Secondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        BrassButton(
+                            label = "Share",
+                            onClick = { onShare(status) },
+                            variant = BrassButtonVariant.Primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Failed -> {
+                    Text("Couldn't create the audiobook", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        status.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    BrassButton(
+                        label = "Close",
+                        onClick = onDismiss,
+                        variant = BrassButtonVariant.Primary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Idle -> Unit
+            }
+        }
     }
 }
 

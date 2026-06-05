@@ -152,6 +152,16 @@ fun LibraryScreen(
         androidx.compose.runtime.mutableStateOf(false)
     }
 
+    // Issue #1003 — "Make your own audiobook." The + FAB opens a small
+    // chooser (Add by URL / Make your own audiobook); these two flags drive
+    // that menu and the create-audiobook sheet respectively.
+    var addMenuOpen by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    var createAudiobookOpen by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+
     // Issue #828 — confirm-before-remove dialog state for the
     // "Remove from library" row on ManageShelvesSheet. Holds the
     // (fictionId, title) the sheet asked to remove; null = no dialog.
@@ -225,12 +235,36 @@ fun LibraryScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = viewModel::showAddByUrl,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add fiction by URL")
+            // Issue #1003 — the + now offers two ways in: add a fiction by
+            // URL (the original flow) or make your own audiobook from pasted
+            // text. A compact DropdownMenu keeps the single, familiar FAB.
+            androidx.compose.foundation.layout.Box {
+                FloatingActionButton(
+                    onClick = { addMenuOpen = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add to library")
+                }
+                androidx.compose.material3.DropdownMenu(
+                    expanded = addMenuOpen,
+                    onDismissRequest = { addMenuOpen = false },
+                ) {
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Add by URL") },
+                        onClick = {
+                            addMenuOpen = false
+                            viewModel.showAddByUrl()
+                        },
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Make your own audiobook") },
+                        onClick = {
+                            addMenuOpen = false
+                            createAudiobookOpen = true
+                        },
+                    )
+                }
             }
         },
     ) { scaffoldPadding ->
@@ -426,6 +460,13 @@ fun LibraryScreen(
         onChooseSource = viewModel::chooseSource,
         onCancelChoose = viewModel::cancelChooseSource,
     )
+
+    // Issue #1003 — "Make your own audiobook" sheet. Self-contained: its own
+    // ViewModel handles text → local fiction → background render → .m4b →
+    // share/Save-As.
+    if (createAudiobookOpen) {
+        CreateAudiobookSheet(onDismiss = { createAudiobookOpen = false })
+    }
 
     ManageShelvesSheet(
         state = manageShelvesState,

@@ -57,6 +57,11 @@ dependencies {
     // generateAudioPCM dispatch table. Pure-JVM module, no AAR; brings
     // OkHttp + the SSML builder + the engine handle adapter.
     implementation(project(":source-azure"))
+    // Issue #1003 — pure chapterizer + M4B chapter/metadata box math for the
+    // "Make your own audiobook" export. The Android encode + mux + the
+    // ExportFictionToAudiobookUseCase live here (we already carry the VoxSherpa
+    // engines + WorkManager); this leaf module supplies the testable pieces.
+    implementation(project(":source-audiobook-writer"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)

@@ -301,6 +301,8 @@
     <string name="fiction_remove_body">Your read progress will be lost. You can re-add it from Browse anytime, but the position you\'ve reached won\'t be restored.</string>
     <string name="fiction_building_epub">Building .epub…</string>
     <string name="fiction_export_epub">Export as EPUB…</string>
+    <!-- Issue #1003 — turn this fiction into a chaptered .m4b audiobook. -->
+    <string name="fiction_export_audiobook">Export as audiobook…</string>
     <string name="fiction_clear_cache">Clear fiction cache…</string>
     <string name="fiction_chapter_count">%1$d ch</string>
     <string name="fiction_separator">·</string>

@@ -250,6 +250,17 @@ object SourceIds {
     const val READABILITY: String = "readability"
 
     /**
+     * Issue #1003 — "Make your own audiobook." Text the user pastes / types /
+     * imports in the Create-audiobook flow becomes a local fiction under this
+     * source id (`myaudiobook:<uuid>`). Purely device-local, user-authored
+     * content: there is no remote backend to re-fetch from, so these rows are
+     * never polled for new chapters and are not rebuildable on another device
+     * (the text lived only in the paste). The export pipeline narrates the
+     * chapters into a shareable `.m4b`.
+     */
+    const val MY_AUDIOBOOK: String = "myaudiobook"
+
+    /**
      * Issue #989 — the sources whose fiction `id` is an opaque,
      * non-reversible hash of the source URL, so the id alone is NOT
      * enough to rebuild the fiction on a device that never saw the
