@@ -121,28 +121,28 @@ class AudiobookSynthesizer @Inject constructor(
         when (val type = voice.engineType) {
             is EngineType.Piper -> {
                 val voiceDir = voiceManager.voiceDirFor(voice.id)
-                val onnx = File(voiceDir, "model.onnx").absolutePath
-                val tokens = File(voiceDir, "tokens.txt").absolutePath
+                val onnx = File(voiceDir, MODEL_FILE).absolutePath
+                val tokens = File(voiceDir, TOKENS_FILE).absolutePath
                 VoiceEngine.getInstance().loadModel(appContext, onnx, tokens)
-                    ?: "Error: load returned null"
+                    ?: ERR_LOAD_NULL
             }
             is EngineType.Kokoro -> {
                 val sharedDir = voiceManager.kokoroSharedDir()
-                val onnx = File(sharedDir, "model.onnx").absolutePath
-                val tokens = File(sharedDir, "tokens.txt").absolutePath
-                val voicesBin = File(sharedDir, "voices.bin").absolutePath
+                val onnx = File(sharedDir, MODEL_FILE).absolutePath
+                val tokens = File(sharedDir, TOKENS_FILE).absolutePath
+                val voicesBin = File(sharedDir, VOICES_BIN_FILE).absolutePath
                 KokoroEngine.getInstance().setActiveSpeakerId(type.speakerId)
                 KokoroEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
-                    ?: "Error: load returned null"
+                    ?: ERR_LOAD_NULL
             }
             is EngineType.Kitten -> {
                 val sharedDir = voiceManager.kittenSharedDir()
-                val onnx = File(sharedDir, "model.onnx").absolutePath
-                val tokens = File(sharedDir, "tokens.txt").absolutePath
-                val voicesBin = File(sharedDir, "voices.bin").absolutePath
+                val onnx = File(sharedDir, MODEL_FILE).absolutePath
+                val tokens = File(sharedDir, TOKENS_FILE).absolutePath
+                val voicesBin = File(sharedDir, VOICES_BIN_FILE).absolutePath
                 KittenEngine.getInstance().setActiveSpeakerId(type.speakerId)
                 KittenEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
-                    ?: "Error: load returned null"
+                    ?: ERR_LOAD_NULL
             }
             // Guarded in loadVoice; defensive typed errors keep the when exhaustive.
             is EngineType.Azure -> "Error: Azure not supported for export"
@@ -168,5 +168,12 @@ class AudiobookSynthesizer @Inject constructor(
         private const val BYTES_PER_SAMPLE = 2 // 16-bit mono
         /** Inter-sentence gap so narration doesn't run together. */
         private const val SENTENCE_GAP_MS = 280
+
+        // On-disk voice-bundle artifact names — a filesystem contract shared with
+        // the voice downloader and ChapterRenderJob across all three engines.
+        private const val MODEL_FILE = "model.onnx"
+        private const val TOKENS_FILE = "tokens.txt"
+        private const val VOICES_BIN_FILE = "voices.bin"
+        private const val ERR_LOAD_NULL = "Error: load returned null"
     }
 }

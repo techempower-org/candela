@@ -76,7 +76,11 @@ class AudiobookExportJob @AssistedInject constructor(
             // Not retryable — the voice choice is wrong, retrying won't fix it.
             Log.w(LOG_TAG, "audiobook-export UNSUPPORTED-VOICE fictionId=$fictionId", uns)
             Result.failure(errorData(uns.message ?: "Unsupported voice"))
-        } catch (t: Throwable) {
+        } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
+            // Top of the worker's execution tree: any escape marks the work
+            // crashed. The native VoxSherpa layer can raise Error subtypes
+            // (UnsatisfiedLinkError, OOM) a narrow catch would miss, so we
+            // convert *everything* into a Failed status the UI can show.
             Log.w(LOG_TAG, "audiobook-export FAIL fictionId=$fictionId", t)
             if (isStopped) Result.failure() else Result.failure(errorData(t.message ?: "Export failed"))
         }

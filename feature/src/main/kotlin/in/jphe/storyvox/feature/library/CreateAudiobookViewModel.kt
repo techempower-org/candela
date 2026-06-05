@@ -94,7 +94,9 @@ class CreateAudiobookViewModel @Inject constructor(
                 )
                 workName.value = name
                 _uiState.value = _uiState.value.copy(isStarting = false)
-            } catch (t: Throwable) {
+            } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
+                // A DB write or enqueue failure must surface as an inline error,
+                // never an uncaught coroutine crash of the library screen.
                 _uiState.value = _uiState.value.copy(
                     isStarting = false,
                     error = t.message ?: "Couldn't start the audiobook",

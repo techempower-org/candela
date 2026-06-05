@@ -196,6 +196,17 @@ private fun ComposePhase(
             .fillMaxWidth()
             .heightIn(min = 120.dp, max = 240.dp),
     )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        BrassButton(
+            label = "Paste from clipboard",
+            onClick = onPaste,
+            variant = BrassButtonVariant.Text,
+            enabled = !isStarting,
+        )
+    }
 
     if (voices.isNotEmpty()) {
         Text("Voice", style = MaterialTheme.typography.labelLarge)
