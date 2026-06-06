@@ -88,6 +88,8 @@ fun NowPlayingScreen(bridge: WearPlaybackBridge) {
         },
         onSkipBack = { scope.launch { bridge.send(PhoneWearBridge.CMD_SKIP_BACK) } },
         onSkipForward = { scope.launch { bridge.send(PhoneWearBridge.CMD_SKIP_FWD) } },
+        // #1031 — tap the ring to scrub; duration comes from the synced state.
+        onScrub = { fraction -> scope.launch { bridge.sendSeek(fraction, state.durationEstimateMs) } },
     )
 }
 
@@ -102,6 +104,7 @@ internal fun NowPlayingContent(
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
+    onScrub: ((fraction: Float) -> Unit)? = null,
 ) {
     val configuration = LocalConfiguration.current
     val isRound = configuration.isScreenRound
@@ -125,6 +128,7 @@ internal fun NowPlayingContent(
                     onPlayPause = onPlayPause,
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
+                    onScrub = onScrub,
                 )
             } else {
                 SquareNowPlaying(
@@ -148,6 +152,7 @@ private fun RoundNowPlaying(
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
+    onScrub: ((fraction: Float) -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -159,6 +164,7 @@ private fun RoundNowPlaying(
         CircularScrubber(
             progress = progress,
             indeterminate = state.isBuffering,
+            onScrub = onScrub,
             modifier = Modifier
                 .size(116.dp)
                 .aspectRatio(1f),

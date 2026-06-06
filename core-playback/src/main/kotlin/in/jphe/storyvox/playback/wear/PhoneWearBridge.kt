@@ -77,6 +77,10 @@ class PhoneWearBridge @Inject constructor(
                 CMD_PREV_CH -> controller.previousChapter()
                 CMD_SLEEP_15 -> controller.startSleepTimer(SleepTimerMode.Duration(15))
                 CMD_SLEEP_OFF -> controller.cancelSleepTimer()
+                // Issue #1031 — the circular scrubber sends a target position
+                // (ms) in the message payload. A malformed/absent payload
+                // decodes to null and is ignored (no blind seek-to-zero).
+                CMD_SEEK -> SeekPayload.decode(event.data)?.let { controller.seekToPositionMs(it) }
             }
         }
     }
@@ -92,5 +96,12 @@ class PhoneWearBridge @Inject constructor(
         const val CMD_PREV_CH = "/playback/cmd/prevCh"
         const val CMD_SLEEP_15 = "/playback/cmd/sleep15"
         const val CMD_SLEEP_OFF = "/playback/cmd/sleepOff"
+
+        /**
+         * Issue #1031 — scrub from the wrist. Unlike the payload-less
+         * transport commands above, this message carries an 8-byte
+         * [SeekPayload] (absolute target position in ms).
+         */
+        const val CMD_SEEK = "/playback/cmd/seek"
     }
 }
