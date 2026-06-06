@@ -103,7 +103,24 @@ data class Fiction(
      * null at the same time via [FictionDao.clearBackfillFailure].
      */
     val metadataBackfillFailedAt: Long? = null,
-)
+) {
+    companion object {
+        /**
+         * Issue #981 / #1023 — the sentinel `title` a synced placeholder
+         * row carries until `MetadataBackfillWorker` hydrates it. Written
+         * by `LibrarySyncer`/`FollowsSyncer.localAdd` alongside
+         * `metadataFetchedAt = 0`; the library UI renders the localized
+         * "Loading…" caption for placeholder rows rather than this raw
+         * string.
+         *
+         * It is a single source of truth on purpose: `FictionDetail.toEntity`
+         * must recognize this exact string to avoid mistaking the sentinel
+         * for a genuinely-good cached title (#1023). If you change the value
+         * here, the syncers and the title-preservation guard move together.
+         */
+        const val PLACEHOLDER_TITLE: String = "Loading…"
+    }
+}
 
 /** Per-book download policy override. Null = inherit global setting. */
 enum class DownloadMode { LAZY, EAGER, SUBSCRIBE }
