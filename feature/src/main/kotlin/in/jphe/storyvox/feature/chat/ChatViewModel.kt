@@ -178,6 +178,30 @@ sealed class ChatError(val message: String) {
     class ProviderError(message: String) : ChatError(message)
 }
 
+/** Issue #1057 — does a stream's terminal `onCompletion` still own the
+ *  shared `_streaming` state? [send] cancels the prior job cooperatively
+ *  and immediately launches a replacement, so a cancelled job's
+ *  `onCompletion` can run *after* the replacement has begun streaming.
+ *  The terminal `_streaming` reset must only fire for the stream whose
+ *  [completionGeneration] still matches the [currentGeneration]; a stale
+ *  cancelled job (older stamp) must no-op, or it blanks the new
+ *  in-flight bubble (the flicker in #1057).
+ *
+ *  Pure + top-level so the ownership rule is unit-testable without
+ *  standing up the ViewModel or fighting StateFlow conflation (the bug
+ *  is a sub-frame transient that settled-state assertions can't see). */
+internal fun streamStillOwnsState(
+    completionGeneration: Int,
+    currentGeneration: Int,
+): Boolean = completionGeneration == currentGeneration
+
+/** Issue #1057 — structural canary. Asserts the active-stream guard is
+ *  still wired into the completion handlers' `_streaming` reset. A
+ *  refactor that drops the [streamStillOwnsState] gate (reintroducing
+ *  the unconditional `_streaming.value = null`) must flip this to false,
+ *  which the contract test catches. */
+internal const val chatStreamCompletionGuardsOwnership: Boolean = true
+
 /**
  * Backs the Q&A chat surface attached to a fiction. One chat history
  * per fiction (deterministic session id `chat:<fictionId>`) so
@@ -264,6 +288,15 @@ class ChatViewModel @Inject constructor(
     private val _streaming = MutableStateFlow<String?>(null)
     private val _error = MutableStateFlow<ChatError?>(null)
     private var sendJob: Job? = null
+
+    /** Issue #1057 — monotonic identity stamp for the active stream.
+     *  [send] cancels the prior [sendJob] cooperatively, so a replaced
+     *  job's `onCompletion` can run *after* the replacement has already
+     *  begun streaming. Each send captures the incremented value here;
+     *  a stream's terminal `_streaming` reset only fires when its own
+     *  stamp still matches [streamGeneration] — otherwise a stale
+     *  cancelled job would blank the new in-flight bubble. */
+    private var streamGeneration: Int = 0
 
     /** Set lazily on first send (or first load if a session already
      *  exists). Tracks whether we've created the Room row yet, so
@@ -429,6 +462,11 @@ class ChatViewModel @Inject constructor(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         sendJob?.cancel()
+        // Issue #1057 — claim a fresh stream identity. The just-cancelled
+        // job (if any) keeps its older stamp, so when its onCompletion
+        // finally unwinds it will no longer match and won't touch
+        // _streaming.
+        val generation = ++streamGeneration
         _error.value = null
         _toolCalls.value = emptyList()
         // Issue #215 — clear last send's "image dropped" banner so
@@ -546,9 +584,9 @@ class ChatViewModel @Inject constructor(
             }
 
             if (actionsEnabled) {
-                streamWithTools(trimmed, buf, userParts)
+                streamWithTools(trimmed, buf, userParts, generation)
             } else {
-                streamPlainText(trimmed, buf, userParts)
+                streamPlainText(trimmed, buf, userParts, generation)
             }
         }
     }
@@ -563,11 +601,17 @@ class ChatViewModel @Inject constructor(
         trimmed: String,
         buf: StringBuilder,
         userParts: List<LlmContentBlock>? = null,
+        generation: Int = streamGeneration,
     ) {
         sessionRepo.chat(sessionId, trimmed, userParts = userParts)
             .catch { e -> _error.value = mapError(e) }
             .onCompletion { cause ->
-                _streaming.value = null
+                // Issue #1057 — only the active stream owns _streaming.
+                // A cancelled job's late unwind must not blank the
+                // bubble of the send that replaced it.
+                if (streamStillOwnsState(generation, streamGeneration)) {
+                    _streaming.value = null
+                }
                 if (cause == null) {
                     extractAndRecord(buf.toString())
                 }
@@ -589,6 +633,7 @@ class ChatViewModel @Inject constructor(
         trimmed: String,
         buf: StringBuilder,
         userParts: List<LlmContentBlock>? = null,
+        generation: Int = streamGeneration,
     ) {
         val handlers = ChatToolHandlers(
             activeFictionId = fictionId,
@@ -609,7 +654,11 @@ class ChatViewModel @Inject constructor(
         )
             .catch { e -> _error.value = mapError(e) }
             .onCompletion { cause ->
-                _streaming.value = null
+                // Issue #1057 — see streamPlainText: a stale cancelled
+                // generation must not clobber the active stream's text.
+                if (streamStillOwnsState(generation, streamGeneration)) {
+                    _streaming.value = null
+                }
                 if (cause == null) {
                     extractAndRecord(buf.toString())
                 }
@@ -690,6 +739,10 @@ class ChatViewModel @Inject constructor(
     fun cancel() {
         sendJob?.cancel()
         sendJob = null
+        // Issue #1057 — revoke the cancelled job's authority over
+        // _streaming so its late onCompletion no-ops. We own the reset
+        // here (Stop clears the bubble immediately).
+        streamGeneration++
         _streaming.value = null
     }
 

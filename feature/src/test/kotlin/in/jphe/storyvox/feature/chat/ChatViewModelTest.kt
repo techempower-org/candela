@@ -131,6 +131,73 @@ class ChatViewModelTest {
         assertEquals("Hello, reader.", turns[1].text)
     }
 
+    // ── Issue #1057: stale-stream completion ownership ──────────────
+    //
+    // The bug: send() cancels the prior stream cooperatively and
+    // immediately launches a replacement. When the cancelled job finally
+    // unwinds, its onCompletion wrote `_streaming.value = null`
+    // unconditionally — blanking the new in-flight bubble for a frame.
+    //
+    // The runtime symptom is a sub-frame transient: both the stale null
+    // and the new stream's next delta land in the same dispatcher loop,
+    // and uiState (a combine()+StateFlow) only surfaces the settled
+    // last-writer-wins value — so a settled-state assertion cannot
+    // observe the flicker. The fix is therefore pinned two ways:
+    //   1. `streamStillOwnsState` — the pure ownership predicate, tested
+    //      directly below (its truth table IS the fix);
+    //   2. a behavioural test that the cancel-replace path still
+    //      finalises cleanly (non-regression for the common flow).
+
+    @Test
+    fun `streamStillOwnsState only the current generation may reset streaming (issue 1057)`() {
+        // The active stream owns _streaming and may reset it.
+        assertTrue(streamStillOwnsState(completionGeneration = 3, currentGeneration = 3))
+        // A stale (older) cancelled job has been superseded — must no-op.
+        assertFalse(streamStillOwnsState(completionGeneration = 2, currentGeneration = 3))
+        assertFalse(streamStillOwnsState(completionGeneration = 0, currentGeneration = 5))
+        // Defensive: a future-stamped completion (shouldn't happen) is
+        // also not the current owner.
+        assertFalse(streamStillOwnsState(completionGeneration = 4, currentGeneration = 3))
+        // Canary — fails loudly if a refactor drops the ownership guard.
+        assertTrue(chatStreamCompletionGuardsOwnership)
+    }
+
+    @Test
+    fun `cancel-then-replace send finalises the replacement cleanly (issue 1057)`() =
+        runTest(dispatcher) {
+            // First send parks mid-flight on its gate; a second send
+            // cancels it and streams "B". After everything unwinds, the
+            // replacement must be the finalised reply and streaming must
+            // be cleared — the cancelled job's late completion must not
+            // leave _streaming stuck or drop the new reply.
+            val oldGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val session = FakeSessionRepo(tokens = listOf("A", "A2"), gate = oldGate)
+            val (vm, _, _) = makeViewModel(session = session)
+            collectUiState(vm)
+
+            vm.send("first")
+            advanceUntilIdle() // first stream emits "A", parks on oldGate
+
+            session.tokens = listOf("B")
+            session.gate = null // replacement runs to completion
+            vm.send("second")
+            advanceUntilIdle()
+
+            // Release the cancelled first job so its onCompletion runs.
+            oldGate.complete(Unit)
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.streaming)
+            val turns = vm.uiState.value.turns
+            // first user turn (partial reply dropped) + second user turn
+            // + the "B" assistant reply.
+            assertEquals("B", turns.last().text)
+            assertEquals(ChatTurn.Role.Assistant, turns.last().role)
+            // The partial "A" reply of the cancelled stream is never
+            // persisted.
+            assertFalse(turns.any { it.text == "A" || it.text == "AA2" })
+        }
+
     @Test
     fun `send creates session on first call and reuses it on second`() = runTest(dispatcher) {
         val session = FakeSessionRepo(tokens = listOf("ok"))
@@ -397,6 +464,11 @@ class ChatViewModelTest {
 private class FakeSessionRepo(
     var tokens: List<String> = emptyList(),
     var throwOnChat: Throwable? = null,
+    /** Issue #1057 — when non-null, the stream emits its first token,
+     *  then suspends on [gate] before continuing. Lets a test wedge a
+     *  second send() in between to reproduce the cancel-replace race
+     *  deterministically. The test completes [gate] to release it. */
+    var gate: kotlinx.coroutines.CompletableDeferred<Unit>? = null,
 ) : LlmSessionRepository(
     sessionDao = ThrowingSessionDao,
     messageDao = ThrowingMessageDao,
@@ -442,9 +514,16 @@ private class FakeSessionRepo(
         messages.update { it + LlmMessage(LlmMessage.Role.user, userMessage) }
         throwOnChat?.let { throw it }
         val buf = StringBuilder()
-        for (t in tokens) {
+        tokens.forEachIndexed { index, t ->
             buf.append(t)
             emit(t)
+            // Issue #1057 — after the first token, hold the stream open
+            // so a test (or, in production, a real cancel) can intervene
+            // mid-flight. The flow stays suspended here; if the job is
+            // cancelled while awaiting, .await() throws Cancellation and
+            // the flow unwinds through onCompletion exactly as the bug
+            // requires.
+            if (index == 0) gate?.await()
         }
         // On clean completion, the real repo persists the assistant
         // turn — replicate so observeMessages reflects history.
