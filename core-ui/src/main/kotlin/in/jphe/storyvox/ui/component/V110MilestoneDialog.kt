@@ -29,10 +29,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
@@ -137,73 +139,91 @@ fun V110MilestoneDialog(
             shadowElevation = 12.dp,
             border = BorderStroke(width = 1.dp, color = BrassRamp.Brass500.copy(alpha = 0.55f)),
         ) {
+            // Outer Box: the content Column stacks the flame band ABOVE the
+            // text (so they never fight for the same rows), and the rising
+            // motes are a separate full-card overlay drifting across both.
             Box {
-                // The candle stage — flame + glow + arc rings, drawn on a
-                // canvas band at the top of the card.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CandleStage(intro = intro, flicker = flicker, frozen = frozen)
-                    // Rising motes layered over the candle stage (live only;
-                    // LightMotes itself draws a static bloom when frozen and
-                    // fires onFinished immediately, which is harmless here —
-                    // the dialog's own gate is the dismiss tap, not the
-                    // burst).
-                    if (!frozen) {
-                        LightMotes(onFinished = {}, modifier = Modifier.fillMaxSize())
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // The candle stage gets its OWN dedicated vertical band at
+                    // the top of the card — flame + glow + arc rings, with real
+                    // breathing room above it so nothing jams the top edge. The
+                    // text lives strictly below this band. `clip` is the hard
+                    // guarantee that the soft radial glow (and the expanding arc
+                    // rings) can never paint DOWN over the title — the canvas is
+                    // bounded to exactly this band.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = spacing.lg)
+                            .height(176.dp)
+                            .clip(RectangleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CandleStage(intro = intro, flicker = flicker, frozen = frozen)
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = spacing.lg)
+                            .padding(top = spacing.md, bottom = spacing.lg)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Text(
+                            text = "Candela 1.1 — read it your way",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = BrassRamp.Brass300,
+                        )
+                        Text(
+                            text = "Every reader holds the light a little differently.",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MilestoneCreamV110,
+                            modifier = Modifier.padding(top = spacing.xxs),
+                        )
+                        Text(
+                            text = "Per-word glow, your own typeface, the colors that " +
+                                "rest your eyes, the sources you already love — bring " +
+                                "your own, and read it your way.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MilestoneCreamV110.copy(alpha = 0.88f),
+                        )
+                        Text(
+                            text = "— from one small flame to the next",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MilestoneCreamV110.copy(alpha = 0.65f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = spacing.xs),
+                            textAlign = TextAlign.End,
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = spacing.sm),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            BrassButton(
+                                label = "Continue",
+                                onClick = onDismiss,
+                                variant = BrassButtonVariant.Primary,
+                            )
+                        }
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = spacing.lg)
-                        .padding(bottom = spacing.lg)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
-                ) {
-                    Text(
-                        text = "Candela 1.1 — read it your way",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = BrassRamp.Brass300,
+                // Rising motes drift across the WHOLE card, layered over both
+                // the flame band and the text (live only; LightMotes draws a
+                // static bloom when frozen and fires onFinished immediately,
+                // which is harmless here — the dialog's gate is the dismiss
+                // tap, not the burst). matchParentSize keeps the overlay
+                // exactly the size the content Column measured, so the card
+                // never grows to fit the motes.
+                if (!frozen) {
+                    LightMotes(
+                        onFinished = {},
+                        modifier = Modifier.matchParentSize(),
                     )
-                    Text(
-                        text = "Every reader holds the light a little differently.",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MilestoneCreamV110,
-                        modifier = Modifier.padding(top = spacing.xxs),
-                    )
-                    Text(
-                        text = "Per-word glow, your own typeface, the colors that " +
-                            "rest your eyes, the sources you already love — bring " +
-                            "your own, and read it your way.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MilestoneCreamV110.copy(alpha = 0.88f),
-                    )
-                    Text(
-                        text = "— from one small flame to the next",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MilestoneCreamV110.copy(alpha = 0.65f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = spacing.xs),
-                        textAlign = TextAlign.End,
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = spacing.sm),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        BrassButton(
-                            label = "Continue",
-                            onClick = onDismiss,
-                            variant = BrassButtonVariant.Primary,
-                        )
-                    }
                 }
             }
         }
@@ -222,13 +242,24 @@ private fun CandleStage(intro: Float, flicker: Float, frozen: Boolean) {
         val w = size.width
         val h = size.height
         val cx = w * 0.5f
-        // Wick / flame base sits a little below the vertical center.
-        val baseY = h * 0.62f
+        // Wick / flame base — lifted to just below the band's vertical
+        // center (was 0.62h, which sank the glow against the band's lower
+        // edge and crowded the title below). The whole candle composition
+        // (flame, glow, rings) hangs off this single anchor so it moves as
+        // one unit, and a smaller glow radius leaves a dark margin before
+        // the band bottom — the breathing room JP asked for.
+        val baseY = h * 0.56f
+        // Single shared center for the radial glow and the arc rings, so
+        // the light blooms from one point and stays vertically balanced
+        // within the band.
+        val glowCenterY = baseY - h * 0.12f
 
         // Beat 2 — radial glow [0.12, 0.50], holds afterward at a calm
-        // resting alpha so the card stays warm.
+        // resting alpha so the card stays warm. Radius trimmed 0.46h→0.40h
+        // so the soft outer falloff lands inside the band with margin.
         val glowProgress = remap(intro, 0.12f, 0.50f)
         val glowAlpha = (0.15f + 0.35f * glowProgress) * (0.85f + 0.15f * flicker)
+        val glowRadius = h * 0.40f
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
@@ -236,11 +267,11 @@ private fun CandleStage(intro: Float, flicker: Float, frozen: Boolean) {
                     BrassRamp.Brass400.copy(alpha = glowAlpha * 0.45f),
                     Color.Transparent,
                 ),
-                center = Offset(cx, baseY - h * 0.10f),
-                radius = h * 0.46f,
+                center = Offset(cx, glowCenterY),
+                radius = glowRadius,
             ),
-            radius = h * 0.46f,
-            center = Offset(cx, baseY - h * 0.10f),
+            radius = glowRadius,
+            center = Offset(cx, glowCenterY),
         )
 
         // Beat 4 — soundwave arc rings [0.45, 0.95]. Three concentric
@@ -253,12 +284,12 @@ private fun CandleStage(intro: Float, flicker: Float, frozen: Boolean) {
                     // Stagger each ring by 1/3 so they chase outward.
                     val rp = (ringProgress - i * 0.18f).coerceIn(0f, 1f)
                     if (rp <= 0f) continue
-                    val radius = h * (0.10f + rp * 0.34f)
+                    val radius = h * (0.10f + rp * 0.30f)
                     val ringAlpha = (1f - rp) * 0.5f
                     drawCircle(
                         color = BrassRamp.Brass200.copy(alpha = ringAlpha),
                         radius = radius,
-                        center = Offset(cx, baseY - h * 0.08f),
+                        center = Offset(cx, glowCenterY),
                         style = Stroke(width = (h * 0.012f).coerceAtLeast(1.5f)),
                     )
                 }
