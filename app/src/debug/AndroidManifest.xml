@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-variant manifest overlay (#1088 — Layer 3 instrumented test infra).
+
+  Production MainActivity declares android:launchMode="singleTask" (so a
+  notification tap / deep link routes through the existing task rather than
+  stacking a duplicate). That launch mode breaks AndroidX Test's
+  ActivityScenario — which backs createAndroidComposeRule<MainActivity>():
+  the system reparents a singleTask activity into a fresh task (observed as
+  t808, separate from the instrumentation task), so the ComposeTestRule's
+  TestOwner sees an empty composition and waitUntil times out ("No compose
+  hierarchies found").
+
+  The androidTest manifest can't fix this — it merges into the *test* APK
+  (org.techempower.candela.test), not the target app APK the test
+  instruments. The target is the *debug* APK, so the override belongs here.
+
+  tools:replace="android:launchMode" tells the manifest merger to override
+  (not conflict on) the value from the main manifest. This overlay applies to
+  the DEBUG variant only. The shipped artifact is the `release` variant (see
+  app/build.gradle.kts buildTypes — post-#529 release is the shipped build),
+  so production launch behavior is untouched: a sideloaded/Play release APK
+  still gets singleTask.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <activity
+            android:name="in.jphe.storyvox.MainActivity"
+            android:launchMode="standard"
+            tools:replace="android:launchMode" />
+    </application>
+</manifest>
