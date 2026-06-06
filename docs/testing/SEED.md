@@ -88,6 +88,23 @@ After it lands on the fiction-detail screen, tap the play/read affordance
 (or, in an instrumented test, navigate the reader route) to open the
 single chapter into the reader.
 
+### Precondition: onboarding must be completed
+
+On a **fresh install** the app boots into the first-run onboarding flow
+(its start destination), the last step of which is a "Pick a voice" gate
+that wants a voice download. The seed's navigation to the fiction-detail
+screen happens behind that gate, so the reader is not observable until
+onboarding is finished. Verified on-device: the seed's asset-copy step
+runs regardless (the fixture is staged into the app's `cacheDir`), but
+the reader landing requires a device/emulator that has already completed
+onboarding.
+
+For instrumented tests, complete or bypass onboarding in test setup (e.g.
+seed the "onboarding seen" preference, or drive through the flow once)
+before firing the seed intent — then the import navigates straight to the
+fiction with no network. For a manual device check, run the seed on an
+already-onboarded device.
+
 ### Instrumented-test use
 
 The same path is callable from a Compose/instrumented test by launching
