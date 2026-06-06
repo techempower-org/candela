@@ -215,6 +215,9 @@ class SettingsViewModelPunctuationPauseTest {
         override val epubFolderUri: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null)
         override suspend fun setEpubFolderUri(uri: String) = Unit
         override suspend fun clearEpubFolder() = Unit
+        override val pdfFolderUri: kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.flowOf(null)
+        override suspend fun setPdfFolderUri(uri: String) = Unit
+        override suspend fun clearPdfFolder() = Unit
         override suspend fun setWikipediaLanguageCode(code: String) = Unit
         override suspend fun setDiscordApiToken(token: String?) = Unit
         override suspend fun setDiscordServer(serverId: String, serverName: String) = Unit
