@@ -23,6 +23,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.ui.theme.LocalMotion
+import `in`.jphe.storyvox.ui.theme.LocalReaderColors
 import `in`.jphe.storyvox.ui.theme.LocalReducedMotion
 
 /**
@@ -48,8 +49,12 @@ fun SentenceHighlight(
     onLongPressWord: ((String) -> Unit)? = null,
     onLayout: ((TextLayoutResult) -> Unit)? = null,
 ) {
-    val brass = MaterialTheme.colorScheme.primary
-    val onSurface = MaterialTheme.colorScheme.onSurface
+    // #993 — when a reading theme is active, the chapter text uses the
+    // theme's foreground and the sentence underline uses its accent; otherwise
+    // we fall back to MaterialTheme so the default reader is pixel-identical.
+    val readerColors = LocalReaderColors.current.resolved
+    val brass = readerColors?.accent ?: MaterialTheme.colorScheme.primary
+    val onSurface = readerColors?.foreground ?: MaterialTheme.colorScheme.onSurface
     val motion = LocalMotion.current
 
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }

@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -48,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -60,7 +63,9 @@ import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiPlaybackState
 import `in`.jphe.storyvox.ui.component.SentenceHighlight
+import `in`.jphe.storyvox.ui.theme.LocalReaderColors
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
+import `in`.jphe.storyvox.ui.theme.ReaderColors
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -155,6 +160,11 @@ fun ReaderTextView(
      *  [HybridReaderScreen] to [ReaderViewModel.setFocusModeEnabled].
      *  No-op default for preview/test callsites. */
     onToggleFocusMode: (Boolean) -> Unit = {},
+    /** Issue #993 — reading-theme colours for the chapter surface. Default
+     *  is inactive (the reader uses the app theme); when a theme is active
+     *  the body background + text + sentence underline are re-tinted. No-op
+     *  default keeps preview/test/audiobook callsites unchanged. */
+    readerColors: ReaderColors = ReaderColors(),
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -263,7 +273,15 @@ fun ReaderTextView(
         label = "focus-title-alpha",
     )
 
-    Box(modifier = modifier.fillMaxSize().onSizeChanged { viewportHeightPx = it.height.toFloat() }) {
+    // #993 — provide the reading-theme colours to the chapter renderer below.
+    // When active we paint the theme background on the reader surface and tint
+    // the chapter title to the theme foreground; SentenceHighlight reads
+    // LocalReaderColors for the body text + underline. Inactive = no change.
+    val readerSurface = readerColors.resolved
+    val surfaceModifier =
+        if (readerSurface != null) modifier.background(readerSurface.background) else modifier
+    CompositionLocalProvider(LocalReaderColors provides readerColors) {
+    Box(modifier = surfaceModifier.fillMaxSize().onSizeChanged { viewportHeightPx = it.height.toFloat() }) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -282,6 +300,11 @@ fun ReaderTextView(
             Text(
                 state.chapterTitle,
                 style = MaterialTheme.typography.headlineSmall,
+                // #993 — tint the title to the theme foreground when a reading
+                // theme is active; Color.Unspecified falls back to the app theme.
+                color = readerSurface?.foreground ?: Color.Unspecified,
+                // #997 — focus mode narrows the column (contentWidthModifier)
+                // and fades the title back (titleAlpha).
                 modifier = contentWidthModifier
                     .fillMaxWidth()
                     .padding(bottom = spacing.md)
@@ -565,6 +588,7 @@ fun ReaderTextView(
             )
         }
     }
+    } // CompositionLocalProvider(LocalReaderColors) — #993
 }
 
 @Composable
