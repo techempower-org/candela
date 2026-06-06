@@ -88,6 +88,8 @@ import `in`.jphe.storyvox.source.mempalace.net.PalaceDaemonApi
 import `in`.jphe.storyvox.source.mempalace.net.PalaceDaemonResult
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -1112,6 +1114,23 @@ class SettingsRepositoryUiImpl(
         kotlinx.coroutines.SupervisorJob() + pushDispatcher,
     )
     @Volatile private var pushJob: kotlinx.coroutines.Job? = null
+
+    /** Issue #1024 — serializes the per-key stamp / snapshot-baseline
+     *  read-modify-write so the two writers of [SYNC_FIELD_STAMPS_KEY] /
+     *  [SYNC_SNAPSHOT_BASELINE_KEY] can't interleave:
+     *  - Path A: a local UI setter → [stampSyncedWrite] → [reconcileFieldStamps],
+     *    running on whatever coroutine the setter was called from.
+     *  - Path B: a sync pull → [applyStamped], running inside the
+     *    [SyncCoordinator] per-domain mutex.
+     *  The coordinator mutex only serializes syncers against each other; it
+     *  does not touch Path A, which calls this repository directly from the
+     *  UI layer. Each individual `store.edit` is atomic, but the compound
+     *  read→read→write→write is not, so without this lock a write from one
+     *  path could land on a stale read from the other — corrupting the
+     *  baseline (#978 cross-device-clobber, just in a narrower window). This
+     *  mutex is fully local and `@Singleton`-scoped, so one instance guards
+     *  every caller. */
+    private val stampMutex = Mutex()
 
     /** Schedule (or reschedule) the debounced settings-domain push.
      *  Called from [stampSyncedWrite]. [SyncCoordinator.requestPush]
@@ -2826,23 +2845,29 @@ class SettingsRepositoryUiImpl(
      * would make it spuriously win the next merge).
      */
     override suspend fun applyStamped(snapshot: Map<String, String>, stamps: Map<String, Long>) {
-        applyValues(snapshot)
-        // Persist the incoming stamps for the applied keys, and rebase
-        // the diff baseline to the values we just wrote so the next
-        // LOCAL edit diffs against the merged state (not a stale one).
-        val existingStamps = readFieldStamps().toMutableMap()
-        val baseline = readSnapshotBaseline().toMutableMap()
-        for ((key, value) in snapshot) {
-            stamps[key]?.let { existingStamps[key] = it }
-            baseline[key] = value
+        stampMutex.withLock {
+            // Issue #1024 — the value-apply + stamp/baseline rebase runs as one
+            // unit under [stampMutex]. applyValues writes the settings values that
+            // reconcileFieldStamps' snapshot() reads, so locking it together with
+            // the stamp/baseline write keeps Path A from snapshotting a half-
+            // applied state or rebasing the baseline off a stale read.
+            applyValues(snapshot)
+            // Persist the incoming stamps for the applied keys, and rebase
+            // the diff baseline to the values we just wrote so the next
+            // LOCAL edit diffs against the merged state (not a stale one).
+            val existingStamps = readFieldStamps().toMutableMap()
+            val baseline = readSnapshotBaseline().toMutableMap()
+            for ((key, value) in snapshot) {
+                stamps[key]?.let { existingStamps[key] = it }
+                baseline[key] = value
+            }
+            writeStampsAndBaseline(existingStamps, baseline)
+            // Advance the legacy global stamp to the newest applied field
+            // (still the v1 row updatedAt + the per-key fallback). Do NOT
+            // call stampSyncedWrite — that would re-stamp everything `now`
+            // and schedule a redundant push of state we just received.
+            stamps.values.maxOrNull()?.let { stampLocalWrite(it) }
         }
-        writeFieldStamps(existingStamps)
-        writeSnapshotBaseline(baseline)
-        // Advance the legacy global stamp to the newest applied field
-        // (still the v1 row updatedAt + the per-key fallback). Do NOT
-        // call stampSyncedWrite — that would re-stamp everything `now`
-        // and schedule a redundant push of state we just received.
-        stamps.values.maxOrNull()?.let { stampLocalWrite(it) }
     }
 
     /** Shared value-application body for [apply] / [applyStamped].
@@ -2955,8 +2980,13 @@ class SettingsRepositoryUiImpl(
     }
 
     /** Recompute the per-key stamp map from a fresh snapshot vs the
-     *  persisted baseline, bumping changed/new keys to [now]. */
-    private suspend fun reconcileFieldStamps(now: Long) {
+     *  persisted baseline, bumping changed/new keys to [now].
+     *
+     *  Issue #1024 — the whole read-modify-write runs under [stampMutex] so
+     *  it can't interleave with [applyStamped] (Path B), and the two writes
+     *  are folded into one [writeStampsAndBaseline] edit so the stamp map and
+     *  its baseline always advance together. */
+    private suspend fun reconcileFieldStamps(now: Long) = stampMutex.withLock {
         val current = snapshot()
         val baseline = readSnapshotBaseline()
         val stamps = readFieldStamps().toMutableMap()
@@ -2966,8 +2996,7 @@ class SettingsRepositoryUiImpl(
         }
         // Forget stamps for keys no longer present.
         stamps.keys.retainAll(current.keys)
-        writeFieldStamps(stamps)
-        writeSnapshotBaseline(current)
+        writeStampsAndBaseline(stamps, current)
     }
 
     private suspend fun readFieldStamps(): Map<String, Long> {
@@ -2975,19 +3004,25 @@ class SettingsRepositoryUiImpl(
         return runCatching { syncJson.decodeFromString(STAMP_MAP_SERIALIZER, raw) }.getOrDefault(emptyMap())
     }
 
-    private suspend fun writeFieldStamps(stamps: Map<String, Long>) {
-        val encoded = syncJson.encodeToString(STAMP_MAP_SERIALIZER, stamps)
-        store.edit { it[SYNC_FIELD_STAMPS_KEY] = encoded }
-    }
-
     private suspend fun readSnapshotBaseline(): Map<String, String> {
         val raw = store.data.first()[SYNC_SNAPSHOT_BASELINE_KEY] ?: return emptyMap()
         return runCatching { syncJson.decodeFromString(STRING_MAP_SERIALIZER, raw) }.getOrDefault(emptyMap())
     }
 
-    private suspend fun writeSnapshotBaseline(snapshot: Map<String, String>) {
-        val encoded = syncJson.encodeToString(STRING_MAP_SERIALIZER, snapshot)
-        store.edit { it[SYNC_SNAPSHOT_BASELINE_KEY] = encoded }
+    /** Issue #1024 — persist the stamp map and its diff baseline in a single
+     *  [DataStore.edit] so they always advance together. Previously these were
+     *  two separate `store.edit` calls; a writer that crashed (or was
+     *  cancelled) between them, or a concurrent reader landing between them,
+     *  could observe stamps that disagree with the baseline. Callers
+     *  ([reconcileFieldStamps] / [applyStamped]) hold [stampMutex] across the
+     *  read-modify-write; this collapses the persist to one atomic step. */
+    private suspend fun writeStampsAndBaseline(stamps: Map<String, Long>, baseline: Map<String, String>) {
+        val encodedStamps = syncJson.encodeToString(STAMP_MAP_SERIALIZER, stamps)
+        val encodedBaseline = syncJson.encodeToString(STRING_MAP_SERIALIZER, baseline)
+        store.edit {
+            it[SYNC_FIELD_STAMPS_KEY] = encodedStamps
+            it[SYNC_SNAPSHOT_BASELINE_KEY] = encodedBaseline
+        }
     }
 
     companion object {
