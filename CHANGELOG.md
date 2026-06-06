@@ -9,9 +9,71 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.1.0] -- 2026-06-05
+
+**Read it your way — and bring your own.** The first post-launch feature wave turns Candela from "play what we fetch" into "read and listen to anything, however you need to." New ways to *get* text in — make your own audiobook from pasted text, scan a physical page (OCR), import a PDF, open a shared EPUB/PDF, or stream public-domain human narration (LibriVox). New ways to *read* it — a dyslexia-friendly typeface, custom color themes and overlays, in-chapter search, focused-reading and per-word read-along modes, paragraph navigation, and persistent highlights & notes you can export. Plus accessibility-first reader controls and a deep round of sync / playback / source correctness underneath. Built on the v1.0.3 Candela identity.
+
 ### Added
+
 - **#1003** **Make your own audiobook** — turn your own text into a saved, shareable audiobook, entirely offline. A new "Make your own audiobook" entry on the Library **+** menu takes pasted/typed text → auto-chapterizes it → narrates it with a downloaded neural voice → exports a **chaptered `.m4b`** (chapter markers + title/author/cover metadata) you can play in Candela and share via the Android share sheet / Save-As (SAF). The same export is available from any library book via Fiction detail → **Export as audiobook…**. The render runs in a background WorkManager job with a progress notification. New `:source-audiobook-writer` module holds the (unit-tested) chapterizer, Nero `chpl` chapter atom + iTunes metadata box builders, and the in-place `moov`/`udta` injector; `:core-playback` adds the AAC `MediaMuxer` encoder, the synthesizer, and the export use case + worker.
-- **#996** PDF import + read-aloud — a new **Local PDFs** source (`:source-pdf`, sibling of Local EPUB). Pick a folder via SAF; every `.pdf` inside becomes a fiction Candela can narrate. Text-layer extraction uses PdfBox-Android (Apache-2.0); pages group into chapters by detected headings (Chapter/Part/Section/numbered) with a page-batch fallback. Zero-network, files stay on-device — the accessibility surface for syllabi, benefit letters, manuals, and papers. Scanned/image-only PDFs route through a pluggable OCR seam (`PdfOcrTextProvider`, no-op until **#995** lands the ML Kit provider), so born-digital pages narrate today and scanned pages light up once OCR ships.
+- **#1015** **LibriVox source** — public-domain, human-narrated audiobooks as a first-class source. Search the LibriVox catalog and stream real human narration alongside the neural-TTS sources, for titles where a recorded reading already exists.
+- **#995** **OCR scan-to-read** — point the camera at a physical page (or pick a photo) and Candela runs on-device ML Kit text recognition → assembles the recognized text into a Fiction → narrates it. Camera + gallery capture with a runtime-permission flow; the text extraction/parsing is unit-tested in the new `:source-ocr` module.
+- **#1000** **'Open With' file association** — Candela now registers as a handler for EPUB / PDF / TXT, so opening one of those from Files, a browser download, or another app offers Candela directly. The deep-link resolver ingests the incoming `content://` Uri, builds a Fiction, and drops you into the reader.
+- **#996** **PDF import + read-aloud** — bring a PDF in (via 'Open With' or the import sheet), extract its text page by page, and have it narrated. The new `:source-pdf` module builds a Fiction from the document so a PDF reads like any other source.
+
+#### Reading experience
+
+- **#997** **Focused Reading mode** — a distraction-reduced, center-locked reading view that quiets the surrounding chrome so the current passage holds the eye. Toggleable from the reader.
+- **#1001** **Paragraph-level navigation** — skip back/forward a whole paragraph at a time in the reader, in addition to chapter and sentence granularity.
+- **#998** **In-text search** — find-in-chapter with jump-to-match navigation, so you can locate a passage inside a long chapter and jump straight to it.
+- **#992** **OpenDyslexic + dyslexia-friendly typography** — opt into the OpenDyslexic typeface plus dyslexia-oriented reading defaults (letter/line spacing, weight) via a new Reading-text settings group, for more comfortable reading.
+- **#993** **Color overlays & custom reading themes** — tinted reading overlays and custom reader color themes, with WCAG-contrast-checked presets, for visual comfort and low-vision readability.
+- **#994** **Per-word read-along highlight** — a per-word highlight mode that advances word-by-word with the narration (a frame-clocked progress fill), in addition to the existing sentence-level highlight, for tighter read-along tracking.
+- **#999** **Highlights & notes with export** — select text to highlight (with a color) and attach an optional note; review your highlights grouped by chapter on the book's detail screen, and export them all as **Markdown or plain text** via the share sheet / Save-As. Highlights persist locally and sync across devices. (Phase 1 — in-reader select-drag capture lands in a fast-follow, #999 phase 2 / #1079.)
+
+### Changed / Improved
+
+- **#974** **Tighter A/V sync** — sentence-highlight position now extrapolates from `AudioTrack.getTimestamp()` rather than polling alone, closing the residual lag between the spoken word and the highlighted word during continuous playback.
+- **#1031** **Wear scrubber actually scrubs** — the Wear OS circular scrubber gained a `CMD_SEEK` path, so dragging it now seeks the phone's playback instead of being inert.
+
+### Accessibility
+
+- **#1025** The Audiobook ↔ Reader pane switch is now exposed as a first-class TalkBack action, so screen-reader users can move between listening and reading views without hunting for the toggle.
+- **#1026** First-launch onboarding / voice-pick overlays are now isolated from TalkBack background traversal, so the screen reader can't wander into the obscured content behind a modal during setup.
+
+### Fixed
+
+#### Sync & data integrity
+- **#1024** Settings field-stamp / snapshot-baseline read-modify-write is now guarded by a shared mutex (and folded into a single atomic store edit), closing a cross-path race where a local UI write and an incoming sync pull could interleave and re-push or drop a just-adopted preference.
+- **#1027** A wrong sync passphrase no longer clobbers the remote secrets blob — entering the wrong code on a second device can't overwrite the encrypted secrets it failed to decrypt.
+- **#1029** The bookmarks syncer no longer deletes local-only bookmarks — a bookmark made offline on one device survives a sync pull instead of being treated as a remote deletion.
+
+#### Playback
+- **#1034** A per-key write lease replaces the raw PCM-cache appender, stopping a corruption race when two synthesis paths target the same cache key (single-owner, foreground-wins).
+
+#### Wear
+- **#1030** Wear transport now surfaces a phone-disconnected state instead of silently swallowing the tap, so a control that can't reach the phone says so rather than appearing broken.
+
+#### Sources
+- **#1036 / #1056** The Notion source recurses into nested blocks (toggles, columns, sub-lists) on both the authenticated and anonymous read paths, so nested content narrates instead of being dropped.
+- **#1035 / #1021** The EPUB parser normalizes OPF hrefs — percent-decoding, resolving `../`, and stripping a leading slash — so spine items with awkward relative paths resolve to the right chapter file.
+- **#1060** Wikisource subpages are natural-sorted, so a multi-chapter work plays in human order (Chapter 2 before Chapter 10) instead of lexical order.
+- **#1058** PLOS free-text Search filters to `doc_type:full`, eliminating ~6 duplicate cards per article.
+- **#1061** Slack / Telegram / Matrix request paths are pinned to `Dispatchers.IO`, fixing a `NetworkOnMainThreadException` crash on those sources.
+- **#1064** The Discord source treats a message author as nullable with a fallback, so one author-less message can no longer brick the whole channel.
+
+#### Library & chat
+- **#1023** A blank source title no longer freezes a synced placeholder on an eternal "Loading…" — items that can't resolve a title show a real state instead of spinning forever.
+- **#1057** A stale, cancelled chat stream no longer blanks the replacement bubble when its late `onCompletion` fires.
+
+### Tests / Infra
+
+- **#1032** New JVM unit tests for the Wear `WearPlaybackBridge` — state-decode + version-skew resilience.
+- **#1020** New unit coverage for the `ReadabilityExtractor`.
+- **Candela domain & identity follow-through** — `candela.techempower.org` (DNS + GitHub Pages), the rebranded org profile / marketing site / wiki, the in-code repo-URL sweep (#46), the `candela-*` registry/feeds rename (#47), and the final `storyvox.techempower.org → candela` URL sweep (#77, incl. the Play privacy URL).
+- **Wiki auto-sync** — a CI workflow now mirrors canonical `docs/` into the GitHub wiki (allowlist + anti-clobber markers).
+- **VoxSherpa-TTS upstream-watch** — a workflow watches the JitPack TTS dependency Dependabot can't track.
+- Removed `source-royalroad/_unintegrated/parser` dead code.
 
 ## [1.0.3] -- 2026-05-29
 
