@@ -69,3 +69,26 @@ fun currentWordRange(
     }
     return words.last()
 }
+
+/**
+ * Issue #994 — fraction (0..1) of the way through the current sentence,
+ * for feeding [currentWordRange]'s `sentenceProgress`.
+ *
+ * The reader accumulates [elapsedMs] of (speed-scaled) playback time since
+ * the engine published the current sentence and divides by the sentence's
+ * [durationMs] estimate. Kept pure so the composable's per-frame
+ * [withFrameNanos] loop stays a thin call site and the timing math is
+ * unit-tested under plain JUnit.
+ *
+ * @param elapsedMs playback time elapsed within the current sentence; may
+ *        briefly go negative across a clock-reset race (clamped to 0).
+ * @param durationMs the sentence's duration estimate. When <= 0 (not yet
+ *        estimated, or a zero-length sentence) we return 1f — "treat as
+ *        done", highlighting the last word — rather than dividing by zero;
+ *        this self-corrects on the next sentence boundary.
+ * @return progress in [0f, 1f].
+ */
+fun sentenceProgress(elapsedMs: Long, durationMs: Long): Float {
+    if (durationMs <= 0L) return 1f
+    return (elapsedMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+}
