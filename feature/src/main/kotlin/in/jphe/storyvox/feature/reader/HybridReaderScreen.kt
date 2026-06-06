@@ -92,6 +92,7 @@ fun HybridReaderScreen(
     val chapters by viewModel.chapters.collectAsStateWithLifecycle()
     val autoScrollEnabled by viewModel.autoScrollEnabled.collectAsStateWithLifecycle()
     val focusModeEnabled by viewModel.focusModeEnabled.collectAsStateWithLifecycle()
+    val readerColors by viewModel.readerColors.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Calliope (v0.5.00) — first-natural-chapter-completion confetti.
@@ -360,6 +361,8 @@ fun HybridReaderScreen(
                 // collapses the bottom chrome when on.
                 focusModeEnabled = focusModeEnabled,
                 onToggleFocusMode = viewModel::setFocusModeEnabled,
+                // Issue #993 — reading-theme colour overlay for the surface.
+                readerColors = readerColors,
             )
         },
     )
