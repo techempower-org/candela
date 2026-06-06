@@ -397,7 +397,27 @@ fun BrowseScreen(
                 state.items.isEmpty() &&
                 !state.isLoading &&
                 state.error == null ->
-                LocalEmptyState(viewModel = viewModel)
+                LocalEmptyState(
+                    title = "Listen to your own EPUBs",
+                    body = "Pick a folder on your device — every .epub inside becomes " +
+                        "a fiction storyvox can read to you. Zero network, " +
+                        "your files stay on your device.",
+                    onPick = viewModel::setEpubFolderUri,
+                )
+            // Issue #996 — same first-run empty state for the Local PDFs
+            // chip. PdfSource lists nothing until the user picks a folder.
+            state.sourceId == SourceIds.PDF &&
+                state.tab != BrowseTab.Search &&
+                state.items.isEmpty() &&
+                !state.isLoading &&
+                state.error == null ->
+                LocalEmptyState(
+                    title = "Listen to your own PDFs",
+                    body = "Pick a folder on your device — every .pdf inside becomes " +
+                        "a fiction storyvox can read to you. Syllabi, papers, " +
+                        "manuals, forms. Zero network, your files stay on your device.",
+                    onPick = viewModel::setPdfFolderUri,
+                )
             // Issue #673 — Readability backend is the always-on last-resort
             // URL matcher; it has no listings of its own. Pre-fix, the chip's
             // body rendered as silent-empty: no spinner, no message, no CTA.
@@ -777,7 +797,11 @@ private fun Ao3SignInBanner(onOpenSignIn: () -> Unit) {
  * grant outlives the current process.
  */
 @Composable
-private fun LocalEmptyState(viewModel: BrowseViewModel) {
+private fun LocalEmptyState(
+    title: String,
+    body: String,
+    onPick: (String) -> Unit,
+) {
     val spacing = LocalSpacing.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -788,7 +812,7 @@ private fun LocalEmptyState(viewModel: BrowseViewModel) {
             runCatching {
                 context.contentResolver.takePersistableUriPermission(uri, flags)
             }
-            viewModel.setEpubFolderUri(uri.toString())
+            onPick(uri.toString())
         }
     }
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -804,15 +828,13 @@ private fun LocalEmptyState(viewModel: BrowseViewModel) {
                 modifier = Modifier.size(48.dp),
             )
             Text(
-                "Listen to your own EPUBs",
+                title,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
             Text(
-                "Pick a folder on your device — every .epub inside becomes " +
-                    "a fiction storyvox can read to you. Zero network, " +
-                    "your files stay on your device.",
+                body,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

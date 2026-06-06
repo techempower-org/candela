@@ -332,6 +332,11 @@ internal object LegacySourceKeys {
             Spec(booleanPreferencesKey("pref_source_rss_enabled"), defaultValue = true),
         `in`.jphe.storyvox.data.source.SourceIds.EPUB to
             Spec(booleanPreferencesKey("pref_source_epub_enabled"), defaultValue = true),
+        // #996 — local PDF backend (sibling of EPUB). Fresh-install
+        // discoverability (#436): chip on by default; backend lists
+        // nothing until the user picks a folder.
+        `in`.jphe.storyvox.data.source.SourceIds.PDF to
+            Spec(booleanPreferencesKey("pref_source_pdf_enabled"), defaultValue = true),
         `in`.jphe.storyvox.data.source.SourceIds.OUTLINE to
             Spec(booleanPreferencesKey("pref_source_outline_enabled"), defaultValue = true),
         `in`.jphe.storyvox.data.source.SourceIds.GUTENBERG to
@@ -548,6 +553,8 @@ private object Keys {
     val SOURCE_RSS_ENABLED = booleanPreferencesKey("pref_source_rss_enabled")
     /** Issue #235 — local EPUB backend on/off. */
     val SOURCE_EPUB_ENABLED = booleanPreferencesKey("pref_source_epub_enabled")
+    /** Issue #996 — local PDF backend on/off. */
+    val SOURCE_PDF_ENABLED = booleanPreferencesKey("pref_source_pdf_enabled")
     /** Issue #245 — Outline backend on/off. */
     val SOURCE_OUTLINE_ENABLED = booleanPreferencesKey("pref_source_outline_enabled")
     /** Issue #237 — Project Gutenberg backend on/off. Default true
@@ -1008,6 +1015,7 @@ class SettingsRepositoryUiImpl(
     private val teamsAuth: AnthropicTeamsAuthRepository,
     private val rssConfig: RssConfigImpl,
     private val epubConfig: EpubConfigImpl,
+    private val pdfConfig: PdfConfigImpl,
     private val outlineConfig: OutlineConfigImpl,
     private val wikipediaConfig: WikipediaConfigImpl,
     private val notionConfig: NotionConfigImpl,
@@ -1088,6 +1096,7 @@ class SettingsRepositoryUiImpl(
         teamsAuth: AnthropicTeamsAuthRepository,
         rssConfig: RssConfigImpl,
         epubConfig: EpubConfigImpl,
+        pdfConfig: PdfConfigImpl,
         outlineConfig: OutlineConfigImpl,
         wikipediaConfig: WikipediaConfigImpl,
         notionConfig: NotionConfigImpl,
@@ -1113,6 +1122,7 @@ class SettingsRepositoryUiImpl(
     ) : this(
         context.settingsDataStore, auth, hydrator,
         palaceConfig, palaceApi, llmCreds, githubAuth, teamsAuth, rssConfig, epubConfig,
+        pdfConfig,
         outlineConfig, wikipediaConfig, notionConfig, discordConfig, discordGuildDirectory,
         telegramConfig, telegramChannelDirectory,
         suggestedFeedsRegistry,
@@ -2187,6 +2197,10 @@ class SettingsRepositoryUiImpl(
     override val epubFolderUri: kotlinx.coroutines.flow.Flow<String?> = epubConfig.folderUriString
     override suspend fun setEpubFolderUri(uri: String) = epubConfig.setFolder(uri)
     override suspend fun clearEpubFolder() = epubConfig.clearFolder()
+
+    override val pdfFolderUri: kotlinx.coroutines.flow.Flow<String?> = pdfConfig.folderUriString
+    override suspend fun setPdfFolderUri(uri: String) = pdfConfig.setFolder(uri)
+    override suspend fun clearPdfFolder() = pdfConfig.clearFolder()
 
     override val outlineHost: kotlinx.coroutines.flow.Flow<String> =
         outlineConfig.state.map { it.host }

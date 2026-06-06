@@ -216,6 +216,16 @@ class SettingsViewModel @Inject constructor(
             null,
         )
 
+    /** Issue #996 — local PDF folder picker. */
+    fun setPdfFolderUri(uri: String) = viewModelScope.launch { repo.setPdfFolderUri(uri) }
+    fun clearPdfFolder() = viewModelScope.launch { repo.clearPdfFolder() }
+    val pdfFolderUri: kotlinx.coroutines.flow.StateFlow<String?> =
+        repo.pdfFolderUri.stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+            null,
+        )
+
     fun setWikipediaLanguageCode(code: String) =
         viewModelScope.launch { repo.setWikipediaLanguageCode(code) }
     fun setNotionDatabaseId(id: String) =

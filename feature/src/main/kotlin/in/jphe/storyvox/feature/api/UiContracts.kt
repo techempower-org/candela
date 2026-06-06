@@ -2113,6 +2113,11 @@ interface SettingsRepositoryUi {
     suspend fun setEpubFolderUri(uri: String)
     suspend fun clearEpubFolder()
 
+    /** Issue #996 — currently-picked PDF SAF folder URI (or null). */
+    val pdfFolderUri: Flow<String?>
+    suspend fun setPdfFolderUri(uri: String)
+    suspend fun clearPdfFolder()
+
     /** Issue #246 — curated suggested feeds, fetched from the
      *  techempower-org/candela-feeds GitHub repo on first observation,
      *  cached for the app session, falling back to a baked-in list

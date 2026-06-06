@@ -637,6 +637,7 @@ private fun sourceTagline(id: String): String {
         SourceIds.GITHUB -> R.string.source_tagline_github
         SourceIds.RSS -> R.string.source_tagline_rss
         SourceIds.EPUB -> R.string.source_tagline_epub
+        SourceIds.PDF -> R.string.source_tagline_pdf
         SourceIds.OUTLINE -> R.string.source_tagline_outline
         SourceIds.MEMPALACE -> R.string.source_tagline_mempalace
         SourceIds.RADIO, SourceIds.KVMR -> R.string.source_tagline_radio
@@ -673,6 +674,7 @@ private fun sourceGlyph(id: String): ImageVector = when (id) {
     SourceIds.GITHUB -> Icons.Filled.Workspaces
     SourceIds.RSS -> Icons.Filled.RssFeed
     SourceIds.EPUB -> Icons.Filled.FolderOpen
+    SourceIds.PDF -> Icons.Filled.Description
     SourceIds.OUTLINE -> Icons.Filled.Description
     SourceIds.MEMPALACE -> Icons.Filled.LocalLibrary
     SourceIds.RADIO, SourceIds.KVMR -> Icons.Filled.Radio

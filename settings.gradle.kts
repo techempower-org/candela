@@ -58,6 +58,10 @@ include(":source-audiobook-writer")
 // world to accessible audio. Shares the :core-data OcrTextRecognizer
 // seam so #996's scanned-PDF import reuses the same recognizer.
 include(":source-ocr")
+// Issue #996 — local PDF files (SAF folder picker). Sibling of
+// :source-epub; text-layer extraction via PdfBox-Android (app-side),
+// scanned PDFs route through the #995 OCR seam.
+include(":source-pdf")
 include(":source-outline")
 include(":source-gutenberg")
 include(":source-ao3")

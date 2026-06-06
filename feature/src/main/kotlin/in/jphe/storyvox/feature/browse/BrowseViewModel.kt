@@ -637,6 +637,13 @@ class BrowseViewModel @Inject constructor(
         settings.setEpubFolderUri(uri)
     }
 
+    // Issue #996 — same first-run-discoverability entry point for the
+    // Local PDFs chip: launch the SAF folder picker straight from the
+    // Browse empty state. Settings → PDF folder remains for later edits.
+    fun setPdfFolderUri(uri: String) = viewModelScope.launch {
+        settings.setPdfFolderUri(uri)
+    }
+
     // ─── RSS feed management (#247) ─────────────────────────────────────
 
     val rssSubscriptions: StateFlow<List<String>> =

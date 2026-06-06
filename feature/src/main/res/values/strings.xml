@@ -33,6 +33,7 @@
     <string name="source_tagline_github">Repo READMEs</string>
     <string name="source_tagline_rss">Your feeds</string>
     <string name="source_tagline_epub">Your EPUBs</string>
+    <string name="source_tagline_pdf">Your PDFs</string>
     <string name="source_tagline_outline">Your wiki</string>
     <string name="source_tagline_mempalace">Your palace</string>
     <string name="source_tagline_radio">Live radio</string>

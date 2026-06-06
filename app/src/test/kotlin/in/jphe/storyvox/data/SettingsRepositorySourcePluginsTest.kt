@@ -93,7 +93,10 @@ class SettingsRepositorySourcePluginsTest {
     fun `setSourcePluginEnabled round-trips for every in-tree plugin id`() = runTest {
         val allIds = listOf(
             SourceIds.ROYAL_ROAD, SourceIds.GITHUB, SourceIds.MEMPALACE,
-            SourceIds.RSS, SourceIds.EPUB, SourceIds.OUTLINE,
+            SourceIds.RSS, SourceIds.EPUB,
+            // Issue #996 — local PDF backend (sibling of EPUB).
+            SourceIds.PDF,
+            SourceIds.OUTLINE,
             SourceIds.GUTENBERG, SourceIds.AO3, SourceIds.STANDARD_EBOOKS,
             SourceIds.WIKIPEDIA, SourceIds.WIKISOURCE,
             // Issue #417 — :source-kvmr generalized to :source-radio.
@@ -109,7 +112,7 @@ class SettingsRepositorySourcePluginsTest {
             // #462 — Telegram backend.
             SourceIds.TELEGRAM,
         )
-        assertEquals(21, allIds.size)
+        assertEquals(22, allIds.size)
 
         // Toggle each off then on, in order — verify both states
         // land in the persisted map.
@@ -200,7 +203,11 @@ class SettingsRepositorySourcePluginsTest {
         // and isn't wired through this test's repo construction).
         val expectedIds = listOf(
             SourceIds.ROYAL_ROAD, SourceIds.GITHUB, SourceIds.MEMPALACE,
-            SourceIds.RSS, SourceIds.EPUB, SourceIds.OUTLINE,
+            SourceIds.RSS, SourceIds.EPUB,
+            // Issue #996 — local PDF backend defaults ON for fresh-install
+            // discoverability (#436), same posture as EPUB.
+            SourceIds.PDF,
+            SourceIds.OUTLINE,
             SourceIds.GUTENBERG, SourceIds.AO3, SourceIds.STANDARD_EBOOKS,
             SourceIds.WIKIPEDIA, SourceIds.WIKISOURCE,
             SourceIds.RADIO, SourceIds.KVMR,

@@ -549,6 +549,7 @@ dependencies {
     // OcrTextRecognizer seam carry the Android-free contracts.
     implementation(project(":source-ocr"))
     implementation(libs.mlkit.text.recognition)
+    implementation(project(":source-pdf"))
     implementation(project(":source-outline"))
     implementation(project(":source-gutenberg"))
     implementation(project(":source-ao3"))
@@ -632,8 +633,13 @@ dependencies {
     // DataStore (settings persistence)
     implementation(libs.androidx.datastore.preferences)
 
-    // SAF helper for the EPUB import folder picker (#235)
+    // SAF helper for the EPUB / PDF import folder pickers (#235, #996)
     implementation(libs.androidx.documentfile)
+
+    // PdfBox-Android (#996) — text-layer extraction for the app-side
+    // PdfTextProvider impl. Apache-2.0. PdfRenderer (page→bitmap, for
+    // the #995 OCR fallback) comes from the platform; no extra dep.
+    implementation(libs.pdfbox.android)
 
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)
 
