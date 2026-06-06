@@ -57,7 +57,9 @@ class FollowsSyncer @Inject constructor(
                         // back-fill worker repairs anything resolveByShape
                         // can't (radio station ids) on its first pass.
                         sourceId = `in`.jphe.storyvox.data.source.FictionSourceIdResolver.resolveByShape(id),
-                        title = "Loading…",
+                        // #1023 — single source of truth for the sentinel
+                        // FictionDetail.toEntity recognizes; see PLACEHOLDER_TITLE.
+                        title = `in`.jphe.storyvox.data.db.entity.Fiction.PLACEHOLDER_TITLE,
                         author = "",
                         firstSeenAt = now,
                         metadataFetchedAt = 0L,

@@ -630,6 +630,71 @@ class FictionRepositoryImplTest {
         assertNull("failure stamp cleared on success", fictionDao.rows["99"]!!.metadataBackfillFailedAt)
     }
 
+    @Test fun `refreshDetail success with blank title leaves placeholder eligible for retry (#1023)`() = runTest {
+        // #1023 — a successful detail fetch that carries a BLANK title must
+        // NOT freeze the placeholder. Before the fix, toEntity kept the
+        // "Loading…" sentinel as the title AND stamped metadataFetchedAt =
+        // now, dropping the row out of placeholdersToBackfill forever — the
+        // card read "Loading…" as its real title with no spinner, no error,
+        // no retry. The row must stay metadataFetchedAt == 0 so the next
+        // back-fill sweep re-fetches it.
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(
+                FictionDetail(
+                    summary = FictionSummary(
+                        id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "", author = "",
+                    ),
+                    chapters = emptyList(),
+                ),
+            )
+        }
+        val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        fictionDao.rows["99"] = Fiction(
+            id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Loading…", author = "",
+            firstSeenAt = 0L, metadataFetchedAt = 0L, inLibrary = true,
+        )
+
+        val result = r.refreshDetail("99")
+
+        assertTrue(result is FictionResult.Success)
+        val row = fictionDao.rows["99"]!!
+        assertEquals(
+            "row still in the back-fill set (metadataFetchedAt unchanged)",
+            0L, row.metadataFetchedAt,
+        )
+        assertTrue(
+            "row still a placeholder (re-derived isPlaceholder)",
+            row.toSummary().isPlaceholder,
+        )
+        // The next sweep will see it: cutoff far in the future so any
+        // failure stamp is past it too.
+        assertTrue(
+            "row reappears in placeholdersToBackfill",
+            fictionDao.placeholdersToBackfill(cutoff = Long.MAX_VALUE).any { it.id == "99" },
+        )
+    }
+
+    @Test fun `refreshDetail success with real title hydrates and stamps as before (#1023 regression-guard)`() = runTest {
+        // The fix must NOT change the happy path: a successful fetch with a
+        // genuine title still stamps metadataFetchedAt and drops the row out
+        // of the placeholder set.
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(detail("99", chapterCount = 1))
+        }
+        val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        fictionDao.rows["99"] = Fiction(
+            id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Loading…", author = "",
+            firstSeenAt = 0L, metadataFetchedAt = 0L, inLibrary = true,
+        )
+
+        r.refreshDetail("99")
+
+        val row = fictionDao.rows["99"]!!
+        assertEquals("real title wins over the sentinel", "title-99", row.title)
+        assertTrue("hydrated row stamps metadataFetchedAt", row.metadataFetchedAt > 0L)
+        assertTrue("no longer a placeholder", !row.toSummary().isPlaceholder)
+    }
+
     @Test fun `refreshDetail failure does NOT touch the DB`() = runTest {
         val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
             detailResult = FictionResult.NotFound()

@@ -610,24 +610,36 @@ internal fun FictionSummary.toEntity(now: Long): Fiction = Fiction(
 
 internal fun FictionDetail.toEntity(existing: Fiction?, now: Long): Fiction {
     val base = existing ?: summary.toEntity(now)
+    // Issue #1023 — the "Loading…" placeholder sentinel is NOT a real
+    // cached title; treat it as blank everywhere below so it can neither
+    // win over an incoming title in [preferTitle] nor count as "we have a
+    // good title now". The #279 guard was written for `existing` being a
+    // genuinely-good cached title we don't want to clobber; it never
+    // anticipated `existing` being the placeholder sentinel.
+    val existingTitle = base.title.takeUnless { it == Fiction.PLACEHOLDER_TITLE }.orEmpty()
+    val resolvedTitle = preferTitle(
+        incoming = summary.title,
+        // Issue #279 — never overwrite a previously-good title with a
+        // worse one. The RSS source falls back to the URL host when the
+        // feed parse comes up blank (intermittent gateway timeouts,
+        // momentarily-malformed XML, upstream 5xx, etc.), which produced a
+        // perfectly non-blank but useless string like "lionsroar.com". The
+        // result: pull-to-refresh silently corrupted the Library card from
+        // 'Lion's Roar / Rev. Marvin Harada' to 'lionsroar.com / ?'.
+        existing = existingTitle,
+        sourceFallback = inferUrlHost(summary.description),
+    )
+    // Issue #1023 — only treat this as a completed hydrate (stamp
+    // metadataFetchedAt = now, which drops the row out of
+    // `placeholdersToBackfill`) when we actually resolved a real title. A
+    // *successful* fetch that still yields a blank/sentinel title is a soft
+    // failure: leave `metadataFetchedAt` as-is (0 for a placeholder) so the
+    // back-fill worker's cool-down retry applies, exactly like the
+    // FictionResult.Failure path #981 established — rather than freezing the
+    // sentinel as the permanent title with no spinner, no error, no retry.
+    val hydrated = resolvedTitle.isNotBlank() && resolvedTitle != Fiction.PLACEHOLDER_TITLE
     return base.copy(
-        // Issue #279 — never overwrite a previously-good title / author
-        // with a worse one. The RSS source falls back to the URL host
-        // when the feed parse comes up blank (intermittent gateway
-        // timeouts, momentarily-malformed XML, upstream 5xx, etc.),
-        // which produced a perfectly non-blank but useless string like
-        // "lionsroar.com". The result: pull-to-refresh silently corrupted
-        // the Library card from 'Lion's Roar / Rev. Marvin Harada' to
-        // 'lionsroar.com / ?'.
-        //
-        // Defensive: if we have a non-blank existing title (the user has
-        // seen it before) and the incoming title looks like a degraded
-        // fallback — either blank OR a bare host string that matches the
-        // last cached description / cover URL host — keep the cached
-        // value. Same pattern for author. Sources that genuinely return
-        // a richer title are unaffected: the equality check only fires
-        // when the new title literally is the URL host fallback.
-        title = preferTitle(incoming = summary.title, existing = base.title, sourceFallback = inferUrlHost(summary.description)),
+        title = resolvedTitle,
         author = summary.author.ifBlank { base.author },
         authorId = authorId ?: base.authorId,
         coverUrl = summary.coverUrl ?: base.coverUrl,
@@ -641,7 +653,7 @@ internal fun FictionDetail.toEntity(existing: Fiction?, now: Long): Fiction {
         views = views ?: base.views,
         followers = followers ?: base.followers,
         lastUpdatedAt = lastUpdatedAt ?: base.lastUpdatedAt,
-        metadataFetchedAt = now,
+        metadataFetchedAt = if (hydrated) now else base.metadataFetchedAt,
     )
 }
 
