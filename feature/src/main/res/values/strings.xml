@@ -167,6 +167,18 @@
     <string name="reader_open_reader">Open reader</string>
     <string name="reader_dock_card_description">Now playing: %1$s. %2$s. Tap to open reader.</string>
 
+    <!-- Reader / in-text search (#998) -->
+    <string name="reader_search">Search this chapter</string>
+    <string name="reader_search_field_label">Find in chapter</string>
+    <string name="reader_search_close">Close search</string>
+    <string name="reader_search_prev">Previous match</string>
+    <string name="reader_search_next">Next match</string>
+    <!-- e.g. "3 / 12" — current match out of total -->
+    <string name="reader_search_count">%1$d / %2$d</string>
+    <string name="reader_search_no_matches">No matches</string>
+    <!-- TalkBack summary of the result counter -->
+    <string name="reader_search_count_description">Match %1$d of %2$d</string>
+
     <!-- Reader / ResumePrompt -->
     <string name="reader_from_the_start">From the start</string>
     <string name="reader_start_listening">▶  Start listening</string>
