@@ -20,18 +20,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.CenterFocusStrong
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,13 +61,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiPlaybackState
@@ -273,6 +286,49 @@ fun ReaderTextView(
         label = "focus-title-alpha",
     )
 
+    // Issue #998 — in-text search. All state is local to the reader pane:
+    // the query, whether the search bar is open, and which match the
+    // chevrons last landed on. Matches are derived purely from the
+    // already-in-memory chapterText via [findMatches] (no ViewModel
+    // round-trip), so the whole affordance is scoped to this composable
+    // and the other reader-cluster features rebase cleanly over it.
+    var searchOpen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var activeMatchIndex by remember { mutableIntStateOf(0) }
+    val matches by remember(chapterText, searchQuery) {
+        derivedStateOf { findMatches(chapterText, searchQuery) }
+    }
+    // Keep the active index in range as the query (and thus match count)
+    // changes — a narrowing query can shrink the list out from under us.
+    LaunchedEffect(matches.size) {
+        if (activeMatchIndex >= matches.size) activeMatchIndex = 0
+    }
+    val searchFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val searchHint = stringResource(R.string.reader_search)
+
+    // Jump-to-match: when the active match changes (chevrons, or the first
+    // hit of a fresh query), scroll it to the 40%-from-top reading line —
+    // reusing the exact #919 recenter math — and seek TTS playback to the
+    // match's char offset, so the issue's "search a word and move the
+    // playhead there" accessibility workflow lands in one tap.
+    LaunchedEffect(activeMatchIndex, matches) {
+        val match = matches.getOrNull(activeMatchIndex) ?: return@LaunchedEffect
+        val layout = textLayout ?: return@LaunchedEffect
+        if (chapterText.isEmpty()) return@LaunchedEffect
+        if (viewportHeightPx <= 0f) return@LaunchedEffect
+        // Suppress auto-scroll fighting us while we reposition.
+        lastManualScrollAt = System.currentTimeMillis()
+        val safeStart = match.first.coerceIn(0, (chapterText.length - 1).coerceAtLeast(0))
+        val line = layout.getLineForOffset(safeStart)
+        val lineTopWithinText = layout.getLineTop(line)
+        val targetY = (bodyTopPx + lineTopWithinText - viewportHeightPx * HIGHLIGHT_VIEWPORT_FRACTION)
+            .roundToInt()
+            .coerceIn(0, scroll.maxValue.coerceAtLeast(0))
+        scroll.animateScrollTo(targetY)
+        onSeekToChar(match.first)
+    }
+
     // #993 — provide the reading-theme colours to the chapter renderer below.
     // When active we paint the theme background on the reader surface and tint
     // the chapter title to the theme foreground; SentenceHighlight reads
@@ -328,12 +384,49 @@ fun ReaderTextView(
                         onTapWord = onSeekToChar,
                         onLongPressWord = { word -> lookupWord = word },
                         onLayout = { layout -> textLayout = layout },
+                        // #998 — paint in-text search hits; the active one
+                        // (chevron target) gets the stronger fill.
+                        searchMatches = matches,
+                        activeMatchIndex = activeMatchIndex,
                     )
                 }
             }
         }
 
-        // Issue #997 — Focused Reading toggle. Top of the brass cluster
+        // Issue #998 — find-in-text FAB. Tops the brass cluster (search →
+        // focus → auto-scroll → recenter, reading down at 296/232/168/104).
+        // Toggling it opens the search bar overlay and focuses the field;
+        // toggling off closes the bar and clears the query so the match
+        // highlights vanish. Only shown when there's chapter text to search.
+        if (chapterText.isNotEmpty()) {
+            SmallFloatingActionButton(
+                onClick = {
+                    searchOpen = !searchOpen
+                    if (!searchOpen) {
+                        searchQuery = ""
+                        activeMatchIndex = 0
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = spacing.md, bottom = 296.dp)
+                    .semantics { contentDescription = searchHint },
+                containerColor = if (searchOpen) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                contentColor = if (searchOpen) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            ) {
+                Icon(imageVector = Icons.Outlined.Search, contentDescription = null)
+            }
+        }
+
+        // Issue #997 — Focused Reading toggle. Sits below the search FAB
         // (above the auto-scroll toggle) and ALWAYS visible — even in
         // focus mode — so it's the one persistent control the user can
         // use to leave the distraction-reduced view. Filled-brass when
@@ -587,8 +680,133 @@ fun ReaderTextView(
                 },
             )
         }
+
+        // Issue #998 — find-in-text bar. Slides down from the top as a
+        // floating overlay (it doesn't reflow the immersive body or break
+        // the swipe shell) when the search FAB is toggled on. Holds the
+        // query field, a live "n / total" match counter, prev/next
+        // chevrons, and a close button. Focus + keyboard are claimed on
+        // open so the user can type immediately.
+        LaunchedEffect(searchOpen) {
+            if (searchOpen) {
+                searchFocus.requestFocus()
+                keyboard?.show()
+            }
+        }
+        AnimatedVisibility(
+            visible = searchOpen,
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+        ) {
+            ReaderSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it; activeMatchIndex = 0 },
+                matchCount = matches.size,
+                activeMatchIndex = activeMatchIndex,
+                onPrev = { activeMatchIndex = prevMatchIndex(activeMatchIndex, matches.size) },
+                onNext = { activeMatchIndex = nextMatchIndex(activeMatchIndex, matches.size) },
+                onClose = {
+                    searchOpen = false
+                    searchQuery = ""
+                    activeMatchIndex = 0
+                    keyboard?.hide()
+                },
+                focusRequester = searchFocus,
+            )
+        }
     }
     } // CompositionLocalProvider(LocalReaderColors) — #993
+}
+
+/**
+ * Issue #998 — the reader's find-in-text bar. A brass [Surface] holding
+ * the query field, a live match counter, prev/next chevrons, and a close
+ * button. Pure presentational: all state is hoisted to [ReaderTextView],
+ * which owns the query, the derived match list, and the active index.
+ *
+ * The IME "Search" action and the next chevron both advance to the next
+ * match, so a one-handed user can press Enter to walk hits without
+ * reaching for the chevron.
+ */
+@Composable
+private fun ReaderSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    matchCount: Int,
+    activeMatchIndex: Int,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onClose: () -> Unit,
+    focusRequester: FocusRequester,
+) {
+    val spacing = LocalSpacing.current
+    val hasMatches = matchCount > 0
+    val counterText = when {
+        query.isBlank() -> ""
+        !hasMatches -> stringResource(R.string.reader_search_no_matches)
+        else -> stringResource(R.string.reader_search_count, activeMatchIndex + 1, matchCount)
+    }
+    val counterDescription = if (hasMatches) {
+        stringResource(R.string.reader_search_count_description, activeMatchIndex + 1, matchCount)
+    } else {
+        counterText
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 4.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                label = { Text(stringResource(R.string.reader_search_field_label)) },
+                singleLine = true,
+                leadingIcon = {
+                    Icon(Icons.Outlined.Search, contentDescription = null)
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onNext() }),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+            )
+            if (counterText.isNotEmpty()) {
+                Text(
+                    text = counterText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .padding(horizontal = spacing.xs)
+                        .semantics { contentDescription = counterDescription },
+                )
+            }
+            IconButton(onClick = onPrev, enabled = hasMatches) {
+                Icon(
+                    Icons.Outlined.ExpandLess,
+                    contentDescription = stringResource(R.string.reader_search_prev),
+                )
+            }
+            IconButton(onClick = onNext, enabled = hasMatches) {
+                Icon(
+                    Icons.Outlined.ExpandMore,
+                    contentDescription = stringResource(R.string.reader_search_next),
+                )
+            }
+            IconButton(onClick = onClose) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.reader_search_close),
+                )
+            }
+        }
+    }
 }
 
 @Composable

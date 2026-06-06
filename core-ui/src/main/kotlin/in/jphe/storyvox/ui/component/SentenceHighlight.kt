@@ -38,6 +38,13 @@ import `in`.jphe.storyvox.ui.theme.LocalReducedMotion
  *                        does NOT fire `onTapWord`, so a deliberate long-press never accidentally seeks playback.
  * @param onLayout optional — emits the text layout each time it changes; reader uses it to auto-scroll
  *                the highlighted sentence into view.
+ * @param searchMatches optional (#998) — UTF-16 char ranges of in-text search hits, painted with a
+ *                translucent brass background fill. Independent of the spoken-sentence underline: the
+ *                underline tracks what's being *read*; these tint what was *found*. Empty (the default)
+ *                keeps every existing callsite — AudiobookView, previews, tests — a no-op.
+ * @param activeMatchIndex optional (#998) — index into [searchMatches] of the hit the next/prev chevrons
+ *                last landed on; it gets a stronger fill so the reader sees which match is focused. `-1`
+ *                (default) means no active match — every hit paints with the dimmer fill.
  */
 @Composable
 fun SentenceHighlight(
@@ -48,6 +55,8 @@ fun SentenceHighlight(
     onTapWord: ((Int) -> Unit)? = null,
     onLongPressWord: ((String) -> Unit)? = null,
     onLayout: ((TextLayoutResult) -> Unit)? = null,
+    searchMatches: List<IntRange> = emptyList(),
+    activeMatchIndex: Int = -1,
 ) {
     // #993 — when a reading theme is active, the chapter text uses the
     // theme's foreground and the sentence underline uses its accent; otherwise
@@ -70,25 +79,53 @@ fun SentenceHighlight(
     // switch) and overlay the highlight span via the public AnnotatedString
     // constructor's `spanStyles` list. That constructor takes the SpanStyle
     // ranges by reference; no character copying happens on a sentence change.
+    // #998 — translucent brass background fills for in-text search hits.
+    // The active hit (the one the chevrons landed on) gets a stronger
+    // alpha so it stands out from the other matches. These are *background*
+    // spans, orthogonal to the spoken-sentence *underline* drawn below.
+    val matchFill = brass.copy(alpha = 0.25f)
+    val activeMatchFill = brass.copy(alpha = 0.5f)
+
     val baseAnnotated: AnnotatedString = remember(text) { AnnotatedString(text) }
-    val annotated: AnnotatedString = remember(baseAnnotated, highlightStart, highlightEnd, onSurface) {
+    val annotated: AnnotatedString = remember(
+        baseAnnotated, highlightStart, highlightEnd, onSurface,
+        searchMatches, activeMatchIndex, matchFill, activeMatchFill,
+    ) {
+        val spans = ArrayList<AnnotatedString.Range<SpanStyle>>(searchMatches.size + 1)
+
+        // Sentence-being-read span (bold, on-surface). Unchanged from before.
         if (highlightEnd > highlightStart &&
             highlightStart in 0..text.length &&
             highlightEnd in highlightStart..text.length
         ) {
-            AnnotatedString(
-                text = text,
-                spanStyles = listOf(
-                    AnnotatedString.Range(
-                        item = SpanStyle(color = onSurface, fontWeight = FontWeight.Medium),
-                        start = highlightStart,
-                        end = highlightEnd,
-                    ),
+            spans.add(
+                AnnotatedString.Range(
+                    item = SpanStyle(color = onSurface, fontWeight = FontWeight.Medium),
+                    start = highlightStart,
+                    end = highlightEnd,
                 ),
             )
-        } else {
-            baseAnnotated
         }
+
+        // Search-hit background fills. AnnotatedString end offset is
+        // exclusive; our IntRange is end-inclusive, so end = last + 1.
+        searchMatches.forEachIndexed { i, range ->
+            val start = range.first.coerceIn(0, text.length)
+            val end = (range.last + 1).coerceIn(start, text.length)
+            if (end > start) {
+                spans.add(
+                    AnnotatedString.Range(
+                        item = SpanStyle(
+                            background = if (i == activeMatchIndex) activeMatchFill else matchFill,
+                        ),
+                        start = start,
+                        end = end,
+                    ),
+                )
+            }
+        }
+
+        if (spans.isEmpty()) baseAnnotated else AnnotatedString(text = text, spanStyles = spans)
     }
 
     val reducedMotion = LocalReducedMotion.current
