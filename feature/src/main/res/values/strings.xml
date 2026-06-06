@@ -551,6 +551,35 @@
     <string name="settings_reading_shake_extend_title">Shake to extend sleep timer</string>
     <string name="settings_reading_shake_extend_subtitle">Shake during the fade-out to add 15 more minutes.</string>
 
+    <!-- Settings · Reading-theme color overlay (#993) -->
+    <string name="settings_reading_overlay_group_title">Reading colors</string>
+    <string name="settings_reading_overlay_title">Color theme</string>
+    <string name="settings_reading_overlay_subtitle">Tint the reading page only — sepia, cream, or high-contrast. Doesn\'t change the rest of the app.</string>
+    <string name="settings_reading_overlay_theme_default">Default</string>
+    <string name="settings_reading_overlay_theme_light">Light</string>
+    <string name="settings_reading_overlay_theme_dark">Dark</string>
+    <string name="settings_reading_overlay_theme_sepia">Sepia</string>
+    <string name="settings_reading_overlay_theme_cream">Cream</string>
+    <string name="settings_reading_overlay_theme_hc_bw">Black on white</string>
+    <string name="settings_reading_overlay_theme_hc_wb">White on black</string>
+    <string name="settings_reading_overlay_theme_custom">Custom</string>
+    <string name="settings_reading_overlay_preview">The quick brown fox jumps over the lazy dog.</string>
+    <!-- Custom picker -->
+    <string name="settings_reading_custom_title">Custom colors</string>
+    <string name="settings_reading_custom_fg">Text</string>
+    <string name="settings_reading_custom_bg">Background</string>
+    <string name="settings_reading_custom_red">Red</string>
+    <string name="settings_reading_custom_green">Green</string>
+    <string name="settings_reading_custom_blue">Blue</string>
+    <!-- WCAG readout: %1$.1f = contrast ratio, %2$s = rating label -->
+    <string name="settings_reading_contrast_readout">Contrast %1$.1f:1 · %2$s</string>
+    <string name="settings_reading_contrast_aaa">AAA — excellent</string>
+    <string name="settings_reading_contrast_aa">AA — good</string>
+    <string name="settings_reading_contrast_aa_large">AA large text only</string>
+    <string name="settings_reading_contrast_fail">Low contrast — hard to read</string>
+    <!-- contentDescription for the per-preset swatch chip; %1$s = theme name -->
+    <string name="settings_reading_overlay_cd">Reading color theme: %1$s</string>
+
     <!-- Settings · Cloud voices subscreen -->
     <string name="settings_cloud_voices_title">Cloud voices</string>
 
