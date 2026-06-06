@@ -106,7 +106,7 @@ FEATURES
 • Free, GPL-3.0, ad-free, no tracking
 
 Candela is built by TechEmpower, a 501(c)(3) nonprofit. The source is
-open at github.com/techempower-org/storyvox. Privacy policy:
+open at github.com/techempower-org/candela. Privacy policy:
 candela.techempower.org/privacy/
 ```
 
