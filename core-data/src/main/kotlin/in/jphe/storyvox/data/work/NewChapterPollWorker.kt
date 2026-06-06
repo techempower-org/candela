@@ -59,8 +59,12 @@ class NewChapterPollWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        var newChapters = 0
         var skippedByRevisionCheck = 0
+        // Sum of genuinely-new chapters across all fictions this poll —
+        // the delta since the previous poll, NOT the cumulative
+        // NOT_DOWNLOADED backlog. This is the count the user is told
+        // about, and what KEY_NEW_CHAPTERS reports.
+        var newChapterDelta = 0
 
         // Issue #907 — poll every fiction the user follows on the source
         // (followedRemotely) as well as the in-library subscribe/eager set.
@@ -96,6 +100,17 @@ class NewChapterPollWorker @AssistedInject constructor(
                 // The full refreshDetail path is the safe default.
             }
 
+            // Snapshot the chapter ids we already hold BEFORE the refresh
+            // mutates the chapter table. The genuine "new since last poll"
+            // delta is the set of chapters that appear after the refresh
+            // but were not here before — NOT the full NOT_DOWNLOADED
+            // backlog. A followed/SUBSCRIBE fiction never downloads its
+            // chapters, so `missingForFiction` (downloadState =
+            // NOT_DOWNLOADED) is the entire un-played history; using its
+            // size as the "new" count made every poll re-announce "65 new
+            // chapters" instead of the one chapter that actually landed.
+            val priorChapterIds = chapterDao.chapterIdsForFiction(fiction.id).toSet()
+
             when (val result = fictionRepository.refreshDetail(fiction.id)) {
                 is FictionResult.Success -> {
                     // After a successful refresh, persist whatever new
@@ -118,27 +133,36 @@ class NewChapterPollWorker @AssistedInject constructor(
 
                     val missing = chapterDao.missingForFiction(fiction.id)
                     if (missing.isEmpty()) continue
-                    newChapters += missing.size
 
-                    // Issue #383 — emit a cross-source Inbox event for
-                    // the user. Gate via the per-source toggle so a
-                    // user who flipped Royal Road's inbox toggle off
-                    // still gets the library updated (and the chapters
-                    // queued in EAGER mode) but doesn't see a row in
-                    // the Inbox feed. Coalescing across consecutive
-                    // polls happens inside InboxRepository.record —
-                    // we always pass the current total, and the repo
-                    // updates the existing unread row in place so the
-                    // feed doesn't flood.
-                    if (inboxGate.isEnabled(fiction.sourceId)) {
-                        val deepLinkChapterId = missing.first().id
-                        val plural = if (missing.size == 1) "chapter" else "chapters"
+                    // Compute what (if anything) to announce. `missing`
+                    // (the whole NOT_DOWNLOADED backlog) still drives EAGER
+                    // auto-download below — but the user-facing count,
+                    // plural label and deep-link target all come from the
+                    // delta computed here. See [newChapterAnnouncement].
+                    val announcement = newChapterAnnouncement(
+                        missingChapterIds = missing.map { it.id },
+                        priorChapterIds = priorChapterIds,
+                    )
+                    newChapterDelta += announcement.newCount
+
+                    // Issue #383 / #907 — emit the cross-source Inbox event
+                    // and the Android system notification. Gate via the
+                    // per-source toggle so a user who flipped Royal Road's
+                    // inbox toggle off still gets the library updated (and
+                    // chapters queued in EAGER mode) but sees no feed row or
+                    // notification. Both reflect the delta since the
+                    // previous poll, not the cumulative NOT_DOWNLOADED
+                    // backlog, and are skipped on the first poll baseline.
+                    val deepLinkChapterId = announcement.deepLinkChapterId
+                    if (announcement.shouldNotify && deepLinkChapterId != null &&
+                        inboxGate.isEnabled(fiction.sourceId)
+                    ) {
                         runCatching {
                             inboxRepository.record(
                                 sourceId = fiction.sourceId,
                                 fictionId = fiction.id,
                                 chapterId = deepLinkChapterId,
-                                title = "${missing.size} new $plural in ${fiction.title}",
+                                title = "${announcement.newCount} new ${announcement.pluralLabel} in ${fiction.title}",
                                 body = null,
                                 deepLinkUri = "storyvox://reader/${fiction.id}/$deepLinkChapterId",
                             )
@@ -149,17 +173,15 @@ class NewChapterPollWorker @AssistedInject constructor(
                             Log.w(TAG, "inbox record failed for ${fiction.id}", e)
                         }
 
-                        // Issue #907 — fire the Android system notification
-                        // alongside the Inbox row. Same gate, same deep-link
-                        // target as the feed entry. Best-effort: a notifier
-                        // failure (denied POST_NOTIFICATIONS, OEM throttle)
-                        // must not fail the poll or skip the persisted rows.
+                        // Best-effort: a notifier failure (denied
+                        // POST_NOTIFICATIONS, OEM throttle) must not fail the
+                        // poll or skip the persisted rows.
                         runCatching {
                             newChapterNotifier.notifyNewChapters(
                                 fictionId = fiction.id,
                                 firstNewChapterId = deepLinkChapterId,
                                 fictionTitle = fiction.title,
-                                newCount = missing.size,
+                                newCount = announcement.newCount,
                             )
                         }.onFailure { e ->
                             Log.w(TAG, "new-chapter notify failed for ${fiction.id}", e)
@@ -198,7 +220,7 @@ class NewChapterPollWorker @AssistedInject constructor(
 
         return Result.success(
             Data.Builder()
-                .putInt(KEY_NEW_CHAPTERS, newChapters)
+                .putInt(KEY_NEW_CHAPTERS, newChapterDelta)
                 .putInt(KEY_SKIPPED_BY_REVISION, skippedByRevisionCheck)
                 .build(),
         )
@@ -207,6 +229,15 @@ class NewChapterPollWorker @AssistedInject constructor(
     companion object {
         const val TAG = "poll:new-chapters"
         const val UNIQUE_NAME = "poll:new-chapters"
+
+        /**
+         * Count of genuinely-new chapters detected this poll — the delta
+         * across all polled fictions since the previous poll, NOT the
+         * cumulative NOT_DOWNLOADED backlog. A followed/SUBSCRIBE fiction
+         * never downloads its chapters, so the backlog is the whole
+         * unplayed history; reporting its size made the notification say
+         * "65 new chapters" when one chapter had actually landed.
+         */
         const val KEY_NEW_CHAPTERS = "newChapterCount"
 
         /**
@@ -217,4 +248,59 @@ class NewChapterPollWorker @AssistedInject constructor(
          */
         const val KEY_SKIPPED_BY_REVISION = "skippedByRevision"
     }
+}
+
+/**
+ * What [NewChapterPollWorker] should tell the user about one fiction after a
+ * poll: how many chapters are genuinely new since the previous poll, the
+ * pluralised label, and which chapter a tap should open.
+ *
+ * @param newCount chapters new since the previous poll (the delta).
+ * @param pluralLabel "chapter" when [newCount] is 1, else "chapters".
+ * @param deepLinkChapterId the earliest new chapter to deep-link into, or
+ *   null when there is nothing to announce.
+ * @param shouldNotify true only when there is a real delta worth surfacing —
+ *   false on the first-poll baseline and when no chapter is actually new.
+ */
+data class NewChapterAnnouncement(
+    val newCount: Int,
+    val pluralLabel: String,
+    val deepLinkChapterId: String?,
+    val shouldNotify: Boolean,
+)
+
+/**
+ * Decide what to announce for a fiction from the current un-downloaded
+ * backlog and the chapter ids we held before this poll's refresh.
+ *
+ * The bug this fixes (Royal Road "65 new chapters"): the worker used the
+ * size of [missingChapterIds] — every `downloadState = NOT_DOWNLOADED`
+ * chapter — as the "new" count. A followed/SUBSCRIBE fiction never downloads
+ * its chapters, so that set is the entire unplayed history, and each poll
+ * re-announced the whole backlog. The genuine delta is the missing chapters
+ * whose ids weren't already present before the refresh.
+ *
+ * First-poll baseline: an empty [priorChapterIds] means this is the first
+ * time we've hydrated this fiction's chapters (e.g. a brand-new follow whose
+ * row was added by `followsList` with no chapters yet). Everything looks new
+ * but none of it is news to the user — they just followed it. We return the
+ * delta count for telemetry but set [NewChapterAnnouncement.shouldNotify] to
+ * false so the backlog isn't announced as new.
+ *
+ * Order is preserved from [missingChapterIds] (callers pass it sorted by
+ * chapter index), so the deep-link target is the earliest new chapter.
+ */
+fun newChapterAnnouncement(
+    missingChapterIds: List<String>,
+    priorChapterIds: Set<String>,
+): NewChapterAnnouncement {
+    val newlyAdded = missingChapterIds.filter { it !in priorChapterIds }
+    val isFirstPoll = priorChapterIds.isEmpty()
+    val shouldNotify = newlyAdded.isNotEmpty() && !isFirstPoll
+    return NewChapterAnnouncement(
+        newCount = newlyAdded.size,
+        pluralLabel = if (newlyAdded.size == 1) "chapter" else "chapters",
+        deepLinkChapterId = newlyAdded.firstOrNull(),
+        shouldNotify = shouldNotify,
+    )
 }
