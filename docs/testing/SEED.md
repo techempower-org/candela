@@ -91,19 +91,39 @@ single chapter into the reader.
 ### Precondition: onboarding must be completed
 
 On a **fresh install** the app boots into the first-run onboarding flow
-(its start destination), the last step of which is a "Pick a voice" gate
-that wants a voice download. The seed's navigation to the fiction-detail
-screen happens behind that gate, so the reader is not observable until
-onboarding is finished. Verified on-device: the seed's asset-copy step
-runs regardless (the fixture is staged into the app's `cacheDir`), but
-the reader landing requires a device/emulator that has already completed
-onboarding.
+(its start destination). It is **3 steps**:
 
-For instrumented tests, complete or bypass onboarding in test setup (e.g.
-seed the "onboarding seen" preference, or drive through the flow once)
-before firing the seed intent — then the import navigates straight to the
-fiction with no network. For a manual device check, run the seed on an
-already-onboarded device.
+1. "Stories, read aloud." intro (`Get started` / `I've used Candela
+   before`).
+2. (the welcome / theme step).
+3. **"Pick a voice"** — a starter-voice gate that wants a voice download
+   (e.g. "Lessac low/medium · 63 MB"). There is no skip on this step;
+   the device must get past it before the main app is reachable.
+
+The seed's navigation to the fiction-detail screen happens *behind* this
+onboarding start destination, so the reader is **not observable until
+onboarding is finished**. Verified on-device: the seed's asset-copy step
+runs regardless (the fixture is staged byte-identically into the app's
+`cacheDir`), but the reader landing requires a device/emulator that has
+already completed onboarding.
+
+For the Maestro / instrumented flows: drive through (or bypass)
+onboarding **first**, then fire the seed intent — the import then
+navigates straight to the fiction with no network. For a manual device
+check, run the seed on an already-onboarded device.
+
+### Gotcha: don't `force-stop` right after firing the seed
+
+The import record is written via an async DataStore `edit {}` coroutine
+(`EpubConfigImpl.importFile`). On-device, an `am force-stop`
+**immediately after** the seed intent can kill that write mid-flight —
+`files/datastore/storyvox_epub.preferences_pb` was observed empty/absent
+when the process was stopped too soon, so the imported fiction did not
+survive into Library. Give the activity a moment (a second or two, or
+just don't force-stop between fires) so the write flushes before you
+relaunch or assert on the persisted book. The `cacheDir` staging is
+synchronous and is unaffected; only the persisted import record is at
+risk.
 
 ### Instrumented-test use
 
