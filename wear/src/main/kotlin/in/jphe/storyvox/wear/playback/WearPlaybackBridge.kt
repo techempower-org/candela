@@ -24,7 +24,11 @@ import kotlinx.serialization.json.Json
  *
  * - Subscribes to `/playback/state` DataItem updates from the phone, decodes the
  *   JSON-encoded [PlaybackState], and exposes it as a [StateFlow].
- * - Sends transport commands to the phone via [com.google.android.gms.wearable.MessageClient].
+ * - Tracks whether a phone node is reachable via [connected], refreshed on
+ *   [start]/[refreshConnectivity] and updated reactively from every [send].
+ * - Sends transport commands to the phone via [com.google.android.gms.wearable.MessageClient],
+ *   returning a [SendResult] so the caller can surface a "Phone not connected"
+ *   hint instead of silently dropping the tap (#1030).
  *
  * Lifecycle bound to [in.jphe.storyvox.wear.WearApp] / its NowPlaying composable.
  */
@@ -39,6 +43,14 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
+    /**
+     * Whether a phone node is currently reachable. Starts `true` (optimistic, so
+     * controls aren't greyed for the split second before the first node query
+     * resolves) and is corrected by [refreshConnectivity] and every [send].
+     */
+    private val _connected = MutableStateFlow(true)
+    val connected: StateFlow<Boolean> = _connected.asStateFlow()
+
     fun start() {
         dataClient.addListener(this, android.net.Uri.parse("wear://*/playback"), DataClient.FILTER_PREFIX)
         // Hydrate immediately from the latest cached DataItem
@@ -49,11 +61,25 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
                 }
             }
         }
+        refreshConnectivity()
     }
 
     fun stop() {
         dataClient.removeListener(this)
         scope.cancel()
+    }
+
+    /**
+     * Re-query reachable nodes and update [connected]. Call on resume so the UI
+     * reflects a phone that came back into range while the watch screen was off.
+     */
+    fun refreshConnectivity() {
+        scope.launch {
+            val nodes = runCatching { connectedPhoneNodes() }.getOrNull()
+            // A query failure (GMS unavailable) is left as-is rather than forced
+            // to disconnected — the next send is the authoritative signal.
+            if (nodes != null) _connected.value = NodeSelection.isConnected(nodes)
+        }
     }
 
     override fun onDataChanged(events: DataEventBuffer) {
@@ -68,11 +94,29 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
         runCatching { _state.value = json.decodeFromString<PlaybackState>(raw) }
     }
 
-    suspend fun send(path: String) {
-        runCatching {
-            val nodes = nodeClient.connectedNodes.await()
-            val phone = nodes.firstOrNull { it.isNearby } ?: nodes.firstOrNull() ?: return
-            messageClient.sendMessage(phone.id, path, null).await()
+    /**
+     * Send a transport command, returning the outcome and updating [connected]
+     * from what we learned. A successful send is the strongest evidence a node
+     * is reachable; a disconnected/failed send flips [connected] to `false` so
+     * the UI greys the controls immediately.
+     */
+    suspend fun send(path: String): SendResult {
+        val nodes = runCatching { connectedPhoneNodes() }.getOrNull()
+        val target = nodes?.let { NodeSelection.preferredTarget(it) }
+        if (target == null) {
+            _connected.value = false
+            return SendResult.Disconnected
+        }
+        return runCatching {
+            messageClient.sendMessage(target.id, path, null).await()
+            _connected.value = true
+            SendResult.Sent
+        }.getOrElse {
+            _connected.value = false
+            SendResult.Failed
         }
     }
+
+    private suspend fun connectedPhoneNodes(): List<PhoneNode> =
+        nodeClient.connectedNodes.await().map { PhoneNode(id = it.id, isNearby = it.isNearby) }
 }
