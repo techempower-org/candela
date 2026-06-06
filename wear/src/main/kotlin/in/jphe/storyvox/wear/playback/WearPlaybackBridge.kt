@@ -8,6 +8,7 @@ import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
+import `in`.jphe.storyvox.playback.wear.SeekPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -95,12 +96,32 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
     }
 
     /**
-     * Send a transport command, returning the outcome and updating [connected]
-     * from what we learned. A successful send is the strongest evidence a node
-     * is reachable; a disconnected/failed send flips [connected] to `false` so
-     * the UI greys the controls immediately.
+     * Send a payload-less transport command (play/pause/skip/...), returning the
+     * outcome and updating [connected] from what we learned.
      */
-    suspend fun send(path: String): SendResult {
+    suspend fun send(path: String): SendResult = dispatch(path, null)
+
+    /**
+     * Issue #1031 — scrub from the wrist. Converts the 0..1 ring [fraction] to
+     * an absolute position in ms against [durationMs] (the synced
+     * `durationEstimateMs`) and sends it as a [SeekPayload] on
+     * [PhoneWearBridge.CMD_SEEK]. Unknown-duration handling lives in
+     * [SeekPayload.fromFraction] (targets 0), so this never divides by a zero
+     * rail. Shares [dispatch] with [send] so a scrub-while-disconnected updates
+     * [connected] and surfaces the same "Phone not connected" hint.
+     */
+    suspend fun sendSeek(fraction: Float, durationMs: Long): SendResult {
+        val positionMs = SeekPayload.fromFraction(fraction, durationMs)
+        return dispatch(PhoneWearBridge.CMD_SEEK, SeekPayload.encode(positionMs))
+    }
+
+    /**
+     * Single send path shared by every command. A successful send is the
+     * strongest evidence a node is reachable; a disconnected/failed send flips
+     * [connected] to `false` so the UI greys the controls immediately. The only
+     * difference between a transport tap and a seek is the [payload].
+     */
+    private suspend fun dispatch(path: String, payload: ByteArray?): SendResult {
         val nodes = runCatching { connectedPhoneNodes() }.getOrNull()
         val target = nodes?.let { NodeSelection.preferredTarget(it) }
         if (target == null) {
@@ -108,7 +129,7 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
             return SendResult.Disconnected
         }
         return runCatching {
-            messageClient.sendMessage(target.id, path, null).await()
+            messageClient.sendMessage(target.id, path, payload).await()
             _connected.value = true
             SendResult.Sent
         }.getOrElse {
