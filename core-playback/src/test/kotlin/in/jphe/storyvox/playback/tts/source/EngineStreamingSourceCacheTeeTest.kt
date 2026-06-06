@@ -78,7 +78,7 @@ class EngineStreamingSourceCacheTeeTest {
 
     @Test
     fun `tee writes one cache entry per sentence then finalize completes the cache`() = runBlocking {
-        val appender = cache.appender(key, sampleRate = 22050)
+        val appender = cache.openLease(key, sampleRate = 22050, owner = PcmCache.LeaseOwner.FOREGROUND)!!
         val source = EngineStreamingSource(
             sentences = sentences,
             startSentenceIndex = 0,
@@ -86,7 +86,7 @@ class EngineStreamingSourceCacheTeeTest {
             speed = 1f,
             pitch = 1f,
             engineMutex = Mutex(),
-            cacheAppender = appender,
+            cacheLease = appender,
         )
 
         // Drain the source — pull every sentence + the END_PILL. This
@@ -117,7 +117,7 @@ class EngineStreamingSourceCacheTeeTest {
 
     @Test
     fun `close abandons the in-progress cache (no index lands)`() = runBlocking {
-        val appender = cache.appender(key, sampleRate = 22050)
+        val appender = cache.openLease(key, sampleRate = 22050, owner = PcmCache.LeaseOwner.FOREGROUND)!!
         val source = EngineStreamingSource(
             sentences = sentences,
             startSentenceIndex = 0,
@@ -125,7 +125,7 @@ class EngineStreamingSourceCacheTeeTest {
             speed = 1f,
             pitch = 1f,
             engineMutex = Mutex(),
-            cacheAppender = appender,
+            cacheLease = appender,
         )
 
         // Pull two of three sentences so at least one tee fired.
@@ -143,7 +143,7 @@ class EngineStreamingSourceCacheTeeTest {
 
     @Test
     fun `seek abandons cache progress`() = runBlocking {
-        val appender = cache.appender(key, sampleRate = 22050)
+        val appender = cache.openLease(key, sampleRate = 22050, owner = PcmCache.LeaseOwner.FOREGROUND)!!
         val source = EngineStreamingSource(
             sentences = sentences,
             startSentenceIndex = 0,
@@ -151,7 +151,7 @@ class EngineStreamingSourceCacheTeeTest {
             speed = 1f,
             pitch = 1f,
             engineMutex = Mutex(),
-            cacheAppender = appender,
+            cacheLease = appender,
         )
         source.nextChunk()                // pull one sentence to ensure
                                           // a tee write hit disk before
@@ -176,7 +176,7 @@ class EngineStreamingSourceCacheTeeTest {
             speed = 1f,
             pitch = 1f,
             engineMutex = Mutex(),
-            cacheAppender = null,        // pre-PR-D behavior
+            cacheLease = null,        // pre-PR-D behavior
         )
         // Drain all three sentences.
         repeat(3) { source.nextChunk() }
@@ -190,7 +190,7 @@ class EngineStreamingSourceCacheTeeTest {
 
     @Test
     fun `finalize is idempotent — second call after finalize is a no-op`() = runBlocking {
-        val appender = cache.appender(key, sampleRate = 22050)
+        val appender = cache.openLease(key, sampleRate = 22050, owner = PcmCache.LeaseOwner.FOREGROUND)!!
         val source = EngineStreamingSource(
             sentences = sentences,
             startSentenceIndex = 0,
@@ -198,7 +198,7 @@ class EngineStreamingSourceCacheTeeTest {
             speed = 1f,
             pitch = 1f,
             engineMutex = Mutex(),
-            cacheAppender = appender,
+            cacheLease = appender,
         )
         // Drain.
         while (source.nextChunk() != null) Unit
