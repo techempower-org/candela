@@ -49,6 +49,9 @@ include(":source-azure")
 include(":source-rss")
 include(":source-epub")
 include(":source-epub-writer")
+// Issue #1003 — pure-JVM chapterizer + M4B chapter-marker math for the
+// "Make your own audiobook" export. Android encode/mux lives in :core-playback.
+include(":source-audiobook-writer")
 include(":source-outline")
 include(":source-gutenberg")
 include(":source-ao3")

@@ -9,6 +9,9 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+### Added
+- **#1003** **Make your own audiobook** — turn your own text into a saved, shareable audiobook, entirely offline. A new "Make your own audiobook" entry on the Library **+** menu takes pasted/typed text → auto-chapterizes it → narrates it with a downloaded neural voice → exports a **chaptered `.m4b`** (chapter markers + title/author/cover metadata) you can play in Candela and share via the Android share sheet / Save-As (SAF). The same export is available from any library book via Fiction detail → **Export as audiobook…**. The render runs in a background WorkManager job with a progress notification. New `:source-audiobook-writer` module holds the (unit-tested) chapterizer, Nero `chpl` chapter atom + iTunes metadata box builders, and the in-place `moov`/`udta` injector; `:core-playback` adds the AAC `MediaMuxer` encoder, the synthesizer, and the export use case + worker.
+
 ## [1.0.3] -- 2026-05-29
 
 **Rebrand to Candela.** The app is now **Candela** — Latin for *candle*, and the SI unit of luminous intensity. It's a clean public identity for the Google Play debut, away from the crowded "storyvox" name (already live on Play as a different app, and owned by two commercial text-to-audiobook products in our exact category). *Storyvox* lives on as the engine underneath — the package namespace, deep-link scheme, and on-device data layout are all unchanged, so this is purely an identity change with no data migration.

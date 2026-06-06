@@ -17,6 +17,8 @@ import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.api.UiChapter
 import `in`.jphe.storyvox.feature.api.UiFiction
 import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
+import `in`.jphe.storyvox.playback.audiobook.AudiobookExportScheduler
+import `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus
 import `in`.jphe.storyvox.playback.cache.CacheStateInspector
 import `in`.jphe.storyvox.playback.cache.ChapterCacheState
 import `in`.jphe.storyvox.playback.cache.PcmCache
@@ -32,6 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -110,6 +113,9 @@ class FictionDetailViewModel @Inject constructor(
     private val voiceManager: VoiceManager,
     private val pronunciationDict: PronunciationDictRepository,
     private val pcmCache: PcmCache,
+    /** Issue #1003 — enqueues + observes the "export this fiction as an
+     *  audiobook" render. Mirrors the EPUB export's home on this screen. */
+    private val audiobookExportScheduler: AudiobookExportScheduler,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -133,6 +139,42 @@ class FictionDetailViewModel @Inject constructor(
      *  through the combine below. Held outside the combine so the suspend
      *  call site can flip it cleanly around the use-case invocation. */
     private val isExporting = MutableStateFlow(false)
+
+    /** Issue #1003 — unique work name of an in-flight audiobook export for
+     *  this fiction (null until the user taps "Export as audiobook"). */
+    private val audiobookWorkName = MutableStateFlow<String?>(null)
+
+    /** Issue #1003 — live status of the audiobook export. Idle until the user
+     *  starts one; the screen observes this to show a progress chip and then
+     *  the Share / Save-As sheet. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val audiobookExportStatus: StateFlow<AudiobookExportStatus> = audiobookWorkName
+        .flatMapLatest { name ->
+            if (name == null) flowOf(AudiobookExportStatus.Idle)
+            else audiobookExportScheduler.statusFor(name)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AudiobookExportStatus.Idle)
+
+    /**
+     * Issue #1003 — enqueue an audiobook (`.m4b`) export of this fiction using
+     * the active voice. Idempotent at the WorkManager layer (one export per
+     * fiction in flight). The screen surfaces progress + the finished file via
+     * [audiobookExportStatus].
+     */
+    fun exportToAudiobook() {
+        val name = audiobookExportScheduler.enqueue(
+            fictionId = fictionId,
+            title = uiState.value.fiction?.title.orEmpty(),
+            voiceId = null,
+        )
+        audiobookWorkName.value = name
+    }
+
+    /** Issue #1003 — clear the audiobook export status after the user
+     *  dismisses the result sheet. */
+    fun clearAudiobookExport() {
+        audiobookWorkName.value = null
+    }
 
     /** PR-H (#86) — cache-state nudge channel. The view-model recomputes
      *  per-chapter cache states whenever (chapters, active voice,
