@@ -7,11 +7,11 @@ import `in`.jphe.storyvox.feature.api.SuggestedFeedKind
 // in #246 so the SettingsRepositoryUi interface can expose them.
 
 /**
- * Baked-in fallback list (#246) — used when the storyvox-feeds remote
+ * Baked-in fallback list (#246) — used when the candela-feeds remote
  * fetch hasn't completed yet (cold start, offline) or when parsing the
  * JSON fails. Kept lean — just enough to make Settings → Suggested
  * feeds non-empty on first launch. The remote registry at
- * github.com/jphein/storyvox-feeds is the source of truth for
+ * github.com/techempower-org/candela-feeds is the source of truth for
  * additions / changes; this list rarely needs editing.
  */
 val BAKED_IN_SUGGESTED_FEEDS: List<SuggestedFeed> = listOf(

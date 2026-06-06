@@ -98,7 +98,7 @@ Candela is **thirty-four Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38).
 | `:core-sync` | InstantDB cross-device sync — library, follows, positions, bookmarks, pronunciation overrides, encrypted secrets. Magical sign-in surface. | `InstantDbClient`, `SyncRepository`, `SignInController` |
 | `:source-royalroad` | Royal Road implementation of `FictionSource`. | `RoyalRoadSource`, `RoyalRoadFetcher`, `RoyalRoadParsers`, `LoginWebView` |
 | `:source-github` | GitHub-repo implementation of `FictionSource`. | `GithubSource`, `GithubFetcher`, `BookTomlParser`, `CommonmarkRenderer`, `DeviceFlowAuth` |
-| `:source-rss` | RSS / Atom-feed implementation. Pulls suggested-feeds list from [storyvox-feeds](https://github.com/techempower-org/storyvox-feeds). | `RssSource`, `RssFetcher`, `RssParser`, `RssFeed` |
+| `:source-rss` | RSS / Atom-feed implementation. Pulls suggested-feeds list from [candela-feeds](https://github.com/techempower-org/candela-feeds). | `RssSource`, `RssFetcher`, `RssParser`, `RssFeed` |
 | `:source-epub` | Local-EPUB-folder implementation via the Storage Access Framework + OPF parser. | `EpubSource`, `EpubParser`, `EpubModels` |
 | `:source-epub-writer` | EPUB export — convert a fiction's downloaded chapters into a portable .epub for offline / cross-device reading. | `EpubWriter`, `OpfBuilder` |
 | `:source-outline` | Outline (self-hosted wiki) implementation — collections as fictions, articles as chapters. | `OutlineSource`, `OutlineApi`, `OutlineConfig` |

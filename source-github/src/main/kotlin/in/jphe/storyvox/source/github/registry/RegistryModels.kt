@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Top-level shape of `registry.json`, fetched from
- * `raw.githubusercontent.com/techempower-org/storyvox-registry/main/registry.json`
+ * `raw.githubusercontent.com/techempower-org/candela-registry/main/registry.json`
  * (path overrideable by [Registry] for tests).
  *
  * The registry is curated and hand-edited, so each entry carries the

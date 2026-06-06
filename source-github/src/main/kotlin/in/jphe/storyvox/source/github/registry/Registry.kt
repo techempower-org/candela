@@ -24,7 +24,7 @@ import kotlin.coroutines.resumeWithException
 
 /**
  * Reads the curated `registry.json` from
- * `raw.githubusercontent.com/techempower-org/storyvox-registry/main/registry.json`
+ * `raw.githubusercontent.com/techempower-org/candela-registry/main/registry.json`
  * and caches it for the session.
  *
  * The registry is the source-of-truth for the **Featured** row at the
@@ -117,7 +117,7 @@ internal open class Registry @Inject constructor(
 
     companion object {
         const val REGISTRY_URL: String =
-            "https://raw.githubusercontent.com/techempower-org/storyvox-registry/main/registry.json"
+            "https://raw.githubusercontent.com/techempower-org/candela-registry/main/registry.json"
         const val USER_AGENT: String =
             "storyvox/0.5 (+https://github.com/techempower-org/candela)"
     }

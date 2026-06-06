@@ -280,8 +280,8 @@ class SettingsViewModel @Inject constructor(
         )
 
     /** Issue #246 — curated suggested RSS feeds, fetched from the
-     *  jphein/storyvox-feeds GitHub repo at runtime. Falls back to
-     *  the baked-in seed list while the fetch is in flight or if it
+     *  techempower-org/candela-feeds GitHub repo at runtime. Falls back
+     *  to the baked-in seed list while the fetch is in flight or if it
      *  fails. */
     val suggestedRssFeeds: kotlinx.coroutines.flow.StateFlow<List<`in`.jphe.storyvox.feature.api.SuggestedFeed>> =
         repo.suggestedRssFeeds.stateIn(
