@@ -50,11 +50,22 @@ object EpubParser {
         val opf = parseOpf(String(opfBytes, Charsets.UTF_8))
 
         // Resolve each spine idref → href via the manifest, then
-        // pull the chapter HTML by joining opfDir + href.
+        // pull the chapter HTML by resolving opfDir + href against the
+        // zip entry names.
         val chapters = opf.spineIdrefs.mapIndexedNotNull { index, idref ->
             val manifestItem = opf.manifest[idref] ?: return@mapIndexedNotNull null
-            val resolved = joinPath(opfDir, manifestItem.href)
-            val bodyBytes = entries[resolved] ?: return@mapIndexedNotNull null
+            // #1035 / #1021 — OPF hrefs are URI references: they may be
+            // percent-encoded ("Chapter%201.xhtml") and relative
+            // ("../text/ch1.xhtml"), while ZipEntry.name is the literal
+            // decoded path. [resolveHref] percent-decodes, resolves
+            // ./ and ../ segments, and strips a leading slash so the
+            // result matches the zip entry. The raw join is kept as a
+            // fallback for the (rare) EPUB whose zip names are
+            // themselves percent-encoded.
+            val resolved = resolveHref(opfDir, manifestItem.href)
+            val bodyBytes = entries[resolved]
+                ?: entries[joinPath(opfDir, manifestItem.href)]
+                ?: return@mapIndexedNotNull null
             EpubChapter(
                 id = idref,
                 title = manifestItem.title ?: "Chapter ${index + 1}",
@@ -195,6 +206,79 @@ object EpubParser {
         if (dir.isEmpty()) return href
         // EPUB hrefs use forward slashes regardless of host OS.
         return "$dir/$href".replace("//", "/")
+    }
+
+    /**
+     * Resolve an OPF manifest [href] against the OPF directory [dir] into
+     * a path that matches a decoded [ZipEntry.name].
+     *
+     * OPF hrefs are URI references (EPUB 3 §3.4.1 / OPF 2.0.1 §1.4), so
+     * they may be:
+     *  - **percent-encoded** — `Chapter%201.xhtml`, `Caf%C3%A9.xhtml`
+     *    (#1035). `java.util.zip` exposes the literal decoded name, so we
+     *    decode the href before matching.
+     *  - **relative with `./` / `../` segments** — `../text/ch1.xhtml`
+     *    when the OPF lives in a subdir like `OEBPS/` (#1021).
+     *  - **leading-slash absolute** — `/OEBPS/ch1.xhtml`.
+     *
+     * Steps: percent-decode → join with [dir] → collapse `.`/`..`
+     * segments → strip a leading `/`. Pure Kotlin (no `android.util.Xml`)
+     * so it is unit-testable without the Android XML coupling that has
+     * kept this module untested.
+     */
+    internal fun resolveHref(dir: String, href: String): String {
+        val decoded = percentDecode(href)
+        // A leading-slash href is root-absolute: resolve it from the zip
+        // root, ignoring the OPF dir (joining would double-prefix).
+        val joined = when {
+            decoded.startsWith('/') -> decoded
+            dir.isEmpty() -> decoded
+            else -> "$dir/$decoded"
+        }
+        return normalizeSegments(joined)
+    }
+
+    /** Collapse `.`/`..` path segments and strip a leading slash, on a
+     *  forward-slash path. A `..` that would escape the root is dropped
+     *  (clamped at root) rather than producing a leading `..`, since zip
+     *  entry names are always root-relative. */
+    private fun normalizeSegments(path: String): String {
+        val stack = ArrayDeque<String>()
+        for (segment in path.split('/')) {
+            when (segment) {
+                "", "." -> {} // skip empty (handles `//` and leading `/`) and `.`
+                ".." -> if (stack.isNotEmpty()) stack.removeLast()
+                else -> stack.addLast(segment)
+            }
+        }
+        return stack.joinToString("/")
+    }
+
+    /** Path-aware percent-decoding: turns `%XX` escapes into their bytes
+     *  and UTF-8-decodes the result. Unlike [java.net.URLDecoder], a
+     *  literal `+` stays a `+` (it is a valid filename char and only
+     *  means "space" in `application/x-www-form-urlencoded`, not in path
+     *  components). Malformed escapes are left verbatim. */
+    internal fun percentDecode(s: String): String {
+        if ('%' !in s) return s
+        val bytes = ArrayList<Byte>(s.length)
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            if (c == '%' && i + 2 < s.length) {
+                val hi = Character.digit(s[i + 1], 16)
+                val lo = Character.digit(s[i + 2], 16)
+                if (hi >= 0 && lo >= 0) {
+                    bytes.add(((hi shl 4) or lo).toByte())
+                    i += 3
+                    continue
+                }
+            }
+            // Not a valid escape — emit the char's UTF-8 bytes verbatim.
+            for (b in c.toString().toByteArray(Charsets.UTF_8)) bytes.add(b)
+            i++
+        }
+        return String(bytes.toByteArray(), Charsets.UTF_8)
     }
 
     // ── XmlPullParser helpers (mirrored from RssParser) ──────────
