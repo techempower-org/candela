@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.wear.playback
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataItem
@@ -39,7 +40,6 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
     private val dataClient by lazy { Wearable.getDataClient(context) }
     private val messageClient by lazy { Wearable.getMessageClient(context) }
     private val nodeClient by lazy { Wearable.getNodeClient(context) }
-    private val json = Json { ignoreUnknownKeys = true }
 
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
@@ -91,8 +91,13 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
 
     private fun consume(item: DataItem) {
         val map = DataMapItem.fromDataItem(item).dataMap
-        val raw = map.getString("state") ?: return
-        runCatching { _state.value = json.decodeFromString<PlaybackState>(raw) }
+        _state.value = decodeState(map.getString("state"), _state.value) { t ->
+            // #1032 — was a bare runCatching that silently dropped the payload.
+            // A dropped state on the watch shows as stale playback info, so make
+            // it greppable when it happens (malformed blob, or version skew where
+            // the phone shipped a PlaybackError subtype this build can't decode).
+            Log.w(TAG, "wear: dropping undecodable PlaybackState payload", t)
+        }
     }
 
     /**
@@ -140,4 +145,39 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
 
     private suspend fun connectedPhoneNodes(): List<PhoneNode> =
         nodeClient.connectedNodes.await().map { PhoneNode(id = it.id, isNearby = it.isNearby) }
+
+    companion object {
+        private const val TAG = "WearPlaybackBridge"
+
+        /**
+         * Decode a phone-published [PlaybackState] JSON blob, falling back to the
+         * last-good [current] state on any failure (#1032).
+         *
+         * Pure and instance-free so the decode contract can be unit-tested without
+         * GMS `DataItem`/`DataClient` (the seam pattern, mirroring [NodeSelection]).
+         * Returns [current] unchanged when:
+         *  - [raw] is null (no "state" key on the DataItem), or
+         *  - the JSON is malformed / truncated, or
+         *  - it carries an unknown sealed-[PlaybackError] discriminator (version
+         *    skew: the phone shipped an error subtype this watch build predates) —
+         *    kotlinx.serialization throws on the unknown type even with
+         *    `ignoreUnknownKeys`, so we must catch rather than crash the watch.
+         *
+         * [onError] is invoked with the decode failure so the caller can log it
+         * (the previous `consume()` swallowed failures silently).
+         */
+        internal inline fun decodeState(
+            raw: String?,
+            current: PlaybackState,
+            onError: (Throwable) -> Unit = {},
+        ): PlaybackState {
+            if (raw == null) return current
+            return runCatching { DECODE_JSON.decodeFromString<PlaybackState>(raw) }
+                .getOrElse { onError(it); current }
+        }
+
+        /** Matches [in.jphe.storyvox.playback.wear.PhoneWearBridge]'s encoder config. */
+        @PublishedApi
+        internal val DECODE_JSON = Json { ignoreUnknownKeys = true }
+    }
 }
