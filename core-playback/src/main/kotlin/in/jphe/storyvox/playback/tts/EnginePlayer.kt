@@ -47,7 +47,7 @@ import `in`.jphe.storyvox.playback.SleepTimer
 import `in`.jphe.storyvox.playback.ThermalMonitor
 import `in`.jphe.storyvox.playback.TtsVolumeRamp
 import `in`.jphe.storyvox.playback.cache.EngineMutex
-import `in`.jphe.storyvox.playback.cache.PcmAppender
+import `in`.jphe.storyvox.playback.cache.PcmAppenderLease
 import `in`.jphe.storyvox.playback.cache.PcmCache
 import `in`.jphe.storyvox.playback.cache.PcmCacheKey
 import `in`.jphe.storyvox.playback.cache.PcmIndex
@@ -2545,22 +2545,30 @@ class EnginePlayer @AssistedInject constructor(
             // Cache miss (or hit-open failed) — streaming source +
             // tee appender path (PR-D). If a partial entry exists
             // from a prior killed render (meta.json on disk,
-            // idx.json absent), wipe it first; PR-D's resume policy
-            // is "abandon, restart".
+            // idx.json absent), it's wiped on lease-open; PR-D's
+            // resume policy is "abandon, restart".
             //
             // #866 — withContext(IO), not runBlocking: startPlaybackPipeline
-            // is now suspend, so the cache delete + appender open run on
+            // is now suspend, so the cache lease open runs on
             // Dispatchers.IO without parking Main. Pre-#866 this was a
             // runBlocking on Main and a slow flash filesystem could push
             // the delete+open to 50+ ms, dropping Compose frames on every
             // speed/seek/voice-swap rebuild.
-            val appender: PcmAppender? = cacheKey?.let { key ->
+            //
+            // #1034 — open the FOREGROUND single-writer lease (not a bare
+            // appender). This evicts any background ChapterRenderJob that
+            // was rendering the same key and blocks a worker that starts
+            // later, so the worker and this tee can never interleave
+            // append-mode writes / delete-under-open on the shared `.pcm`.
+            // The stale-partial wipe is now atomic with the open inside
+            // openLease (under the cache's key guard).
+            val appender: PcmAppenderLease? = cacheKey?.let { key ->
                 withContext(Dispatchers.IO) {
-                    if (pcmCache.metaFileFor(key).exists() && !pcmCache.isComplete(key)) {
-                        // Stale partial — wipe before opening fresh.
-                        pcmCache.delete(key)
-                    }
-                    pcmCache.appender(key, sampleRate = sampleRate)
+                    pcmCache.openLease(
+                        key,
+                        sampleRate = sampleRate,
+                        owner = PcmCache.LeaseOwner.FOREGROUND,
+                    )
                 }
             }
             cacheKey?.let { key ->
@@ -2578,7 +2586,7 @@ class EnginePlayer @AssistedInject constructor(
                 speed = currentSpeed,
                 pitch = currentPitch,
                 engineMutex = engineMutex,
-                cacheAppender = appender,
+                cacheLease = appender,
                 punctuationPauseMultiplier = currentPunctuationPauseMultiplier,
                 // #486 / #488 — TalkBack inter-sentence pad. Snapshot
                 // at pipeline-construction time; mid-listen slider

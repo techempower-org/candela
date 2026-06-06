@@ -168,12 +168,6 @@ class ChapterRenderJob @AssistedInject constructor(
             return Result.success()
         }
 
-        // 6. Wipe stale partial — same abandon-and-restart policy as
-        // the foreground streaming-tee path (PR-D).
-        if (pcmCache.metaFileFor(cacheKey).exists()) {
-            pcmCache.delete(cacheKey)
-        }
-
         // 7. setForeground for long renders — render can run 30+ min on
         // Piper-high on the Tab A7 Lite. runCatching guards against
         // foreground-service start failures on locked devices /
@@ -202,24 +196,52 @@ class ChapterRenderJob @AssistedInject constructor(
         EngineSampleRateCache.refreshFromEngine()
 
         // 9. Generate sentences + write to cache.
+        // Issue #1034 — acquire the single-writer lease for this key as a
+        // WORKER. If the foreground streaming-tee already owns this exact
+        // key (the user is actively playing this chapter at 1.0×/1.0× with
+        // the empty dict), [openLease] refuses (null) and we skip: the
+        // foreground is rendering it, and racing it would corrupt the
+        // shared `.pcm`. The lease also subsumes the old stale-partial
+        // delete (delete + appender-open happen atomically under the
+        // cache's key guard, so a delete never races a concurrent open).
         val sentences = chunker.chunk(chapter.text, detectLocale(chapter.text))
         val sampleRate = sampleRateFor(voice)
-        val appender = pcmCache.appender(cacheKey, sampleRate = sampleRate)
+        val lease = pcmCache.openLease(
+            cacheKey,
+            sampleRate = sampleRate,
+            owner = PcmCache.LeaseOwner.WORKER,
+        )
+        if (lease == null) {
+            Log.i(
+                LOG_TAG,
+                "pcm-cache PRERENDER-SKIP-FOREGROUND-OWNS chapterId=$chapterId " +
+                    "base=${cacheKey.fileBaseName().take(12)}",
+            )
+            return Result.success()
+        }
         try {
             for (s in sentences) {
                 if (isStopped) {
-                    appender.abandon()
+                    lease.abandon()
                     Log.i(LOG_TAG, "pcm-cache PRERENDER-CANCELLED chapterId=$chapterId")
                     return Result.failure()
+                }
+                // #1034 — the foreground may have evicted us mid-render
+                // (user started playing this chapter). The lease's writes
+                // are already inert in that case, but bail promptly so we
+                // don't burn synth cycles producing PCM nobody will store.
+                if (!lease.isActive) {
+                    Log.i(LOG_TAG, "pcm-cache PRERENDER-PREEMPTED chapterId=$chapterId")
+                    return Result.success()
                 }
                 val pcm = engineMutex.mutex.withLock {
                     if (isStopped) return@withLock null
                     generateAudioPCM(voice, s.text)
                 } ?: continue
                 val pauseMs = trailingPauseMs(s.text)
-                runCatching { appender.appendSentence(s, pcm, pauseMs) }
+                runCatching { lease.appendSentence(s, pcm, pauseMs) }
                     .onFailure {
-                        appender.abandon()
+                        lease.abandon()
                         Log.w(LOG_TAG, "pcm-cache PRERENDER-FAIL chapterId=$chapterId", it)
                         return Result.retry()
                     }
@@ -229,9 +251,9 @@ class ChapterRenderJob @AssistedInject constructor(
             // Issue #581 — `complete()` (was `finalize()`) avoids the
             // Object.finalize() shadow that produced uncaught
             // IllegalStateExceptions on the FinalizerDaemon thread.
-            runCatching { appender.complete() }
+            runCatching { lease.complete() }
                 .onFailure {
-                    appender.abandon()
+                    lease.abandon()
                     Log.w(LOG_TAG, "pcm-cache PRERENDER-FAIL chapterId=$chapterId complete", it)
                     return Result.retry()
                 }
@@ -245,7 +267,7 @@ class ChapterRenderJob @AssistedInject constructor(
             )
             return Result.success()
         } catch (t: Throwable) {
-            appender.abandon()
+            lease.abandon()
             Log.w(LOG_TAG, "pcm-cache PRERENDER-FAIL chapterId=$chapterId threw", t)
             return if (isStopped) Result.failure() else Result.retry()
         }

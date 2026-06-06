@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.playback.tts.source
 import android.os.Process as AndroidProcess
 import `in`.jphe.storyvox.playback.SentenceRange
 import `in`.jphe.storyvox.playback.cache.PcmAppender
+import `in`.jphe.storyvox.playback.cache.PcmAppenderLease
 import `in`.jphe.storyvox.playback.tts.Sentence
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
@@ -77,14 +78,23 @@ class EngineStreamingSource(
     /**
      * PR-D (#86) — optional write-through to the on-disk PCM cache. When
      * non-null, every sentence the producer generates is mirrored into
-     * this appender via [PcmAppender.appendSentence]. On [close] (which
+     * this lease via [PcmAppenderLease.appendSentence]. On [close] (which
      * fires on user pause + pipeline teardown, voice swap, and
-     * seek-induced restart) the appender is [PcmAppender.abandon]'d so
+     * seek-induced restart) the lease is [PcmAppenderLease.abandon]'d so
      * the partial files don't lie around looking like a complete cache.
      * On natural end-of-chapter (the consumer thread reaches the
      * END_PILL), the consumer calls [finalizeCache] which writes the
      * index sidecar and marks the cache complete for PR-E's
      * `CacheFileSource` to pick up on next play.
+     *
+     * Issue #1034 — this is a [PcmAppenderLease], not a bare
+     * [PcmAppender]: it is the FOREGROUND single-writer lease for the
+     * cache key, obtained from [`in`.jphe.storyvox.playback.cache.PcmCache.openLease].
+     * If a background [`in`.jphe.storyvox.playback.cache.ChapterRenderJob]
+     * was already rendering this key, opening the foreground lease evicted
+     * it; if the worker started afterward it is refused. Either way every
+     * tee write here goes through the lease, which no-ops if (defensively)
+     * the lease were ever evicted out from under the foreground.
      *
      * Null in tests that don't care about the cache, and in pre-cache
      * environments where the feature flag is off (PR-F gates).
@@ -95,7 +105,7 @@ class EngineStreamingSource(
      * Reassigning a constructor `val` parameter is a compile error in
      * Kotlin, hence the shadow.
      */
-    cacheAppender: PcmAppender? = null,
+    cacheLease: PcmAppenderLease? = null,
     private val punctuationPauseMultiplier: Float = 1f,
     /**
      * Accessibility scaffold Phase 2 (#486 / #488, v0.5.43) — extra
@@ -255,13 +265,13 @@ class EngineStreamingSource(
     private val headroomLock = Any()
 
     /**
-     * PR-D (#86) — mutable shadow of the constructor's `cacheAppender`
+     * PR-D (#86) — mutable shadow of the constructor's `cacheLease`
      * param so [seekToCharOffset] and [close] can null it out after
      * abandon. Volatile because the producer reads it on the dedicated
      * producer thread while [seekToCharOffset] / [close] runs on the
      * caller's thread.
      */
-    @Volatile private var cacheAppender: PcmAppender? = cacheAppender
+    @Volatile private var cacheAppender: PcmAppenderLease? = cacheLease
 
     private val _bufferHeadroomMs = MutableStateFlow(0L)
 
