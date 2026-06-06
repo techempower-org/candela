@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Scaffold
@@ -67,10 +68,20 @@ import kotlinx.coroutines.launch
 @Composable
 fun NowPlayingScreen(bridge: WearPlaybackBridge) {
     val state by bridge.state.collectAsStateWithLifecycle()
+    val connected by bridge.connected.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+
+    // Re-check reachability whenever the watch face comes back to the
+    // foreground, so a phone that returned to range while the screen was off
+    // restores the transport controls without a tap.
+    LifecycleResumeEffect(bridge) {
+        bridge.refreshConnectivity()
+        onPauseOrDispose {}
+    }
 
     NowPlayingContent(
         state = state,
+        connected = connected,
         onPlayPause = {
             val cmd = if (state.isPlaying) PhoneWearBridge.CMD_PAUSE else PhoneWearBridge.CMD_PLAY
             scope.launch { bridge.send(cmd) }
@@ -87,6 +98,7 @@ fun NowPlayingScreen(bridge: WearPlaybackBridge) {
 @Composable
 internal fun NowPlayingContent(
     state: PlaybackState,
+    connected: Boolean,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -109,6 +121,7 @@ internal fun NowPlayingContent(
                 RoundNowPlaying(
                     state = state,
                     progress = progress,
+                    connected = connected,
                     onPlayPause = onPlayPause,
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
@@ -117,6 +130,7 @@ internal fun NowPlayingContent(
                 SquareNowPlaying(
                     state = state,
                     progress = progress,
+                    connected = connected,
                     onPlayPause = onPlayPause,
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
@@ -130,6 +144,7 @@ internal fun NowPlayingContent(
 private fun RoundNowPlaying(
     state: PlaybackState,
     progress: Float,
+    connected: Boolean,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -158,10 +173,12 @@ private fun RoundNowPlaying(
         ChapterMeta(state = state)
         TransportRow(
             isPlaying = state.isPlaying,
+            enabled = connected,
             onPlayPause = onPlayPause,
             onSkipBack = onSkipBack,
             onSkipForward = onSkipForward,
         )
+        DisconnectedHint(connected = connected)
     }
 }
 
@@ -169,6 +186,7 @@ private fun RoundNowPlaying(
 private fun SquareNowPlaying(
     state: PlaybackState,
     progress: Float,
+    connected: Boolean,
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -190,10 +208,12 @@ private fun SquareNowPlaying(
         LinearScrubber(progress = progress, modifier = Modifier.fillMaxWidth())
         TransportRow(
             isPlaying = state.isPlaying,
+            enabled = connected,
             onPlayPause = onPlayPause,
             onSkipBack = onSkipBack,
             onSkipForward = onSkipForward,
         )
+        DisconnectedHint(connected = connected)
     }
 }
 
@@ -225,6 +245,25 @@ private fun ChapterMeta(state: PlaybackState) {
     }
 }
 
+/**
+ * Brief "Phone not connected" note shown beneath the (greyed) transport row
+ * when no phone node is reachable. Reserves no space when connected — it simply
+ * isn't composed — so the layout is unchanged in the common case.
+ */
+@Composable
+private fun DisconnectedHint(connected: Boolean) {
+    if (connected) return
+    Text(
+        text = "Phone not connected",
+        style = MaterialTheme.typography.caption2,
+        color = ParchmentOnMuted,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
 // region --- Previews ---
 
 private fun samplePlaying() = PlaybackState(
@@ -254,44 +293,41 @@ private fun sampleBuffering() = PlaybackState(
     charOffset = 0,
 )
 
-@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Playing")
 @Composable
-private fun PreviewRoundPlaying() {
+private fun NowPlayingPreview(state: PlaybackState, connected: Boolean = true) {
     WearLibraryNocturneTheme {
-        NowPlayingContent(samplePlaying(), {}, {}, {})
+        NowPlayingContent(
+            state = state,
+            connected = connected,
+            onPlayPause = {},
+            onSkipBack = {},
+            onSkipForward = {},
+        )
     }
 }
+
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Playing")
+@Composable
+private fun PreviewRoundPlaying() = NowPlayingPreview(samplePlaying())
 
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Paused")
 @Composable
-private fun PreviewRoundPaused() {
-    WearLibraryNocturneTheme {
-        NowPlayingContent(samplePaused(), {}, {}, {})
-    }
-}
+private fun PreviewRoundPaused() = NowPlayingPreview(samplePaused())
 
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Buffering")
 @Composable
-private fun PreviewRoundBuffering() {
-    WearLibraryNocturneTheme {
-        NowPlayingContent(sampleBuffering(), {}, {}, {})
-    }
-}
+private fun PreviewRoundBuffering() = NowPlayingPreview(sampleBuffering())
+
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Disconnected")
+@Composable
+private fun PreviewRoundDisconnected() = NowPlayingPreview(samplePaused(), connected = false)
 
 @Preview(device = WearDevices.SMALL_ROUND, showSystemUi = true, name = "Small Round")
 @Composable
-private fun PreviewSmallRound() {
-    WearLibraryNocturneTheme {
-        NowPlayingContent(samplePlaying(), {}, {}, {})
-    }
-}
+private fun PreviewSmallRound() = NowPlayingPreview(samplePlaying())
 
 @Preview(device = WearDevices.SQUARE, showSystemUi = true, name = "Square")
 @Composable
-private fun PreviewSquare() {
-    WearLibraryNocturneTheme {
-        NowPlayingContent(samplePlaying(), {}, {}, {})
-    }
-}
+private fun PreviewSquare() = NowPlayingPreview(samplePlaying())
 
 // endregion

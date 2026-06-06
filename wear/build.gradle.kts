@@ -107,4 +107,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)
+
+    testImplementation(libs.junit)
 }

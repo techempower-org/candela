@@ -31,6 +31,11 @@ import `in`.jphe.storyvox.wear.theme.WarmDarkSurface
  *
  * Skip buttons map to `CMD_SKIP_BACK` / `CMD_SKIP_FWD` (30s seek) rather than
  * chapter nav — same defaults as the phone notification controls.
+ *
+ * When [enabled] is `false` (no phone node reachable, #1030) the buttons are
+ * greyed and non-clickable — Wear's [Button] applies its disabled colours
+ * automatically and TalkBack announces them as disabled — so a tap can't
+ * silently no-op the way it did before.
  */
 @Composable
 fun TransportRow(
@@ -39,6 +44,7 @@ fun TransportRow(
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -50,18 +56,21 @@ fun TransportRow(
             contentDescription = "Skip back 30 seconds",
             onClick = onSkipBack,
             isPrimary = false,
+            enabled = enabled,
         )
         TransportButton(
             icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             contentDescription = if (isPlaying) "Pause" else "Play",
             onClick = onPlayPause,
             isPrimary = true,
+            enabled = enabled,
         )
         TransportButton(
             icon = Icons.Filled.SkipNext,
             contentDescription = "Skip forward 30 seconds",
             onClick = onSkipForward,
             isPrimary = false,
+            enabled = enabled,
         )
     }
 }
@@ -72,11 +81,13 @@ private fun TransportButton(
     contentDescription: String,
     onClick: () -> Unit,
     isPrimary: Boolean,
+    enabled: Boolean,
 ) {
     val size = if (isPrimary) 44.dp else 36.dp
     val iconSize = if (isPrimary) 24.dp else 20.dp
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.size(size),
         colors = if (isPrimary) {
             ButtonDefaults.primaryButtonColors(
