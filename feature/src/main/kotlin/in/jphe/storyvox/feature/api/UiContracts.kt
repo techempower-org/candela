@@ -68,8 +68,9 @@ enum class DownloadMode { Lazy, Eager, Subscribe }
 /**
  * Issue #246 — one curated RSS feed suggestion. Surfaces in
  * Settings → Library & Sync → RSS → Suggested feeds with a one-tap
- * Add button. Fetched from the jphein/storyvox-feeds GitHub repo at
- * runtime so categories + feeds can be added without an app rebuild.
+ * Add button. Fetched from the techempower-org/candela-feeds GitHub
+ * repo at runtime so categories + feeds can be added without an app
+ * rebuild.
  */
 data class SuggestedFeed(
     val title: String,
@@ -2023,7 +2024,7 @@ interface SettingsRepositoryUi {
     suspend fun clearEpubFolder()
 
     /** Issue #246 — curated suggested feeds, fetched from the
-     *  jphein/storyvox-feeds GitHub repo on first observation,
+     *  techempower-org/candela-feeds GitHub repo on first observation,
      *  cached for the app session, falling back to a baked-in list
      *  on parse failure / first-launch-offline. */
     val suggestedRssFeeds: Flow<List<SuggestedFeed>>

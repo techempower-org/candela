@@ -150,15 +150,15 @@ image: /screenshots/03-reader.png
       <h3>Royal Road</h3>
       <p>The full filter set — tags include/exclude, status, type, length, rating, content warnings, sort. Follows tab syncs your bookmarks.</p>
     </a>
-    <a class="source-card" href="https://github.com/techempower-org/storyvox-registry">
+    <a class="source-card" href="https://github.com/techempower-org/candela-registry">
       <span class="source-glyph" aria-hidden="true">GH</span>
       <h3>GitHub</h3>
-      <p>Curated <strong>storyvox-registry</strong> plus live <code>/search/repositories</code>. OAuth Device Flow lifts the 60→5000 req/hr cap.</p>
+      <p>Curated <strong>candela-registry</strong> plus live <code>/search/repositories</code>. OAuth Device Flow lifts the 60→5000 req/hr cap.</p>
     </a>
-    <a class="source-card" href="https://github.com/techempower-org/storyvox-feeds">
+    <a class="source-card" href="https://github.com/techempower-org/candela-feeds">
       <span class="source-glyph" aria-hidden="true">RSS</span>
       <h3>RSS / Atom feeds</h3>
-      <p>Any RSS or Atom feed, plus a managed suggested-feeds list from <strong>storyvox-feeds</strong>.</p>
+      <p>Any RSS or Atom feed, plus a managed suggested-feeds list from <strong>candela-feeds</strong>.</p>
     </a>
     <a class="source-card" href="https://www.getoutline.com">
       <span class="source-glyph" aria-hidden="true">OL</span>

@@ -15,7 +15,7 @@ import java.io.IOException
 
 /**
  * Issue #246 — fetches the curated suggested-feeds list from
- * github.com/jphein/storyvox-feeds at runtime so new categories
+ * github.com/techempower-org/candela-feeds at runtime so new categories
  * + feeds land without an app rebuild.
  *
  * Schema (suggestions.json at repo root):
@@ -123,7 +123,7 @@ class SuggestedFeedsRegistry @Inject constructor() {
 
     companion object {
         const val REGISTRY_URL =
-            "https://raw.githubusercontent.com/jphein/storyvox-feeds/main/suggestions.json"
+            "https://raw.githubusercontent.com/techempower-org/candela-feeds/main/suggestions.json"
         const val USER_AGENT = "storyvox/1.0 (+https://github.com/jphein/storyvox)"
         const val SUPPORTED_SCHEMA_VERSION = 1
     }
