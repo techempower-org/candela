@@ -27,7 +27,8 @@ class EpubParserResolveHrefTest {
         // each assertion self-documenting and clears DeepSource KT-W1042's
         // duplicate-literal gate (the literal recurs 3+ times otherwise).
         const val CH1 = "ch1.xhtml"
-        const val OEBPS_CH1 = "OEBPS/$CH1"
+        const val OPF_DIR = "OEBPS"
+        const val OEBPS_CH1 = "$OPF_DIR/$CH1"
     }
 
     // ── #1035: percent-encoded hrefs ─────────────────────────────
@@ -69,21 +70,21 @@ class EpubParserResolveHrefTest {
     @Test fun `parent-dir segment is resolved against nested opf dir`() {
         // OPF at OEBPS/content.opf (opfDir = "OEBPS") referencing
         // ../text/ch1.xhtml must resolve to text/ch1.xhtml.
-        assertEquals("text/ch1.xhtml", EpubParser.resolveHref("OEBPS", "../text/ch1.xhtml"))
+        assertEquals("text/ch1.xhtml", EpubParser.resolveHref(OPF_DIR,"../text/ch1.xhtml"))
     }
 
     @Test fun `current-dir segment collapses`() {
-        assertEquals(OEBPS_CH1, EpubParser.resolveHref("OEBPS", "./ch1.xhtml"))
+        assertEquals(OEBPS_CH1, EpubParser.resolveHref(OPF_DIR,"./ch1.xhtml"))
     }
 
     @Test fun `leading slash is stripped`() {
         // Zip entry names are root-relative; a leading-slash absolute
         // href must not double-prefix or keep the slash.
-        assertEquals(OEBPS_CH1, EpubParser.resolveHref("OEBPS", "/OEBPS/ch1.xhtml"))
+        assertEquals(OEBPS_CH1, EpubParser.resolveHref(OPF_DIR,"/OEBPS/ch1.xhtml"))
     }
 
     @Test fun `simple join when href is in the opf dir`() {
-        assertEquals(OEBPS_CH1, EpubParser.resolveHref("OEBPS", CH1))
+        assertEquals(OEBPS_CH1, EpubParser.resolveHref(OPF_DIR,CH1))
     }
 
     @Test fun `empty opf dir leaves a root-level href untouched`() {
@@ -101,7 +102,7 @@ class EpubParserResolveHrefTest {
     @Test fun `parent traversal past root is clamped not escaped`() {
         // A pathological "../../.." can't produce a leading "../" — zip
         // names are root-relative, so we clamp at root.
-        assertEquals(CH1, EpubParser.resolveHref("OEBPS", "../../../ch1.xhtml"))
+        assertEquals(CH1, EpubParser.resolveHref(OPF_DIR,"../../../ch1.xhtml"))
     }
 
     // ── #1035 + #1021 combined: encoded AND relative ─────────────
@@ -111,7 +112,7 @@ class EpubParserResolveHrefTest {
         // %20 AND resolve the ../ in one pass.
         assertEquals(
             "text/Chapter 1.xhtml",
-            EpubParser.resolveHref("OEBPS", "../text/Chapter%201.xhtml"),
+            EpubParser.resolveHref(OPF_DIR,"../text/Chapter%201.xhtml"),
         )
     }
 
