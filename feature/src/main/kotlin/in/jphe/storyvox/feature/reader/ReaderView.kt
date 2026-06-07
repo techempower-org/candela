@@ -70,6 +70,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -82,6 +83,7 @@ import `in`.jphe.storyvox.feature.api.HighlightMode
 import `in`.jphe.storyvox.feature.api.UiPlaybackState
 import androidx.compose.runtime.withFrameNanos
 import `in`.jphe.storyvox.ui.component.SentenceHighlight
+import `in`.jphe.storyvox.ui.component.TestTags
 import `in`.jphe.storyvox.ui.component.currentWordRange
 import `in`.jphe.storyvox.ui.component.sentenceProgress
 import `in`.jphe.storyvox.ui.theme.LocalReaderColors
@@ -395,6 +397,8 @@ fun ReaderTextView(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // UI-test selector for the scrollable reader body.
+                .testTag(TestTags.ReaderBody)
                 .verticalScroll(scroll)
                 .padding(horizontal = spacing.lg)
                 .padding(top = spacing.lg, bottom = 96.dp),

@@ -178,8 +178,8 @@ android {
         applicationId = "org.techempower.candela"
         minSdk = 26
         targetSdk = 35
-        versionCode = 229
-        versionName = "1.1.1"
+        versionCode = 230
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -430,6 +430,11 @@ android {
         getByName("testRelease") {
             java.srcDirs("src/testRelease/kotlin")
         }
+        // #1088 — instrumented (on-device) test source set. Same `kotlin/`
+        // convention as main/test above; default is `java/`.
+        getByName("androidTest") {
+            java.srcDirs("src/androidTest/kotlin")
+        }
     }
 
     testOptions {
@@ -665,6 +670,22 @@ dependencies {
     testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // #1088 — Layer 3 instrumented Compose UI test infra. The Compose BOM
+    // must be on the androidTest classpath too so ui-test-junit4 resolves to
+    // the same Compose version the app is built against (the main-classpath
+    // platform() above doesn't propagate to androidTest). ui-test-manifest is
+    // a debugImplementation: it adds the stub ComponentActivity the test rule
+    // launches into and never ships in the release APK.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // GrantPermissionRule (androidx.test:rules) — MainActivity requests
+    // POST_NOTIFICATIONS at launch; on an ungranted device the system
+    // permission dialog steals focus and pauses MainActivity, so the
+    // Compose registry sees zero resumed roots ("No compose hierarchies
+    // found"). Pre-granting the permission keeps the activity resumed.
+    androidTestImplementation(libs.androidx.test.rules)
 
     // Issue #409 — ProfileInstaller compiles the bundled
     // `baseline-prof.txt` at first-run on devices that don't go through
