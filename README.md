@@ -1,7 +1,7 @@
 # Candela
 
-[![Build](https://github.com/techempower-org/storyvox/actions/workflows/android.yml/badge.svg)](https://github.com/techempower-org/storyvox/actions/workflows/android.yml)
-[![Release](https://img.shields.io/github/v/release/techempower-org/storyvox?color=b88746&label=release)](https://github.com/techempower-org/storyvox/releases)
+[![Build](https://github.com/techempower-org/candela/actions/workflows/android.yml/badge.svg)](https://github.com/techempower-org/candela/actions/workflows/android.yml)
+[![Release](https://img.shields.io/github/v/release/techempower-org/candela?color=b88746&label=release)](https://github.com/techempower-org/candela/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-b88746.svg)](LICENSE)
 [![Built by dream-team](https://img.shields.io/badge/built%20by-dream--team-7d5fff.svg)](#how-it-was-built)
 
@@ -21,7 +21,7 @@ Stream chapters from **twenty-five fiction backends** — [Royal Road](https://r
   </picture>
 </div>
 
-> **v0.5.51 — Luminous Quartz (six-parallel-agent bundle)** — **twenty-one fiction backends** (Telegram, Palace Project, Slack, Matrix added on top of the v0.5.38 seventeen); a **plugin-seam architecture** that makes new backends ~4 touchpoints (`@SourcePlugin` annotation + KSP-generated Hilt registration); **three in-process neural voice families** (Piper compact, Kokoro multi-speaker, KittenTTS lightest tier) plus Azure HD as optional BYOK cloud backend; the **AI chat heavies** — cross-fiction memory + function calling + multi-modal image input — all live; **TechEmpower-as-default** with brass hero on Library, dedicated TechEmpower Home (Discord peer support + dial 211 + Browse + About), and beautiful Notion covers (body-image fallback + brass-edged synthetic tiles); **home-screen widget** with Continue Listening + Play/Pause; **cold launch 0.8 s** on Galaxy Tab A7 Lite (down from 6.7 s — R8 + Baseline Profile + `isDebuggable=false`, v0.5.46); **full PCM cache series** (streaming-tee, cache-hit playback, background pre-render, status icons — v0.5.47–v0.5.49); **twelve a11y findings closed** in v0.5.43 (high-contrast brass-on-near-black, reduced-motion fold-in, TalkBack pacing); **four-tab dock** `{Playing · Library · Voices · Settings}` (v0.5.50 final). GPL-3.0 (downstream of the engine, not a posture choice — see [License](#license)).
+> **What just shipped** lives on the [latest release](https://github.com/techempower-org/candela/releases/latest) and in the [changelog](CHANGELOG.md) — both always resolve to the current version, so this line never goes stale. Where Candela is now: **twenty-five fiction backends** behind a plugin-seam architecture (a new backend is ~4 touchpoints — `@SourcePlugin` annotation + KSP-generated Hilt registration); **three in-process neural voice families** (Piper, Kokoro, KittenTTS) plus optional Azure HD cloud voices; **AI chat per fiction** with cross-fiction memory, function calling, and multi-modal image input; a **hybrid reader/audiobook view** that highlights the spoken sentence in brass; **Wear OS** support; and a **TechEmpower-first** home. GPL-3.0 (downstream of the engine, not a posture choice — see [License](#license)).
 
 ---
 
@@ -79,9 +79,9 @@ Voice model weights for the local engine are downloaded on demand by `VoiceManag
 
 ## Install (sideload)
 
-Candela is currently distributed by sideloading. CI builds debug APKs on every `main` push; tagged releases (`v0.x.x`) attach a signed APK to the GitHub release.
+Candela is currently distributed by sideloading. CI builds debug APKs on every `main` push; tagged releases (`vX.Y.Z`) attach a signed APK to the GitHub release.
 
-1. Download the latest `storyvox.apk` from the [Releases page](https://github.com/techempower-org/storyvox/releases).
+1. Download the latest `candela-v*.apk` from the [latest release](https://github.com/techempower-org/candela/releases/latest).
 2. On your Android device, enable **Install unknown apps** for whatever browser/file manager you used.
 3. Open the APK to install.
 4. Launch Candela. You'll be asked for notification permission (used for the lock-screen tile during playback). The voice picker appears on first launch — pick a Piper voice for a quick first chapter (~14–30 MB) or Kokoro for the multi-speaker model (~330 MB).
@@ -106,8 +106,8 @@ Candela uses an in-app WebView for the login flow. Your password never touches o
 Requires JDK 17, Android SDK 36, and a system gradle ≥ 8.10 for the wrapper bootstrap (the wrapper downloads Gradle 9.4.1).
 
 ```sh
-git clone https://github.com/techempower-org/storyvox.git
-cd storyvox
+git clone https://github.com/techempower-org/candela.git
+cd candela
 
 # One-time bootstrap
 gradle wrapper --gradle-version 9.4.1 --distribution-type bin
