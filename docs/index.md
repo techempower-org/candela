@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Candela — TechEmpower's accessible resource app, with audiobook everything
-description: TechEmpower's accessible resource app — free tech guides, peer-support Discord, dial 211 for local help. Under the hood, a neural-voice audiobook player for twenty-one fiction backends with three in-process voice families plus optional Azure HD cloud voices. Free, GPL-3.0, no telemetry.
+description: TechEmpower's accessible resource app — free tech guides, peer-support Discord, dial 211 for local help. Under the hood, a neural-voice audiobook player for twenty-five fiction backends with three in-process voice families plus optional Azure HD cloud voices. Free, GPL-3.0, no telemetry.
 image: /screenshots/03-reader.png
 ---
 
@@ -10,7 +10,7 @@ image: /screenshots/03-reader.png
     <h1>Candela</h1>
     <p class="tagline"><strong><a href="https://techempower.org">TechEmpower</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
     <p>
-      Under the hood: twenty-one fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
+      Under the hood: twenty-five fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
       <a href="https://github.com">GitHub</a>, RSS feeds, EPUB files on your device,
       <a href="https://www.getoutline.com">Outline</a> wikis, your self-hosted
       <a href="https://github.com/techempower-org/mempalace">Memory Palace</a>,
@@ -25,12 +25,12 @@ image: /screenshots/03-reader.png
     </p>
     <p class="cta-row">
       <a class="cta-primary" id="cta-download"
-         href="https://github.com/techempower-org/storyvox/releases/latest"
-         data-base-href="https://github.com/techempower-org/storyvox/releases">
+         href="https://github.com/techempower-org/candela/releases/latest"
+         data-base-href="https://github.com/techempower-org/candela/releases">
         <span class="cta-label">Download latest APK</span>
         <span class="cta-version" aria-hidden="true"></span>
       </a>
-      <a class="cta-secondary" href="https://github.com/techempower-org/storyvox">Source on GitHub</a>
+      <a class="cta-secondary" href="https://github.com/techempower-org/candela">Source on GitHub</a>
       <a class="cta-tertiary" href="install/">Install guide →</a>
     </p>
     <p class="cta-fineprint muted">
@@ -123,8 +123,8 @@ image: /screenshots/03-reader.png
       <h3>Accessibility-first</h3>
       <p>
         High-contrast brass-on-near-black theme passes WCAG AA; <code>prefers-reduced-motion</code>
-        collapses fold-in animations; TalkBack pacing tuned to chapter-list patterns. Twelve
-        a11y audit findings closed in v0.5.43.
+        collapses fold-in animations; TalkBack pacing tuned to chapter-list patterns. A dozen
+        a11y audit findings closed and the surface kept under review.
       </p>
     </div>
     <div class="card">
@@ -292,7 +292,7 @@ image: /screenshots/03-reader.png
         The new lightest tier — designed for slow devices where Piper-high struggles. Eight en_US
         speakers share a single 24 MB model. The "first chapter in 10 seconds" voice family.
       </p>
-      <p class="voice-meta muted">In-tree (storyvox · v0.5.x)</p>
+      <p class="voice-meta muted">In-tree (Candela)</p>
     </div>
   </div>
   <p class="voices-cloud">
@@ -329,13 +329,13 @@ image: /screenshots/03-reader.png
       <dark-image src-dark="screenshots/08-techempower-home.png" src-light="screenshots/08-techempower-home-light.png" alt="TechEmpower Home">
         <img src="screenshots/08-techempower-home.png" alt="TechEmpower Home" loading="lazy" />
       </dark-image>
-      <figcaption>TechEmpower Home — peer-support Discord, dial 211, Browse the resource library, About TechEmpower (v0.5.51).</figcaption>
+      <figcaption>TechEmpower Home — peer-support Discord, dial 211, Browse the resource library, About TechEmpower.</figcaption>
     </figure>
     <figure>
       <dark-image src-dark="screenshots/09-accessibility-settings.png" src-light="screenshots/09-accessibility-settings-light.png" alt="Accessibility settings">
         <img src="screenshots/09-accessibility-settings.png" alt="Accessibility settings" loading="lazy" />
       </dark-image>
-      <figcaption>Accessibility — high contrast, reduced motion, larger touch targets, screen-reader pauses, font scale override (v0.5.43).</figcaption>
+      <figcaption>Accessibility — high contrast, reduced motion, larger touch targets, screen-reader pauses, font scale override.</figcaption>
     </figure>
     <figure>
       <dark-image src-dark="screenshots/06-filter-dark.png" src-light="screenshots/06-filter.png" alt="Royal Road filter sheet">
@@ -353,7 +353,7 @@ image: /screenshots/03-reader.png
       <dark-image src-dark="screenshots/05-settings.png" src-light="screenshots/05-settings-light.png" alt="Settings hub">
         <img src="screenshots/05-settings.png" alt="Settings hub" loading="lazy" />
       </dark-image>
-      <figcaption>Settings — brass-edged section hub (thirteen cards, post-v0.5.42).</figcaption>
+      <figcaption>Settings — brass-edged section hub (thirteen cards).</figcaption>
     </figure>
   </div>
 </section>
@@ -365,7 +365,7 @@ image: /screenshots/03-reader.png
       <h3>GPL-3.0</h3>
       <p>
         Inherited from the TTS engine — also a posture. Read the source, modify it, ship your
-        fork. No closed components. <a href="https://github.com/techempower-org/storyvox/blob/main/LICENSE">License →</a>
+        fork. No closed components. <a href="https://github.com/techempower-org/candela/blob/main/LICENSE">License →</a>
       </p>
     </div>
     <div class="open-card">
@@ -385,7 +385,7 @@ image: /screenshots/03-reader.png
     <div class="open-card">
       <h3>Sideload from GitHub</h3>
       <p>
-        Not on the Play Store yet. <a href="https://github.com/techempower-org/storyvox/releases">Grab the APK from Releases</a>,
+        Not on the Play Store yet. <a href="https://github.com/techempower-org/candela/releases">Grab the APK from Releases</a>,
         enable "Install unknown apps" once, open the file. Three taps and you're in.
       </p>
     </div>
@@ -395,32 +395,25 @@ image: /screenshots/03-reader.png
 <section class="recent">
   <h2>What just shipped</h2>
   <p>
-    <strong>v0.5.51 — Luminous Quartz · six-parallel-agent bundle.</strong> TechEmpower-as-default:
-    Library leads with a brass TechEmpower hero card, a dedicated TechEmpower Home surfaces
-    Guides + Resources + Discord + 211; <strong>four new fiction backends</strong> — Telegram
-    (#462), Palace Project (#502), Slack (#454), Matrix (#457); home-screen widget with
-    Continue Listening + Play/Pause; <strong>beautiful Notion covers</strong> with body-image
-    fallback and brass-edged synthetic tiles; AO3 auth PR1 landed.
-    <a href="https://github.com/techempower-org/storyvox/releases/tag/v0.5.98">Full release notes →</a>
+    The current release and its notes always live on the
+    <a href="https://github.com/techempower-org/candela/releases/latest">latest release</a> and in the
+    <a href="https://github.com/techempower-org/candela/blob/main/CHANGELOG.md">changelog</a> — both
+    always resolve to the newest version, so this page never goes stale.
   </p>
   <p>
-    <strong>Earlier in v0.5:</strong> <strong>twenty-one fiction backends</strong> behind a
-    plugin-seam (Telegram, Palace Project, Slack, Matrix on top of the earlier Hacker News,
-    arXiv, PLOS, Discord, Wikisource, Radio Browser additions); <strong>three voice families</strong>
-    with KittenTTS as the lightest tier (v0.5.36); the full <strong>PCM cache series</strong>
-    — streaming-tee, cache-hit playback, background pre-render, Settings UI, status icons
-    (v0.5.47–v0.5.49); <strong>cold launch 6.7 s → 0.8 s</strong> on Tab A7 Lite (v0.5.46 — R8
-    + Baseline Profile + <code>isDebuggable=false</code>); <strong>twelve a11y findings closed</strong>
-    in v0.5.43 (high-contrast brass-on-near-black + reduced-motion fold-in + TalkBack pacing);
-    nav restructure (v0.5.40) settling at the current four-tab dock
-    <code>{Playing · Library · Voices · Settings}</code>; cross-device InstantDB sync
-    (v0.5.39+); <strong>AI heavies</strong> — cross-fiction memory
-    (<a href="https://github.com/techempower-org/storyvox/issues/217">#217</a>), function calling
-    (<a href="https://github.com/techempower-org/storyvox/issues/216">#216</a>), multi-modal
-    image input (<a href="https://github.com/techempower-org/storyvox/issues/215">#215</a>).
+    <strong>Where Candela is now:</strong> <strong>twenty-five fiction backends</strong> behind a
+    plugin-seam architecture (a new backend is ~4 touchpoints — a <code>@SourcePlugin</code> annotation
+    plus KSP-generated Hilt registration); <strong>three in-process neural voice families</strong>
+    (Piper, Kokoro, KittenTTS) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
+    pipeline for glitch-free playback; a <strong>hybrid reader/audiobook view</strong> that highlights
+    the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>cross-device InstantDB
+    sync</strong>; an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,
+    TalkBack pacing); and <strong>AI chat per fiction</strong> — cross-fiction memory, function calling,
+    and multi-modal image input. A <strong>TechEmpower-first</strong> home leads with Guides, Resources,
+    peer-support Discord, and dial 211.
   </p>
   <p class="muted">
-    See the <a href="https://github.com/techempower-org/storyvox/wiki">wiki</a> for build, voice
+    See the <a href="https://github.com/techempower-org/candela/wiki">wiki</a> for build, voice
     catalog, and troubleshooting reference, or <a href="architecture/">how the modules fit
     together</a>.
   </p>
@@ -429,14 +422,14 @@ image: /screenshots/03-reader.png
 <footer class="site-footer">
   <p>
     Candela is licensed under the
-    <a href="https://github.com/techempower-org/storyvox/blob/main/LICENSE">GNU General Public License v3.0</a>.
+    <a href="https://github.com/techempower-org/candela/blob/main/LICENSE">GNU General Public License v3.0</a>.
     Built by <a href="https://github.com/jphein">JP Hein</a>
     with teams of <a href="https://www.anthropic.com/claude-code">Claude Code</a> agents.
   </p>
   <p class="muted">
     <a href="/privacy/">Privacy policy</a> ·
-    <a href="https://github.com/techempower-org/storyvox">Source</a> ·
-    <a href="https://github.com/techempower-org/storyvox/issues">Report an issue</a>
+    <a href="https://github.com/techempower-org/candela">Source</a> ·
+    <a href="https://github.com/techempower-org/candela/issues">Report an issue</a>
   </p>
 </footer>
 
@@ -447,7 +440,7 @@ image: /screenshots/03-reader.png
     const btn = document.getElementById('cta-download');
     if (!btn) return;
     const versionEl = btn.querySelector('.cta-version');
-    fetch('https://api.github.com/repos/techempower-org/storyvox/releases/latest', {
+    fetch('https://api.github.com/repos/techempower-org/candela/releases/latest', {
       headers: { 'Accept': 'application/vnd.github+json' }
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
