@@ -21,6 +21,7 @@ concurrency:
 
 permissions:
   contents: write
+  pull-requests: write   # create the docs-sync PR via the REST API
 
 jobs:
   sync:
@@ -149,7 +150,18 @@ jobs:
           NAME: ${{ github.event.repository.name }}
         continue-on-error: true
         run: |
-          gh repo edit "$REPO" --homepage "https://$OWNER.github.io/$NAME"
+          # Use the REST API via curl rather than `gh` — the self-hosted runner
+          # pool is mixed (katana has gh, familiar does NOT), so any `gh`
+          # invocation 127s when the job lands on a runner without it. curl is
+          # present on every runner. jq builds the JSON body so the homepage
+          # value is safely escaped.
+          HOMEPAGE="https://$OWNER.github.io/$NAME"
+          curl -fsS -X PATCH \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO" \
+            -d "$(jq -nc --arg h "$HOMEPAGE" '{homepage: $h}')"
 
       - name: Update wiki Home current-version line
         env:
@@ -195,15 +207,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
+          REPO: ${{ github.repository }}
         run: |
-          # Branch-protection on main blocks the bot from pushing
-          # directly (refs/heads/main is PR-required + CODEOWNERS-
-          # gated). So instead of `git push origin main`, push to a
-          # short-lived `docs-sync/<tag>` branch and open a PR that
-          # CODEOWNERS auto-approves on merge.
+          # Branch-protection on main blocks a direct push (refs/heads/main is
+          # PR-required + needs the "Build APK" check + 1 review). So we push the
+          # docs diff to a short-lived `docs-sync/<tag>` branch and open a PR
+          # against main; a maintainer (or the release admin-merge step) lands it.
           #
-          # `[skip ci]` in the merge commit prevents the Android build
-          # from re-firing on what's a docs-only change.
+          # IMPORTANT — why curl, not `gh`: the self-hosted runner pool is mixed.
+          # katana has the GitHub CLI; familiar does NOT. When this job lands on
+          # familiar every `gh` call 127s ("gh: command not found"), which is
+          # exactly what silently broke docs-sync on every release after v0.5.98.
+          # curl + jq are present on both runners, so the REST API is runner-
+          # agnostic. (The old code also used `gh pr merge --auto`, but repo
+          # auto-merge is disabled, so that path never worked even on katana.)
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name  "github-actions[bot]"
           git add README.md docs/index.md docs/version.json docs/_layouts/default.html
@@ -215,26 +232,36 @@ jobs:
           git checkout -b "$BRANCH"
           git commit -m "chore(release): docs sync for ${TAG}"
           git push -u origin "$BRANCH"
-          # Open the PR. If one already exists for the same branch
-          # (e.g. a retry of the same workflow), gh create will fail —
-          # fall through to the merge step in that case.
-          gh pr create \
-            --title "chore(release): docs sync for $TAG" \
-            --body "Auto-generated docs sync for tag $TAG. Updates README headline, docs/index.md headline + release link, docs/version.json + meta tag (realm-sigil bind)." \
-            --base main \
-            --head "$BRANCH" \
-            --label "ci,docs" 2>&1 || true
-          # Auto-merge once the required "Build APK" check passes
-          # (renamed from "Build debug APK" in #529 follow-up; branch
-          # protection updated to match — see android.yml header note).
-          # --admin would bypass the check but requires user-level admin
-          # rights the GITHUB_TOKEN doesn't have. --auto queues the
-          # merge for when the protection rules are satisfied: the
-          # Android workflow fires on every PR (no path filter today),
-          # so the docs-only PR rides through it and merges in ~3 min.
-          # Future optimization: add paths-ignore: docs/** to android.yml
-          # to skip the rebuild on pure docs PRs.
-          gh pr merge "$BRANCH" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --squash --auto --delete-branch \
-            --subject "chore(release): docs sync for $TAG [skip ci]"
+
+          API="https://api.github.com/repos/$REPO"
+          AUTH=(-H "Authorization: Bearer $GH_TOKEN"
+                -H "Accept: application/vnd.github+json"
+                -H "X-GitHub-Api-Version: 2022-11-28")
+
+          # Idempotent: if a PR for this head branch already exists (workflow
+          # retry / re-dispatch of the same tag), don't try to open another.
+          EXISTING=$(curl -fsS "${AUTH[@]}" \
+            "$API/pulls?head=${REPO%%/*}:$BRANCH&state=open" | jq 'length')
+          if [ "${EXISTING:-0}" -gt 0 ]; then
+            echo "PR for $BRANCH already open; nothing to do."
+            exit 0
+          fi
+
+          BODY="Auto-generated docs sync for tag $TAG. Updates README headline, docs/index.md headline + release link, docs/version.json + meta tag (realm-sigil bind)."
+          # jq -n builds the JSON body so $TAG / $BODY are safely escaped.
+          PR_JSON=$(jq -nc \
+            --arg title "chore(release): docs sync for $TAG" \
+            --arg body  "$BODY" \
+            --arg head  "$BRANCH" \
+            --arg base  "main" \
+            '{title: $title, body: $body, head: $head, base: $base}')
+          PR_NUM=$(curl -fsS -X POST "${AUTH[@]}" "$API/pulls" -d "$PR_JSON" | jq -r '.number')
+          if [ -z "$PR_NUM" ] || [ "$PR_NUM" = "null" ]; then
+            echo "::error::Failed to open docs-sync PR for $TAG."
+            exit 1
+          fi
+          echo "Opened docs-sync PR #$PR_NUM for $TAG."
+          # Best-effort labels (don't fail the job if the labels don't exist).
+          curl -fsS -X POST "${AUTH[@]}" "$API/issues/$PR_NUM/labels" \
+            -d "$(jq -nc '{labels: ["ci","docs"]}')" >/dev/null || true
+          echo "PR #$PR_NUM awaits the required Build APK check + review, then merge."
