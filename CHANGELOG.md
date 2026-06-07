@@ -9,6 +9,18 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.1.3] -- 2026-06-07
+
+**Mark the page.** In-reader text highlighting.
+
+### Added
+
+- **In-reader highlights.** Long-press to select text in the reader, pick a color, and (optionally) attach a note — highlights persist and sync, and tapping a saved highlight lets you edit or remove it. (#1079 / #1088)
+
+### Tested
+
+- The select→highlight gesture is verified by an on-device instrumented Compose test (`HighlightGestureTest`) alongside the 13 offset-mapping unit tests — a deterministic regression guard for the selection path.
+
 ## [1.1.2] -- 2026-06-06
 
 **Right book, every time.** A focused fix for a reader regression, plus the foundation for on-device UI testing.
