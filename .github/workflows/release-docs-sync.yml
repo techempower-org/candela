@@ -75,31 +75,59 @@ jobs:
           echo "version=${TAG#v}"  >> "$GITHUB_OUTPUT"
           echo "Syncing docs for tag: $TAG"
 
-      - name: Verify tag points at main HEAD before reading the changelog
+      - name: Verify main's CHANGELOG can supply this tag's release notes
         env:
           TAG: ${{ steps.tag.outputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # We render the wiki from CHANGELOG.md as it exists on main's tip
-          # (checked out above). If the tag we're syncing doesn't point at main's
-          # current HEAD — e.g. someone pushed to main between tag creation and
-          # this run — main's CHANGELOG may not yet contain (or may have moved
-          # past) this tag's section, so we'd publish the wrong release notes.
-          # Refuse rather than guess.
+          # (checked out above), so before publishing we must be sure main's
+          # CHANGELOG actually carries THIS tag's release notes. The right
+          # safety property differs by trigger:
+          #
+          #   push:              the tag was just created pointing at main's tip,
+          #                      so tag==HEAD is the natural invariant. A mismatch
+          #                      means a race (someone pushed to main between the
+          #                      tag and this run) and main's CHANGELOG may not yet
+          #                      match the tag — refuse and let the release re-tag.
+          #
+          #   workflow_dispatch: a MANUAL re-run is retroactive by nature — main
+          #                      has legitimately advanced past the tag (e.g. docs
+          #                      PRs merged after the release). tag==HEAD would
+          #                      false-fail every such re-run (observed v1.1.3 on
+          #                      2026-06-07, blocked behind #1095/#1096/#1097).
+          #                      What we actually need is: does main's CHANGELOG
+          #                      contain this tag's section? Check that directly.
+          #
           # Dereference via ^{commit} so annotated tags compare correctly —
           # `git rev-parse refs/tags/$TAG` returns the tag OBJECT's SHA for
-          # annotated tags, NOT the commit they point at, which false-fires
-          # this check on every `git tag -a` release (observed v0.5.30 on
-          # 2026-05-14). The TAG env var is shell-quoted; this preserves
-          # the existing SAFE env-injection pattern.
-          TAG_SHA=$(git rev-parse --verify "refs/tags/$TAG^{commit}")
-          MAIN_SHA=$(git rev-parse --verify HEAD)
-          if [ "$TAG_SHA" != "$MAIN_SHA" ]; then
-            echo "::error::Tag $TAG ($TAG_SHA) does not point at main HEAD ($MAIN_SHA)."
-            echo "::error::Refusing to sync — main's CHANGELOG may not match this tag's release notes."
-            echo "::error::Fast-forward main to the tag (or re-tag main's current tip) and retry."
-            exit 1
+          # annotated tags, NOT the commit they point at, which false-fires the
+          # push check on every `git tag -a` release (observed v0.5.30 on
+          # 2026-05-14). TAG is shell-quoted; preserves the SAFE env pattern.
+          VERSION="${TAG#v}"
+          if [ "$EVENT_NAME" = "push" ]; then
+            TAG_SHA=$(git rev-parse --verify "refs/tags/$TAG^{commit}")
+            MAIN_SHA=$(git rev-parse --verify HEAD)
+            if [ "$TAG_SHA" != "$MAIN_SHA" ]; then
+              echo "::error::Tag $TAG ($TAG_SHA) does not point at main HEAD ($MAIN_SHA)."
+              echo "::error::Refusing to sync — main's CHANGELOG may not match this tag's release notes."
+              echo "::error::Fast-forward main to the tag (or re-tag main's current tip) and retry."
+              exit 1
+            fi
+            echo "push: tag and main agree on $TAG_SHA — proceeding."
+          else
+            # Manual re-run: require that main's CHANGELOG has a heading for this
+            # version, e.g. `## [1.1.3] -- ...`. grep the literal version with a
+            # fixed-string match on the bracketed token so a regex-special version
+            # can't misbehave; the render step parses the section itself.
+            if ! grep -qF "[$VERSION]" CHANGELOG.md; then
+              echo "::error::main's CHANGELOG.md has no section for $TAG ([$VERSION])."
+              echo "::error::Refusing to sync — there are no release notes to publish for this tag."
+              echo "::error::Add the [$VERSION] entry to CHANGELOG.md on main, then re-run."
+              exit 1
+            fi
+            echo "workflow_dispatch: CHANGELOG.md on main carries the [$VERSION] section — proceeding."
           fi
-          echo "Tag and main agree on $TAG_SHA — proceeding."
 
       - name: Update repo About homepage
         env:
