@@ -1,10 +1,23 @@
 name: Release docs sync
 
-# Fires on every tag push (vX.Y.Z) and regenerates everything that should
-# follow the release version: realm-sigil version.json + meta tag, README
-# headline callout, docs/index.md "What just shipped" headline, wiki Home
-# current-version line, and the repo About homepage URL. Commits the result
-# back to main with [skip ci] so we don't re-trigger the Android build.
+# Fires on every tag push (vX.Y.Z) and writes the release-current content
+# DIRECTLY to the GitHub wiki — fully automatic, no PR, no PAT, no human gate.
+#
+# Design (2026-06-07): the wiki must self-update on every release with zero
+# manual steps. The .wiki repo is NOT branch-protected, so a plain `git push`
+# with the built-in GITHUB_TOKEN lands immediately — no pull_request, no
+# CODEOWNERS review, no auto-merge. This workflow OWNS the release-current
+# sections of wiki Home.md (the version line, the "Latest release" line, and
+# the "What's new in vX.Y.Z" section), regenerated from CHANGELOG.md each tag.
+#
+# The repo's own docs/index.md + README headline are deliberately NOT touched
+# here — those ride the normal human-reviewed PR flow into main. This workflow
+# is wiki-only.
+#
+# Page ownership (anti-clobber): this workflow owns Home.md ONLY. The companion
+# wiki-sync.yml owns Architecture/Accessibility/Cloud-sync/Compose-gotchas/
+# Roadmap/Changelog/Modules and deliberately never touches Home.md — so the two
+# never collide. The release section here is fenced by AUTO-GENERATED markers.
 
 on:
   push:
@@ -20,19 +33,19 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  pull-requests: write   # create the docs-sync PR via the REST API
+  contents: write   # push release content directly to the .wiki repo (no PR, no PAT)
 
 jobs:
   sync:
     # Self-hosted runner (see android.yml header note for context on
-    # the 2026-05-12 cap-hit migration). This workflow only commits
-    # docs back, so a hosted runner would also work after the
-    # 2026-06-01 reset — but self-hosted is free.
+    # the 2026-05-12 cap-hit migration). This job only reads the repo and
+    # pushes the .wiki repo, so a hosted runner would also work — but
+    # self-hosted is free. Runner-agnostic: no `gh` dependency (only git +
+    # python3 + curl), so it can't 127 on the gh-less familiar runner.
     runs-on: [self-hosted, linux]
     timeout-minutes: 10
     steps:
-      - name: Checkout main (full history for commit-back)
+      - name: Checkout main (for CHANGELOG.md + the render script)
         uses: actions/checkout@v5
         with:
           ref: main
@@ -62,14 +75,16 @@ jobs:
           echo "version=${TAG#v}"  >> "$GITHUB_OUTPUT"
           echo "Syncing docs for tag: $TAG"
 
-      - name: Verify tag points at main HEAD before binding sigil
+      - name: Verify tag points at main HEAD before reading the changelog
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          # realm-sigil's build.sh reads HASH from `git rev-parse HEAD`.
-          # We've checked out main; if the tag doesn't point at main's tip
-          # (e.g. someone pushed to main between tag creation and this run),
-          # the sigil hash would bind to the wrong commit. Refuse to proceed.
+          # We render the wiki from CHANGELOG.md as it exists on main's tip
+          # (checked out above). If the tag we're syncing doesn't point at main's
+          # current HEAD — e.g. someone pushed to main between tag creation and
+          # this run — main's CHANGELOG may not yet contain (or may have moved
+          # past) this tag's section, so we'd publish the wrong release notes.
+          # Refuse rather than guess.
           # Dereference via ^{commit} so annotated tags compare correctly —
           # `git rev-parse refs/tags/$TAG` returns the tag OBJECT's SHA for
           # annotated tags, NOT the commit they point at, which false-fires
@@ -80,67 +95,11 @@ jobs:
           MAIN_SHA=$(git rev-parse --verify HEAD)
           if [ "$TAG_SHA" != "$MAIN_SHA" ]; then
             echo "::error::Tag $TAG ($TAG_SHA) does not point at main HEAD ($MAIN_SHA)."
-            echo "::error::Refusing to sync — the realm-sigil hash would bind to the wrong commit."
+            echo "::error::Refusing to sync — main's CHANGELOG may not match this tag's release notes."
             echo "::error::Fast-forward main to the tag (or re-tag main's current tip) and retry."
             exit 1
           fi
           echo "Tag and main agree on $TAG_SHA — proceeding."
-
-      - name: Clone realm-sigil
-        run: git clone --depth=1 https://github.com/jphein/sigil.realm.watch "$RUNNER_TEMP/realm-sigil"
-
-      - name: Regenerate docs/version.json + meta tag
-        working-directory: docs
-        env:
-          REPO: ${{ github.repository }}
-        run: |
-          "$RUNNER_TEMP/realm-sigil/static/build.sh" \
-            --name storyvox \
-            --description "Neural-voice audiobook player for any text you have — offline TTS, optional Azure HD cloud voices, Library Nocturne aesthetic" \
-            --realm fantasy \
-            --repo "https://github.com/$REPO" \
-            --dir . \
-            --html _layouts/default.html
-
-      - name: Bump README headline callout
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          python3 - <<'PY'
-          import os, re, pathlib
-          tag = os.environ['TAG']
-          p = pathlib.Path('README.md')
-          s = p.read_text()
-          s2, n = re.subn(r'^> \*\*v\d+\.\d+\.\d+\*\* —',
-                          f'> **{tag}** —', s, count=1, flags=re.M)
-          if n:
-              p.write_text(s2)
-              print(f'README.md: bumped headline to {tag}')
-          else:
-              print('README.md: no headline pattern matched; skipping')
-          PY
-
-      - name: Bump docs/index.md "What just shipped" callout + release link
-        env:
-          TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          python3 - <<'PY'
-          import os, re, pathlib
-          tag = os.environ['TAG']
-          p = pathlib.Path('docs/index.md')
-          s = p.read_text()
-          # First <strong>vX.Y.Z</strong> = "What just shipped" headline
-          s2, n1 = re.subn(r'<strong>v\d+\.\d+\.\d+</strong>',
-                            f'<strong>{tag}</strong>', s, count=1)
-          # First release-notes link nearest to that headline
-          s2, n2 = re.subn(r'releases/tag/v\d+\.\d+\.\d+',
-                            f'releases/tag/{tag}', s2, count=1)
-          if n1 or n2:
-              p.write_text(s2)
-              print(f'docs/index.md: headline={n1} link={n2} -> {tag}')
-          else:
-              print('docs/index.md: no patterns matched; skipping')
-          PY
 
       - name: Update repo About homepage
         env:
@@ -163,105 +122,44 @@ jobs:
             "https://api.github.com/repos/$REPO" \
             -d "$(jq -nc --arg h "$HOMEPAGE" '{homepage: $h}')"
 
-      - name: Update wiki Home current-version line
+      - name: Write release content to wiki Home (direct push, no PR)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
           REPO: ${{ github.repository }}
-        continue-on-error: true
+          # CHANGELOG.md from the checked-out main is the source of the
+          # release tagline + bullets; the workspace was checked out at the top.
+          CHANGELOG: ${{ github.workspace }}/CHANGELOG.md
         run: |
+          # The .wiki repo is NOT branch-protected, so a plain `git push` with
+          # the built-in GITHUB_TOKEN lands the wiki update immediately — no PR,
+          # no PAT, no review gate. This is the whole point: the wiki self-updates
+          # on every release with zero human steps. NOT continue-on-error — if the
+          # wiki fails to update, the release docs are stale and we want to know.
+          set -uo pipefail
           WIKI_DIR="$RUNNER_TEMP/wiki"
-          if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.wiki.git" "$WIKI_DIR" 2>/dev/null; then
-            echo "Wiki not initialized or no access; skipping wiki update."
-            exit 0
-          fi
-          cd "$WIKI_DIR"
-          [ -f Home.md ] || { echo "No Home.md; skipping."; exit 0; }
-          python3 - <<'PY'
-          import os, re, pathlib
-          tag = os.environ['TAG']
-          p = pathlib.Path('Home.md')
-          s = p.read_text()
-          marker = re.compile(r'^_Current version: v\d+\.\d+\.\d+_\s*$', re.M)
-          line = f'_Current version: {tag}_'
-          if marker.search(s):
-              s2 = marker.sub(line, s)
-          else:
-              # Insert after first H1 if present
-              s2 = re.sub(r'(\A#[^\n]+\n)', lambda m: m.group(1) + '\n' + line + '\n', s, count=1)
-          if s2 != s:
-              p.write_text(s2)
-              print(f'Home.md: set version to {tag}')
-          else:
-              print('Home.md: already current')
-          PY
-          if ! git diff --quiet; then
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name  "github-actions[bot]"
-            git add Home.md
-            git commit -m "docs(wiki): bump current version to ${TAG}"
-            git push
-          fi
-
-      - name: Open docs-sync PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          REPO: ${{ github.repository }}
-        run: |
-          # Branch-protection on main blocks a direct push (refs/heads/main is
-          # PR-required + needs the "Build APK" check + 1 review). So we push the
-          # docs diff to a short-lived `docs-sync/<tag>` branch and open a PR
-          # against main; a maintainer (or the release admin-merge step) lands it.
-          #
-          # IMPORTANT — why curl, not `gh`: the self-hosted runner pool is mixed.
-          # katana has the GitHub CLI; familiar does NOT. When this job lands on
-          # familiar every `gh` call 127s ("gh: command not found"), which is
-          # exactly what silently broke docs-sync on every release after v0.5.98.
-          # curl + jq are present on both runners, so the REST API is runner-
-          # agnostic. (The old code also used `gh pr merge --auto`, but repo
-          # auto-merge is disabled, so that path never worked even on katana.)
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name  "github-actions[bot]"
-          git add README.md docs/index.md docs/version.json docs/_layouts/default.html
-          if git diff --staged --quiet; then
-            echo "No docs changes to commit."
-            exit 0
-          fi
-          BRANCH="docs-sync/${TAG}"
-          git checkout -b "$BRANCH"
-          git commit -m "chore(release): docs sync for ${TAG}"
-          git push -u origin "$BRANCH"
-
-          API="https://api.github.com/repos/$REPO"
-          AUTH=(-H "Authorization: Bearer $GH_TOKEN"
-                -H "Accept: application/vnd.github+json"
-                -H "X-GitHub-Api-Version: 2022-11-28")
-
-          # Idempotent: if a PR for this head branch already exists (workflow
-          # retry / re-dispatch of the same tag), don't try to open another.
-          EXISTING=$(curl -fsS "${AUTH[@]}" \
-            "$API/pulls?head=${REPO%%/*}:$BRANCH&state=open" | jq 'length')
-          if [ "${EXISTING:-0}" -gt 0 ]; then
-            echo "PR for $BRANCH already open; nothing to do."
-            exit 0
-          fi
-
-          BODY="Auto-generated docs sync for tag $TAG. Updates README headline, docs/index.md headline + release link, docs/version.json + meta tag (realm-sigil bind)."
-          # jq -n builds the JSON body so $TAG / $BODY are safely escaped.
-          PR_JSON=$(jq -nc \
-            --arg title "chore(release): docs sync for $TAG" \
-            --arg body  "$BODY" \
-            --arg head  "$BRANCH" \
-            --arg base  "main" \
-            '{title: $title, body: $body, head: $head, base: $base}')
-          PR_NUM=$(curl -fsS -X POST "${AUTH[@]}" "$API/pulls" -d "$PR_JSON" | jq -r '.number')
-          if [ -z "$PR_NUM" ] || [ "$PR_NUM" = "null" ]; then
-            echo "::error::Failed to open docs-sync PR for $TAG."
+          rm -rf "$WIKI_DIR"
+          if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.wiki.git" "$WIKI_DIR"; then
+            echo "::error::Could not clone the wiki repo. Initialize the wiki (create any page in the UI) and re-run."
             exit 1
           fi
-          echo "Opened docs-sync PR #$PR_NUM for $TAG."
-          # Best-effort labels (don't fail the job if the labels don't exist).
-          curl -fsS -X POST "${AUTH[@]}" "$API/issues/$PR_NUM/labels" \
-            -d "$(jq -nc '{labels: ["ci","docs"]}')" >/dev/null || true
-          echo "PR #$PR_NUM awaits the required Build APK check + review, then merge."
+          [ -f "$WIKI_DIR/Home.md" ] || { echo "::error::Wiki has no Home.md to update."; exit 1; }
+
+          # Regenerate the release-current regions of Home.md from CHANGELOG.md.
+          # This workflow OWNS three regions, all on Home.md (which wiki-sync.yml
+          # never touches): the version line, the "Latest release" line, and the
+          # AUTO-GENERATED-fenced "What's new" section.
+          REPO="$REPO" TAG="$TAG" CHANGELOG="$CHANGELOG" \
+          python3 "$GITHUB_WORKSPACE/scripts/wiki/render_release_home.py" "$WIKI_DIR/Home.md"
+
+          cd "$WIKI_DIR" || { echo "::error::cannot cd into wiki clone"; exit 1; }
+          if git diff --quiet; then
+            echo "Home.md already current for ${TAG} — no commit."
+            exit 0
+          fi
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git add Home.md
+          git commit -m "docs(wiki): release content for ${TAG}"
+          git push
+          echo "Wiki Home.md updated to ${TAG} and pushed."
