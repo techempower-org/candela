@@ -1053,7 +1053,8 @@ private fun HighlightCreateSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = spacing.lg, vertical = spacing.md),
+                .padding(horizontal = spacing.lg, vertical = spacing.md)
+                .testTag(TestTags.HighlightSheet),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
             Text(
@@ -1076,7 +1077,7 @@ private fun HighlightCreateSheet(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text(stringResource(R.string.reader_highlight_note_label)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.HighlightNoteField),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1086,7 +1087,10 @@ private fun HighlightCreateSheet(
                     Text(stringResource(R.string.reader_cancel))
                 }
                 Spacer(Modifier.size(spacing.sm))
-                TextButton(onClick = { onConfirm(selectedColor.name, note) }) {
+                TextButton(
+                    onClick = { onConfirm(selectedColor.name, note) },
+                    modifier = Modifier.testTag(TestTags.HighlightConfirm),
+                ) {
                     Text(stringResource(R.string.reader_highlight_confirm))
                 }
             }
@@ -1125,7 +1129,8 @@ private fun HighlightEditSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = spacing.lg, vertical = spacing.md),
+                .padding(horizontal = spacing.lg, vertical = spacing.md)
+                .testTag(TestTags.HighlightEditSheet),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
             Text(
@@ -1148,13 +1153,16 @@ private fun HighlightEditSheet(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text(stringResource(R.string.reader_highlight_note_label)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.HighlightNoteField),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onDelete) {
+                TextButton(
+                    onClick = onDelete,
+                    modifier = Modifier.testTag(TestTags.HighlightDelete),
+                ) {
                     Text(stringResource(R.string.reader_highlight_delete))
                 }
                 Spacer(Modifier.weight(1f))
@@ -1162,7 +1170,10 @@ private fun HighlightEditSheet(
                     Text(stringResource(R.string.reader_cancel))
                 }
                 Spacer(Modifier.size(spacing.sm))
-                TextButton(onClick = { onSave(selectedColor.name, note) }) {
+                TextButton(
+                    onClick = { onSave(selectedColor.name, note) },
+                    modifier = Modifier.testTag(TestTags.HighlightSave),
+                ) {
                     Text(stringResource(R.string.reader_highlight_save))
                 }
             }
@@ -1183,7 +1194,7 @@ private fun HighlightColorRow(
 ) {
     val spacing = LocalSpacing.current
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.HighlightPalette),
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
