@@ -59,7 +59,7 @@ coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
 
 # Image loading
-coil = "3.4.0"
+coil = "3.5.0"
 
 # Legacy media (MediaBrowserServiceCompat for Auto)
 androidx-media = "1.8.0"
