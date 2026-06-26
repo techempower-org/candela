@@ -14,6 +14,7 @@ import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
+import `in`.jphe.storyvox.source.librivox.net.GutenbergTextApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxBook
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxSection
@@ -43,6 +44,17 @@ import javax.inject.Singleton
  *   Each chapter's [ChapterContent.audioUrl] is the section's
  *   `listen_url`; text bodies are empty so EnginePlayer takes the
  *   Media3 branch.
+ * - **Open-domain text companion (issue #1046)**. A LibriVox recording
+ *   is a volunteer reading a public-domain text — almost always a
+ *   Project Gutenberg ebook, linked from the book's `url_text_source`.
+ *   When that link resolves to a Gutenberg id ([GutenbergTextApi]),
+ *   [fictionDetail] appends one extra **text** chapter
+ *   ("📖 Read the text (Project Gutenberg)", chapterId
+ *   `"<bookId>:gutenberg-text"`) after the audio sections. It carries
+ *   NO `audioUrl`, so the reader shows the public-domain text and the
+ *   TTS pipeline can narrate it — the open-domain text "alongside" the
+ *   human-narrated audio. The Gutenberg fetch is lazy: only [chapter]
+ *   for that id pays it, never the browse/detail listing.
  *
  * ## Two API shapes (lazy section hydration)
  *
@@ -53,12 +65,15 @@ import javax.inject.Singleton
  * `extended=1` single-book fetch that returns the sections. See
  * [LibriVoxApi] for the endpoint detail.
  *
- * ## Audio-stream backend invariant (issue #373)
+ * ## Audio-stream backend invariant (issue #373 / #1046)
  *
- * Every chapter this source produces has `audioUrl != null` and both
- * text bodies empty — EnginePlayer's audio-vs-TTS branch keys off
- * exactly that shape. Keep these in lockstep with `:core-playback`'s
- * expectations or playback regresses.
+ * Every *audio section* chapter has `audioUrl != null` with empty text
+ * bodies — EnginePlayer's audio-vs-TTS branch keys off `audioUrl` and
+ * routes those through Media3. The lone exception is the optional
+ * Gutenberg text companion above: it deliberately has `audioUrl == null`
+ * and a populated body so it flows through the normal text → TTS / reader
+ * path. Keep the section chapters' `audioUrl` non-null in lockstep with
+ * `:core-playback`'s expectations or audio playback regresses.
  */
 @SourcePlugin(
     id = SourceIds.LIBRIVOX,
@@ -73,6 +88,7 @@ import javax.inject.Singleton
 @Singleton
 internal class LibriVoxSource @Inject constructor(
     private val api: LibriVoxApi,
+    private val gutenberg: GutenbergTextApi,
 ) : FictionSource {
 
     override val id: String = SourceIds.LIBRIVOX
@@ -237,12 +253,24 @@ internal class LibriVoxSource @Inject constructor(
         return when (val result = api.byId(bookId)) {
             is FictionResult.Success -> {
                 val book = result.value
+                val audioChapters = book.sections.mapIndexed { index, section ->
+                    section.toChapterInfo(book.id, index)
+                }
+                // Issue #1046 — append the open-domain text companion
+                // when `url_text_source` resolves to a Project Gutenberg
+                // ebook. Sits after the audio sections; carries no audio
+                // so the reader/TTS path handles it. The id is checked
+                // here (cheap, offline) but the text itself is fetched
+                // lazily in [chapter].
+                val chapters = audioChapters + listOfNotNull(
+                    GutenbergTextApi.parseGutenbergId(book.urlTextSource)?.let {
+                        gutenbergTextChapterInfo(book.id, audioChapters.size)
+                    },
+                )
                 FictionResult.Success(
                     FictionDetail(
                         summary = book.toSummary(),
-                        chapters = book.sections.mapIndexed { index, section ->
-                            section.toChapterInfo(book.id, index)
-                        },
+                        chapters = chapters,
                         wordCount = null,
                         lastUpdatedAt = null,
                     ),
@@ -257,6 +285,13 @@ internal class LibriVoxSource @Inject constructor(
         chapterId: String,
     ): FictionResult<ChapterContent> {
         val bookId = bookIdFromFictionId(fictionId)
+        // Issue #1046 — the open-domain text companion. Resolve the
+        // Gutenberg id from the book's `url_text_source`, then fetch +
+        // clean the plain text. Returned with NO audioUrl so the reader
+        // shows it and the TTS pipeline (not Media3) handles playback.
+        if (chapterId == gutenbergTextChapterIdFor(bookId)) {
+            return fetchGutenbergTextChapter(bookId, chapterId)
+        }
         return when (val result = api.byId(bookId)) {
             is FictionResult.Success -> {
                 val book = result.value
@@ -341,7 +376,84 @@ internal class LibriVoxSource @Inject constructor(
             title = title.ifBlank { "Section ${sectionNumber.ifBlank { (index + 1).toString() }}" },
         )
 
+    /** Issue #1046 — TOC entry for the open-domain text companion. Sits
+     *  at [index] (after the audio sections) so it reads as a trailing
+     *  "and here's the text" affordance rather than displacing section 1. */
+    private fun gutenbergTextChapterInfo(bookId: String, index: Int): ChapterInfo =
+        ChapterInfo(
+            id = gutenbergTextChapterIdFor(bookId),
+            sourceChapterId = "gutenberg-text",
+            index = index,
+            title = "📖 Read the text (Project Gutenberg)",
+        )
+
+    /**
+     * Issue #1046 — resolve the book's Gutenberg id (via the
+     * `extended=1` fetch, which carries `url_text_source`) and download
+     * the cleaned public-domain text. Returned as a pure text chapter
+     * (`audioUrl == null`) so the reader renders it and TTS can narrate
+     * it. [FictionResult.NotFound] when the book's text source isn't a
+     * Gutenberg ebook — defensive; [fictionDetail] only advertises this
+     * chapter when the id resolves, but a direct deep-link could still
+     * request it.
+     */
+    private suspend fun fetchGutenbergTextChapter(
+        bookId: String,
+        chapterId: String,
+    ): FictionResult<ChapterContent> {
+        val book = when (val result = api.byId(bookId)) {
+            is FictionResult.Success -> result.value
+            is FictionResult.Failure -> return result
+        }
+        val gutenbergId = GutenbergTextApi.parseGutenbergId(book.urlTextSource)
+            ?: return FictionResult.NotFound(
+                "LibriVox book $bookId has no Project Gutenberg text source",
+            )
+        return when (val text = gutenberg.fetchPlainText(gutenbergId)) {
+            is FictionResult.Success -> FictionResult.Success(
+                ChapterContent(
+                    info = gutenbergTextChapterInfo(book.id, book.sections.size),
+                    htmlBody = gutenbergHtml(text.value),
+                    plainBody = text.value,
+                    // No audioUrl — this is the text path, not Media3.
+                    audioUrl = null,
+                ),
+            )
+            is FictionResult.Failure -> text
+        }
+    }
+
+    /** Wrap Gutenberg plain text into simple paragraph HTML for the
+     *  `htmlBody` contract (blank lines delimit paragraphs; intra-
+     *  paragraph newlines become `<br/>`). The reader's text pane reads
+     *  `plainBody`, but persistence keeps both. */
+    private fun gutenbergHtml(plain: String): String =
+        plain.split(PARAGRAPH_BREAK)
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(separator = "") { para ->
+                val escaped = para
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\n", "<br/>")
+                "<p>$escaped</p>"
+            }
+
     companion object {
+        /** Blank-line paragraph delimiter in Gutenberg plain text. */
+        private val PARAGRAPH_BREAK: Regex = Regex("\\n\\s*\\n")
+
+        /**
+         * Issue #1046 — chapterId for the open-domain text companion:
+         * `"<bookId>:gutenberg-text"`. Distinct from the section
+         * chapterId shape `"<bookId>:<section_number>"` (section numbers
+         * are numeric), so [chapter] routes the two apart unambiguously.
+         */
+        internal fun gutenbergTextChapterIdFor(bookId: String): String =
+            "$bookId:gutenberg-text"
+
         /**
          * Build the storyvox-scoped chapterId for [section] within
          * [bookId]. Format is `"<bookId>:<section_number>"` — stable
