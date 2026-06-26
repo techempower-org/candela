@@ -25,6 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -308,9 +312,32 @@ private fun FollowCardSkeleton() {
 @Composable
 private fun FollowCard(follow: UiFollow, onClick: () -> Unit) {
     val spacing = LocalSpacing.current
+    // #1153 — merge the cover + title + author + unread badge into a single
+    // curated TalkBack stop (was up to four fragmented stops). The unread
+    // count rendered as a bare Badge number with no context; fold it into
+    // the description so TalkBack says "3 unread chapters" rather than "3".
+    // clearAndSetSemantics sits on the SAME modifier as the clickable so the
+    // card keeps its open action (ChapterCard #612 pattern).
+    val cardDescription = buildString {
+        append(follow.fiction.title)
+        if (follow.fiction.author.isNotBlank()) append(", by ${follow.fiction.author}")
+        if (follow.unreadCount > 0) {
+            append(
+                if (follow.unreadCount == 1) ", 1 unread chapter"
+                else ", ${follow.unreadCount} unread chapters",
+            )
+        }
+    }
     Card(
         // a11y (#481): Role.Button for the card-level tap target.
-        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClickLabel = "Open") { onClick() }
+            .clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = cardDescription
+                onClick(label = "Open") { onClick(); true }
+            },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = MaterialTheme.shapes.medium,
     ) {

@@ -2345,6 +2345,8 @@ private fun ProviderChip(label: String, selected: Boolean, onClick: () -> Unit) 
         label = label,
         onClick = onClick,
         variant = if (selected) BrassButtonVariant.Primary else BrassButtonVariant.Secondary,
+        // #1157 — AI-provider picker is single-choice; expose radio state.
+        selected = selected,
     )
 }
 
@@ -2429,6 +2431,8 @@ private fun ClaudeProviderRows(
                     label = m.removePrefix("claude-"),
                     onClick = { onSetClaudeModel(m) },
                     variant = if (ai.claudeModel == m) BrassButtonVariant.Primary else BrassButtonVariant.Secondary,
+                    // #1157 — single-choice model picker; expose radio state.
+                    selected = ai.claudeModel == m,
                 )
             }
         }
@@ -2508,6 +2512,8 @@ private fun OpenAiProviderRows(
                     label = m,
                     onClick = { onSetOpenAiModel(m) },
                     variant = if (ai.openAiModel == m) BrassButtonVariant.Primary else BrassButtonVariant.Secondary,
+                    // #1157 — single-choice model picker; expose radio state.
+                    selected = ai.openAiModel == m,
                 )
             }
         }
@@ -2740,6 +2746,8 @@ private fun VertexProviderRows(
                     label = m.removePrefix("gemini-"),
                     onClick = { onSetVertexModel(m) },
                     variant = if (ai.vertexModel == m) BrassButtonVariant.Primary else BrassButtonVariant.Secondary,
+                    // #1157 — single-choice model picker; expose radio state.
+                    selected = ai.vertexModel == m,
                 )
             }
         }

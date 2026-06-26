@@ -47,8 +47,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -378,6 +381,13 @@ private fun PluginCard(
 
 @Composable
 private fun CapabilityChip(label: String) {
+    // #1161 — these chips are purely informational (Search / Follow /
+    // Audio / Text / Local / Cloud / "N voices" / "Coming soon"), but
+    // wrapping an AssistChip(onClick = {}) made TalkBack announce each as
+    // an actionable "<label>, button" and gave Switch Access a dead focus
+    // stop on a no-op (WCAG 4.1.2 — false interactive role). Keep the
+    // visual chip, but collapse its a11y node to plain text so it reads
+    // as a label, not a control.
     AssistChip(
         onClick = {},
         label = {
@@ -389,6 +399,7 @@ private fun CapabilityChip(label: String) {
         colors = AssistChipDefaults.assistChipColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
+        modifier = Modifier.clearAndSetSemantics { text = AnnotatedString(label) },
     )
 }
 

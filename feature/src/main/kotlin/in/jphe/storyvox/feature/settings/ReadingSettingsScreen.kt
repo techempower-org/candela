@@ -25,7 +25,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -202,7 +205,15 @@ private fun HighlightGroup(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .padding(horizontal = spacing.md)
-                        .clickable { onSetWordColor(0) },
+                        // #1161 — this is a tappable reset link, not static
+                        // text. Give it the Button role + an onClickLabel so
+                        // TalkBack announces it as actionable (WCAG 4.1.2).
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(
+                                R.string.settings_highlight_color_reset_a11y,
+                            ),
+                        ) { onSetWordColor(0) },
                 )
             }
         }
@@ -318,7 +329,14 @@ private fun ThemeChip(
             .border(borderWidth, borderColor, RoundedCornerShape(10.dp))
             .background(bg)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = cd }
+            // #1157 — single-choice theme picker. Pre-fix the selected
+            // theme was conveyed by border colour only (WCAG 1.4.1) and
+            // TalkBack announced no "selected" state (WCAG 4.1.2).
+            .semantics {
+                role = Role.RadioButton
+                this.selected = selected
+                contentDescription = cd
+            }
             .padding(vertical = 10.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),

@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -1069,9 +1070,25 @@ private fun Hero(fiction: UiFiction) {
             // visible at every width, and on wider devices the
             // single-line layout is unchanged because no wrap is
             // triggered.
+            // #1153 — pre-fix the hero metadata read as a string of
+            // disconnected TalkBack tokens: a decorative Star, a bare
+            // "4.5", literal "·" separators, then chapter count + status.
+            // Merge the FlowRow into one curated phrase ("Rated 4.5, 38
+            // chapters, Ongoing") and mark the separators decorative. No
+            // tap action lives here, so clearAndSetSemantics is safe.
+            val statusLabel = if (fiction.isOngoing) "Ongoing" else "Completed"
+            val heroMetaDescription =
+                "Rated %.1f, %d chapters, %s".format(
+                    fiction.rating,
+                    fiction.chapterCount,
+                    statusLabel,
+                )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
                 verticalArrangement = Arrangement.spacedBy(spacing.xxs),
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = heroMetaDescription
+                },
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

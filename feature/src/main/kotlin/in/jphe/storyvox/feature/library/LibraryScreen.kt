@@ -44,9 +44,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -652,7 +657,17 @@ private fun ResumeCard(entry: ContinueListeningEntry, onResume: () -> Unit) {
         shape = MaterialTheme.shapes.large,
     ) {
         Row(
-            modifier = Modifier.padding(spacing.md).fillMaxSize(),
+            // #1153 — merge the cover + text column into one TalkBack stop
+            // instead of four (cover, "Resume" label, title, chapter,
+            // progress). The Resume BrassButton is its own merging
+            // semantics node so it stays a separate, actionable stop — we
+            // can't clearAndSetSemantics here without wiping that action,
+            // so mergeDescendants is the right tool for a card whose action
+            // is a child button rather than a whole-card tap.
+            modifier = Modifier
+                .padding(spacing.md)
+                .fillMaxSize()
+                .semantics(mergeDescendants = true) {},
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
@@ -662,7 +677,12 @@ private fun ResumeCard(entry: ContinueListeningEntry, onResume: () -> Unit) {
                 monogram = fictionMonogram(entry.fiction.author, entry.fiction.title),
                 author = entry.fiction.author,
                 sourceFamily = coverSourceFamilyFor(entry.fiction.sourceId),
-                modifier = Modifier.size(width = 68.dp, height = 100.dp),
+                // Decorative under the merged row — the title is already
+                // spoken by the text column, so suppress the thumb's
+                // "Cover for {title}" to avoid a duplicate readout.
+                modifier = Modifier
+                    .size(width = 68.dp, height = 100.dp)
+                    .clearAndSetSemantics {},
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.library_resume), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -1061,15 +1081,52 @@ private fun LibraryGridBody(
             }
         }
         itemsIndexed(dedupedFictions, key = { _, item -> item.id }) { index, fiction ->
+            // #1153 — pre-fix the combinedClickable lived on the cover thumb
+            // only, so TalkBack split each tile into a tappable "Cover for
+            // {title}, button" stop plus separate non-clickable title/author
+            // text stops, and the long-press manage-shelves action had no
+            // spoken hint. Move the tap target onto the whole Column (title +
+            // author now live inside it) and curate a single merged
+            // announcement via clearAndSetSemantics, mirroring ChapterCard
+            // (#612). clearAndSetSemantics also wipes the test tag, so it's
+            // re-set inside the block.
+            val itemDescription = when {
+                fiction.isPlaceholder && fiction.backfillFailed ->
+                    "${fiction.title}, couldn't load, tap to retry"
+                fiction.isPlaceholder -> "${fiction.title}, loading"
+                fiction.author.isNotBlank() -> "${fiction.title}, by ${fiction.author}"
+                else -> fiction.title
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // UI-test selector for an individual library tile. Every
-                    // fiction cell carries the same `library-item` tag; flows
-                    // select the first match (or count) rather than by title.
-                    .testTag(TestTags.LibraryItem)
                     .animateItem()
-                    .cascadeReveal(index = index, key = fiction.id),
+                    .cascadeReveal(index = index, key = fiction.id)
+                    // Long-press → manage-shelves bottom sheet (#116).
+                    // Tap → fiction detail (#908): always opens the
+                    // detail page (chapter list, metadata). The #827
+                    // resume-or-open shortcut was reverted because it
+                    // skipped the detail page unexpectedly.
+                    .combinedClickable(
+                        role = Role.Button,
+                        onClickLabel = "Open",
+                        onLongClickLabel = "Manage shelves",
+                        onClick = { onTapFiction(fiction.id) },
+                        onLongClick = { onLongPress(fiction) },
+                    )
+                    .clearAndSetSemantics {
+                        // UI-test selector for an individual library tile.
+                        // Every fiction cell carries the same `library-item`
+                        // tag; flows select the first match (or count) rather
+                        // than by title.
+                        testTag = TestTags.LibraryItem
+                        role = Role.Button
+                        contentDescription = itemDescription
+                        onClick(label = "Open") { onTapFiction(fiction.id); true }
+                        onLongClick(label = "Manage shelves") {
+                            onLongPress(fiction); true
+                        }
+                    },
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
@@ -1079,17 +1136,7 @@ private fun LibraryGridBody(
                     monogram = fictionMonogram(fiction.author, fiction.title),
                     author = fiction.author,
                     sourceFamily = coverSourceFamilyFor(fiction.sourceId),
-                    // Long-press → manage-shelves bottom sheet (#116).
-                    // Tap → fiction detail (#908): always opens the
-                    // detail page (chapter list, metadata). The #827
-                    // resume-or-open shortcut was reverted because it
-                    // skipped the detail page unexpectedly.
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(
-                            onClick = { onTapFiction(fiction.id) },
-                            onLongClick = { onLongPress(fiction) },
-                        ),
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 // Issue #981 — a synced placeholder row (added on another
                 // device, not yet hydrated by MetadataBackfillWorker)
@@ -1180,11 +1227,32 @@ private fun HistoryList(
 @Composable
 private fun HistoryRow(entry: HistoryEntry, onClick: () -> Unit) {
     val spacing = LocalSpacing.current
+    val fictionTitle = entry.fictionTitle ?: "(removed)"
+    // Match Resume card formatting: "Ch. N · title" with the
+    // dangling-separator guard for blank titles (see #265).
+    val chapterLabel = buildString {
+        entry.chapterIndex?.let { append("Ch. $it") }
+        val title = entry.chapterTitle.orEmpty()
+        if (entry.chapterIndex != null && title.isNotBlank()) append(" · ")
+        if (title.isNotBlank()) append(title)
+        if (isEmpty()) append("(chapter removed)")
+    }
+    val timeLabel = relativeTimeLabel(entry.openedAt)
+    // #1153 — merge the cover + title + chapter + timestamp into a single
+    // curated TalkBack stop (was four fragmented stops). clearAndSetSemantics
+    // sits on the SAME modifier as the clickable so the row keeps its open
+    // action (ChapterCard #612 pattern).
+    val rowDescription = "$fictionTitle, $chapterLabel, $timeLabel"
     Card(
         // a11y (#481): Role.Button for the history-row open tap.
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClickLabel = "Open", onClick = onClick)
+            .clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = rowDescription
+                onClick(label = "Open") { onClick(); true }
+            },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -1208,20 +1276,11 @@ private fun HistoryRow(entry: HistoryEntry, onClick: () -> Unit) {
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = entry.fictionTitle ?: "(removed)",
+                    text = fictionTitle,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
-                // Match Resume card formatting: "Ch. N · title" with the
-                // dangling-separator guard for blank titles (see #265).
-                val chapterLabel = buildString {
-                    entry.chapterIndex?.let { append("Ch. $it") }
-                    val title = entry.chapterTitle.orEmpty()
-                    if (entry.chapterIndex != null && title.isNotBlank()) append(" · ")
-                    if (title.isNotBlank()) append(title)
-                    if (isEmpty()) append("(chapter removed)")
-                }
                 Text(
                     text = chapterLabel,
                     style = MaterialTheme.typography.bodySmall,
@@ -1230,7 +1289,7 @@ private fun HistoryRow(entry: HistoryEntry, onClick: () -> Unit) {
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = relativeTimeLabel(entry.openedAt),
+                    text = timeLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -1386,11 +1445,31 @@ private fun InboxList(
 @Composable
 private fun InboxRow(event: InboxEvent, onClick: () -> Unit) {
     val spacing = LocalSpacing.current
+    val source = event.sourceId.replaceFirstChar { it.uppercase() }
+    val timeLabel = relativeTimeLabel(event.ts)
+    val body = event.body?.takeIf { it.isNotBlank() }
+    // #1153 — merge the title + body + source + timestamp into a single
+    // curated TalkBack stop, and surface read/unread as a real semantic
+    // state. Pre-fix unread was conveyed by a brighter container colour
+    // only, which TalkBack can't perceive and which fails colour-only
+    // (WCAG 1.4.1). clearAndSetSemantics sits on the SAME modifier as the
+    // clickable so the row keeps its open action (ChapterCard #612 pattern).
+    val rowDescription = buildString {
+        append(event.title)
+        if (body != null) append(", $body")
+        append(", $source, $timeLabel")
+    }
     Card(
         // a11y (#481): Role.Button for the inbox-row open tap.
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClickLabel = "Open", onClick = onClick)
+            .clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = rowDescription
+                stateDescription = if (event.isRead) "Read" else "Unread"
+                onClick(label = "Open") { onClick(); true }
+            },
         colors = CardDefaults.cardColors(
             // Quiet visual cue: unread events sit slightly brighter so
             // a quick scan tells the user where to look.
@@ -1430,9 +1509,9 @@ private fun InboxRow(event: InboxEvent, onClick: () -> Unit) {
                     maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
-                event.body?.takeIf { it.isNotBlank() }?.let { body ->
+                body?.let { bodyText ->
                     Text(
-                        text = body,
+                        text = bodyText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -1444,7 +1523,7 @@ private fun InboxRow(event: InboxEvent, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                 ) {
                     Text(
-                        text = event.sourceId.replaceFirstChar { it.uppercase() },
+                        text = source,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1454,7 +1533,7 @@ private fun InboxRow(event: InboxEvent, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = relativeTimeLabel(event.ts),
+                        text = timeLabel,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )

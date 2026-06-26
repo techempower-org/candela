@@ -694,6 +694,12 @@ fun BrowseScreen(
 
 @Composable
 private fun FilterButton(activeCount: Int, onClick: () -> Unit) {
+    // #1161 — the active-filter count lives in a BadgedBox Badge, whose
+    // content TalkBack doesn't reliably surface; the IconButton's
+    // contentDescription stayed the literal "Filter" so a blind user
+    // couldn't tell filters were active. Fold the count into the icon's
+    // description (WCAG 4.1.2 / 1.3.1).
+    val filterCd = if (activeCount > 0) "Filter, $activeCount active" else "Filter"
     // UI-test selector for the filter entrypoint. Same tag on both
     // branches (badged vs. plain) so a flow addresses `browse-filter`
     // regardless of whether any filter is currently active.
@@ -707,12 +713,12 @@ private fun FilterButton(activeCount: Int, onClick: () -> Unit) {
             },
         ) {
             IconButton(onClick = onClick, modifier = Modifier.testTag(TestTags.BrowseFilter)) {
-                Icon(Icons.Outlined.FilterAlt, contentDescription = "Filter")
+                Icon(Icons.Outlined.FilterAlt, contentDescription = filterCd)
             }
         }
     } else {
         IconButton(onClick = onClick, modifier = Modifier.testTag(TestTags.BrowseFilter)) {
-            Icon(Icons.Outlined.FilterAlt, contentDescription = "Filter")
+            Icon(Icons.Outlined.FilterAlt, contentDescription = filterCd)
         }
     }
 }
