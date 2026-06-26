@@ -152,6 +152,37 @@ internal fun shouldCheckpointPosition(state: PlaybackState): Boolean =
     state.currentFictionId != null && state.currentChapterId != null
 
 /**
+ * Issue #1126 — did a thermal-status transition cross the MODERATE
+ * boundary in either direction?
+ *
+ * [ThermalMonitor.THERMAL_STATUS_MODERATE] (2) is the threshold at which
+ * [EnginePlayer.startPlaybackPipeline] drops parallel-synth secondaries to
+ * serial mode (#803). Crossing it — up (throttle on) or down (throttle off)
+ * — changes the *effective* concurrency the NEXT pipeline build will use.
+ *
+ * The cap is read fresh from `cachedThermalStatus` at every
+ * `startPlaybackPipeline()`, so it applies automatically on the next natural
+ * pipeline boundary (next chapter / seek / voice-swap / speed change). We do
+ * NOT force a mid-playback rebuild on a crossing: tearing the AudioTrack down
+ * mid-sentence restarts the producer at the current sentence's start, which
+ * the listener hears as a brief pause followed by the current sentence
+ * replaying from the beginning — issue #1126's "pause-then-repeat". Since the
+ * concurrency cap is a producer-side optimisation with no audible component,
+ * deferring it to the next boundary costs nothing audible while removing the
+ * intermittent replay entirely.
+ *
+ * Extracted as a top-level function so the boundary math can be exercised in a
+ * pure unit test (EnginePlayerThermalRebuildTest) without standing up the full
+ * EnginePlayer + Hilt + sherpa-onnx graph — same constraint that gates
+ * [shouldAutoPlayAfterAdvance] / [shouldCheckpointPosition].
+ */
+internal fun crossedThermalModerateBoundary(prev: Int, status: Int): Boolean =
+    (prev < ThermalMonitor.THERMAL_STATUS_MODERATE &&
+        status >= ThermalMonitor.THERMAL_STATUS_MODERATE) ||
+    (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
+        status < ThermalMonitor.THERMAL_STATUS_MODERATE)
+
+/**
  * Issue #189 — playback state for the one-shot recap-aloud TTS pipeline.
  * Distinct from [PlaybackState] because the recap is a transient utterance
  * with its own AudioTrack; conflating the two would force every chapter
@@ -497,17 +528,27 @@ class EnginePlayer @AssistedInject constructor(
     }
 
     /**
-     * Issue #803 — collect [ThermalMonitor.thermalStatus] and cache
-     * it as a volatile for the synchronous pipeline-construction path.
-     * When the status rises to MODERATE (2) or above, the next pipeline
-     * rebuild caps the effective parallel-synth concurrency to 1 (serial
-     * mode). If playback is already running, we trigger a pipeline
-     * rebuild so the cap takes effect immediately rather than waiting
-     * for the next chapter/seek/voice-swap.
+     * Issue #803 / #1126 — collect [ThermalMonitor.thermalStatus] and
+     * cache it as a volatile for the synchronous pipeline-construction
+     * path. When the status is MODERATE (2) or above, the next pipeline
+     * build caps the effective parallel-synth concurrency to 1 (serial
+     * mode); when it drops back below MODERATE the next build restores
+     * the user's configured concurrency from [cachedParallelSynthInstances].
      *
-     * When the status drops back below MODERATE, the same rebuild
-     * restores the user's configured concurrency from
-     * [cachedParallelSynthInstances].
+     * Issue #1126 — the cap is DEFERRED to the next natural pipeline
+     * boundary (next chapter / seek / voice-swap / speed change), which
+     * reads `cachedThermalStatus` fresh at construction time (see
+     * [startPlaybackPipeline]'s `effectiveSecondaryHandles`). We no longer
+     * force an immediate mid-playback rebuild on a thermal crossing: a
+     * rebuild tears the AudioTrack down and restarts the producer at the
+     * current sentence's start, so the listener hears a brief pause then
+     * the current sentence replaying from the beginning — the intermittent
+     * "pause-then-repeat" reported in #1126. The thermal trigger was the
+     * only non-user, intermittent rebuild path (speed/pitch/pause-mult/seek/
+     * voice-swap are all user-initiated and capture the audible position
+     * first). The concurrency cap is a producer-side optimisation with no
+     * audible component, so deferring it costs nothing the listener can hear
+     * while removing the replay entirely. See [crossedThermalModerateBoundary].
      */
     private fun observeThermalStatus() {
         scope.launch {
@@ -515,27 +556,20 @@ class EnginePlayer @AssistedInject constructor(
                 val prev = cachedThermalStatus
                 cachedThermalStatus = status
                 if (prev == status) return@collect
-                DebugLog.i("EnginePlayer") {
-                    "#803 thermal status update: $prev -> $status" +
-                        if (status >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
-                            " — capping parallel synth to serial mode"
-                        } else if (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
-                            " — restoring user-configured concurrency"
-                        } else {
-                            ""
-                        }
-                }
-                // Only trigger a pipeline rebuild if the thermal status
-                // crosses the MODERATE boundary while playing. Rebuilds
-                // within the same thermal zone (e.g. SEVERE -> CRITICAL)
-                // are unnecessary — the cap is already at serial.
-                val crossedThreshold =
-                    (prev < ThermalMonitor.THERMAL_STATUS_MODERATE &&
-                        status >= ThermalMonitor.THERMAL_STATUS_MODERATE) ||
-                    (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
-                        status < ThermalMonitor.THERMAL_STATUS_MODERATE)
-                if (crossedThreshold && _observableState.value.isPlaying) {
-                    startPlaybackPipeline()
+                // #1126 — log the (deferred) concurrency change when we
+                // cross the MODERATE boundary; the new value is picked up
+                // by the next startPlaybackPipeline() with no mid-playback
+                // teardown. Same-zone changes (e.g. SEVERE -> CRITICAL)
+                // don't alter the serial/parallel decision and are silent.
+                if (crossedThermalModerateBoundary(prev, status)) {
+                    DebugLog.i("EnginePlayer") {
+                        "#1126 thermal crossed MODERATE: $prev -> $status — " +
+                            if (status >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
+                                "parallel synth will cap to serial on next pipeline build"
+                            } else {
+                                "user-configured concurrency restored on next pipeline build"
+                            }
+                    }
                 }
             }
         }
@@ -2529,11 +2563,13 @@ class EnginePlayer @AssistedInject constructor(
         // the pipeline runs in serial mode (single engine). The
         // secondary engine instances stay alive in memory (they're
         // expensive to construct) — we just don't hand them to the
-        // streaming source for this pipeline lifetime. When the
-        // thermal status drops below MODERATE, [observeThermalStatus]
-        // triggers a pipeline rebuild that passes the full set of
-        // secondaries again, restoring the user's configured
-        // concurrency without re-loading models.
+        // streaming source for this pipeline lifetime. Issue #1126 —
+        // the cap is applied HERE, at construction time, off the live
+        // `cachedThermalStatus`; [observeThermalStatus] no longer forces
+        // a mid-playback rebuild (that caused an audible pause-then-repeat),
+        // so a thermal change takes effect on the next natural pipeline
+        // boundary (next chapter / seek / voice-swap / speed change),
+        // restoring or capping concurrency without re-loading models.
         val effectiveSecondaryHandles = if (
             thermalStatus >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
             secondaryHandles.isNotEmpty()
