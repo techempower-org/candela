@@ -75,6 +75,8 @@ import `in`.jphe.storyvox.feature.api.UiChapter
 import `in`.jphe.storyvox.feature.api.UiFiction
 import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
 import `in`.jphe.storyvox.source.epub.writer.EpubExportResult
+import `in`.jphe.storyvox.ui.a11y.LocalAccessibleTouchTargets
+import `in`.jphe.storyvox.ui.a11y.accessibleSize
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.ChapterCard
@@ -1325,7 +1327,14 @@ private fun Synopsis(
             )
             IconButton(
                 onClick = onToggleListen,
-                modifier = Modifier.size(36.dp),
+                // #1135 — was 36dp (sub-48 touch target, WCAG 2.5.8 fail).
+                // accessibleSize gives a 48dp button surface that widens
+                // to 64dp under the "larger touch targets" preference /
+                // Switch Access; the inner Icon keeps its 20dp visual size.
+                modifier = Modifier.accessibleSize(
+                    enlargedFlag = LocalAccessibleTouchTargets.current,
+                    base = 48.dp,
+                ),
             ) {
                 Icon(
                     imageVector = if (isSpeaking) Icons.Filled.Pause else Icons.Filled.PlayArrow,

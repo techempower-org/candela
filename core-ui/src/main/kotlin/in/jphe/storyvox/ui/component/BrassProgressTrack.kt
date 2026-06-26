@@ -28,8 +28,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.ui.theme.LocalReducedMotion
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
@@ -110,11 +116,15 @@ fun BrassProgressTrack(
         )
     }
 
-    Box(
-        modifier = modifier.semantics {
-            contentDescription = "Playback progress, ${formatMs(positionMs)} of ${formatMs(durationMs)}"
-        },
-    ) {
+    // #1148 — the scrubber is an accessible seek control. The interactive
+    // 48dp band below now carries Role.Slider-equivalent semantics
+    // (progressBarRangeInfo + setProgress) plus ±30s custom actions so
+    // TalkBack / Switch Access users can seek; before this it exposed only
+    // a contentDescription (a value with no settable action), failing
+    // WCAG 4.1.2 (Name/Role/Value) and 2.1.1 (Keyboard) / 2.5.7 (Dragging
+    // Movements). This outer Box is a plain layout container so it doesn't
+    // create a competing a11y node above the slider.
+    Box(modifier = modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,6 +145,42 @@ fun BrassProgressTrack(
                 // surrounding verticalScroll absorbs it on phone
                 // viewports.
                 .height(48.dp)
+                .semantics {
+                    // #1148 — sighted users operate the rail via the
+                    // pointerInput drag below; accessibility services
+                    // can't observe pointer gestures, so the seek
+                    // affordance is re-expressed declaratively here.
+                    // stateDescription replaces the auto percentage
+                    // readout with "2:04 of 47:12"; setProgress is where
+                    // TalkBack's swipe-up/down-to-adjust lands; the two
+                    // custom actions mirror the Replay30 / Forward30 skip
+                    // buttons so Switch Access menus can jump ±30s.
+                    contentDescription = "Playback progress"
+                    stateDescription =
+                        "${formatMs(positionMs)} of ${formatMs(durationMs)}"
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        current = brassProgressFraction(positionMs, durationMs),
+                        range = 0f..1f,
+                    )
+                    setProgress { target ->
+                        onSeekTo(brassSeekTargetMs(target, durationMs))
+                        true
+                    }
+                    customActions = listOf(
+                        CustomAccessibilityAction("Skip back 30 seconds") {
+                            onSeekTo(
+                                brassSkipTargetMs(positionMs, durationMs, -SCRUBBER_SKIP_MS),
+                            )
+                            true
+                        },
+                        CustomAccessibilityAction("Skip forward 30 seconds") {
+                            onSeekTo(
+                                brassSkipTargetMs(positionMs, durationMs, SCRUBBER_SKIP_MS),
+                            )
+                            true
+                        },
+                    )
+                }
                 .pointerInput(durationMs) {
                     // Hand-rolled gesture so a single tap also seeks. The built-in
                     // detectHorizontalDragGestures only fires after enough drag
@@ -210,6 +256,42 @@ fun BrassProgressTrack(
         }
     }
 }
+
+/**
+ * Scrubber accessibility seek step — matches the Replay30 / Forward30
+ * skip buttons in the player (AudiobookView). Kept in sync by intent:
+ * the skip duration is hard-coded to 30s today (#268).
+ */
+internal const val SCRUBBER_SKIP_MS: Long = 30_000L
+
+/**
+ * Structural a11y canary (#1148). [BrassProgressTrack] must expose a
+ * *settable* seek control to accessibility services —
+ * `progressBarRangeInfo` + `setProgress` + ±30s `CustomAccessibilityAction`s
+ * — not just a read-only `contentDescription`. A unit test pins this
+ * `true`; flip it only after proving on a real device with TalkBack /
+ * Switch Access that a different shape still lets those users seek.
+ */
+internal const val brassProgressTrackExposesSeekSemantics: Boolean = true
+
+/** Current playback position as a 0..1 fraction; 0 when duration is unknown. */
+internal fun brassProgressFraction(positionMs: Long, durationMs: Long): Float =
+    if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+
+/**
+ * Seek target (ms) for a slider fraction in 0..1 (the value
+ * accessibility services pass to `setProgress`), clamped to the chapter.
+ */
+internal fun brassSeekTargetMs(fraction: Float, durationMs: Long): Long =
+    (fraction.coerceIn(0f, 1f) * durationMs).roundToLong()
+        .coerceIn(0L, durationMs.coerceAtLeast(0L))
+
+/**
+ * Seek target (ms) for a relative ±skip (the ±30s custom actions),
+ * clamped to the chapter bounds.
+ */
+internal fun brassSkipTargetMs(positionMs: Long, durationMs: Long, deltaMs: Long): Long =
+    (positionMs + deltaMs).coerceIn(0L, durationMs.coerceAtLeast(0L))
 
 private fun formatMs(ms: Long): String {
     if (ms <= 0) return "0:00"

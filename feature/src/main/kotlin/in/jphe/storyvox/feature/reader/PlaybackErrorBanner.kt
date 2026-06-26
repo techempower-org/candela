@@ -37,6 +37,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.playback.EngineState
+import `in`.jphe.storyvox.ui.a11y.LocalAccessibleTouchTargets
+import `in`.jphe.storyvox.ui.a11y.accessibleSize
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
@@ -130,7 +132,14 @@ fun PlaybackErrorBanner(
                 }
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(36.dp),
+                    // #1135 — was 36dp (sub-48 touch target, WCAG 2.5.8 fail).
+                    // accessibleSize gives a 48dp button surface that widens
+                    // to 64dp under the "larger touch targets" preference /
+                    // Switch Access; the inner Icon keeps its 18dp visual size.
+                    modifier = Modifier.accessibleSize(
+                        enlargedFlag = LocalAccessibleTouchTargets.current,
+                        base = 48.dp,
+                    ),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
