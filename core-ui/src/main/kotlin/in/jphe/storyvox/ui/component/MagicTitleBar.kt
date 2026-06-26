@@ -13,6 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
@@ -60,6 +62,11 @@ fun MagicTitleBar(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
+                    // #1136 — mark the screen title as a heading so TalkBack's
+                    // heading-navigation gesture can jump to it. The sparkle
+                    // Icon beside it is decorative (contentDescription = null),
+                    // so the Text is the right node to carry the heading role.
+                    modifier = Modifier.semantics { heading() },
                 )
             }
         },
@@ -67,6 +74,18 @@ fun MagicTitleBar(
         actions = { actions() },
     )
 }
+
+/**
+ * Structural canary (#1136) — `MagicTitleBar`'s title `Text` must carry
+ * `Modifier.semantics { heading() }` so TalkBack's heading-navigation
+ * gesture can jump to the title of every primary-nav surface (Library /
+ * Browse / Follows / Voice Library / Settings Hub). Compose semantics
+ * can't be asserted from the JVM unit-test source set (no Robolectric —
+ * see `BottomTabBarSemanticsTest`), so this marker is pinned `true` by
+ * `MagicTitleBarSemanticsTest`. Flip to false only after proving an
+ * equivalent heading announcement on-device with TalkBack.
+ */
+internal const val magicTitleBarMarksTitleAsHeading: Boolean = true
 
 @Preview(name = "MagicTitleBar — dark", widthDp = 360)
 @Composable

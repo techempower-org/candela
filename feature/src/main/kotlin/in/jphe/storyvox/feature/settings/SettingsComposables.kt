@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -136,9 +137,19 @@ fun SettingsSectionHeader(
             text = label,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
+            // #1136 — heading() so TalkBack heading-navigation reaches each
+            // section header on the legacy long-scroll Settings screen.
+            modifier = Modifier.semantics { heading() },
         )
     }
 }
+
+/**
+ * Structural canary (#1136) — `SettingsSectionHeader`'s label `Text` must
+ * carry `heading()` semantics. Pinned by `SettingsHeadingSemanticsTest`
+ * (JVM unit tests can't assert Compose semantics — no Robolectric).
+ */
+internal const val settingsSectionHeaderMarksLabelAsHeading: Boolean = true
 
 // endregion
 
