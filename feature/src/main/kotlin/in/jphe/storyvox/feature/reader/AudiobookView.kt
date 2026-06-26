@@ -37,6 +37,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.Replay
@@ -173,6 +174,17 @@ fun AudiobookView(
      *  previews / tests; production callsites pass
      *  `navController.navigate(StoryvoxRoutes.fictionDetail(fId))`. */
     onOpenLibrary: () -> Unit = {},
+    /** Issue #1016 — "another magical way of accessing the reading mode in
+     *  the play tab besides just swiping to the right." The [HybridReaderShell]
+     *  reaches the text reader by a horizontal swipe (offset 0 → -width); the
+     *  only non-swipe path was the TalkBack-only custom action added in #1025.
+     *  This callback gives sighted users a visible, one-tap affordance — the
+     *  "Read along" chip below the transport — that flips the same pane.
+     *  HybridReaderScreen wires it to `viewModel.setActivePane(ReaderView.Reader)`
+     *  so the tap animates the identical pane settle the swipe does (in-place,
+     *  no nav push — the global playback keeps narrating). Default no-op for
+     *  previews / tests. */
+    onOpenReader: () -> Unit = {},
     /** Issue #278 — loading-phase from the ReaderViewModel. Drives the
      *  soft "Still working…" hint at 10s and the hard timeout/retry
      *  error block at 30s. Defaults to NotLoading so previews / tests
@@ -996,6 +1008,7 @@ fun AudiobookView(
                 onPickVoice = onPickVoice,
                 chapterCount = chapters.size,
                 onOpenChapterList = { showChapterListSheet = true },
+                onOpenReader = onOpenReader,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = spacing.xs),
@@ -2152,6 +2165,12 @@ internal fun PlayerQuickChips(
     onPickVoice: () -> Unit,
     chapterCount: Int = 0,
     onOpenChapterList: () -> Unit = {},
+    /** Issue #1016 — open the text reader pane for the current chapter.
+     *  Rendered as the brass "Read along" chip pinned at the TOP of the
+     *  block (directly under the transport) so it stays above the fold on
+     *  the narrow Z Flip3 where the lower chip rows can scroll off (#527).
+     *  Wired by [AudiobookView] up to `setActivePane(ReaderView.Reader)`. */
+    onOpenReader: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -2159,6 +2178,52 @@ internal fun PlayerQuickChips(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {
+        // Issue #1016 — "Read along" entry into the text reader. The
+        // [HybridReaderShell] otherwise only reaches the reader via a
+        // rightward swipe (or the #1025 TalkBack-only custom action), which
+        // the issue calls out as undiscoverable. This labelled brass chip
+        // mirrors the sibling "Chapters" AssistChip below; its trailing
+        // ChevronRight even echoes the swipe-right direction. Pinned first
+        // so it sits directly beneath the play button — the most
+        // discoverable slot — and never scrolls off on a short viewport.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Icon(
+                Icons.AutoMirrored.Outlined.Article,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            AssistChip(
+                onClick = onOpenReader,
+                label = {
+                    Text(
+                        "Read along",
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                },
+                trailingIcon = {
+                    Icon(
+                        Icons.Outlined.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                colors = AssistChipDefaults.assistChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics {
+                        contentDescription =
+                            "Read along. Open the text reader for this chapter."
+                    },
+            )
+        }
         // Row 1 — speed presets. Brass icon + presets list. Sleep timer
         // and voice chip go to row 2 so a narrow phone gets a clean
         // two-row layout instead of a 9-chip wrap.

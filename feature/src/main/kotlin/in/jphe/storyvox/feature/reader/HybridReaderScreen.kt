@@ -31,6 +31,7 @@ import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.HybridReaderShell
 import `in`.jphe.storyvox.ui.component.MagicCircularProgress
+import `in`.jphe.storyvox.ui.component.ReaderView
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 @Composable
@@ -291,6 +292,16 @@ fun HybridReaderScreen(
                 onOpenLibrary = {
                     playbackState.fictionId?.let { onOpenLibrary(it) }
                 },
+                // Issue #1016 — the visible "Read along" chip flips the
+                // shell to the reader pane exactly as the rightward swipe
+                // does. setActivePane feeds HybridReaderShell's
+                // `current`/`onViewChange`, so we get the same animated
+                // pane settle, playback keeps narrating, and nothing is
+                // pushed onto the back stack (a /reader route push would
+                // re-enter on the Audiobook pane — _activePane always
+                // starts at Audiobook — so it wouldn't even land on the
+                // text, besides being a jarring full-screen transition).
+                onOpenReader = { viewModel.setActivePane(ReaderView.Reader) },
                 // Issue #278 — surface loading-phase + retry path. The
                 // view decides what to render based on phase (regular /
                 // slow-hint at 10s / full error block at 30s).
