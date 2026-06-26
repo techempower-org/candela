@@ -1470,7 +1470,14 @@ internal fun ParallelSynthSliders(
             onValueChange = { onInstancesChange(it.toInt().coerceIn(1, 8)) },
             valueRange = 1f..8f,
             steps = 6,
-            modifier = Modifier.fillMaxWidth(),
+            // #1159 — without these TalkBack read the bare M3 percent ("57%").
+            // The value Text is a sibling node, so name + count live here.
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Engines"
+                    stateDescription = if (instances <= 1) "1 (serial)" else "$instances"
+                },
         )
         Text(
             text = when {
@@ -1505,7 +1512,14 @@ internal fun ParallelSynthSliders(
             onValueChange = { onThreadsChange(it.toInt().coerceIn(0, 8)) },
             valueRange = 0f..8f,
             steps = 7,
-            modifier = Modifier.fillMaxWidth(),
+            // #1159 — name + count for TalkBack; 0 reads as "Auto" to match
+            // the visible value Text (a sibling node) above the slider.
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Threads per engine"
+                    stateDescription = if (threadsPerInstance == 0) "Auto" else "$threadsPerInstance"
+                },
         )
         Text(
             text = when {
