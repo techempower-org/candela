@@ -49,7 +49,6 @@ plugins {
     // `android-test`; the version-less form picks up the same AGP
     // already resolved.
     id("com.android.test")
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.androidx.baselineprofile)
 }
 
