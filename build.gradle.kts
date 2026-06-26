@@ -10,7 +10,6 @@ plugins {
     // Issue #409 — `androidx.baselineprofile` Gradle plugin. Applied
     // to both :app (consumer side) and :baselineprofile (producer side).
     alias(libs.plugins.androidx.baselineprofile) apply false
-    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.ksp) apply false

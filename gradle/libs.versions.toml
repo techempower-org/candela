@@ -92,9 +92,9 @@ robolectric = "4.16.1"
 # handle Android 14's new "Waiting for app processes to flush
 # profiles..." prefix line. 1.3.x throws IllegalStateException on
 # that output on the Tab A7 Lite (Android 14, June 2025 patch).
-benchmark = "1.4.1"
+benchmark = "1.5.0-alpha06"
 uiautomator = "2.3.0"
-baselineprofile-gradle = "1.4.1"
+baselineprofile-gradle = "1.5.0-alpha06"
 
 # Desugaring
 desugar = "2.1.5"
@@ -250,7 +250,6 @@ android-test = { id = "com.android.test", version.ref = "agp" }
 # bundles the compiled profile into the consumer's APK. Applied to
 # BOTH :app (consumer) and :baselineprofile (producer).
 androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile-gradle" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 # Pure-JVM Kotlin plugin — used by :core-plugin-ksp (KSP SymbolProcessor
 # lives on the compiler's JVM classpath, not the Android runtime).
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

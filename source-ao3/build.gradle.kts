@@ -1,10 +1,5 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
-    // PR2 of #426 — AO3 WebView sign-in lives in this module (mirrors
-    // :source-royalroad). Compose is needed for the [Ao3AuthWebView]
-    // composable; without the plugin we can't expose the @Composable
-    // entry point to :app's [AuthWebViewScreen].
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
