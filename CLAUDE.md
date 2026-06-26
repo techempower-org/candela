@@ -16,14 +16,16 @@ CI runs on self-hosted runner (katana). Tags trigger release APK build + GitHub 
 ## Module layout
 
 - **app** — nav graph (`StoryvoxNavHost`), DI wiring (`AppBindings`), `SettingsRepositoryUiImpl`
-- **feature** — all UI: `browse/`, `reader/`, `library/`, `settings/`, `chat/`, `fiction/`, `voicelibrary/`, `onboarding/`, `follows/`, `techempower/`, `sync/`, `auth/`, `sessions/`, `debug/`, `milestone/`, `engine/`, plus shared `api/`, `components/`, `di/`
+- **feature** — all UI: `browse/`, `reader/`, `ocr/`, `library/`, `settings/`, `chat/`, `fiction/`, `voicelibrary/`, `onboarding/`, `follows/`, `techempower/`, `sync/`, `auth/`, `sessions/`, `debug/`, `milestone/`, `engine/`, plus shared `api/`, `components/`, `di/`
 - **core-data** — `FictionSource` interface, `SearchQuery`, `FilterDimension`/`FilterState`, Room DB, models
 - **core-playback** — TTS engine (`EnginePlayer`), voice catalog, audio focus
 - **core-llm** — AI chat, summaries
 - **core-sync** — InstantDB cloud sync
 - **core-ui** — shared theme, spacing, composables
 - **core-plugin-ksp** — `@SourcePlugin` annotation processor → Hilt `@IntoSet` factories
-- **source-*** — 24 source modules, each implements `FictionSource`
+- **wear** — Wear OS companion app (Library Nocturne on the watch)
+- **baselineprofile** — Macrobenchmark module that generates the R8 baseline profile
+- **source-*** — 28 source modules; 25 implement `FictionSource`. The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
 
 ## Key patterns
 
@@ -37,11 +39,11 @@ CI runs on self-hosted runner (katana). Tags trigger release APK build + GitHub 
 
 ## Large files (read with offset/limit)
 
-- `EnginePlayer.kt` — 5100 lines
-- `SettingsScreen.kt` — 4100 lines (legacy long-scroll, being replaced by hub)
-- `SettingsRepositoryUiImpl.kt` — 3100 lines
-- `AudiobookView.kt` — 2300 lines
-- `UiContracts.kt` — 2300 lines
+- `EnginePlayer.kt` — ~5500 lines
+- `SettingsScreen.kt` — ~4100 lines (legacy long-scroll, being replaced by hub)
+- `SettingsRepositoryUiImpl.kt` — ~3600 lines
+- `AudiobookView.kt` — ~2550 lines
+- `UiContracts.kt` — ~2550 lines
 
 ## Versioning
 
