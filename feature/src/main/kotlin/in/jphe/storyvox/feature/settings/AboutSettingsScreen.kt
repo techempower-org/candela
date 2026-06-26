@@ -31,6 +31,11 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 @Composable
 fun AboutSettingsScreen(
     onBack: () -> Unit,
+    /** Issue #1142 — open the Open-source licenses subscreen. The About hub
+     *  advertised "open-source notices" with nothing behind the promise;
+     *  this routes to the AboutLibraries-backed list. Default no-op keeps
+     *  previews / tests simple; the NavHost passes a real navigate. */
+    onOpenLicenses: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,6 +77,16 @@ fun AboutSettingsScreen(
                         MilestoneBadgePill(s.sigil.versionName)
                     }
                 }
+            }
+            // Issue #1142 — make good on the hub's "open-source notices"
+            // promise. A link row into the AboutLibraries-backed licenses
+            // subscreen, which also conveys Candela's own GPL-3.0 license.
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_licenses),
+                    subtitle = stringResource(R.string.settings_about_licenses_subtitle),
+                    onClick = onOpenLicenses,
+                )
             }
         }
     }

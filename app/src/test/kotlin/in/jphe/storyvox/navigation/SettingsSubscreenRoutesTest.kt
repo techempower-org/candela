@@ -43,11 +43,16 @@ class SettingsSubscreenRoutesTest {
         StoryvoxRoutes.SETTINGS_ADVANCED,
         // Issue #712 — Cloud Voices subscreen for Azure BYOK config.
         StoryvoxRoutes.SETTINGS_CLOUD_VOICES,
+        // Issue #1142 — Open-source licenses. Nested one level deeper than
+        // the others (reached from a row on the About subscreen, not a hub
+        // section card), but it obeys the same route rules pinned below, so
+        // it's guarded here against prefix drift / alias collisions too.
+        StoryvoxRoutes.SETTINGS_LICENSES,
     )
 
     @Test
     fun `all hub-follow-up subscreen routes are declared`() {
-        assertEquals(11, newRoutes.size)
+        assertEquals(12, newRoutes.size)
     }
 
     @Test
