@@ -29,6 +29,7 @@ import android.content.IntentFilter
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
+import `in`.jphe.storyvox.playback.modes.ModesDetector
 import `in`.jphe.storyvox.playback.diagnostics.AudioOutputMonitor
 import `in`.jphe.storyvox.playback.sleep.ShakeDetector
 import `in`.jphe.storyvox.playback.tts.EnginePlayer
@@ -110,9 +111,10 @@ class StoryvoxPlaybackService : MediaSessionService() {
      *  redundant register/unregister churn on every state emission. */
     private var shakeListening: Boolean = false
 
-    /** DND / Bedtime mode auto-sleep receiver, registered when the
-     *  bedtime-auto-sleep setting is on and playback is active.
-     *  Unregistered on destroy or when the setting is flipped off. */
+    /** Issue #1118 — Modes API detector for determining when to auto-sleep.
+     *  Replaces the old ACTION_INTERRUPTION_FILTER_CHANGED BroadcastReceiver
+     *  with intelligent trigger mode detection (DND, time window, etc). */
+    private lateinit var modesDetector: ModesDetector
     private var dndReceiver: BroadcastReceiver? = null
     private var dndReceiverRegistered: Boolean = false
     private var bedtimeJob: Job? = null
@@ -208,42 +210,56 @@ class StoryvoxPlaybackService : MediaSessionService() {
                 }
         }
 
-        // Bedtime / DND auto-sleep: register a BroadcastReceiver for
-        // ACTION_INTERRUPTION_FILTER_CHANGED. When the phone enters
-        // DND (Sleep mode, Bedtime mode, manual toggle) while playback
-        // is active and the user has the setting on, auto-arm the
-        // sleep timer at the shake-extend duration. The receiver is
-        // only registered while the setting is enabled.
+        // Issue #1118 — Modes API implementation. Initialize ModesDetector
+        // and set up the DND broadcast receiver to check trigger modes.
+        modesDetector = ModesDetector(applicationContext, bedtimeSleepConfig)
+
+        // Bedtime / Sleep / DND auto-sleep: register a BroadcastReceiver for
+        // ACTION_INTERRUPTION_FILTER_CHANGED. When the phone enters DND
+        // (manual toggle, Bedtime mode, Sleep mode, etc.) while playback is
+        // active and the user's configured trigger mode allows it, auto-arm
+        // the sleep timer at the shake-extend duration.
+        //
+        // The trigger mode (DISABLED, ANY_DND, TIME_WINDOW, BEDTIME_ONLY, etc.)
+        // determines whether this activation is allowed, potentially with a
+        // time-window guard to avoid daytime DND false positives.
         dndReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent?) {
                 if (intent?.action != NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) return
-                val nm = context.getSystemService(NotificationManager::class.java)
-                val filter = nm.currentInterruptionFilter
-                if (filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
-                    controller.state.value.isPlaying &&
-                    controller.state.value.sleepTimerRemainingMs == null
-                ) {
-                    scope.launch {
+                if (!controller.state.value.isPlaying || controller.state.value.sleepTimerRemainingMs != null) {
+                    // Not currently playing or already have a timer armed
+                    return
+                }
+                scope.launch {
+                    // Use ModesDetector to check if we should auto-sleep
+                    // based on the configured trigger mode
+                    if (modesDetector.shouldAutoSleep()) {
                         val minutes = sleepExtendConfig.currentShakeExtendMinutes()
                         controller.startSleepTimer(SleepTimerMode.Duration(minutes))
-                        Log.i(TAG, "Bedtime auto-sleep: armed ${minutes}min (DND filter=$filter)")
+                        Log.i(TAG, "Modes auto-sleep: armed ${minutes}min via ${bedtimeSleepConfig.getBedtimeSleepTriggerMode()}")
                     }
                 }
             }
         }
+
         bedtimeJob = scope.launch {
-            bedtimeSleepConfig.bedtimeAutoSleepEnabled
+            // Watch the trigger mode to determine if we should listen for DND changes.
+            // Register the receiver when the mode is not DISABLED, unregister otherwise.
+            bedtimeSleepConfig.bedtimeSleepTriggerMode
                 .distinctUntilChanged()
-                .collect { enabled ->
-                    if (enabled && !dndReceiverRegistered) {
+                .collect { mode ->
+                    val shouldListen = mode != `in`.jphe.storyvox.data.repository.playback.BedtimeSleepTriggerMode.DISABLED
+                    if (shouldListen && !dndReceiverRegistered) {
                         registerReceiver(
                             dndReceiver,
                             IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED),
                         )
                         dndReceiverRegistered = true
-                    } else if (!enabled && dndReceiverRegistered) {
+                        Log.i(TAG, "Modes detector registered (mode=$mode)")
+                    } else if (!shouldListen && dndReceiverRegistered) {
                         unregisterReceiver(dndReceiver)
                         dndReceiverRegistered = false
+                        Log.i(TAG, "Modes detector unregistered (mode=$mode)")
                     }
                 }
         }

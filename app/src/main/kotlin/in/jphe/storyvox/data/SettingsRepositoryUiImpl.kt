@@ -485,6 +485,22 @@ private object Keys {
     val SLEEP_BEDTIME_AUTO_ENABLED =
         booleanPreferencesKey("pref_sleep_bedtime_auto_enabled")
 
+    /** Issue #1118 — Auto-sleep trigger mode (DISABLED, ANY_DND, TIME_WINDOW,
+     *  BEDTIME_ONLY, SLEEP_MODE_ONLY). Stored as enum name. Per-device (NOT synced).
+     *  Default DISABLED. */
+    val SLEEP_BEDTIME_TRIGGER_MODE =
+        stringPreferencesKey("pref_sleep_bedtime_trigger_mode_v1")
+
+    /** Issue #1118 — Time-window auto-sleep start hour (0-23).
+     *  Per-device (NOT synced). Default 21 (9 PM). */
+    val SLEEP_BEDTIME_WINDOW_START_HOUR =
+        intPreferencesKey("pref_sleep_bedtime_window_start_hour")
+
+    /** Issue #1118 — Time-window auto-sleep end hour (0-23).
+     *  Per-device (NOT synced). Default 8 (8 AM). */
+    val SLEEP_BEDTIME_WINDOW_END_HOUR =
+        intPreferencesKey("pref_sleep_bedtime_window_end_hour")
+
     /** Issue #596 — PCM-cache pre-render window size in chapters
      *  (Int). Synced as of #916. Default 5 matches the legacy
      *  `DEFAULT_PRERENDER_CHAPTERS` constant in PrerenderTriggers
@@ -1108,6 +1124,7 @@ class SettingsRepositoryUiImpl(
     `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
     SleepTimerExtendConfig,
     `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig,
+    `in`.jphe.storyvox.data.repository.playback.BedtimeSleepTriggerMode,
     PrerenderChapterCountConfig,
     AutoBrowserConfig,
     NetworkPatienceConfig,
@@ -1823,6 +1840,7 @@ class SettingsRepositoryUiImpl(
     override suspend fun isBedtimeAutoSleepEnabled(): Boolean =
         bedtimeAutoSleepEnabled.first()
 
+    // Issue #1118 — Extended BedtimeSleepConfig with mode selection and time windows    override val bedtimeSleepTriggerMode: Flow<BedtimeSleepTriggerMode> = store.data.map { prefs ->        val modeStr = prefs[Keys.SLEEP_BEDTIME_TRIGGER_MODE] ?: BedtimeSleepTriggerMode.DISABLED.name        try {            BedtimeSleepTriggerMode.valueOf(modeStr)        } catch (e: IllegalArgumentException) {            // Fallback on corrupted/unknown enum values            BedtimeSleepTriggerMode.DISABLED        }    }    override val bedtimeSleepWindowStartHour: Flow<Int> = store.data.map { prefs ->        prefs[Keys.SLEEP_BEDTIME_WINDOW_START_HOUR] ?: 21  // 9 PM default    }    override val bedtimeSleepWindowEndHour: Flow<Int> = store.data.map { prefs ->        prefs[Keys.SLEEP_BEDTIME_WINDOW_END_HOUR] ?: 8  // 8 AM default    }    override suspend fun getBedtimeSleepTriggerMode(): BedtimeSleepTriggerMode =        bedtimeSleepTriggerMode.first()    override suspend fun getBedtimeSleepWindowStartHour(): Int =        bedtimeSleepWindowStartHour.first()    override suspend fun getBedtimeSleepWindowEndHour(): Int =        bedtimeSleepWindowEndHour.first()
     // --- PrerenderChapterCountConfig (issue #596, consumed by
     //     core-playback's PrerenderTriggers) ---
 
