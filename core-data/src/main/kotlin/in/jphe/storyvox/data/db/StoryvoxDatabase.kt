@@ -74,7 +74,11 @@ import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
     // v14 (#999 highlights + notes) — new `annotation` table for text-range
     // highlights with optional notes. Purely additive table; no existing
     // table or row is touched.
-    version = 14,
+    //
+    // v15 (#1083 inbox unread-count) — adds `inbox_event.newChapterCount`
+    // so coalesced polls accumulate chapter deltas instead of overwriting.
+    // Purely additive NOT NULL DEFAULT 0 column.
+    version = 15,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

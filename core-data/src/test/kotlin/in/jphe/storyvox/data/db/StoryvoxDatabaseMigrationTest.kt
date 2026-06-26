@@ -17,6 +17,7 @@ import `in`.jphe.storyvox.data.db.migration.MIGRATION_10_11
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_11_12
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_12_13
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_13_14
+import `in`.jphe.storyvox.data.db.migration.MIGRATION_14_15
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -154,13 +155,15 @@ class StoryvoxDatabaseMigrationTest {
         // #999 — v14 adds the annotation table. Chain through so the
         // latest-version Room.databaseBuilder opens cleanly.
         helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
+        // #1083 — v15 adds inbox_event.newChapterCount. Chain through.
+        helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).close()
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
             .addMigrations(
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                MIGRATION_12_13, MIGRATION_13_14,
+                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
             )
             .build()
 
@@ -325,24 +328,26 @@ class StoryvoxDatabaseMigrationTest {
         helper.runMigrationsAndValidate(dbName, 13, true, MIGRATION_12_13).close()
         // #999 — chain through v14 (annotation table).
         helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
+        // #1083 — chain through v15 (inbox_event.newChapterCount).
+        helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).close()
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
             .addMigrations(
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                MIGRATION_12_13, MIGRATION_13_14,
+                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
             )
             .build()
 
         try {
             db.openHelper.writableDatabase.execSQL(
-                "INSERT INTO inbox_event(sourceId, fictionId, chapterId, title, body, ts, isRead, deepLinkUri) " +
-                    "VALUES ('royalroad', 'rr:42', 'rr:42:7', '3 new chapters', null, 1234, 0, 'storyvox://reader/rr:42/rr:42:7')",
+                "INSERT INTO inbox_event(sourceId, fictionId, chapterId, title, body, ts, isRead, deepLinkUri, newChapterCount) " +
+                    "VALUES ('royalroad', 'rr:42', 'rr:42:7', '3 new chapters', null, 1234, 0, 'storyvox://reader/rr:42/rr:42:7', 3)",
             )
 
             db.openHelper.readableDatabase.query(
-                "SELECT sourceId, fictionId, chapterId, title, ts, isRead, deepLinkUri " +
+                "SELECT sourceId, fictionId, chapterId, title, ts, isRead, deepLinkUri, newChapterCount " +
                     "FROM inbox_event",
             ).use { c ->
                 assertTrue(c.moveToFirst())
@@ -353,6 +358,7 @@ class StoryvoxDatabaseMigrationTest {
                 assertEquals(1234L, c.getLong(4))
                 assertEquals(0, c.getInt(5))
                 assertEquals("storyvox://reader/rr:42/rr:42:7", c.getString(6))
+                assertEquals(3, c.getInt(7))
             }
         } finally {
             db.close()
@@ -1125,13 +1131,15 @@ class StoryvoxDatabaseMigrationTest {
         helper.runMigrationsAndValidate(dbName, 12, true, MIGRATION_11_12).close()
         helper.runMigrationsAndValidate(dbName, 13, true, MIGRATION_12_13).close()
         helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
+        // #1083 — chain through v15 (inbox_event.newChapterCount).
+        helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).close()
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
             .addMigrations(
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                MIGRATION_12_13, MIGRATION_13_14,
+                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
             )
             .build()
 
@@ -1206,5 +1214,95 @@ class StoryvoxDatabaseMigrationTest {
         }
 
         assertNotNull("smoke sentinel — fail-fast if the try block was no-op'd", helper)
+    }
+
+    /**
+     * Issue #1083 — v15 adds `inbox_event.newChapterCount` (INTEGER NOT NULL
+     * DEFAULT 0) so coalesced polls accumulate chapter deltas instead of
+     * overwriting. Purely additive; existing rows get 0.
+     *
+     * Seeds a v14 inbox_event row, runs 14->15, and asserts the column
+     * exists, is NOT NULL, defaults to 0 on the pre-existing row, and
+     * that a fresh insert with an explicit count round-trips.
+     */
+    @Test fun `migrate v14 to v15 adds inbox_event newChapterCount column`() {
+        val dbName = "inbox-new-chapter-count-migration-test.db"
+
+        helper.createDatabase(dbName, 4).close()
+        helper.runMigrationsAndValidate(dbName, 5, true, MIGRATION_4_5).close()
+        helper.runMigrationsAndValidate(dbName, 6, true, MIGRATION_5_6).close()
+        helper.runMigrationsAndValidate(dbName, 7, true, MIGRATION_6_7).close()
+        helper.runMigrationsAndValidate(dbName, 8, true, MIGRATION_7_8).close()
+        helper.runMigrationsAndValidate(dbName, 9, true, MIGRATION_8_9).close()
+        helper.runMigrationsAndValidate(dbName, 10, true, MIGRATION_9_10).close()
+        helper.runMigrationsAndValidate(dbName, 11, true, MIGRATION_10_11).close()
+        helper.runMigrationsAndValidate(dbName, 12, true, MIGRATION_11_12).close()
+        helper.runMigrationsAndValidate(dbName, 13, true, MIGRATION_12_13).close()
+        helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).use { db ->
+            // Seed a v14 inbox_event row so we can verify the default.
+            db.execSQL(
+                "INSERT INTO inbox_event(sourceId, fictionId, chapterId, title, body, ts, isRead, deepLinkUri) " +
+                    "VALUES ('royalroad', 'rr:42', 'rr:42:7', '2 new chapters', null, 1234, 0, " +
+                    "'storyvox://reader/rr:42/rr:42:7')",
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            dbName,
+            15,
+            /* validateDroppedTables = */ true,
+            MIGRATION_14_15,
+        )
+
+        // Column exists with the right type and NOT NULL constraint.
+        db.query("PRAGMA table_info('inbox_event')").use { c ->
+            var sawColumn = false
+            while (c.moveToNext()) {
+                val name = c.getString(c.getColumnIndexOrThrow("name"))
+                if (name == "newChapterCount") {
+                    sawColumn = true
+                    val type = c.getString(c.getColumnIndexOrThrow("type"))
+                    assertEquals("INTEGER", type)
+                    val notnull = c.getInt(c.getColumnIndexOrThrow("notnull"))
+                    assertEquals(
+                        "newChapterCount must be NOT NULL",
+                        1,
+                        notnull,
+                    )
+                }
+            }
+            assertTrue(
+                "inbox_event.newChapterCount column must exist post-migration",
+                sawColumn,
+            )
+        }
+
+        // Pre-existing v14 row defaults to 0.
+        db.query(
+            "SELECT title, newChapterCount FROM inbox_event WHERE fictionId = 'rr:42'",
+        ).use { c ->
+            assertTrue("seeded v14 inbox_event row must survive", c.moveToFirst())
+            assertEquals("2 new chapters", c.getString(0))
+            assertEquals(
+                "newChapterCount must default to 0 for existing rows",
+                0,
+                c.getInt(1),
+            )
+        }
+
+        // A fresh insert with an explicit count round-trips.
+        db.execSQL(
+            "INSERT INTO inbox_event(sourceId, fictionId, chapterId, title, body, ts, isRead, deepLinkUri, newChapterCount) " +
+                "VALUES ('ao3', 'ao3:99', 'ao3:99:1', '5 new chapters', null, 5678, 0, " +
+                "'storyvox://reader/ao3:99/ao3:99:1', 5)",
+        )
+        db.query(
+            "SELECT newChapterCount FROM inbox_event WHERE fictionId = 'ao3:99'",
+        ).use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(5, c.getInt(0))
+        }
+
+        db.close()
     }
 }

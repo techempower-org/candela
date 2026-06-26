@@ -63,6 +63,18 @@ data class InboxEvent(
     /** True once the user has tapped the row (or markAllRead fired). */
     val isRead: Boolean = false,
     /**
+     * Accumulated new-chapter count across coalesced polls. When the
+     * new-chapter poller fires every N hours and the user hasn't opened
+     * the Inbox, each poll's delta is *added* to this column rather than
+     * overwriting the title with a count derived from a single poll.
+     * Issue #1083: without this, the second poll's "1 new chapter"
+     * overwrites the first poll's "2 new chapters", under-counting.
+     *
+     * Zero for legacy rows (pre-migration default) and for non-chapter
+     * events that don't carry a count.
+     */
+    val newChapterCount: Int = 0,
+    /**
      * Tap-target. Storyvox-internal deep-link URI string —
      * `storyvox://reader/<fictionId>/<chapterId>` for chapter events,
      * `storyvox://fiction/<fictionId>` for source-wide events. The UI
