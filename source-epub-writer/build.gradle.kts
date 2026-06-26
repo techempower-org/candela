@@ -16,7 +16,7 @@ plugins {
 // is pure Kotlin + java.util.zip.
 android {
     namespace = "in.jphe.storyvox.source.epub.writer"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26

@@ -172,7 +172,7 @@ val hasPlayPublisherCredentials: Boolean = playPublisherCredentialsPath != null 
 
 android {
     namespace = "in.jphe.storyvox"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.techempower.candela"

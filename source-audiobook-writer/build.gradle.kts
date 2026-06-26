@@ -21,7 +21,7 @@ plugins {
 // the math unit-tested.
 android {
     namespace = "in.jphe.storyvox.source.audiobook.writer"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
