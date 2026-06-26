@@ -9,6 +9,26 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.1.5] -- 2026-06-26
+
+**Voices, gears, and polish.** KittenTTS v0.8 voices, gzip downloads, AGP 9 migration, inbox fix, and accessibility improvements across the board.
+
+### Added
+
+- **KittenTTS v0.8 voices.** Upgraded Kitten nano models from v0.1 to v0.8 — clearer, more natural speech with named speaker variants. (#1113 / #1115)
+- **Supertonic 3 engine scaffold.** Catalog entries, sample-rate cache, and render-job wiring for the upcoming Supertonic 3 TTS engine. (#1114 / #1120)
+
+### Fixed
+
+- **Inbox unread count.** New-chapter notifications now accumulate correctly across coalesced polls instead of resetting to the latest poll's count. (#1083 / #1122)
+- **Voice downloads use gzip.** Model files download gzip-compressed with transparent decompression, cutting bandwidth on large ONNX models. Sub-8 KB files (voices.bin, tokens.txt) skip compression overhead. (#1112 / #1116)
+- **Accessibility semantics.** Settings rows, chat read-aloud buttons, and tool-call cards now announce coherently via TalkBack instead of exposing fragmented or unlabeled descendants. (#491 / #1125)
+
+### Changed
+
+- **AGP 9 new DSL.** Removed `android.newDsl=false` and switched to AGP 9's built-in Kotlin compilation (`android.builtInKotlin=true`), eliminating the separate `kotlin-android` plugin across all 37 modules. (#923 / #1124)
+- **Dependencies.** Kotlin 2.4.0, Hilt/Dagger 2.60, compileSdk 37, Coil 3.5.0, Lifecycle 2.11.0, core-ktx 1.19.0, CameraX 1.6.1, sherpa-onnx 1.13.3, Commonmark 0.29.0, Gradle 9.6.1, Compose BOM latest. (#1100–#1109, #1111)
+
 ## [1.1.4] -- 2026-06-26
 
 **Sleep when you sleep.** Auto-engage the sleep timer when your phone enters Bedtime mode, plus a milestone badge fix.
