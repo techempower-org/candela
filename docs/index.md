@@ -139,7 +139,7 @@ image: /screenshots/03-reader.png
 </section>
 
 <section class="sources">
-  <h2>Twenty-one fiction backends, side by side</h2>
+  <h2>Twenty-five fiction backends, side by side</h2>
   <p class="muted">
     A plugin-seam architecture means each backend is ~4 touchpoints. Adding a new one auto-surfaces
     in <strong>Settings → Plugins</strong>. Each has its own on/off toggle.

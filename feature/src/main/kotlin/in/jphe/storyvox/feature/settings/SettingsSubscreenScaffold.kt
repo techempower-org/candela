@@ -19,6 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -56,7 +58,16 @@ internal fun SettingsSubscreenScaffold(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+                // #1136 — heading() so TalkBack can jump to the subscreen
+                // title via heading-navigation (this scaffold backs every
+                // dedicated Settings subscreen).
+                title = {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -70,6 +81,15 @@ internal fun SettingsSubscreenScaffold(
         content = content,
     )
 }
+
+/**
+ * Structural canary (#1136) — the subscreen scaffold's TopAppBar title
+ * must carry `heading()` semantics so TalkBack heading-navigation reaches
+ * each Settings subscreen's title. JVM unit tests can't assert Compose
+ * semantics (no Robolectric), so this is pinned by
+ * `SettingsHeadingSemanticsTest`.
+ */
+internal const val settingsSubscreenScaffoldMarksTitleAsHeading: Boolean = true
 
 /**
  * Convenience wrapper for the common subscreen body shape: vertical
