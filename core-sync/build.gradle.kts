@@ -28,7 +28,7 @@ val instantAppId: String = run {
 
 android {
     namespace = "in.jphe.storyvox.sync"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26

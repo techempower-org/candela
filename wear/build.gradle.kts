@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "in.jphe.storyvox.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "in.jphe.storyvox.wear"

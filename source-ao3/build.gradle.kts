@@ -13,7 +13,7 @@ plugins {
 
 android {
     namespace = "in.jphe.storyvox.source.ao3"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
