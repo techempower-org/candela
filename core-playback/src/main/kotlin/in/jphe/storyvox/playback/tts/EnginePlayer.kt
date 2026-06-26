@@ -4185,6 +4185,31 @@ class EnginePlayer @AssistedInject constructor(
             }
             return@withLock
         }
+        // Issue #1127 — a FORWARD advance is a fresh listen of the incoming
+        // chapter: reaching the end of chapter N (auto-advance) or tapping
+        // Next means chapter N+1 must begin at its head, even if the user
+        // partially listened to N+1 earlier and a stale resume offset still
+        // sits in its playback_position row. The `loadAndPlay(charOffset=0)`
+        // below already drives the AUDIO from the head, but its persist of
+        // that 0 only lands AFTER the body-wait (up to
+        // CHAPTER_BODY_WAIT_TIMEOUT_MS). Reset the incoming chapter's row
+        // up-front so (a) the timeout/error path can't strand the stale
+        // offset, and (b) every external surface that reads the resume point
+        // DURING the transition — Library "Continue listening", Auto/Wear
+        // browse, the sync snapshot — sees the head, never the stale
+        // middle-of-chapter offset (the #1127 symptom). Forward only: a
+        // Previous tap / skip-back-into-prev owns its own offset semantics.
+        if (direction >= 0) {
+            runCatching { positionRepo.resetToChapterStart(fiction, nextId) }
+                .onFailure {
+                    android.util.Log.w(
+                        "EnginePlayer",
+                        "advanceChapter: resetToChapterStart($nextId) failed " +
+                            "(${it.javaClass.simpleName}: ${it.message}) — continuing; " +
+                            "loadAndPlay still loads at charOffset=0",
+                    )
+                }
+        }
         // Issue #524 — surface a Buffering state while we wait for the
         // next chapter's body to land in the DB. Pre-fix the engine sat
         // on isPlaying=true with no audio output during this wait, which

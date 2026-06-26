@@ -69,6 +69,25 @@ interface PlaybackPositionRepository {
     )
 
     /**
+     * Issue #1127 — reset one chapter's resume point back to its head.
+     *
+     * Auto-advance is a *fresh* listen: finishing chapter N means chapter
+     * N+1 starts at the beginning, even if the user partially listened to
+     * N+1 earlier and a stale `charOffset` still sits in its
+     * `playback_position` row. This upserts `charOffset = 0` /
+     * `paragraphIndex = 0` for the exact `(fictionId, chapterId)` row and
+     * bumps `updatedAt`, so the chapter becomes the freshest resume target
+     * pointing at its head — every external surface (Library "Continue
+     * listening", Auto/Wear browse, sync snapshot) then reads position 0,
+     * never the stale middle-of-chapter offset. The per-chapter
+     * [playbackSpeed] / [durationEstimateMs] are preserved (the listen is
+     * fresh, but the user's speed for this chapter and its cached duration
+     * estimate are not). Distinct from [clearPosition], which forgets the
+     * WHOLE fiction's progress; this scopes to one chapter and keeps a row.
+     */
+    suspend fun resetToChapterStart(fictionId: String, chapterId: String)
+
+    /**
      * Load the resume point for a given fiction — its most-recently-played
      * chapter's row (issue #965), or null if none. Picks the freshest
      * chapter so resume never lands on a stale future-chapter offset.
@@ -142,6 +161,27 @@ class PlaybackPositionRepositoryImpl @Inject constructor(
                 paragraphIndex = existing?.paragraphIndex ?: 0,
                 playbackSpeed = existing?.playbackSpeed ?: 1.0f,
                 durationEstimateMs = durationEstimateMs,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    override suspend fun resetToChapterStart(fictionId: String, chapterId: String) {
+        // Read-then-upsert so the speed the user picked for THIS chapter and
+        // its cached duration estimate survive the reset; only the resume
+        // cursor (charOffset + paragraphIndex) snaps to the head. The upsert
+        // replaces the row in place under the composite `(fictionId,
+        // chapterId)` PK (#965) — no duplicate row — and the bumped
+        // `updatedAt` makes it the freshest resume target for `load`/`observe`.
+        val existing = dao.get(fictionId, chapterId)
+        dao.upsert(
+            PlaybackPosition(
+                fictionId = fictionId,
+                chapterId = chapterId,
+                charOffset = 0,
+                paragraphIndex = 0,
+                playbackSpeed = existing?.playbackSpeed ?: 1.0f,
+                durationEstimateMs = existing?.durationEstimateMs ?: 0L,
                 updatedAt = System.currentTimeMillis(),
             ),
         )

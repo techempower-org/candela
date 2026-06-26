@@ -174,6 +174,7 @@ class PrerenderTriggersTest {
             charOffset: Int,
             durationEstimateMs: Long,
         ) = Unit
+        override suspend fun resetToChapterStart(fictionId: String, chapterId: String) = Unit
         override suspend fun load(fictionId: String): SavedPosition? = positions[fictionId]
         override suspend fun recent(limit: Int): List<RecentItem> = emptyList()
     }
