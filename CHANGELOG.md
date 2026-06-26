@@ -9,6 +9,18 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.1.4] -- 2026-06-26
+
+**Sleep when you sleep.** Auto-engage the sleep timer when your phone enters Bedtime mode, plus a milestone badge fix.
+
+### Added
+
+- **Bedtime auto-sleep.** When your phone enters Sleep / Bedtime mode (Samsung Modes & Routines, Android Digital Wellbeing, or manual DND), Candela automatically arms the sleep timer at your last-used shake-extend duration. Toggle in Settings → Voice & Playback. (#1110)
+
+### Fixed
+
+- **Milestone badge** in Settings → About now shows "v1 milestone" instead of the hardcoded "0.5.00 milestone". (#1110)
+
 ## [1.1.3] -- 2026-06-07
 
 **Mark the page.** In-reader text highlighting.
