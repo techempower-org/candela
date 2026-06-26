@@ -80,7 +80,7 @@ consolidated here so it's in one place for the questionnaire.
 - [ ] **Category: Books & Reference** (brief's recommendation; confirm).
 - [ ] **Contact email** on the listing — brief leaves as DRAFT (`claude2@techempower.org` or `jp@jphein.com`?).
 - [ ] **Developer phone** (Play requires one on the developer profile).
-- [ ] **Privacy policy URL** resolves — brief lists `https://candela.techempower.org/privacy/` (source `docs/privacy-policy.md`); verify it serves before submission.
+- [ ] **Privacy policy URL** — use **`https://candela.techempower.org/privacy-policy/`** (the path that actually resolves). ⚠️ The design brief and `docs/privacy-policy.md`'s `permalink: /privacy/` both point at `/privacy/`, which **404s** (confirmed by Drift): the docs microsite is **static-served**, so Jekyll's per-page `permalink` isn't honored and the page serves at its filename path `/privacy-policy/`. Either fix the deploy so `/privacy/` resolves **or** (recommended) use `/privacy-policy/` in Play Console since it works today. Play **requires** a resolving privacy-policy URL or the submission is rejected, so don't ship the `/privacy/` form.
 
 ## Data Safety + permissions (pointers — already drafted)
 
