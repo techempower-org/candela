@@ -1,9 +1,11 @@
 package `in`.jphe.storyvox.playback.voice
 
 import android.app.Application
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,7 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -331,20 +334,188 @@ class VoiceManagerTest {
 
     /**
      * OkHttpClient whose interceptor returns a 200 with [bytes] as the
-     * response body. The download loop will iterate enough times to call
-     * onProgress (a suspend point) repeatedly, which is where the
-     * cancel-preservation test lands its `cancelAndJoin`.
+     * response body. For `.gz` URLs, serves a valid gzip-compressed
+     * version of the payload (so the gzip-first download path in
+     * `downloadFile` succeeds). For non-`.gz` URLs, serves raw bytes.
+     *
+     * The body is sized to produce at least four 64 KiB read iterations
+     * (when called with 256 KiB) → multiple onProgress suspend points
+     * to land the cancel on.
      */
     private fun httpClientReturningBody(bytes: ByteArray): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(Interceptor { chain ->
-                Response.Builder()
-                    .request(chain.request())
-                    .protocol(Protocol.HTTP_1_1)
-                    .code(200)
-                    .message("OK (test)")
-                    .body(bytes.toResponseBody("application/octet-stream".toMediaType()))
-                    .build()
+                val url = chain.request().url.toString()
+                if (url.endsWith(".gz")) {
+                    val gzipped = gzipBytes(bytes)
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK (gzip test)")
+                        .body(gzipped.toResponseBody("application/gzip".toMediaType()))
+                        .build()
+                } else {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK (test)")
+                        .body(bytes.toResponseBody("application/octet-stream".toMediaType()))
+                        .build()
+                }
             })
             .build()
+
+    // ---- Issue #1112: gzip download + fallback tests ----
+
+    /**
+     * Issue #1112 — when the server has a `.gz` variant, downloadFile
+     * must decompress it transparently and land the uncompressed payload
+     * on disk. Verifies the gzip-first path end-to-end: the interceptor
+     * serves valid gzip for `.gz` URLs and the written file matches the
+     * original uncompressed bytes.
+     */
+    @Test
+    fun downloadFile_gzipAvailable_decompressesCorrectly() = runBlocking {
+        val original = ByteArray(32 * 1024) { (it % 256).toByte() }
+        val vm = VoiceManager(context, EmptyAzureProvider, EmptySystemTtsProvider)
+        vm.http = httpClientWithGzSupport(original)
+
+        val target = File(voicesRoot, "test_gz.onnx").also { voicesRoot.mkdirs() }
+        vm.downloadFile(
+            url = "https://example.com/test.onnx",
+            target = target,
+            knownTotalBytes = original.size.toLong(),
+        ) { _, _ -> }
+
+        assertTrue("target must exist after gzip download", target.exists())
+        assertArrayEquals(
+            "decompressed content must match original",
+            original,
+            target.readBytes(),
+        )
+    }
+
+    /**
+     * Issue #1112 — when the server returns 404 for the `.gz` URL,
+     * downloadFile must silently fall back to the raw (uncompressed) URL
+     * and still land the file. No user-visible error, no crash.
+     */
+    @Test
+    fun downloadFile_gzipNotAvailable_fallsBackToRaw() = runBlocking {
+        val rawPayload = ByteArray(16 * 1024) { (it % 128).toByte() }
+        val vm = VoiceManager(context, EmptyAzureProvider, EmptySystemTtsProvider)
+        vm.http = httpClientGz404FallbackRaw(rawPayload)
+
+        val target = File(voicesRoot, "test_fallback.onnx").also { voicesRoot.mkdirs() }
+        vm.downloadFile(
+            url = "https://example.com/test.onnx",
+            target = target,
+            knownTotalBytes = rawPayload.size.toLong(),
+        ) { _, _ -> }
+
+        assertTrue("target must exist after fallback download", target.exists())
+        assertArrayEquals(
+            "raw fallback content must match original",
+            rawPayload,
+            target.readBytes(),
+        )
+    }
+
+    /**
+     * Issue #1112 — Piper happy-path with gzip-aware download. Confirms
+     * that the full Piper download flow (model.onnx via gzip + tokens.txt
+     * raw) lands both files and emits Resolving → Downloading → Done.
+     */
+    @Test
+    fun piper_happyPath_withGzipDownload() = runBlocking {
+        val modelPayload = ByteArray(16 * 1024) { (it % 200).toByte() }
+        val vm = VoiceManager(context, EmptyAzureProvider, EmptySystemTtsProvider)
+        vm.http = httpClientWithGzSupport(modelPayload)
+
+        val voiceId = "piper_lessac_en_US_high"
+        val progress = vm.download(voiceId).toList()
+
+        assertTrue(
+            "first emission must be Resolving",
+            progress.first() is VoiceManager.DownloadProgress.Resolving,
+        )
+        assertTrue(
+            "last emission must be Done",
+            progress.last() is VoiceManager.DownloadProgress.Done,
+        )
+
+        val voiceDir = vm.voiceDirFor(voiceId)
+        assertTrue("model.onnx should exist", File(voiceDir, "model.onnx").exists())
+        assertTrue("tokens.txt should exist", File(voiceDir, "tokens.txt").exists())
+    }
+
+    // ---- gzip-aware interceptor helpers ----
+
+    /**
+     * Interceptor that serves valid gzip for `.gz` URLs and raw bytes for
+     * non-`.gz` URLs. Used to test the gzip-first download path. The
+     * [uncompressed] payload is gzipped on the fly for `.gz` requests.
+     */
+    private fun httpClientWithGzSupport(uncompressed: ByteArray): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(Interceptor { chain ->
+                val url = chain.request().url.toString()
+                if (url.endsWith(".gz")) {
+                    val gzipped = gzipBytes(uncompressed)
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK (gzip test)")
+                        .body(gzipped.toResponseBody("application/gzip".toMediaType()))
+                        .build()
+                } else {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK (raw test)")
+                        .body(uncompressed.toResponseBody("application/octet-stream".toMediaType()))
+                        .build()
+                }
+            })
+            .build()
+
+    /**
+     * Interceptor that returns 404 for `.gz` URLs and 200 with [rawPayload]
+     * for non-`.gz` URLs. Tests the fallback path where gzip assets haven't
+     * been uploaded to the release yet.
+     */
+    private fun httpClientGz404FallbackRaw(rawPayload: ByteArray): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(Interceptor { chain ->
+                val url = chain.request().url.toString()
+                if (url.endsWith(".gz")) {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(404)
+                        .message("Not Found (test)")
+                        .body("".toResponseBody(null))
+                        .build()
+                } else {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK (raw fallback test)")
+                        .body(rawPayload.toResponseBody("application/octet-stream".toMediaType()))
+                        .build()
+                }
+            })
+            .build()
+
+    /** Gzip a byte array in memory — test helper only. */
+    private fun gzipBytes(input: ByteArray): ByteArray {
+        val baos = ByteArrayOutputStream()
+        GZIPOutputStream(baos).use { gz -> gz.write(input) }
+        return baos.toByteArray()
+    }
 }
