@@ -29,8 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -412,6 +414,10 @@ private fun FriendlyDownloadProgress(
             Text(
                 stringResource(R.string.onboarding_voice_download_resolving, voiceName),
                 style = MaterialTheme.typography.bodySmall,
+                // a11y (#1156) — first-run is gated on this download with
+                // zero feedback otherwise; Polite live regions speak each
+                // state change (resolving → downloading → done/failed).
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
             Spacer(Modifier.height(spacing.xs))
             BrassProgressBar(progress = null, modifier = Modifier.fillMaxWidth())
@@ -425,6 +431,9 @@ private fun FriendlyDownloadProgress(
             Text(
                 stringResource(R.string.onboarding_voice_downloading, voiceName, mb.toInt(), totalMb.toInt()),
                 style = MaterialTheme.typography.bodySmall,
+                // a11y (#1156) — the MB figure ticks once per megabyte, so
+                // Polite gives periodic "X / Y MB" progress without spamming.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
             Spacer(Modifier.height(spacing.xs))
             BrassProgressBar(
@@ -437,6 +446,8 @@ private fun FriendlyDownloadProgress(
                 stringResource(R.string.onboarding_voice_download_done, voiceName),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
+                // a11y (#1156) — "voice ready" is the unblock signal; speak it.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         is VoiceManager.DownloadProgress.Failed -> {
@@ -444,6 +455,9 @@ private fun FriendlyDownloadProgress(
                 stringResource(R.string.onboarding_voice_download_failed, voiceName, progress.reason),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
+                // a11y (#1156) — Assertive: a failed download blocks first
+                // run, so it must preempt rather than wait for focus.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
             )
             Spacer(Modifier.height(spacing.xs))
             BrassButton(

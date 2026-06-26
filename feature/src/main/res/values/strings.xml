@@ -381,6 +381,13 @@
     <string name="chat_attached_image_cd">Attached image</string>
     <string name="chat_read_aloud_stop">Stop reading</string>
     <string name="chat_read_aloud_play">Read aloud</string>
+    <!-- Chat · a11y speaker labels (#1154). Merged onto each bubble so
+         TalkBack distinguishes who said what instead of reading the
+         conversation as an undifferentiated wall of text. -->
+    <string name="chat_bubble_user_cd">You said: %1$s</string>
+    <string name="chat_bubble_assistant_cd">Librarian said: %1$s</string>
+    <string name="chat_bubble_user_image_cd">You sent an image</string>
+    <string name="chat_input_field_cd">Message to the librarian</string>
     <!-- Chat · tool-call in-flight copy (#216) -->
     <string name="chat_tool_in_flight_add_to_shelf">Adding to shelf…</string>
     <string name="chat_tool_in_flight_queue_chapter">Queueing chapter…</string>

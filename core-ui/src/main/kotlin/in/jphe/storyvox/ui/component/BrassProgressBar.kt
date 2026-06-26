@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.progressSemantics
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +45,13 @@ import `in`.jphe.storyvox.ui.theme.LocalReducedMotion
  * Distinct from [BrassProgressTrack], which is the **interactive** seek
  * control on the audiobook player. This component is passive — observers
  * can't drag it.
+ *
+ * Accessibility (#1156): carries [progressSemantics] so TalkBack has a
+ * non-visual equivalent for the brass-on-rail drawing — the determinate
+ * fraction is announced as a percentage; the indeterminate forms mark the
+ * node busy. Without it the pure `drawBehind` rail is invisible to a
+ * screen reader (WCAG 1.1.1 / 4.1.3). Status text at the call site should
+ * still carry its own `liveRegion` for the Done/Failed transitions.
  *
  * @param progress 0..1 fraction. `null` for indeterminate.
  * @param modifier sizing modifier; height defaults to 4.dp via the rail
@@ -83,6 +91,11 @@ fun BrassProgressBar(
             modifier = modifier
                 .fillMaxWidth()
                 .height(railHeight)
+                // a11y (#1156) — the bar is a pure drawBehind Box, so without
+                // this it has no non-visual equivalent (WCAG 1.1.1) and the
+                // percentage is silent everywhere the bar is used. Report the
+                // determinate fraction so TalkBack announces "N percent".
+                .progressSemantics(clamped)
                 .clip(shape)
                 .drawBehind {
                     drawRect(trackColor, size = size)
@@ -99,6 +112,9 @@ fun BrassProgressBar(
             modifier = modifier
                 .fillMaxWidth()
                 .height(railHeight)
+                // a11y (#1156) — indeterminate equivalent: marks the node as
+                // a busy progress bar so TalkBack announces "in progress".
+                .progressSemantics()
                 .clip(shape)
                 .drawBehind {
                     drawRect(trackColor, size = size)
@@ -127,6 +143,9 @@ fun BrassProgressBar(
             modifier = modifier
                 .fillMaxWidth()
                 .height(railHeight)
+                // a11y (#1156) — indeterminate equivalent for the animated
+                // comet: TalkBack announces "in progress" rather than silence.
+                .progressSemantics()
                 .clip(shape)
                 .drawBehind {
                     drawRect(trackColor, size = size)

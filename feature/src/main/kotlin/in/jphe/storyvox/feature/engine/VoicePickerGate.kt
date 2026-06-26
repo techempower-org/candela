@@ -25,7 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -421,7 +424,13 @@ private fun DownloadProgressBlock(
     val spacing = LocalSpacing.current
     when (progress) {
         DownloadProgress.Resolving -> {
-            Text(stringResource(R.string.engine_voice_resolving), style = MaterialTheme.typography.bodySmall)
+            Text(
+                stringResource(R.string.engine_voice_resolving),
+                style = MaterialTheme.typography.bodySmall,
+                // a11y (#1156) — the full-screen gate blocks first launch on
+                // this download; Polite live regions speak each state change.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
             Spacer(Modifier.height(spacing.xs))
             // Indeterminate brass comet — the manifest fetch is brief but
             // network-flaky enough that callers sit on this state for 1-3s.
@@ -436,6 +445,9 @@ private fun DownloadProgressBlock(
             Text(
                 "Downloading… $mb MB / $totalMb MB",
                 style = MaterialTheme.typography.bodySmall,
+                // a11y (#1156) — MB figure ticks once per megabyte; Polite
+                // gives periodic progress without spamming TalkBack.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
             Spacer(Modifier.height(spacing.xs))
             // Determinate when we know totalBytes (sherpa-onnx serves
@@ -451,6 +463,8 @@ private fun DownloadProgressBlock(
                 "Voice ready.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
+                // a11y (#1156) — "voice ready" is the unblock signal; speak it.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         is DownloadProgress.Failed -> {
@@ -458,6 +472,9 @@ private fun DownloadProgressBlock(
                 progress.reason,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
+                // a11y (#1156) — Assertive: a failed download blocks first
+                // launch, so it must preempt rather than wait for focus.
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
             )
             Spacer(Modifier.height(spacing.xs))
             BrassButton(
