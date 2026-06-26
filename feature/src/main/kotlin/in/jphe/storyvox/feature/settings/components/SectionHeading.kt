@@ -14,6 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
@@ -59,6 +61,9 @@ fun SectionHeading(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
+                // #1136 — the label (not the descriptor) is the heading, so
+                // TalkBack heading-navigation lands on the section name.
+                modifier = Modifier.semantics { heading() },
             )
         }
         if (!descriptor.isNullOrBlank()) {
@@ -70,6 +75,13 @@ fun SectionHeading(
         }
     }
 }
+
+/**
+ * Structural canary (#1136) — `SectionHeading`'s label `Text` must carry
+ * `heading()` semantics. Pinned by `SettingsHeadingSemanticsTest` since
+ * Compose semantics aren't assertable from JVM unit tests (no Robolectric).
+ */
+internal const val sectionHeadingMarksLabelAsHeading: Boolean = true
 
 @Preview(name = "SectionHeading — with descriptor (dark)", widthDp = 360)
 @Composable
