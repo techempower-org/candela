@@ -18,20 +18,21 @@ import org.junit.Test
  */
 class VoiceFamilyRegistryTest {
 
-    @Test fun `registry exposes SystemTts Piper Kokoro Kitten Azure and the upstream placeholder`() {
+    @Test fun `registry exposes SystemTts Piper Kokoro Kitten Supertonic Azure and the upstream placeholder`() {
         val registry = VoiceFamilyRegistry()
         val ids = registry.descriptors.map { it.id }
-        // #676 — System TTS joins as the zero-download first-launch
-        // tier, bringing the registry to six descriptors.
+        // #676 — System TTS joined as the zero-download first-launch tier;
+        // #1120 — the Supertonic 3 scaffold added the seventh descriptor.
         assertEquals(
-            "Registry should ship exactly six descriptors today",
-            6,
+            "Registry should ship exactly seven descriptors today",
+            7,
             registry.descriptors.size,
         )
         assertTrue(VoiceFamilyIds.SYSTEM_TTS in ids)
         assertTrue(VoiceFamilyIds.PIPER in ids)
         assertTrue(VoiceFamilyIds.KOKORO in ids)
         assertTrue(VoiceFamilyIds.KITTEN in ids)
+        assertTrue(VoiceFamilyIds.SUPERTONIC in ids)
         assertTrue(VoiceFamilyIds.AZURE in ids)
         assertTrue(VoiceFamilyIds.VOXSHERPA_UPSTREAMS in ids)
     }
