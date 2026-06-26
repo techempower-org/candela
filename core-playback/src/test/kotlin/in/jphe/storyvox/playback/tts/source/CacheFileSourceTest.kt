@@ -42,14 +42,12 @@ import java.io.FileOutputStream
  *    [java.io.IOException] (corrupt cache → re-render, not crash).
  *  - `startSentenceIndex` resumes mid-chapter (post-seek path).
  */
-// sdk=36: core-playback sets compileSdk=37 with no explicit targetSdk, so
-// the test manifest's targetSdkVersion defaults to 37 — past Robolectric
-// 4.16.1's maxSdkVersion=36, which makes the whole class fail to initialize
-// ("targetSdkVersion=37 > maxSdkVersion=36"). Pin the emulated SDK to 36
-// (Robolectric's current ceiling) so these pure-file-IO tests run until the
-// toolchain catches up to 37. The behavior under test is SDK-agnostic.
+// SDK pin lives module-wide in src/test/resources/robolectric.properties
+// (sdk=36) — see issue #1132. compileSdk=37 outpaces Robolectric 4.16.1's
+// maxSdkVersion=36, so without that pin every RobolectricTestRunner class
+// in core-playback fails to initialize.
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, sdk = [36])
+@Config(application = Application::class)
 class CacheFileSourceTest {
 
     private lateinit var context: Application
