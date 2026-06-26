@@ -39,7 +39,7 @@ media3 = "1.10.1"
 # Networking + parsing
 okhttp = "4.12.0"
 jsoup = "1.22.2"
-commonmark = "0.28.0"
+commonmark = "0.29.0"
 # Readability4J — Mozilla Readability port (#472 :source-readability).
 # Catch-all article extractor for the magic-link paste flow. ~50 KB,
 # pure JVM, JSoup-backed.
