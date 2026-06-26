@@ -1,6 +1,8 @@
 package `in`.jphe.storyvox.source.librivox.net
 
 import `in`.jphe.storyvox.data.source.model.FictionResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -151,7 +153,7 @@ internal class LibriVoxApi @Inject constructor(
      * habit of returning `null` for fields our model types as strings
      * (e.g. `file_name`).
      */
-    private fun getBooks(url: String): FictionResult<List<LibriVoxBook>> =
+    private suspend fun getBooks(url: String): FictionResult<List<LibriVoxBook>> =
         when (val raw = doRequest(url)) {
             is FictionResult.Success -> try {
                 // No-results sentinel: LibriVox returns a 200 with an
@@ -174,8 +176,8 @@ internal class LibriVoxApi @Inject constructor(
             is FictionResult.Failure -> raw
         }
 
-    private fun doRequest(url: String): FictionResult<String> {
-        return try {
+    private suspend fun doRequest(url: String): FictionResult<String> = withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
