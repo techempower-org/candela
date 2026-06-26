@@ -664,13 +664,15 @@ private data class PerVoiceOverrides(
  *  (which lives in core so it can be Hilt-injected without dragging the
  *  feature module). The two enums are kept in lockstep — see
  *  [toCoreId]. */
-enum class VoiceEngine { SystemTts, Piper, Kokoro, Kitten, Azure }
+enum class VoiceEngine { SystemTts, Piper, Kokoro, Kitten, Supertonic, Azure }
 
 internal fun VoiceEngine.toCoreId(): VoiceEngineId = when (this) {
     VoiceEngine.Piper -> VoiceEngineId.Piper
     VoiceEngine.Kokoro -> VoiceEngineId.Kokoro
     // Issue #119 — Kitten section discriminator.
     VoiceEngine.Kitten -> VoiceEngineId.Kitten
+    // Issue #1114 — Supertonic section discriminator.
+    VoiceEngine.Supertonic -> VoiceEngineId.Supertonic
     VoiceEngine.Azure -> VoiceEngineId.Azure
     // #676 — System TTS section discriminator.
     VoiceEngine.SystemTts -> VoiceEngineId.SystemTts
@@ -680,6 +682,7 @@ internal fun VoiceEngineId.toFeatureEngine(): VoiceEngine = when (this) {
     VoiceEngineId.Piper -> VoiceEngine.Piper
     VoiceEngineId.Kokoro -> VoiceEngine.Kokoro
     VoiceEngineId.Kitten -> VoiceEngine.Kitten
+    VoiceEngineId.Supertonic -> VoiceEngine.Supertonic
     VoiceEngineId.Azure -> VoiceEngine.Azure
     VoiceEngineId.SystemTts -> VoiceEngine.SystemTts
 }
@@ -689,6 +692,8 @@ private fun UiVoiceInfo.voiceEngine(): VoiceEngine = when (engineType) {
     is EngineType.Kokoro -> VoiceEngine.Kokoro
     // Issue #119 — Kitten branch.
     is EngineType.Kitten -> VoiceEngine.Kitten
+    // Issue #1114 — Supertonic branch.
+    is EngineType.Supertonic -> VoiceEngine.Supertonic
     is EngineType.Azure -> VoiceEngine.Azure
     // #676 — System TTS branch.
     is EngineType.SystemTts -> VoiceEngine.SystemTts
@@ -787,6 +792,16 @@ private val KITTEN_TIER_ORDER: List<QualityLevel> = listOf(
     QualityLevel.Low,
 )
 
+/** Issue #1114 — Tier order **within Supertonic 3**. All Supertonic voices
+ *  ship at [QualityLevel.High] today. Studio first in case a curated
+ *  subset ever earns the grade; Low last as a catch-all. */
+private val SUPERTONIC_TIER_ORDER: List<QualityLevel> = listOf(
+    QualityLevel.Studio,
+    QualityLevel.High,
+    QualityLevel.Medium,
+    QualityLevel.Low,
+)
+
 /** Issue #676 — Tier order **within System TTS**. Every System TTS
  *  voice ships at [QualityLevel.Medium] today (the framework doesn't
  *  expose a quality grade so the catalog projection plants every entry
@@ -804,6 +819,8 @@ private fun tierOrderFor(engine: VoiceEngine): List<QualityLevel> = when (engine
     VoiceEngine.Kokoro -> KOKORO_TIER_ORDER
     // Issue #119 — Kitten tier order.
     VoiceEngine.Kitten -> KITTEN_TIER_ORDER
+    // Issue #1114 — Supertonic tier order.
+    VoiceEngine.Supertonic -> SUPERTONIC_TIER_ORDER
     VoiceEngine.Azure -> AZURE_TIER_ORDER
     // #676 — System TTS tier order.
     VoiceEngine.SystemTts -> SYSTEM_TTS_TIER_ORDER
@@ -825,6 +842,11 @@ private val ENGINE_DISPLAY_ORDER: List<VoiceEngine> = listOf(
     VoiceEngine.Piper,
     VoiceEngine.Kokoro,
     VoiceEngine.Kitten,
+    // Issue #1114 — Supertonic slotted after Kitten (the smallest
+    // local tier) and before Azure (cloud). Supertonic is high-quality
+    // local so it sits alongside Piper/Kokoro in the neural family
+    // block.
+    VoiceEngine.Supertonic,
     VoiceEngine.Azure,
 )
 

@@ -62,6 +62,8 @@ object VoiceFamilyIds {
     const val PIPER = "voice_piper"
     const val KOKORO = "voice_kokoro"
     const val KITTEN = "voice_kitten"
+    /** Issue #1114 — Supertonic 3 voice family. */
+    const val SUPERTONIC = "voice_supertonic"
     const val AZURE = "voice_azure"
     /** Issue #676 — Android System TTS family. Zero-download
      *  first-launch tier; surfaces whatever TTS engines the OS already
@@ -150,6 +152,16 @@ class VoiceFamilyRegistry @Inject constructor() {
             engineFamily = VoiceEngineFamily.Local,
         ),
         VoiceFamilyDescriptor(
+            id = VoiceFamilyIds.SUPERTONIC,
+            displayName = "Supertonic 3",
+            description = "Local high-quality · shared model, 10 en_US speakers",
+            sourceUrl = "https://github.com/k2-fsa/sherpa-onnx",
+            license = "Apache 2.0",
+            sizeHint = "~TBD MB shared model, 10 en_US speakers (F1–F5 / M1–M5)",
+            defaultEnabled = true,
+            engineFamily = VoiceEngineFamily.Local,
+        ),
+        VoiceFamilyDescriptor(
             id = VoiceFamilyIds.AZURE,
             displayName = "Azure HD voices",
             description = "Cloud · BYOK · Dragon HD + Multilingual + Neural tiers",
@@ -198,6 +210,7 @@ fun EngineType.voiceFamilyId(): String = when (this) {
     is EngineType.Piper -> VoiceFamilyIds.PIPER
     is EngineType.Kokoro -> VoiceFamilyIds.KOKORO
     is EngineType.Kitten -> VoiceFamilyIds.KITTEN
+    is EngineType.Supertonic -> VoiceFamilyIds.SUPERTONIC
     is EngineType.Azure -> VoiceFamilyIds.AZURE
     is EngineType.SystemTts -> VoiceFamilyIds.SYSTEM_TTS
 }

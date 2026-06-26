@@ -83,11 +83,17 @@ object EngineSampleRateCache {
      *  per #119 — 24 kHz across every speaker. */
     private const val DEFAULT_KITTEN = 24000
 
+    /** Issue #1114 — Default Supertonic 3 sample rate. Assumed 24 kHz
+     *  (the standard for modern sherpa-onnx multi-speaker models).
+     *  TODO(#1114): verify against actual Supertonic 3 model output. */
+    private const val DEFAULT_SUPERTONIC = 24000
+
     /** Cached rates. 0 = "not yet observed"; readers fall through to
      *  the engine on the first read after process start. */
     @Volatile private var piperCached: Int = 0
     @Volatile private var kokoroCached: Int = 0
     @Volatile private var kittenCached: Int = 0
+    @Volatile private var supertonicCached: Int = 0
 
     /** Lock-free reader for Piper. Returns the cached rate if known,
      *  otherwise hits the engine ONCE to seed the cache, otherwise
@@ -129,6 +135,20 @@ object EngineSampleRateCache {
         return DEFAULT_KITTEN
     }
 
+    /** Issue #1114 — Lock-free reader for Supertonic 3. See [piperRate] kdoc.
+     *  TODO(#1114): readSupertonicFromEngine() returns the default until
+     *  VoxSherpa ships a SupertonicEngine wrapper. */
+    fun supertonicRate(): Int {
+        val cached = supertonicCached
+        if (cached > 0) return cached
+        val fromEngine = readSupertonicFromEngine()
+        if (fromEngine > 0) {
+            supertonicCached = fromEngine
+            return fromEngine
+        }
+        return DEFAULT_SUPERTONIC
+    }
+
     /** Post-loadModel hook: sample each engine off the contended
      *  window (the engine monitor is released by the time `loadModel`
      *  returns) and write to the volatile cache. Callers should
@@ -148,6 +168,10 @@ object EngineSampleRateCache {
             val t = readKittenFromEngine()
             if (t > 0) kittenCached = t
         }
+        runCatching {
+            val s = readSupertonicFromEngine()
+            if (s > 0) supertonicCached = s
+        }
     }
 
     /** Test-only — clear the cache so a fresh read goes back to the
@@ -156,6 +180,7 @@ object EngineSampleRateCache {
         piperCached = 0
         kokoroCached = 0
         kittenCached = 0
+        supertonicCached = 0
     }
 
     private fun readPiperFromEngine(): Int =
@@ -166,4 +191,10 @@ object EngineSampleRateCache {
 
     private fun readKittenFromEngine(): Int =
         runCatching { KittenEngine.getInstance().sampleRate }.getOrDefault(0)
+
+    /** TODO(#1114): VoxSherpa has no SupertonicEngine yet. Returns 0 so
+     *  callers fall through to DEFAULT_SUPERTONIC. Replace with
+     *  `SupertonicEngine.getInstance().sampleRate` when VoxSherpa v2.9.0
+     *  ships. */
+    private fun readSupertonicFromEngine(): Int = 0
 }
