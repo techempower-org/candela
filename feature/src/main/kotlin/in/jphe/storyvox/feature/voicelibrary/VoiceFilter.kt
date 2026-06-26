@@ -74,6 +74,8 @@ internal fun UiVoiceInfo.matchesQuery(query: String): Boolean {
         is EngineType.Kokoro -> "kokoro"
         // Issue #119 — Kitten search label.
         is EngineType.Kitten -> "kitten"
+        // Issue #1114 — Supertonic search label.
+        is EngineType.Supertonic -> "supertonic"
         is EngineType.Azure -> "azure"
         // #676 — System TTS search label. Users will hunt for "system",
         // "tts", or the engine vendor name (Google / Samsung) — match

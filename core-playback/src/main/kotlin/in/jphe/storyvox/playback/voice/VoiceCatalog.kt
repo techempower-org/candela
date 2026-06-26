@@ -12,7 +12,7 @@ object VoiceCatalog {
      * `AzureVoiceProvider`). Combine via [voicesWithAzure] when you
      * need a unified list.
      */
-    val voices: List<CatalogEntry> = piperEntries() + kokoroEntries() + kittenEntries()
+    val voices: List<CatalogEntry> = piperEntries() + kokoroEntries() + kittenEntries() + supertonicEntries()
 
     /**
      * Combine the static catalog with the live Azure roster — used by
@@ -818,6 +818,55 @@ object VoiceCatalog {
             kitten("kitten_m2_en_US_5", "Kitten M2", 5, M),
             kitten("kitten_m3_en_US_6", "Kitten M3", 6, M),
             kitten("kitten_m4_en_US_7", "Kitten M4", 7, M),
+        )
+    }
+
+    /**
+     * Issue #1114 — Supertonic 3 speakers.
+     *
+     * Supertonic 3 is a high-quality multi-speaker TTS model available in
+     * sherpa-onnx 1.13.2+. Like Kokoro and Kitten it's a shared-model
+     * architecture: one download, multiple speakers selected by index at
+     * synth time. 10 speakers ship initially: F1–F5 (female, indices 0–4)
+     * and M1–M5 (male, indices 5–9).
+     *
+     * Quality is [QualityLevel.High] — Supertonic 3 produces notably better
+     * prosody and naturalness than Kitten (Low) and sits alongside the best
+     * Piper voices. Studio is reserved for the curated Kokoro peak.
+     *
+     * TODO(#1114): sizeBytes is 0L (shared-model sentinel, same as
+     * Kokoro/Kitten). Update to the actual model size once the download
+     * pipeline is wired.
+     */
+    private fun supertonicEntries(): List<CatalogEntry> {
+        fun supertonic(id: String, displayName: String, speakerId: Int, gender: VoiceGender): CatalogEntry =
+            CatalogEntry(
+                id = id,
+                displayName = displayName,
+                language = "en_US",
+                sizeBytes = 0L,
+                qualityLevel = QualityLevel.High,
+                engineType = EngineType.Supertonic(speakerId = speakerId),
+                piper = null,
+                gender = gender,
+            )
+        val F = VoiceGender.Female
+        val M = VoiceGender.Male
+        // Speaker order follows the Kitten/Kokoro convention: female
+        // embeddings at low indices, male embeddings at high indices.
+        // TODO(#1114): verify speaker index → gender mapping against
+        // the actual Supertonic 3 voices.bin layout.
+        return listOf(
+            supertonic("supertonic_f1_en_US_0", "Supertonic F1", 0, F),
+            supertonic("supertonic_f2_en_US_1", "Supertonic F2", 1, F),
+            supertonic("supertonic_f3_en_US_2", "Supertonic F3", 2, F),
+            supertonic("supertonic_f4_en_US_3", "Supertonic F4", 3, F),
+            supertonic("supertonic_f5_en_US_4", "Supertonic F5", 4, F),
+            supertonic("supertonic_m1_en_US_5", "Supertonic M1", 5, M),
+            supertonic("supertonic_m2_en_US_6", "Supertonic M2", 6, M),
+            supertonic("supertonic_m3_en_US_7", "Supertonic M3", 7, M),
+            supertonic("supertonic_m4_en_US_8", "Supertonic M4", 8, M),
+            supertonic("supertonic_m5_en_US_9", "Supertonic M5", 9, M),
         )
     }
 

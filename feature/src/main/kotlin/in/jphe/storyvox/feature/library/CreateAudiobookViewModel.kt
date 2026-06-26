@@ -46,7 +46,10 @@ class CreateAudiobookViewModel @Inject constructor(
     val voices: StateFlow<List<UiVoiceInfo>> = voiceManager.installedVoices
         .map { list ->
             list.filter { v ->
-                v.engineType !is EngineType.Azure && v.engineType !is EngineType.SystemTts
+                v.engineType !is EngineType.Azure &&
+                    v.engineType !is EngineType.SystemTts &&
+                    // TODO(#1114): remove this exclusion when SupertonicEngine ships.
+                    v.engineType !is EngineType.Supertonic
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

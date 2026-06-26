@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues as ComposePaddingValues
 import androidx.compose.foundation.rememberScrollState
@@ -569,6 +570,7 @@ fun VoiceLibraryScreen(
                             VoiceEngine.Piper -> item(key = "a-piper-note") { PiperInfoNote() }
                             VoiceEngine.Kokoro -> item(key = "a-kokoro-note") { KokoroBundleNote() }
                             VoiceEngine.Kitten -> item(key = "a-kitten-note") { KittenInfoNote() }
+                            VoiceEngine.Supertonic -> item(key = "a-supertonic-note") { SupertonicInfoNote() }
                             else -> {}
                         }
                         tiers.forEach { (tier, voicesInTier) ->
@@ -816,6 +818,54 @@ private fun KittenInfoNote() {
     }
 }
 
+/** Issue #1114 — Supertonic 3 info note for the Available section.
+ *  Mirrors [KittenInfoNote] structurally. */
+@Composable
+private fun SupertonicInfoNote() {
+    val spacing = LocalSpacing.current
+    val accent = MaterialTheme.colorScheme.inversePrimary
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .drawBehind {
+                drawRoundRect(
+                    color = accent.copy(alpha = 0.6f),
+                    size = androidx.compose.ui.geometry.Size(
+                        width = 3.dp.toPx(),
+                        height = size.height,
+                    ),
+                    cornerRadius = CornerRadius(2.dp.toPx()),
+                )
+            }
+            .padding(start = spacing.sm + 3.dp, end = spacing.sm, top = spacing.sm, bottom = spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.VolumeUp,
+            contentDescription = null,
+            tint = accent.copy(alpha = 0.7f),
+            modifier = Modifier
+                .size(20.dp)
+                .padding(top = 2.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+            Text(
+                "Supertonic 3 — high-quality on-device TTS",
+                style = MaterialTheme.typography.labelLarge,
+                color = accent,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "All 10 Supertonic speakers share a single model download. High-quality prosody and naturalness — a step above Kitten and competitive with the best Piper voices.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 /** #912 — polished section header with a brass divider line and count
  *  badge. The visual read order is: brass accent line → section label →
  *  count badge. The line extends from the label's trailing edge to the
@@ -892,6 +942,10 @@ private fun engineIcon(engine: VoiceEngine): ImageVector = when (engine) {
     VoiceEngine.Piper -> Icons.Outlined.MusicNote
     VoiceEngine.Kokoro -> Icons.Outlined.Mic
     VoiceEngine.Kitten -> Icons.Outlined.Pets
+    // Issue #1114 — Supertonic icon. GraphicEq evokes audio waveforms
+    // and high-fidelity synthesis — a fitting visual for a high-quality
+    // TTS engine.
+    VoiceEngine.Supertonic -> Icons.Outlined.VolumeUp
     VoiceEngine.Azure -> Icons.Outlined.Cloud
 }
 
@@ -935,6 +989,8 @@ private fun EngineSubHeader(
         // off the engine name communicates the value proposition (this
         // is the smallest tier) without making it sound like a beta.
         VoiceEngine.Kitten -> "Kitten (Lite)"
+        // Issue #1114 — Supertonic 3 sub-header.
+        VoiceEngine.Supertonic -> "Supertonic 3"
         // Azure HD voices land in their own sub-header so the cloud
         // round-trip story is one glance away. Catalog labels carry a
         // ☁️ glyph, but the section header restates "Azure" plainly so
@@ -1493,6 +1549,9 @@ private fun engineAvatarColor(engineType: EngineType): Color = when (engineType)
     is EngineType.Piper -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
     is EngineType.Kokoro -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
     is EngineType.Kitten -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f)
+    // Issue #1114 — Supertonic avatar uses inversePrimary for a warm,
+    // distinctive hue that doesn't overlap the other four engine colors.
+    is EngineType.Supertonic -> MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.8f)
     is EngineType.Azure -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
     is EngineType.SystemTts -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
 }
@@ -1660,6 +1719,8 @@ internal fun voiceSubtitle(voice: UiVoiceInfo): String {
         // Issue #119 — third in-process voice family. Surfaces in the
         // Voice Library subtitle as "Kitten · Low · Female" etc.
         is EngineType.Kitten -> "Kitten"
+        // Issue #1114 — Supertonic subtitle label.
+        is EngineType.Supertonic -> "Supertonic"
         is EngineType.Azure -> "Azure"
         // #676 — System TTS subtitle uses the engine package label
         // when available ("Google", "Samsung") so users can tell two

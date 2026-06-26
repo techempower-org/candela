@@ -210,11 +210,15 @@ class VoiceManager @Inject constructor(
         // is the single source of truth for "every Kitten voice is
         // playable." Each speaker is just an index into voices.bin.
         val kittenReady = isKittenSharedModelInstalled()
+        // TODO(#1114): wire isSupertonicSharedModelInstalled() when
+        // the download pipeline lands.
+        val supertonicReady = isSupertonicSharedModelInstalled()
         VoiceCatalog.voicesWithAzureAndSystemTts(azureRoster, systemTtsRoster)
             .filter {
                 it.id in installedIds ||
                     (it.engineType is EngineType.Kokoro && kokoroReady) ||
                     (it.engineType is EngineType.Kitten && kittenReady) ||
+                    (it.engineType is EngineType.Supertonic && supertonicReady) ||
                     it.engineType is EngineType.Azure ||
                     // #676 — System TTS voices are "installed" whenever
                     // they appear in the OS roster. The user didn't
@@ -240,6 +244,7 @@ class VoiceManager @Inject constructor(
         val isInstalled = activeId in installed ||
             (entry.engineType is EngineType.Kokoro && isKokoroSharedModelInstalled()) ||
             (entry.engineType is EngineType.Kitten && isKittenSharedModelInstalled()) ||
+            (entry.engineType is EngineType.Supertonic && isSupertonicSharedModelInstalled()) ||
             entry.engineType is EngineType.Azure ||
             // #676 — SystemTts presence in the roster IS installation.
             entry.engineType is EngineType.SystemTts
@@ -293,6 +298,17 @@ class VoiceManager @Inject constructor(
      *  means "the shared dir is populated." Mirrors [isKokoroSharedModelInstalled]. */
     private fun isKittenSharedModelInstalled(): Boolean {
         val dir = kittenSharedDir()
+        return File(dir, "model.onnx").exists() &&
+            File(dir, "voices.bin").exists() &&
+            File(dir, "tokens.txt").exists()
+    }
+
+    /** Issue #1114 — Supertonic 3 mirrors Kokoro/Kitten: shared model
+     *  presence is the single source of truth. TODO(#1114): verify the
+     *  on-disk artifact names against the actual Supertonic 3 model
+     *  bundle when the download pipeline is wired. */
+    private fun isSupertonicSharedModelInstalled(): Boolean {
+        val dir = supertonicSharedDir()
         return File(dir, "model.onnx").exists() &&
             File(dir, "voices.bin").exists() &&
             File(dir, "tokens.txt").exists()
@@ -483,6 +499,16 @@ class VoiceManager @Inject constructor(
                 markInstalled(voiceId)
                 emit(DownloadProgress.Done)
             }
+            is EngineType.Supertonic -> {
+                // TODO(#1114) — Supertonic 3 shared-model download.
+                // Mirrors Kitten's pattern: one shared dir with model.onnx +
+                // tokens.txt + voices.bin (or equivalent). Stub until the
+                // model hosting URL and file sizes are known.
+                emit(DownloadProgress.Failed(
+                    "Supertonic download not yet available — engine ships in a follow-up PR",
+                ))
+                return@flow
+            }
             EngineType.Piper -> {
                 val piper = entry.piper
                 if (piper == null) {
@@ -634,6 +660,12 @@ class VoiceManager @Inject constructor(
      *  reason as [kokoroSharedDir] — playback paths need the absolute
      *  paths to hand to `KittenEngine.loadModel`. */
     fun kittenSharedDir(): File = File(context.filesDir, "voices/_kitten_shared")
+
+    /** Issue #1114 — shared Supertonic 3 multi-speaker model dir (one
+     *  install per device, used by all 10 Supertonic speakers). Public for
+     *  the same reason as [kokoroSharedDir] — playback paths need the
+     *  absolute paths to hand to the engine's loadModel. */
+    fun supertonicSharedDir(): File = File(context.filesDir, "voices/_supertonic_shared")
 
     // ----- internals -----
 

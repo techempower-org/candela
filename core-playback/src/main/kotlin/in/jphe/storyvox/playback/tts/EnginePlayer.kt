@@ -369,6 +369,11 @@ class EnginePlayer @AssistedInject constructor(
     @Volatile
     private var secondaryKittenEngines: List<com.CodeBySonu.VoxSherpa.KittenEngine> = emptyList()
 
+    // TODO(#1114): Supertonic secondaries for Tier 3 parallel-synth.
+    // Uncomment and wire when VoxSherpa v2.9.0 ships SupertonicEngine.
+    // @Volatile
+    // private var secondarySupertonicEngines: List<SupertonicEngine> = emptyList()
+
     /**
      * Issue #676 — Android System TTS engine for the currently-active
      * SystemTts voice. Lazily constructed in [loadAndPlay] on first
@@ -1456,6 +1461,10 @@ class EnginePlayer @AssistedInject constructor(
                             runCatching { KokoroEngine.getInstance().sampleRate }
                         is EngineType.Kitten ->
                             runCatching { KittenEngine.getInstance().sampleRate }
+                        is EngineType.Supertonic -> {
+                            // TODO(#1114): warm SupertonicEngine.getInstance()
+                            // when VoxSherpa v2.9.0 ships. No-op for now.
+                        }
                         is EngineType.Azure -> {
                             // Azure has no JNI singleton to warm; the
                             // HTTPS client lazy-inits on first request
@@ -2019,6 +2028,27 @@ class EnginePlayer @AssistedInject constructor(
                         secondaryKittenEngines = kittenSecondaries
                         primaryResult ?: "Error: load returned null"
                     }
+                    is EngineType.Supertonic -> {
+                        // TODO(#1114) — Supertonic 3 loadAndPlay path.
+                        // Mirrors Kitten structurally: shared model, multi-
+                        // speaker via speakerId. VoxSherpa v2.8.0 has no
+                        // SupertonicEngine yet; stub returns an error so the
+                        // scaffold compiles and the UI surfaces the voice
+                        // family (catalog, filter, picker) without crashing
+                        // if someone taps a Supertonic voice before the
+                        // engine lands.
+                        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
+                        secondaryPiperEngines = emptyList()
+                        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
+                        secondaryKokoroEngines = emptyList()
+                        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
+                        secondaryKittenEngines = emptyList()
+                        systemTtsEngine?.shutdown()
+                        systemTtsEngine = null
+                        loadedSystemTtsEngineName = null
+                        loadedSystemTtsVoiceName = null
+                        "Error: Supertonic engine not yet available (needs VoxSherpa v2.9.0)"
+                    }
                     is EngineType.Azure -> {
                         // Tier 3 (#88) — voice swap AWAY from local
                         // engines: free all local secondaries (Piper,
@@ -2262,6 +2292,8 @@ class EnginePlayer @AssistedInject constructor(
             // Issue #119 — Kitten native sample rate is 24 kHz (same as
             // Kokoro) but the runtime accessor is the source of truth.
             is EngineType.Kitten -> EngineSampleRateCache.kittenRate()
+            // Issue #1114 — Supertonic sample rate from cache.
+            is EngineType.Supertonic -> EngineSampleRateCache.supertonicRate()
             is EngineType.Azure -> azureVoiceEngine.sampleRate
             // #676 — System TTS reads sample rate from the WAV header
             // we parse on first synth (Google = 24 kHz, Samsung
@@ -2452,6 +2484,9 @@ class EnginePlayer @AssistedInject constructor(
                     }
                 }
             }
+            // TODO(#1114): Supertonic secondaries — wire when VoxSherpa
+            // v2.9.0 ships. Empty list = serial mode until then.
+            is EngineType.Supertonic -> emptyList()
             is EngineType.Azure -> {
                 // Reuse the parallelSynthInstances knob as Azure
                 // lookahead depth — local engines and Azure both gain
@@ -3427,6 +3462,8 @@ class EnginePlayer @AssistedInject constructor(
                     is EngineType.Kokoro -> EngineSampleRateCache.kokoroRate()
                     // Issue #119 — Kitten dispatch.
                     is EngineType.Kitten -> EngineSampleRateCache.kittenRate()
+                    // Issue #1114 — Supertonic dispatch.
+                    is EngineType.Supertonic -> EngineSampleRateCache.supertonicRate()
                     else -> EngineSampleRateCache.piperRate()
                 }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
 
@@ -3439,6 +3476,8 @@ class EnginePlayer @AssistedInject constructor(
                         // Issue #119 — Kitten dispatch.
                         is EngineType.Kitten -> KittenEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
+                        // TODO(#1114): SupertonicEngine.getInstance().generateAudioPCM(...)
+                        is EngineType.Supertonic -> null
                         else -> VoiceEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
                     }
@@ -5164,6 +5203,9 @@ class EnginePlayer @AssistedInject constructor(
                         KittenEngine.getInstance().loadModel(context, onnx, tokens, voicesBin)
                             ?: "Error: load returned null"
                     }
+                    // TODO(#1114): wire SupertonicEngine recap path.
+                    is EngineType.Supertonic ->
+                        return@withContext "Error: Supertonic unsupported in recap (needs VoxSherpa v2.9.0)"
                     is EngineType.Azure -> return@withContext "Error: Azure unsupported in recap"
                     is EngineType.SystemTts -> {
                         // #676 — recap-aloud path for System TTS.
@@ -5244,6 +5286,8 @@ class EnginePlayer @AssistedInject constructor(
             is EngineType.Kokoro -> EngineSampleRateCache.kokoroRate()
             // Issue #119 — Kitten recap sample rate.
             is EngineType.Kitten -> EngineSampleRateCache.kittenRate()
+            // Issue #1114 — Supertonic recap sample rate.
+            is EngineType.Supertonic -> EngineSampleRateCache.supertonicRate()
             // #676 — System TTS recap sample rate routes through the
             // engine's cached WAV-header value (defaults to 24 kHz).
             is EngineType.SystemTts -> systemTtsEngine?.sampleRate
