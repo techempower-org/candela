@@ -4,6 +4,9 @@ import android.app.Application
 import `in`.jphe.storyvox.playback.cache.PcmCache
 import `in`.jphe.storyvox.playback.cache.PcmCacheConfig
 import `in`.jphe.storyvox.playback.cache.PcmCacheKey
+import `in`.jphe.storyvox.playback.cache.PcmIndex
+import `in`.jphe.storyvox.playback.cache.PcmIndexEntry
+import `in`.jphe.storyvox.playback.cache.pcmCacheJson
 import `in`.jphe.storyvox.playback.tts.CHUNKER_VERSION
 import `in`.jphe.storyvox.playback.tts.Sentence
 import kotlinx.coroutines.runBlocking
@@ -39,8 +42,14 @@ import java.io.FileOutputStream
  *    [java.io.IOException] (corrupt cache → re-render, not crash).
  *  - `startSentenceIndex` resumes mid-chapter (post-seek path).
  */
+// sdk=36: core-playback sets compileSdk=37 with no explicit targetSdk, so
+// the test manifest's targetSdkVersion defaults to 37 — past Robolectric
+// 4.16.1's maxSdkVersion=36, which makes the whole class fail to initialize
+// ("targetSdkVersion=37 > maxSdkVersion=36"). Pin the emulated SDK to 36
+// (Robolectric's current ceiling) so these pure-file-IO tests run until the
+// toolchain catches up to 37. The behavior under test is SDK-agnostic.
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class)
+@Config(application = Application::class, sdk = [36])
 class CacheFileSourceTest {
 
     private lateinit var context: Application
@@ -202,6 +211,114 @@ class CacheFileSourceTest {
             )
         }
         assertTrue("CacheFileSource.open should throw on truncated pcm", threw)
+    }
+
+    /** Hand-write an index sidecar + matching pcm file, bypassing
+     *  [PcmAppender] (whose #1128 guard now refuses to produce a
+     *  degenerate entry). Lets these tests forge the exact corrupt
+     *  on-disk shapes a killed/disk-full/reaped render can leave behind. */
+    private fun writeIndex(index: PcmIndex, pcmBytes: ByteArray) {
+        cache.indexFileFor(key)
+            .writeText(pcmCacheJson.encodeToString(PcmIndex.serializer(), index))
+        FileOutputStream(cache.pcmFileFor(key)).use { it.write(pcmBytes) }
+    }
+
+    @Test
+    fun `degenerate zero-sentence index fails to open with IOException`() = runBlocking {
+        // Issue #1128 root cause — a "complete" entry (idx.json present, so
+        // PcmCache.isComplete is true) whose render produced no audio:
+        // sentenceCount=0, totalBytes=0, no pcm bytes. Pre-fix this passed
+        // the only length check (0 < 0 is false) and CacheFileSource served
+        // zero chunks — an instant natural-end that silently skipped the
+        // chapter. open() must now reject it so EnginePlayer re-renders.
+        writeIndex(
+            PcmIndex(sampleRate = 22050, sentenceCount = 0, totalBytes = 0L, sentences = emptyList()),
+            ByteArray(0),
+        )
+        var threw = false
+        try {
+            CacheFileSource.open(pcmFile = cache.pcmFileFor(key), indexFile = cache.indexFileFor(key))
+        } catch (e: java.io.IOException) {
+            threw = true
+            assertTrue(
+                "message should flag degenerate entry, got: ${e.message}",
+                e.message?.contains("degenerate") == true,
+            )
+        }
+        assertTrue("open should reject a zero-sentence index (#1128)", threw)
+    }
+
+    @Test
+    fun `missing pcm file fails to open with IOException`() = runBlocking {
+        // Issue #1128 — the idx.json survived an eviction / chapter sweep
+        // that failed to unlink its .pcm sibling (PcmCache.delete/evictTo
+        // swallow per-file errors). isComplete stays true but the audio is
+        // gone; open() must reject rather than serve an empty file.
+        renderCache()
+        assertTrue("precondition: pcm exists", cache.pcmFileFor(key).delete())
+        var threw = false
+        try {
+            CacheFileSource.open(pcmFile = cache.pcmFileFor(key), indexFile = cache.indexFileFor(key))
+        } catch (e: java.io.IOException) {
+            threw = true
+            assertTrue(
+                "message should flag missing pcm, got: ${e.message}",
+                e.message?.contains("missing") == true,
+            )
+        }
+        assertTrue("open should reject a missing .pcm (#1128)", threw)
+    }
+
+    @Test
+    fun `index entry overrunning the pcm file fails to open`() = runBlocking {
+        // Issue #1128 — a corrupt index whose totalBytes matches the file
+        // length but whose last entry references bytes past EOF. The mmap /
+        // RandomAccessFile read would silently return short/garbage for that
+        // sentence; reject it up front.
+        val pcm = ByteArray(100) { 0x44 }
+        writeIndex(
+            PcmIndex(
+                sampleRate = 22050,
+                sentenceCount = 1,
+                totalBytes = 100L,
+                // byteOffset 60 + byteLen 80 = 140 > 100-byte file.
+                sentences = listOf(PcmIndexEntry(i = 0, start = 0, end = 10, byteOffset = 60L, byteLen = 80, trailingSilenceMs = 0)),
+            ),
+            pcm,
+        )
+        var threw = false
+        try {
+            CacheFileSource.open(pcmFile = cache.pcmFileFor(key), indexFile = cache.indexFileFor(key))
+        } catch (e: java.io.IOException) {
+            threw = true
+            assertTrue(
+                "message should flag overrun, got: ${e.message}",
+                e.message?.contains("overruns") == true,
+            )
+        }
+        assertTrue("open should reject an index that overruns the file (#1128)", threw)
+    }
+
+    @Test
+    fun `unreadable index json fails to open with IOException not SerializationException`() = runBlocking {
+        // Issue #1128 — a truncated / half-written idx.json (disk-full
+        // finalize, OS reap mid-write) decodes to a SerializationException,
+        // which is NOT the IOException EnginePlayer's recovery catch keyed
+        // on pre-fix. open() must surface it as IOException so the entry is
+        // invalidated + re-rendered rather than escaping recovery.
+        cache.indexFileFor(key).writeText("{ this is not valid json")
+        FileOutputStream(cache.pcmFileFor(key)).use { it.write(ByteArray(100)) }
+        var threw = false
+        try {
+            CacheFileSource.open(pcmFile = cache.pcmFileFor(key), indexFile = cache.indexFileFor(key))
+        } catch (e: java.io.IOException) {
+            threw = true
+            assertTrue(
+                "message should flag unreadable index, got: ${e.message}",
+                e.message?.contains("unreadable") == true,
+            )
+        }
+        assertTrue("open should wrap a bad-JSON index as IOException (#1128)", threw)
     }
 
     @Test

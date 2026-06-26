@@ -149,6 +149,24 @@ class PcmAppender internal constructor(
     @Throws(IOException::class)
     fun complete() {
         check(!closed) { "appender already closed (complete/abandon)" }
+
+        // Issue #1128 — refuse to finalize a degenerate (zero-sentence)
+        // entry. A render whose every sentence produced empty/declined PCM
+        // (transient engine failure, model decline, all-punctuation text)
+        // would otherwise land a "complete" idx.json with sentenceCount=0 /
+        // totalBytes=0. [PcmCache.isComplete] then returns true forever, the
+        // cache-hit branch opens it, and [CacheFileSource.nextChunk] reports
+        // an instant natural-end with zero audio — the chapter is SILENTLY
+        // SKIPPED on every play, and the user's only recourse was the manual
+        // "Clear cache" button (the #1128 report). Discard instead: the next
+        // play is a clean cache MISS and re-renders, giving the engine
+        // another chance rather than poisoning the cache. [CacheFileSource]
+        // also rejects any such entry already on disk (read-side belt).
+        if (sentences.isEmpty()) {
+            abandon()
+            return
+        }
+
         closed = true
         runCatching { pcmStream.close() }
 
