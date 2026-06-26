@@ -261,9 +261,9 @@ library state, encrypted in transit, deletable by the user.
 
 `https://candela.techempower.org/privacy/`
 
-The policy lives at `docs/privacy-policy.md`; Jekyll renders it at
-`/privacy/` via the `permalink: /privacy/` front-matter directive. Verify
-the URL resolves before Play submission.
+The policy lives at `docs/privacy.md`; Jekyll renders it at `/privacy/`
+from the filename under the site's pretty-permalink config (keep the file
+named `privacy.md`). Verify the URL resolves before Play submission.
 
 ---
 
