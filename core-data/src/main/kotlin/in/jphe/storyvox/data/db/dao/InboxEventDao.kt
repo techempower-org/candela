@@ -75,23 +75,34 @@ interface InboxEventDao {
     )
     suspend fun latestUnreadForFiction(sourceId: String, fictionId: String): InboxEvent?
 
-    /** Update an existing event in place (used by coalescing). */
+    /**
+     * Coalesce a new poll's delta into an existing unread row. The
+     * [additionalCount] is *added* to the stored `newChapterCount` so
+     * consecutive polls accumulate ("2 new chapters" + "1 new chapter"
+     * = 3, not 1). The [title] is rewritten by the caller to reflect
+     * the new total.
+     *
+     * Issue #1083: the previous version overwrote the title with the
+     * single-poll delta, losing the prior count.
+     */
     @Query(
         """
         UPDATE inbox_event
            SET title = :title,
                body = :body,
                ts = :ts,
-               deepLinkUri = :deepLinkUri
+               deepLinkUri = :deepLinkUri,
+               newChapterCount = newChapterCount + :additionalCount
          WHERE id = :id
         """,
     )
-    suspend fun updateInPlace(
+    suspend fun coalesceInPlace(
         id: Long,
         title: String,
         body: String?,
         ts: Long,
         deepLinkUri: String?,
+        additionalCount: Int,
     )
 
     /** Diagnostic / test helper — full table delete. */

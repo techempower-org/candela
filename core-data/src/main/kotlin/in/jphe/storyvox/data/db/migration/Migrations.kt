@@ -455,6 +455,30 @@ val MIGRATION_13_14: Migration = object : Migration(13, 14) {
     }
 }
 
+/**
+ * v15 — issue #1083: inbox unread-count under-counts when multiple
+ * new-chapter polls coalesce before the user reads the Inbox.
+ *
+ * Adds `inbox_event.newChapterCount` (INTEGER NOT NULL DEFAULT 0). The
+ * repository's coalesce-on-insert now *accumulates* the poll delta into
+ * this column and rewrites the title from the total, instead of blindly
+ * overwriting with the single-poll string. Existing rows get 0 (no
+ * accumulated count — the display title is already baked in and still
+ * readable).
+ *
+ * Purely additive — no existing data touched, no row rewritten. SQLite
+ * `ALTER TABLE ADD COLUMN` with a NOT NULL default is metadata-only on
+ * SQLite >= 3.22 (Android 9+); older devices still get the constant-
+ * time path because the default is a literal.
+ */
+val MIGRATION_14_15: Migration = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `inbox_event` ADD COLUMN `newChapterCount` INTEGER NOT NULL DEFAULT 0",
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -469,4 +493,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_11_12,
     MIGRATION_12_13,
     MIGRATION_13_14,
+    MIGRATION_14_15,
 )

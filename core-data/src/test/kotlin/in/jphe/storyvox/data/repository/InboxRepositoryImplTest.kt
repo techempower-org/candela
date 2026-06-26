@@ -73,12 +73,13 @@ class InboxRepositoryImplTest {
             .filter { it.sourceId == sourceId && it.fictionId == fictionId && !it.isRead }
             .maxByOrNull { it.ts }
 
-        override suspend fun updateInPlace(
+        override suspend fun coalesceInPlace(
             id: Long,
             title: String,
             body: String?,
             ts: Long,
             deepLinkUri: String?,
+            additionalCount: Int,
         ) {
             rows[id]?.let {
                 rows[id] = it.copy(
@@ -86,6 +87,7 @@ class InboxRepositoryImplTest {
                     body = body,
                     ts = ts,
                     deepLinkUri = deepLinkUri,
+                    newChapterCount = it.newChapterCount + additionalCount,
                 )
             }
             rebuild()
@@ -130,17 +132,22 @@ class InboxRepositoryImplTest {
             body = null,
             ts = 1_000L,
             deepLinkUri = "storyvox://reader/rr:42/rr:42:7",
+            newChapterCount = 1,
+            fictionTitle = "Mother of Learning",
         )
-        // Second poll detects more chapters — should update the
-        // existing row in place, not stack a new one.
+        // Second poll detects 2 more chapters — should accumulate into
+        // the existing row (total 3), not stack a new one and not
+        // overwrite the count with 2. Issue #1083.
         repo.record(
             sourceId = "royalroad",
             fictionId = "rr:42",
             chapterId = "rr:42:9",
-            title = "3 new chapters in Mother of Learning",
+            title = "2 new chapters in Mother of Learning",
             body = null,
             ts = 2_000L,
             deepLinkUri = "storyvox://reader/rr:42/rr:42:9",
+            newChapterCount = 2,
+            fictionTitle = "Mother of Learning",
         )
 
         val all = repo.observeAll().first()
@@ -150,7 +157,12 @@ class InboxRepositoryImplTest {
             all.size,
         )
         val row = all.first()
-        assertEquals("3 new chapters in Mother of Learning", row.title)
+        assertEquals(
+            "title reflects accumulated count (1 + 2 = 3), not single-poll delta",
+            "3 new chapters in Mother of Learning",
+            row.title,
+        )
+        assertEquals(3, row.newChapterCount)
         assertEquals(2_000L, row.ts)
         assertEquals("storyvox://reader/rr:42/rr:42:9", row.deepLinkUri)
     }
@@ -220,6 +232,62 @@ class InboxRepositoryImplTest {
             2,
             all.size,
         )
+    }
+
+    /**
+     * Issue #1083 regression — the exact scenario from the bug report:
+     * three polls coalesce before read. Poll 1 finds 2, poll 2 finds 1,
+     * poll 3 finds 3. The title must say "6 new chapters", not "3".
+     */
+    @Test fun `record accumulates counts across three coalesced polls (issue 1083)`() = runTest {
+        val dao = FakeInboxEventDao()
+        val repo = InboxRepositoryImpl(dao)
+
+        // Poll 1: 2 new chapters
+        repo.record(
+            sourceId = "royalroad",
+            fictionId = "rr:42",
+            chapterId = "rr:42:65",
+            title = "2 new chapters in The Wandering Inn",
+            body = null,
+            ts = 1_000L,
+            deepLinkUri = "storyvox://reader/rr:42/rr:42:65",
+            newChapterCount = 2,
+            fictionTitle = "The Wandering Inn",
+        )
+        // Poll 2: 1 new chapter
+        repo.record(
+            sourceId = "royalroad",
+            fictionId = "rr:42",
+            chapterId = "rr:42:67",
+            title = "1 new chapter in The Wandering Inn",
+            body = null,
+            ts = 2_000L,
+            deepLinkUri = "storyvox://reader/rr:42/rr:42:67",
+            newChapterCount = 1,
+            fictionTitle = "The Wandering Inn",
+        )
+        // Poll 3: 3 new chapters
+        repo.record(
+            sourceId = "royalroad",
+            fictionId = "rr:42",
+            chapterId = "rr:42:70",
+            title = "3 new chapters in The Wandering Inn",
+            body = null,
+            ts = 3_000L,
+            deepLinkUri = "storyvox://reader/rr:42/rr:42:70",
+            newChapterCount = 3,
+            fictionTitle = "The Wandering Inn",
+        )
+
+        val all = repo.observeAll().first()
+        assertEquals("still one coalesced row", 1, all.size)
+        val row = all.first()
+        assertEquals(6, row.newChapterCount)
+        assertEquals("6 new chapters in The Wandering Inn", row.title)
+        // Deep link points to the most recent poll's chapter
+        assertEquals("storyvox://reader/rr:42/rr:42:70", row.deepLinkUri)
+        assertEquals(3_000L, row.ts)
     }
 
     @Test fun `markAllRead clears the unread count`() = runTest {

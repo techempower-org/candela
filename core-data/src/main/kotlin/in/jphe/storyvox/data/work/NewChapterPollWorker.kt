@@ -165,6 +165,8 @@ class NewChapterPollWorker @AssistedInject constructor(
                                 title = "${announcement.newCount} new ${announcement.pluralLabel} in ${fiction.title}",
                                 body = null,
                                 deepLinkUri = "storyvox://reader/${fiction.id}/$deepLinkChapterId",
+                                newChapterCount = announcement.newCount,
+                                fictionTitle = fiction.title,
                             )
                         }.onFailure { e ->
                             // Inbox write is best-effort; a Room
