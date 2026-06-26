@@ -23,6 +23,12 @@ security-crypto = "1.1.0"
 compose-bom = "2026.06.00"
 compose-material-icons = "1.7.8"
 
+# mikepenz AboutLibraries — OSS license collection + Compose M3 UI (#1142).
+# 15.x is the AGP 9 / Compose 1.10 line; the `.plugin.android` plugin variant
+# (split out in v13) auto-generates the dependency + license metadata into the
+# consuming module's `R.raw.aboutlibraries` during the Android build, GMS-free.
+aboutlibraries = "15.0.2"
+
 # Hilt + Hilt-Work
 hilt = "2.60"
 hilt-navigation-compose = "1.3.0"
@@ -197,6 +203,12 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 
+# AboutLibraries (#1142). `-core` carries the `Libs` model consumed by the
+# :feature licenses screen; `-compose-m3` carries `produceLibraries` (loads
+# R.raw.aboutlibraries in :app) + the `LibrariesContainer` M3 list UI.
+aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutlibraries" }
+aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
+
 # Wear
 androidx-wear-compose-material = { module = "androidx.wear.compose:compose-material", version.ref = "wear-compose" }
 androidx-wear-compose-foundation = { module = "androidx.wear.compose:compose-foundation", version.ref = "wear-compose" }
@@ -262,6 +274,10 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 # docs/play-store/RUNBOOK.md for the one-time service-account setup that
 # unlocks `./gradlew publishReleaseBundle` for future releases.
 play-publisher = { id = "com.github.triplet.play", version.ref = "play-publisher" }
+# mikepenz AboutLibraries — `.android` variant auto-generates the OSS
+# license metadata as part of the Android build (#1142). Applied to :app
+# so the aggregated metadata covers every module + transitive dependency.
+aboutlibraries-android = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutlibraries" }
 
 [bundles]
 compose = [

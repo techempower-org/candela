@@ -111,6 +111,13 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // Issue #1142 — OSS licenses screen. -compose-m3 provides the
+    // `LibrariesContainer` M3 list UI; -core provides the `Libs` model the
+    // screen receives (loaded from R.raw.aboutlibraries up in :app, where
+    // the plugin aggregates the full dependency graph).
+    implementation(libs.aboutlibraries.core)
+    implementation(libs.aboutlibraries.compose.m3)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.serialization.json)

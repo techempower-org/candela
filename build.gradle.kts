@@ -14,4 +14,8 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
+    // Issue #1142 — mikepenz AboutLibraries `.android` plugin. Declared at
+    // the root so :app can apply it without re-stating the version; it
+    // auto-generates OSS license metadata during :app's Android build.
+    alias(libs.plugins.aboutlibraries.android) apply false
 }

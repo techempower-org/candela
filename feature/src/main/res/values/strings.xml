@@ -658,6 +658,15 @@
     <string name="settings_about_built"> · built %1$s</string>
     <string name="settings_about_privacy_policy">Privacy Policy</string>
     <string name="settings_about_privacy_policy_subtitle">Opens in your browser</string>
+    <!-- Settings · About → Open-source licenses (#1142) -->
+    <string name="settings_about_licenses">Open-source licenses</string>
+    <string name="settings_about_licenses_subtitle">The libraries that power Candela.</string>
+    <string name="settings_licenses_title">Open-source licenses</string>
+    <string name="settings_licenses_gpl_heading">Candela is free software</string>
+    <string name="settings_licenses_gpl_body">Candela is licensed under the GNU General Public License v3.0. You\'re free to use, study, share, and modify it under those terms. It is built on the open-source libraries listed below.</string>
+    <string name="settings_licenses_source">Source code: github.com/techempower-org/candela</string>
+    <string name="settings_licenses_source_url" translatable="false">https://github.com/techempower-org/candela</string>
+    <string name="settings_licenses_empty">Preparing license list…</string>
 
     <!-- Settings · AI subscreen -->
     <string name="settings_ai_title">AI</string>

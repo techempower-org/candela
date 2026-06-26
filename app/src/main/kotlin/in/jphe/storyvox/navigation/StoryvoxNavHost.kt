@@ -27,6 +27,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
+import `in`.jphe.storyvox.R
 import `in`.jphe.storyvox.auth.AuthWebViewScreen
 import `in`.jphe.storyvox.auth.anthropic.AnthropicTeamsSignInScreen
 import `in`.jphe.storyvox.auth.github.GitHubSignInScreen
@@ -44,6 +46,7 @@ import `in`.jphe.storyvox.feature.reader.HybridReaderScreen
 import `in`.jphe.storyvox.feature.reader.NowPlayingDock
 import `in`.jphe.storyvox.feature.reader.NowPlayingDockViewModel
 import `in`.jphe.storyvox.feature.settings.AboutSettingsScreen
+import `in`.jphe.storyvox.feature.settings.OssLicensesScreen
 import `in`.jphe.storyvox.feature.settings.AccessibilitySettingsScreen
 import `in`.jphe.storyvox.feature.settings.AccountSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AdvancedSettingsScreen
@@ -144,6 +147,12 @@ object StoryvoxRoutes {
     /** Settings → About. Version + sigil name + build hash + the
      *  v0.5.00 milestone pill. */
     const val SETTINGS_ABOUT = "settings/about"
+    /** Issue #1142 — Settings → About → Open-source licenses. AboutLibraries
+     *  (GMS-free) renders every bundled dependency's license; the screen also
+     *  conveys Candela's own GPL-3.0 license + source-repo link. Reached from
+     *  the link row on [SETTINGS_ABOUT]; makes good on the hub's long-standing
+     *  "open-source notices" promise. */
+    const val SETTINGS_LICENSES = "settings/licenses"
     /**
      * Generic WebView sign-in destination, parameterized by sourceId
      * (#426 PR2). Royal Road = `auth/webview/royalroad`, AO3 =
@@ -1272,6 +1281,26 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 AboutSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    // Issue #1142 — route into the OSS licenses subscreen.
+                    onOpenLicenses = { navController.navigate(StoryvoxRoutes.SETTINGS_LICENSES) },
+                )
+            }
+            composable(
+                StoryvoxRoutes.SETTINGS_LICENSES,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                // Issue #1142 — the AboutLibraries `.android` plugin (applied
+                // to :app) generates R.raw.aboutlibraries against :app's full
+                // dependency graph. produceLibraries parses it off the main
+                // thread; we hand the result to the :feature licenses screen,
+                // which also surfaces Candela's own GPL-3.0 license.
+                val libraries by produceLibraries(R.raw.aboutlibraries)
+                OssLicensesScreen(
+                    libraries = libraries,
                     onBack = { navController.popBackStack() },
                 )
             }

@@ -37,6 +37,11 @@ private const val PRIVACY_POLICY_URL = "https://candela.techempower.org/privacy/
 @Composable
 fun AboutSettingsScreen(
     onBack: () -> Unit,
+    /** Issue #1142 — open the Open-source licenses subscreen. The About hub
+     *  advertised "open-source notices" with nothing behind the promise;
+     *  this routes to the AboutLibraries-backed list. Default no-op keeps
+     *  previews / tests simple; the NavHost passes a real navigate. */
+    onOpenLicenses: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -81,14 +86,18 @@ fun AboutSettingsScreen(
                 }
             }
 
-            // Privacy Policy link (#1138). Play Console requires a reachable
-            // privacy-policy URL; it must also be reachable from inside the
-            // app. Opens the hosted policy in the user's browser.
             SettingsGroupCard {
                 SettingsLinkRow(
                     title = stringResource(R.string.settings_about_privacy_policy),
                     subtitle = stringResource(R.string.settings_about_privacy_policy_subtitle),
                     onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) },
+                )
+            }
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_licenses),
+                    subtitle = stringResource(R.string.settings_about_licenses_subtitle),
+                    onClick = onOpenLicenses,
                 )
             }
         }
