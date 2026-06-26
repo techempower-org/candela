@@ -548,6 +548,9 @@ class SettingsViewModel @Inject constructor(
     fun setSleepShakeExtendMinutes(minutes: Int) =
         viewModelScope.launch { repo.setSleepShakeExtendMinutes(minutes) }
 
+    fun setSleepBedtimeAutoEnabled(enabled: Boolean) =
+        viewModelScope.launch { repo.setSleepBedtimeAutoEnabled(enabled) }
+
     /** Issue #596 — PCM-cache pre-render window size in chapters. */
     fun setPrerenderChapterCount(count: Int) =
         viewModelScope.launch { repo.setPrerenderChapterCount(count) }

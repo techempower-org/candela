@@ -340,6 +340,10 @@ object AppBindings {
     fun provideSleepTimerExtendConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig = impl
 
+    @Provides @Singleton
+    fun provideBedtimeSleepConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig = impl
+
     /** Issue #596 — user-tunable PCM-cache pre-render window size.
      *  Same singleton; consumed by `:core-playback`'s
      *  `PrerenderTriggers`. */

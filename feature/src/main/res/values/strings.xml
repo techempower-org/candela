@@ -690,6 +690,8 @@
     <string name="settings_voice_shake_extend_title">Sleep timer: shake-to-extend</string>
     <string name="settings_voice_shake_extend_subtitle">Minutes the timer extends when you shake during the 10-second fade tail.</string>
     <string name="settings_voice_shake_extend_option">%1$d min</string>
+    <string name="settings_voice_bedtime_auto_title">Sleep timer with Bedtime mode</string>
+    <string name="settings_voice_bedtime_auto_subtitle">Auto-start the sleep timer when your phone enters Sleep or Bedtime mode.</string>
 
     <!-- Settings · Performance subscreen -->
     <string name="settings_performance_title">Performance</string>

@@ -915,7 +915,7 @@ fun SettingsScreen(
                 // qualifying build wears the badge, regardless of
                 // whether the user has dismissed the celebration.
                 if (isV0500MilestoneBuild(s.sigil.versionName)) {
-                    MilestoneBadgePill()
+                    MilestoneBadgePill(s.sigil.versionName)
                 }
             }
         }
@@ -3982,14 +3982,9 @@ internal fun SettingsSkeleton(modifier: Modifier = Modifier) {
  * the on-state, anything else for off.
  */
 internal fun isV0500MilestoneBuild(versionName: String): Boolean {
-    val parts = versionName.split('.', '-', '+')
-    val major = parts.getOrNull(0)?.toIntOrNull() ?: return false
-    val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
-    val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
-    // (major, minor, patch) ≥ (0, 5, 0).
-    if (major != 0) return major > 0
-    if (minor != 5) return minor > 5
-    return patch >= 0
+    val major = versionName.split('.', '-', '+')
+        .getOrNull(0)?.toIntOrNull() ?: return false
+    return major >= 1
 }
 
 /**
@@ -4000,7 +3995,7 @@ internal fun isV0500MilestoneBuild(versionName: String): Boolean {
  * dialog's tone — the brass details celebrate, not the copy.
  */
 @Composable
-internal fun MilestoneBadgePill() {
+internal fun MilestoneBadgePill(versionName: String = "1") {
     val spacing = LocalSpacing.current
     Box(
         modifier = Modifier
@@ -4024,7 +4019,7 @@ internal fun MilestoneBadgePill() {
         ) {
             Text(text = "🎉", style = MaterialTheme.typography.bodySmall)
             Text(
-                text = "0.5.00 milestone",
+                text = "v${versionName.substringBefore('.')} milestone",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -4070,7 +4065,7 @@ private fun PreviewAboutCardWithMilestonePillDark() =
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                MilestoneBadgePill()
+                MilestoneBadgePill("1.1.3")
             }
         }
     }
@@ -4106,7 +4101,7 @@ private fun PreviewAboutCardWithMilestonePillLight() =
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                MilestoneBadgePill()
+                MilestoneBadgePill("1.1.3")
             }
         }
     }
