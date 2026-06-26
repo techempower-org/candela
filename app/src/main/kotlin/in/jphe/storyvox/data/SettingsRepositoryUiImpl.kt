@@ -50,6 +50,7 @@ import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
 import `in`.jphe.storyvox.data.repository.playback.AutoBrowserConfig
 import `in`.jphe.storyvox.data.repository.playback.PrerenderChapterCountConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
+import `in`.jphe.storyvox.data.repository.playback.SleepTimerMemoryConfig
 import `in`.jphe.storyvox.feature.api.PalaceProbeResult
 import `in`.jphe.storyvox.feature.api.ReadingDirection
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
@@ -484,6 +485,24 @@ private object Keys {
      *  Per-device (NOT synced). Default false. */
     val SLEEP_BEDTIME_AUTO_ENABLED =
         booleanPreferencesKey("pref_sleep_bedtime_auto_enabled")
+    /** Issue #1119 — per-context sleep timer duration in minutes (Int).
+     *  Manual timer fires when user taps play+sleep in UI (default 15 min).
+     *  Per-device (NOT synced). */
+    val SLEEP_MANUAL_TIMER_MINUTES =
+        intPreferencesKey("pref_sleep_manual_timer_min_v1")
+
+    /** Issue #1119 — per-context sleep timer duration in minutes (Int).
+     *  Bedtime timer fires when system enters DND / Bedtime mode (default 30 min).
+     *  Per-device (NOT synced) — slower wind-down context. */
+    val SLEEP_BEDTIME_TIMER_MINUTES =
+        intPreferencesKey("pref_sleep_bedtime_timer_min_v1")
+
+    /** Issue #1119 — shake-extend count in current timer session (Int).
+     *  Incremented on each shake during fade tail; reset when new timer arms.
+     *  Used for progressive extension: 5→10→15→30 as user shakes multiple times.
+     *  Per-device (NOT synced). Default 0. */
+    val SLEEP_EXTENSION_COUNT =
+        intPreferencesKey("pref_sleep_extension_count_v1")
 
     /** Issue #596 — PCM-cache pre-render window size in chapters
      *  (Int). Synced as of #916. Default 5 matches the legacy
@@ -975,6 +994,16 @@ internal fun snapSleepShakeExtendMinutes(minutes: Int): Int =
     SLEEP_SHAKE_EXTEND_TIERS_MIN.minBy { kotlin.math.abs(it - minutes) }
 
 /**
+ * Issue #1119 — supported sleep timer duration tiers in minutes.
+ * Available options: 5, 10, 15, 30, 60. Default 15 (manual context),
+ * 30 (bedtime context). Snap raw input to nearest supported tier.
+ */
+internal val SLEEP_TIMER_DURATION_TIERS: List<Int> = listOf(5, 10, 15, 30, 60)
+
+internal fun snapSleepTimerDuration(minutes: Int): Int =
+    SLEEP_TIMER_DURATION_TIERS.minBy { kotlin.math.abs(it - minutes) }
+
+/**
  * Issue #596 — supported pre-render chapter-count tiers. Chip-row
  * spec is "N+1 / N+2 / N+3 / N+5"; we store the raw integer count
  * directly (1/2/3/5). Default 5 matches the legacy
@@ -1107,6 +1136,7 @@ class SettingsRepositoryUiImpl(
     PlaybackResumePolicyConfig,
     `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
     SleepTimerExtendConfig,
+    SleepTimerMemoryConfig,
     `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig,
     PrerenderChapterCountConfig,
     AutoBrowserConfig,
@@ -1531,6 +1561,18 @@ class SettingsRepositoryUiImpl(
                 prefs[Keys.SLEEP_SHAKE_EXTEND_MINUTES] ?: 15,
             ),
             sleepBedtimeAutoEnabled = prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: false,
+            
+            // Issue #1119 — per-context sleep timer durations (minutes).
+            // Manual: user-initiated (default 15). Bedtime: auto-triggered by
+            // system DND/Bedtime mode (default 30). Snap to supported tier.
+            sleepManualTimerMinutes = snapSleepTimerDuration(
+                prefs[Keys.SLEEP_MANUAL_TIMER_MINUTES] ?: 15,
+            ),
+            sleepBedtimeTimerMinutes = snapSleepTimerDuration(
+                prefs[Keys.SLEEP_BEDTIME_TIMER_MINUTES] ?: 30,
+            ),
+            // Issue #1119 — progressive extension tracking (transient per session).
+            sleepExtensionCount = prefs[Keys.SLEEP_EXTENSION_COUNT] ?: 0,
             // Issue #596 — pre-render window in chapters.
             prerenderChapterCount = snapPrerenderChapterCount(
                 prefs[Keys.PRERENDER_CHAPTER_COUNT] ?: 5,
@@ -1822,6 +1864,54 @@ class SettingsRepositoryUiImpl(
 
     override suspend fun isBedtimeAutoSleepEnabled(): Boolean =
         bedtimeAutoSleepEnabled.first()
+
+    // --- SleepTimerMemoryConfig (issue #1119, consumed by core-playback's
+    //     StoryvoxPlaybackService for duration memory + progressive extension) ---
+
+    override val manualTimerMinutes: Flow<Int> = store.data.map { prefs ->
+        snapSleepTimerDuration(prefs[Keys.SLEEP_MANUAL_TIMER_MINUTES] ?: 15)
+    }
+
+    override val bedtimeTimerMinutes: Flow<Int> = store.data.map { prefs ->
+        snapSleepTimerDuration(prefs[Keys.SLEEP_BEDTIME_TIMER_MINUTES] ?: 30)
+    }
+
+    override val extensionCount: Flow<Int> = store.data.map { prefs ->
+        prefs[Keys.SLEEP_EXTENSION_COUNT] ?: 0
+    }
+
+    override suspend fun currentManualTimerMinutes(): Int = manualTimerMinutes.first()
+
+    override suspend fun currentBedtimeTimerMinutes(): Int = bedtimeTimerMinutes.first()
+
+    override suspend fun setManualTimerMinutes(minutes: Int) {
+        store.edit { it[Keys.SLEEP_MANUAL_TIMER_MINUTES] = snapSleepTimerDuration(minutes) }
+    }
+
+    override suspend fun setBedtimeTimerMinutes(minutes: Int) {
+        store.edit { it[Keys.SLEEP_BEDTIME_TIMER_MINUTES] = snapSleepTimerDuration(minutes) }
+    }
+
+    override suspend fun incrementExtensionCount() {
+        store.edit {
+            val current = it[Keys.SLEEP_EXTENSION_COUNT] ?: 0
+            it[Keys.SLEEP_EXTENSION_COUNT] = current + 1
+        }
+    }
+
+    override suspend fun resetExtensionCount() {
+        store.edit { it[Keys.SLEEP_EXTENSION_COUNT] = 0 }
+    }
+
+    override suspend fun nextProgressiveExtensionMinutes(): Int {
+        val count = extensionCount.first()
+        return when {
+            count == 0 -> 5    // First shake: 5 min
+            count == 1 -> 10   // Second shake: 10 min
+            count == 2 -> 15   // Third shake: 15 min
+            else -> 30         // Fourth+ shakes: 30 min
+        }
+    }
 
     // --- PrerenderChapterCountConfig (issue #596, consumed by
     //     core-playback's PrerenderTriggers) ---

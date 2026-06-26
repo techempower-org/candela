@@ -29,6 +29,7 @@ import android.content.IntentFilter
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
+import `in`.jphe.storyvox.data.repository.playback.SleepTimerMemoryConfig
 import `in`.jphe.storyvox.playback.diagnostics.AudioOutputMonitor
 import `in`.jphe.storyvox.playback.sleep.ShakeDetector
 import `in`.jphe.storyvox.playback.tts.EnginePlayer
@@ -86,6 +87,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
      *  restarting the service. */
     @Inject lateinit var sleepExtendConfig: SleepTimerExtendConfig
     @Inject lateinit var bedtimeSleepConfig: BedtimeSleepConfig
+    @Inject lateinit var sleepMemoryConfig: SleepTimerMemoryConfig
 
     private lateinit var session: MediaSession
     private lateinit var player: EnginePlayer
@@ -186,7 +188,10 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     // to 15 (the legacy value) when the store hasn't
                     // emitted yet.
                     scope.launch {
-                        val minutes = sleepExtendConfig.currentShakeExtendMinutes()
+                        // Issue #1119 — progressive extension: offer increasingly
+                        // longer durations (5→10→15→30) as user shakes multiple times.
+                        sleepMemoryConfig.incrementExtensionCount()
+                        val minutes = sleepMemoryConfig.nextProgressiveExtensionMinutes()
                         controller.startSleepTimer(SleepTimerMode.Duration(minutes))
                     }
                 }
@@ -204,6 +209,20 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     } else if (!inFadeWindow && shakeListening) {
                         shakeDetector?.stop()
                         shakeListening = false
+                    }
+                }
+        }
+
+        // Issue #1119 — reset extension count whenever a new timer is armed.
+        // When sleepTimerRemainingMs transitions from null → value, we're
+        // starting a fresh timer session and should reset the shake-extend count.
+        scope.launch {
+            controller.state
+                .map { it.sleepTimerRemainingMs }
+                .distinctUntilChanged()
+                .collect { remaining ->
+                    if (remaining != null) {
+                        sleepMemoryConfig.resetExtensionCount()
                     }
                 }
         }

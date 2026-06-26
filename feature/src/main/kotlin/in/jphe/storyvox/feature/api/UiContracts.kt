@@ -1278,6 +1278,25 @@ data class UiSettings(
      *  the timer duration. Per-device pref (NOT synced). */
     val sleepBedtimeAutoEnabled: Boolean = false,
     /**
+     * Issue #1119 — user-selected sleep timer duration when manually triggered
+     * (not auto-triggered by bedtime mode). Default 15 minutes for quick nap.
+     * Persisted per-device (NOT synced).
+     */
+    val sleepManualTimerMinutes: Int = 15,
+    /**
+     * Issue #1119 — user-selected sleep timer duration when auto-triggered
+     * by system (DND / Bedtime mode). Default 30 minutes for slower wind-down.
+     * Persisted per-device (NOT synced).
+     */
+    val sleepBedtimeTimerMinutes: Int = 30,
+    /**
+     * Issue #1119 — progressive extension tracking. Number of shake-extends
+     * in the current timer session (resets on new timer arm). Used to offer
+     * progressively longer extensions: 5→10→15→30 as user shakes multiple times.
+     * Transient (not persisted across sessions).
+     */
+    val sleepExtensionCount: Int = 0,
+    /**
      * Issue #596 — PCM-cache pre-render window size, in chapters.
      * The pre-render scheduler caches the next N chapters ahead of the
      * current position. Pre-fix this was hardcoded at 5
