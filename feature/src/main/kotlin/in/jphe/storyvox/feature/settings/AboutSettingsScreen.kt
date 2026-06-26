@@ -69,7 +69,7 @@ fun AboutSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (isV0500MilestoneBuild(s.sigil.versionName)) {
-                        MilestoneBadgePill()
+                        MilestoneBadgePill(s.sigil.versionName)
                     }
                 }
             }
