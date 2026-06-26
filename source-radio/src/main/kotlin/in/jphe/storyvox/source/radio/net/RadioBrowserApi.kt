@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.source.radio.net
 
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.source.radio.RadioStation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -157,7 +159,7 @@ internal class RadioBrowserApi @Inject constructor(
 
     // ─── transport ────────────────────────────────────────────────────
 
-    private inline fun <reified T> getJson(url: String): FictionResult<T> =
+    private suspend inline fun <reified T> getJson(url: String): FictionResult<T> =
         when (val raw = doRequest(url)) {
             is FictionResult.Success -> try {
                 FictionResult.Success(json.decodeFromString<T>(raw.value))
@@ -170,8 +172,8 @@ internal class RadioBrowserApi @Inject constructor(
             is FictionResult.Failure -> raw
         }
 
-    private fun doRequest(url: String): FictionResult<String> {
-        return try {
+    private suspend fun doRequest(url: String): FictionResult<String> = withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
