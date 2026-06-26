@@ -1,7 +1,7 @@
 [versions]
 # Build tools
 agp = "9.2.0"
-kotlin = "2.3.21"
+kotlin = "2.4.0"
 ksp = "2.3.9"
 # Triple-T gradle-play-publisher — `./gradlew publishReleaseBundle` uploads
 # the signed AAB to Play Console without the browser. Requires a Google
@@ -11,7 +11,7 @@ ksp = "2.3.9"
 play-publisher = "4.0.0"
 
 # AndroidX core
-core-ktx = "1.18.0"
+core-ktx = "1.19.0"
 appcompat = "1.7.1"
 activity-compose = "1.13.0"
 lifecycle = "2.10.0"
@@ -59,7 +59,7 @@ coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
 
 # Image loading
-coil = "3.4.0"
+coil = "3.5.0"
 
 # Legacy media (MediaBrowserServiceCompat for Auto)
 androidx-media = "1.8.0"

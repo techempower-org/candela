@@ -774,10 +774,9 @@ object VoiceCatalog {
      *  dir handled by VoiceManager), 8 speaker indices baked into the
      *  voice ID. Picking any Kitten voice triggers the shared-model
      *  download exactly once; subsequent picks just flip the active
-     *  speaker. The `kitten-nano-en-v0_1-fp16` upstream model ships 4
-     *  female + 4 male English voices labelled `expr-voice-2-f`,
-     *  `expr-voice-2-m`, etc. Display names are simplified (F1..F4 /
-     *  M1..M4) so the picker row stays readable.
+     *  speaker. The `kitten-nano-en-v0_8-fp16` upstream model ships 4
+     *  female + 4 male English voices. Display names are human-friendly
+     *  names (Bella, Luna, etc.) matching upstream's v0.8 speaker roster.
      *
      *  Tier is [QualityLevel.Low] because Kitten produces audibly
      *  more-compressed audio than Piper-medium and notably less prosody
@@ -805,19 +804,18 @@ object VoiceCatalog {
         val F = VoiceGender.Female
         val M = VoiceGender.Male
         // Speaker order matches sherpa-onnx's voices.bin layout for
-        // `kitten-nano-en-v0_1-fp16`: 4 female embeddings (indices 0..3)
-        // followed by 4 male embeddings (indices 4..7). Names follow
-        // upstream's `expr-voice-N-{f,m}` convention but rendered as
-        // F1..F4 / M1..M4 for picker readability.
+        // `kitten-nano-en-v0_8-fp16`: 4 female embeddings (indices 0..3)
+        // followed by 4 male embeddings (indices 4..7). Names match
+        // upstream's v0.8 speaker roster.
         return listOf(
-            kitten("kitten_f1_en_US_0", "Kitten F1", 0, F),
-            kitten("kitten_f2_en_US_1", "Kitten F2", 1, F),
-            kitten("kitten_f3_en_US_2", "Kitten F3", 2, F),
-            kitten("kitten_f4_en_US_3", "Kitten F4", 3, F),
-            kitten("kitten_m1_en_US_4", "Kitten M1", 4, M),
-            kitten("kitten_m2_en_US_5", "Kitten M2", 5, M),
-            kitten("kitten_m3_en_US_6", "Kitten M3", 6, M),
-            kitten("kitten_m4_en_US_7", "Kitten M4", 7, M),
+            kitten("kitten_f1_en_US_0", "Bella", 0, F),
+            kitten("kitten_f2_en_US_1", "Luna", 1, F),
+            kitten("kitten_f3_en_US_2", "Rosie", 2, F),
+            kitten("kitten_f4_en_US_3", "Kiki", 3, F),
+            kitten("kitten_m1_en_US_4", "Jasper", 4, M),
+            kitten("kitten_m2_en_US_5", "Bruno", 5, M),
+            kitten("kitten_m3_en_US_6", "Hugo", 6, M),
+            kitten("kitten_m4_en_US_7", "Leo", 7, M),
         )
     }
 

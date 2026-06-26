@@ -10,7 +10,7 @@ import org.junit.Test
  * Issue #119 — pinning the Kitten section of [VoiceCatalog] against
  * regression. Three properties matter:
  *
- * 1. **Eight entries** — the upstream `kitten-nano-en-v0_1-fp16` model
+ * 1. **Eight entries** — the upstream `kitten-nano-en-v0_8-fp16` model
  *    ships exactly 8 speakers (4 female, 4 male). Adding a 9th by
  *    mistake (or losing one) silently breaks the picker — Kitten is
  *    the smallest tier so a missing voice is a hard-to-spot UX dent.
@@ -37,7 +37,7 @@ class KittenCatalogTest {
 
     @Test
     fun `Kitten catalog ships exactly eight speakers`() {
-        // sherpa-onnx's kitten-nano-en-v0_1-fp16 release exposes 8 voice
+        // sherpa-onnx's kitten-nano-en-v0_8-fp16 release exposes 8 voice
         // embeddings in voices.bin (4 female + 4 male). If upstream adds
         // a 9th OR the catalog accidentally drops one, the picker no
         // longer reflects the model — this guard catches both.

@@ -142,10 +142,10 @@ class VoiceFamilyRegistry @Inject constructor() {
         VoiceFamilyDescriptor(
             id = VoiceFamilyIds.KITTEN,
             displayName = "KittenTTS",
-            description = "Local lightweight · ~24 MB shared, 8 en_US speakers",
+            description = "Local lightweight · ~25 MB shared, 8 en_US speakers",
             sourceUrl = "https://github.com/KittenML/KittenTTS",
             license = "Apache 2.0",
-            sizeHint = "~24 MB shared model, 8 en_US speakers (F1–F4 / M1–M4)",
+            sizeHint = "~25 MB shared model, 8 en_US speakers (Bella, Luna, Rosie, Kiki / Jasper, Bruno, Hugo, Leo)",
             defaultEnabled = true,
             engineFamily = VoiceEngineFamily.Local,
         ),
