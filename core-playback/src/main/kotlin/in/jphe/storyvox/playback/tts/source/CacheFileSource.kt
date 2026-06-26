@@ -218,10 +218,13 @@ class CacheFileSource private constructor(
          * `EnginePlayer.startPlaybackPipeline` calls this when
          * `PcmCache.isComplete(key)` returns true.
          *
-         * @throws IOException if reading the index fails or the pcm
-         *  file is truncated. EnginePlayer catches this and falls
-         *  back to the streaming source — a corrupt cache should
-         *  re-render rather than crash playback.
+         * @throws IOException if the entry fails its integrity gate (#1128):
+         *  unreadable / corrupt index JSON, a degenerate (zero-sentence)
+         *  index, a self-inconsistent manifest, a missing `.pcm`, or a
+         *  `.pcm` shorter than the index requires. EnginePlayer catches
+         *  this, deletes the bad entry, and falls back to the streaming
+         *  source — a corrupt cache re-renders rather than silently
+         *  skipping the chapter or crashing playback.
          */
         @Throws(IOException::class)
         suspend fun open(
@@ -229,17 +232,72 @@ class CacheFileSource private constructor(
             indexFile: File,
             startSentenceIndex: Int = 0,
         ): CacheFileSource = withContext(Dispatchers.IO) {
-            val index = pcmCacheJson.decodeFromString(
-                PcmIndex.serializer(),
-                indexFile.readText(),
-            )
-            // Validate: the .pcm file must be at least totalBytes long.
+            // Issue #1128 — the index sidecar itself can be corrupt
+            // (truncated / half-written JSON from a disk-full finalize or
+            // an OS cache-dir reap mid-write). Decoding it then throws a
+            // [kotlinx.serialization.SerializationException], NOT the
+            // [IOException] this method advertises and EnginePlayer's
+            // fall-back-to-streaming catch keys on — so a corrupt index
+            // would have escaped the cache-recovery path. Surface it as the
+            // documented IOException instead.
+            val index = runCatching {
+                pcmCacheJson.decodeFromString(PcmIndex.serializer(), indexFile.readText())
+            }.getOrElse { t ->
+                throw IOException("PCM cache index unreadable: ${indexFile.name}", t)
+            }
+
+            // Issue #1128 — integrity gate. A "complete" entry (its .idx.json
+            // exists, so [PcmCache.isComplete] is true) can still be unusable
+            // in ways that make the chapter SILENTLY SKIP rather than crash.
+            // Each is rejected here as an IOException → EnginePlayer deletes
+            // the entry and re-renders, instead of serving a broken chapter
+            // forever (the #1128 manual-cache-clear bug):
+            //
+            //  - Degenerate index (zero sentences / non-positive totalBytes):
+            //    written when a render's every sentence produced empty/declined
+            //    PCM. This is the #1128 root cause; also guarded write-side in
+            //    [`in`.jphe.storyvox.playback.cache.PcmAppender.complete]. Served
+            //    as-is it yields an instant natural-end with no audio.
+            //  - Manifest self-inconsistency (sentenceCount != sentences.size):
+            //    a tell that the JSON was truncated mid-array yet still parsed.
+            //  - Missing .pcm: the idx survived an eviction / chapter-sweep that
+            //    failed to unlink its siblings ([PcmCache.delete]/[evictTo] swallow
+            //    per-file errors), leaving idx-without-pcm.
+            //  - Truncated .pcm: shorter than the index's declared totalBytes, or
+            //    an index entry references bytes past EOF (disk-full mid-finalize,
+            //    OS cache-dir reaper between finalize and open). Reading those
+            //    ranges yields zero-length / garbage and drops the sentence.
+            if (index.sentences.isEmpty() || index.totalBytes <= 0L) {
+                throw IOException(
+                    "PCM cache empty/degenerate: sentences=${index.sentences.size} " +
+                        "totalBytes=${index.totalBytes}",
+                )
+            }
+            if (index.sentenceCount != index.sentences.size) {
+                throw IOException(
+                    "PCM cache index inconsistent: sentenceCount=${index.sentenceCount} " +
+                        "!= sentences.size=${index.sentences.size}",
+                )
+            }
+            if (!pcmFile.isFile) {
+                throw IOException("PCM cache file missing: ${pcmFile.name}")
+            }
             // PR-D's appender writes exactly totalBytes; a smaller file
             // means truncation (disk-full mid-finalize, or wiped by
             // the OS cache-dir reaper between finalize and open).
-            if (pcmFile.length() < index.totalBytes) {
+            val pcmLen = pcmFile.length()
+            if (pcmLen < index.totalBytes) {
                 throw IOException(
-                    "PCM cache file truncated: ${pcmFile.length()} < ${index.totalBytes}",
+                    "PCM cache file truncated: $pcmLen < ${index.totalBytes}",
+                )
+            }
+            // No index entry may reference bytes past EOF — a corrupt entry
+            // whose totalBytes looks fine but whose last offset is bogus would
+            // read past the mmap / RandomAccessFile and drop that sentence.
+            val maxExtent = index.sentences.maxOf { it.byteOffset + it.byteLen }
+            if (maxExtent > pcmLen) {
+                throw IOException(
+                    "PCM cache index overruns file: maxExtent=$maxExtent > length=$pcmLen",
                 )
             }
             val raf = RandomAccessFile(pcmFile, "r")

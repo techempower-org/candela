@@ -112,6 +112,47 @@ class PcmAppenderTest {
     }
 
     @Test
+    fun `complete with no appended sentences discards the entry`() {
+        // Issue #1128 — a render that never appended a sentence (every
+        // sentence produced empty/declined PCM) must NOT finalize a
+        // "complete" but zero-byte entry. Such an entry makes
+        // PcmCache.isComplete return true while CacheFileSource serves zero
+        // audio, so the chapter is silently skipped on every play until the
+        // user clears the cache by hand. complete() discards instead.
+        val app = newAppender()
+        // No appendSentence calls at all.
+        app.complete()
+
+        assertFalse(
+            "complete() with no sentences must not write idx.json (#1128)",
+            File(dir, "abc.idx.json").exists(),
+        )
+        // The degenerate partial (pcm + meta written at construction) is
+        // wiped too, so isComplete is false → next play re-renders.
+        assertFalse(File(dir, "abc.pcm").exists())
+        assertFalse(File(dir, "abc.meta.json").exists())
+    }
+
+    @Test
+    fun `complete after only empty-pcm sentences discards the entry`() {
+        // Issue #1128 — same poison, reached via the appender's empty-PCM
+        // skip path: every sentence the engine returned was empty, so
+        // nothing was recorded in the index. Finalizing would still land a
+        // zero-sentence idx.json. Discard instead.
+        val app = newAppender()
+        app.appendSentence(Sentence(0, 0, 10, "Hi."), ByteArray(0), trailingSilenceMs = 350)
+        app.appendSentence(Sentence(1, 11, 20, "There."), ByteArray(0), trailingSilenceMs = 350)
+        app.complete()
+
+        assertFalse(
+            "all-empty render must not write idx.json (#1128)",
+            File(dir, "abc.idx.json").exists(),
+        )
+        assertFalse(File(dir, "abc.pcm").exists())
+        assertFalse(File(dir, "abc.meta.json").exists())
+    }
+
+    @Test
     fun `finalize after abandon throws`() {
         val app = newAppender()
         app.abandon()

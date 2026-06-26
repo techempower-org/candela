@@ -2610,12 +2610,24 @@ class EnginePlayer @AssistedInject constructor(
                             "fromSentence=$currentSentenceIndex base=${key.fileBaseName().take(12)}",
                     )
                 }.onFailure { t ->
+                    // #1128 — the entry is "complete" (isComplete passed) but
+                    // failed CacheFileSource's integrity gate: empty/degenerate
+                    // index, truncated/missing .pcm, or unreadable idx.json.
+                    // Just falling back to streaming would leave the poisoned
+                    // entry on disk — isComplete stays true, so it keeps losing
+                    // the cache-hit race on EVERY future play and the chapter
+                    // stays silently skipped until a manual "Clear cache" (the
+                    // #1128 bug). Delete it: this play's streaming tee re-renders
+                    // a clean entry and future plays hit fresh bytes. delete() is
+                    // idempotent + swallows per-file errors; onFailure is inline
+                    // so the suspend call rides this withContext(IO) scope.
                     android.util.Log.w(
                         "EnginePlayer",
                         "pcm-cache hit-open FAILED chapter=${key.chapterId} " +
-                            "base=${key.fileBaseName().take(12)} — falling back to streaming",
+                            "base=${key.fileBaseName().take(12)} — invalidating + re-rendering",
                         t,
                     )
+                    pcmCache.delete(key)
                 }.getOrNull()
             }
         }
