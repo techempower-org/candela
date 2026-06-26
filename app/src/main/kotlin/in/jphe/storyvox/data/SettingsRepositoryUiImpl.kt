@@ -480,6 +480,11 @@ private object Keys {
     val SLEEP_SHAKE_EXTEND_MINUTES =
         intPreferencesKey("pref_sleep_shake_extend_min_v1")
 
+    /** Auto-arm sleep timer when phone enters DND / Bedtime mode.
+     *  Per-device (NOT synced). Default false. */
+    val SLEEP_BEDTIME_AUTO_ENABLED =
+        booleanPreferencesKey("pref_sleep_bedtime_auto_enabled")
+
     /** Issue #596 — PCM-cache pre-render window size in chapters
      *  (Int). Synced as of #916. Default 5 matches the legacy
      *  `DEFAULT_PRERENDER_CHAPTERS` constant in PrerenderTriggers
@@ -1102,6 +1107,7 @@ class SettingsRepositoryUiImpl(
     PlaybackResumePolicyConfig,
     `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
     SleepTimerExtendConfig,
+    `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig,
     PrerenderChapterCountConfig,
     AutoBrowserConfig,
     NetworkPatienceConfig,
@@ -1524,6 +1530,7 @@ class SettingsRepositoryUiImpl(
             sleepShakeExtendMinutes = snapSleepShakeExtendMinutes(
                 prefs[Keys.SLEEP_SHAKE_EXTEND_MINUTES] ?: 15,
             ),
+            sleepBedtimeAutoEnabled = prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: false,
             // Issue #596 — pre-render window in chapters.
             prerenderChapterCount = snapPrerenderChapterCount(
                 prefs[Keys.PRERENDER_CHAPTER_COUNT] ?: 5,
@@ -1805,6 +1812,16 @@ class SettingsRepositoryUiImpl(
     }
 
     override suspend fun currentShakeExtendMinutes(): Int = shakeExtendMinutes.first()
+
+    // --- BedtimeSleepConfig (consumed by core-playback's
+    //     StoryvoxPlaybackService to auto-arm sleep timer on DND) ---
+
+    override val bedtimeAutoSleepEnabled: Flow<Boolean> = store.data.map { prefs ->
+        prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: false
+    }
+
+    override suspend fun isBedtimeAutoSleepEnabled(): Boolean =
+        bedtimeAutoSleepEnabled.first()
 
     // --- PrerenderChapterCountConfig (issue #596, consumed by
     //     core-playback's PrerenderTriggers) ---
@@ -2556,6 +2573,10 @@ class SettingsRepositoryUiImpl(
             it[Keys.SLEEP_SHAKE_EXTEND_MINUTES] = snapSleepShakeExtendMinutes(minutes)
         }
         stampSyncedWrite()
+    }
+
+    override suspend fun setSleepBedtimeAutoEnabled(enabled: Boolean) {
+        store.edit { it[Keys.SLEEP_BEDTIME_AUTO_ENABLED] = enabled }
     }
 
     /** Issue #596 — PCM-cache pre-render window in chapters. Synced as of #916. */

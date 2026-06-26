@@ -204,6 +204,13 @@ fun VoiceAndPlaybackSettingsScreen(
                         viewModel.setSleepShakeExtendMinutes(shakeOptions[idx])
                     },
                 )
+
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_voice_bedtime_auto_title),
+                    subtitle = stringResource(R.string.settings_voice_bedtime_auto_subtitle),
+                    checked = s.sleepBedtimeAutoEnabled,
+                    onCheckedChange = viewModel::setSleepBedtimeAutoEnabled,
+                )
             }
         }
     }

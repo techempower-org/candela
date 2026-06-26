@@ -23,7 +23,11 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.MediaStyleNotificationHelper
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import dagger.hilt.android.AndroidEntryPoint
+import `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
 import `in`.jphe.storyvox.playback.diagnostics.AudioOutputMonitor
 import `in`.jphe.storyvox.playback.sleep.ShakeDetector
@@ -81,6 +85,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
      *  so a Settings flip takes effect on the very next shake without
      *  restarting the service. */
     @Inject lateinit var sleepExtendConfig: SleepTimerExtendConfig
+    @Inject lateinit var bedtimeSleepConfig: BedtimeSleepConfig
 
     private lateinit var session: MediaSession
     private lateinit var player: EnginePlayer
@@ -104,6 +109,13 @@ class StoryvoxPlaybackService : MediaSessionService() {
     /** Tracks whether the detector is currently registered to avoid
      *  redundant register/unregister churn on every state emission. */
     private var shakeListening: Boolean = false
+
+    /** DND / Bedtime mode auto-sleep receiver, registered when the
+     *  bedtime-auto-sleep setting is on and playback is active.
+     *  Unregistered on destroy or when the setting is flipped off. */
+    private var dndReceiver: BroadcastReceiver? = null
+    private var dndReceiverRegistered: Boolean = false
+    private var bedtimeJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -192,6 +204,46 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     } else if (!inFadeWindow && shakeListening) {
                         shakeDetector?.stop()
                         shakeListening = false
+                    }
+                }
+        }
+
+        // Bedtime / DND auto-sleep: register a BroadcastReceiver for
+        // ACTION_INTERRUPTION_FILTER_CHANGED. When the phone enters
+        // DND (Sleep mode, Bedtime mode, manual toggle) while playback
+        // is active and the user has the setting on, auto-arm the
+        // sleep timer at the shake-extend duration. The receiver is
+        // only registered while the setting is enabled.
+        dndReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent?) {
+                if (intent?.action != NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) return
+                val nm = context.getSystemService(NotificationManager::class.java)
+                val filter = nm.currentInterruptionFilter
+                if (filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+                    controller.state.value.isPlaying &&
+                    controller.state.value.sleepTimerRemainingMs == null
+                ) {
+                    scope.launch {
+                        val minutes = sleepExtendConfig.currentShakeExtendMinutes()
+                        controller.startSleepTimer(SleepTimerMode.Duration(minutes))
+                        Log.i(TAG, "Bedtime auto-sleep: armed ${minutes}min (DND filter=$filter)")
+                    }
+                }
+            }
+        }
+        bedtimeJob = scope.launch {
+            bedtimeSleepConfig.bedtimeAutoSleepEnabled
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    if (enabled && !dndReceiverRegistered) {
+                        registerReceiver(
+                            dndReceiver,
+                            IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED),
+                        )
+                        dndReceiverRegistered = true
+                    } else if (!enabled && dndReceiverRegistered) {
+                        unregisterReceiver(dndReceiver)
+                        dndReceiverRegistered = false
                     }
                 }
         }
@@ -363,6 +415,12 @@ class StoryvoxPlaybackService : MediaSessionService() {
         }
         shakeDetector = null
         shakeJob = null
+        if (dndReceiverRegistered) {
+            unregisterReceiver(dndReceiver)
+            dndReceiverRegistered = false
+        }
+        dndReceiver = null
+        bedtimeJob = null
         scope.cancel()
         super.onDestroy()
     }

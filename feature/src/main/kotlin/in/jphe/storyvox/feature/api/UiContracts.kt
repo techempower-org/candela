@@ -1273,6 +1273,10 @@ data class UiSettings(
      * Per-device pref (NOT synced).
      */
     val sleepShakeExtendMinutes: Int = 15,
+    /** Auto-arm the sleep timer when the phone enters Bedtime / Sleep
+     *  / DND mode during playback. Uses [sleepShakeExtendMinutes] as
+     *  the timer duration. Per-device pref (NOT synced). */
+    val sleepBedtimeAutoEnabled: Boolean = false,
     /**
      * Issue #596 — PCM-cache pre-render window size, in chapters.
      * The pre-render scheduler caches the next N chapters ahead of the
@@ -1809,6 +1813,8 @@ interface SettingsRepositoryUi {
      * a no-op so existing test fakes compile without overrides.
      */
     suspend fun setSleepShakeExtendMinutes(minutes: Int) = Unit
+    /** Auto-arm sleep timer on Bedtime / DND mode. Default no-op. */
+    suspend fun setSleepBedtimeAutoEnabled(enabled: Boolean) = Unit
     /**
      * Issue #596 — set the PCM-cache pre-render window size, in
      * chapters. Snapped to [1, 2, 3, 5] on write. Default impl is a
