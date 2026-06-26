@@ -6,12 +6,14 @@ import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.filter.FilterValue
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.SearchQuery
+import `in`.jphe.storyvox.source.librivox.net.GutenbergTextApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxSection
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -36,8 +38,9 @@ import org.junit.Test
 class LibriVoxSourceTest {
 
     private val noopApi = LibriVoxApi(OkHttpClient())
+    private val noopGutenberg = GutenbergTextApi(OkHttpClient())
 
-    private fun source(): LibriVoxSource = LibriVoxSource(noopApi)
+    private fun source(): LibriVoxSource = LibriVoxSource(noopApi, noopGutenberg)
 
     @Test fun `id and displayName use the LIBRIVOX source`() {
         val src = source()
@@ -135,5 +138,85 @@ class LibriVoxSourceTest {
     @Test fun `user-agent identifies storyvox-librivox`() {
         assertTrue(LibriVoxSource.USER_AGENT.contains("storyvox-librivox"))
         assertTrue(LibriVoxSource.USER_AGENT.contains("github.com/techempower-org/candela"))
+    }
+
+    // ─── Issue #1046 — open-domain text companion ──────────────────────
+
+    @Test fun `gutenbergTextChapterIdFor is distinct from the section id shape`() {
+        // Section ids are "<bookId>:<number>"; the text companion is
+        // "<bookId>:gutenberg-text" so chapter() routes them apart.
+        assertEquals("47:gutenberg-text", LibriVoxSource.gutenbergTextChapterIdFor("47"))
+        val sectionId = LibriVoxSource.chapterIdFor(
+            "47",
+            LibriVoxSection(id = "1", sectionNumber = "1", title = "Ch 1"),
+        )
+        assertFalse(
+            "text-companion id must not collide with a section id",
+            sectionId == LibriVoxSource.gutenbergTextChapterIdFor("47"),
+        )
+    }
+
+    @Test fun `parseGutenbergId extracts the ebook id from the catalog URL shapes`() {
+        assertEquals("1342", GutenbergTextApi.parseGutenbergId("https://www.gutenberg.org/ebooks/1342"))
+        assertEquals("1342", GutenbergTextApi.parseGutenbergId("http://gutenberg.org/ebooks/1342"))
+        assertEquals(
+            "1342",
+            GutenbergTextApi.parseGutenbergId("https://www.gutenberg.org/files/1342/1342-h/1342-h.htm"),
+        )
+        assertEquals("11", GutenbergTextApi.parseGutenbergId("http://www.gutenberg.org/etext/11"))
+        assertEquals(
+            "84",
+            GutenbergTextApi.parseGutenbergId("https://www.gutenberg.org/cache/epub/84/pg84.txt"),
+        )
+    }
+
+    @Test fun `parseGutenbergId returns null for non-Gutenberg or blank sources`() {
+        // LibriVox texts aren't always on Gutenberg (Wikisource,
+        // archive.org, …) — those must skip the text chapter, not guess.
+        assertNull(GutenbergTextApi.parseGutenbergId("https://en.wikisource.org/wiki/Frankenstein"))
+        assertNull(GutenbergTextApi.parseGutenbergId("https://archive.org/details/something"))
+        assertNull(GutenbergTextApi.parseGutenbergId("https://www.gutenberg.org/about/"))
+        assertNull(GutenbergTextApi.parseGutenbergId(""))
+        assertNull(GutenbergTextApi.parseGutenbergId(null))
+    }
+
+    @Test fun `plainTextUrl targets the stable UTF-8 plain-text alias`() {
+        assertEquals(
+            "https://www.gutenberg.org/ebooks/1342.txt.utf-8",
+            GutenbergTextApi.plainTextUrl("1342"),
+        )
+    }
+
+    @Test fun `stripGutenbergBoilerplate keeps only the content between the markers`() {
+        val raw = """
+            The Project Gutenberg eBook of Example
+            Some license preamble here.
+
+            *** START OF THE PROJECT GUTENBERG EBOOK EXAMPLE ***
+
+            Chapter One. It was a bright cold day.
+
+            *** END OF THE PROJECT GUTENBERG EBOOK EXAMPLE ***
+
+            Trailing license / donation boilerplate.
+        """.trimIndent()
+        val body = GutenbergTextApi.stripGutenbergBoilerplate(raw)
+        assertTrue("content kept", body.contains("Chapter One. It was a bright cold day."))
+        assertFalse("license preamble dropped", body.contains("license preamble"))
+        assertFalse("trailing boilerplate dropped", body.contains("donation boilerplate"))
+        assertFalse("start marker dropped", body.contains("START OF THE PROJECT"))
+        assertFalse("end marker dropped", body.contains("END OF THE PROJECT"))
+    }
+
+    @Test fun `stripGutenbergBoilerplate tolerates the legacy THIS wording`() {
+        val raw = "junk\n***START OF THIS PROJECT GUTENBERG EBOOK FOO***\nReal text.\n" +
+            "***END OF THIS PROJECT GUTENBERG EBOOK FOO***\nfooter"
+        val body = GutenbergTextApi.stripGutenbergBoilerplate(raw)
+        assertEquals("Real text.", body)
+    }
+
+    @Test fun `stripGutenbergBoilerplate returns the whole text when markers are absent`() {
+        val raw = "A short public-domain snippet with no PG wrapper."
+        assertEquals(raw, GutenbergTextApi.stripGutenbergBoilerplate(raw))
     }
 }

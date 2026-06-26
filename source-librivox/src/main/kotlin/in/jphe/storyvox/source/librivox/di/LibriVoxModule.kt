@@ -10,6 +10,7 @@ import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.librivox.LibriVoxSource
+import `in`.jphe.storyvox.source.librivox.net.GutenbergTextApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxApi
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
@@ -53,6 +54,19 @@ internal object LibriVoxHttpModule {
     fun provideLibriVoxApi(
         @LibriVoxHttp client: OkHttpClient,
     ): LibriVoxApi = LibriVoxApi(client)
+
+    /**
+     * Issue #1046 — Project Gutenberg plain-text fetcher for the
+     * open-domain text companion chapter. Reuses the same
+     * redirect-following [LibriVoxHttp] client (the `.txt.utf-8` alias
+     * 302s to the cache host, and the generous read timeout suits a
+     * multi-hundred-KB book download).
+     */
+    @Provides
+    @Singleton
+    fun provideGutenbergTextApi(
+        @LibriVoxHttp client: OkHttpClient,
+    ): GutenbergTextApi = GutenbergTextApi(client)
 }
 
 /**

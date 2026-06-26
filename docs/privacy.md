@@ -2,7 +2,6 @@
 layout: default
 title: Candela · Privacy Policy
 description: Candela's privacy policy. Plain-language summary: nothing leaves your device without your explicit action, no analytics, no ads, no tracking.
-permalink: /privacy/
 ---
 
 # Privacy Policy
@@ -13,12 +12,11 @@ permalink: /privacy/
 > downloading a voice). Uninstalling the app deletes everything stored
 > locally; signing out of sync deletes the cloud-side copy too.
 
-**Effective date:** _draft — to be set at v1.0 ship date_  
+**Effective date:** 2026-06-26  
 **App:** Candela (`org.techempower.candela`)  
 **Publisher:** TechEmpower (501(c)(3) nonprofit, operating Candela)  
 **Maintainer:** JP Hein (`jp@jphein.com`)  
-**Contact for privacy questions:** _DRAFT — JP to confirm. Candidates:
-`claude2@techempower.org` or `jp@jphein.com`._
+**Contact for privacy questions:** `jp@jphein.com`
 
 ---
 
@@ -254,7 +252,7 @@ statutory timeframe.
 
 We'll post material changes to this page with an updated "Effective date"
 above. The previous versions are visible in the git history at
-`docs/privacy-policy.md` in the Candela repository — the policy itself is
+`docs/privacy.md` in the Candela repository — the policy itself is
 versioned alongside the app.
 
 For substantive changes (new third-party service, new data collected, etc.)
@@ -267,7 +265,7 @@ that introduces the change, and surface a one-time notice in-app.
 
 For questions, requests, or concerns about your privacy in Candela:
 
-- **Email:** _DRAFT — JP to fill in: claude2@techempower.org or jp@jphein.com_
+- **Email:** `jp@jphein.com`
 - **GitHub issues:** [github.com/techempower-org/candela/issues](https://github.com/techempower-org/candela/issues)
   (public; do not include private information)
 

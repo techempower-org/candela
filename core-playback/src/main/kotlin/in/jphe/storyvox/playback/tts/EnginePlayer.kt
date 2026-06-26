@@ -152,6 +152,37 @@ internal fun shouldCheckpointPosition(state: PlaybackState): Boolean =
     state.currentFictionId != null && state.currentChapterId != null
 
 /**
+ * Issue #1126 — did a thermal-status transition cross the MODERATE
+ * boundary in either direction?
+ *
+ * [ThermalMonitor.THERMAL_STATUS_MODERATE] (2) is the threshold at which
+ * [EnginePlayer.startPlaybackPipeline] drops parallel-synth secondaries to
+ * serial mode (#803). Crossing it — up (throttle on) or down (throttle off)
+ * — changes the *effective* concurrency the NEXT pipeline build will use.
+ *
+ * The cap is read fresh from `cachedThermalStatus` at every
+ * `startPlaybackPipeline()`, so it applies automatically on the next natural
+ * pipeline boundary (next chapter / seek / voice-swap / speed change). We do
+ * NOT force a mid-playback rebuild on a crossing: tearing the AudioTrack down
+ * mid-sentence restarts the producer at the current sentence's start, which
+ * the listener hears as a brief pause followed by the current sentence
+ * replaying from the beginning — issue #1126's "pause-then-repeat". Since the
+ * concurrency cap is a producer-side optimisation with no audible component,
+ * deferring it to the next boundary costs nothing audible while removing the
+ * intermittent replay entirely.
+ *
+ * Extracted as a top-level function so the boundary math can be exercised in a
+ * pure unit test (EnginePlayerThermalRebuildTest) without standing up the full
+ * EnginePlayer + Hilt + sherpa-onnx graph — same constraint that gates
+ * [shouldAutoPlayAfterAdvance] / [shouldCheckpointPosition].
+ */
+internal fun crossedThermalModerateBoundary(prev: Int, status: Int): Boolean =
+    (prev < ThermalMonitor.THERMAL_STATUS_MODERATE &&
+        status >= ThermalMonitor.THERMAL_STATUS_MODERATE) ||
+    (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
+        status < ThermalMonitor.THERMAL_STATUS_MODERATE)
+
+/**
  * Issue #189 — playback state for the one-shot recap-aloud TTS pipeline.
  * Distinct from [PlaybackState] because the recap is a transient utterance
  * with its own AudioTrack; conflating the two would force every chapter
@@ -497,17 +528,27 @@ class EnginePlayer @AssistedInject constructor(
     }
 
     /**
-     * Issue #803 — collect [ThermalMonitor.thermalStatus] and cache
-     * it as a volatile for the synchronous pipeline-construction path.
-     * When the status rises to MODERATE (2) or above, the next pipeline
-     * rebuild caps the effective parallel-synth concurrency to 1 (serial
-     * mode). If playback is already running, we trigger a pipeline
-     * rebuild so the cap takes effect immediately rather than waiting
-     * for the next chapter/seek/voice-swap.
+     * Issue #803 / #1126 — collect [ThermalMonitor.thermalStatus] and
+     * cache it as a volatile for the synchronous pipeline-construction
+     * path. When the status is MODERATE (2) or above, the next pipeline
+     * build caps the effective parallel-synth concurrency to 1 (serial
+     * mode); when it drops back below MODERATE the next build restores
+     * the user's configured concurrency from [cachedParallelSynthInstances].
      *
-     * When the status drops back below MODERATE, the same rebuild
-     * restores the user's configured concurrency from
-     * [cachedParallelSynthInstances].
+     * Issue #1126 — the cap is DEFERRED to the next natural pipeline
+     * boundary (next chapter / seek / voice-swap / speed change), which
+     * reads `cachedThermalStatus` fresh at construction time (see
+     * [startPlaybackPipeline]'s `effectiveSecondaryHandles`). We no longer
+     * force an immediate mid-playback rebuild on a thermal crossing: a
+     * rebuild tears the AudioTrack down and restarts the producer at the
+     * current sentence's start, so the listener hears a brief pause then
+     * the current sentence replaying from the beginning — the intermittent
+     * "pause-then-repeat" reported in #1126. The thermal trigger was the
+     * only non-user, intermittent rebuild path (speed/pitch/pause-mult/seek/
+     * voice-swap are all user-initiated and capture the audible position
+     * first). The concurrency cap is a producer-side optimisation with no
+     * audible component, so deferring it costs nothing the listener can hear
+     * while removing the replay entirely. See [crossedThermalModerateBoundary].
      */
     private fun observeThermalStatus() {
         scope.launch {
@@ -515,27 +556,20 @@ class EnginePlayer @AssistedInject constructor(
                 val prev = cachedThermalStatus
                 cachedThermalStatus = status
                 if (prev == status) return@collect
-                DebugLog.i("EnginePlayer") {
-                    "#803 thermal status update: $prev -> $status" +
-                        if (status >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
-                            " — capping parallel synth to serial mode"
-                        } else if (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
-                            " — restoring user-configured concurrency"
-                        } else {
-                            ""
-                        }
-                }
-                // Only trigger a pipeline rebuild if the thermal status
-                // crosses the MODERATE boundary while playing. Rebuilds
-                // within the same thermal zone (e.g. SEVERE -> CRITICAL)
-                // are unnecessary — the cap is already at serial.
-                val crossedThreshold =
-                    (prev < ThermalMonitor.THERMAL_STATUS_MODERATE &&
-                        status >= ThermalMonitor.THERMAL_STATUS_MODERATE) ||
-                    (prev >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
-                        status < ThermalMonitor.THERMAL_STATUS_MODERATE)
-                if (crossedThreshold && _observableState.value.isPlaying) {
-                    startPlaybackPipeline()
+                // #1126 — log the (deferred) concurrency change when we
+                // cross the MODERATE boundary; the new value is picked up
+                // by the next startPlaybackPipeline() with no mid-playback
+                // teardown. Same-zone changes (e.g. SEVERE -> CRITICAL)
+                // don't alter the serial/parallel decision and are silent.
+                if (crossedThermalModerateBoundary(prev, status)) {
+                    DebugLog.i("EnginePlayer") {
+                        "#1126 thermal crossed MODERATE: $prev -> $status — " +
+                            if (status >= ThermalMonitor.THERMAL_STATUS_MODERATE) {
+                                "parallel synth will cap to serial on next pipeline build"
+                            } else {
+                                "user-configured concurrency restored on next pipeline build"
+                            }
+                    }
                 }
             }
         }
@@ -2529,11 +2563,13 @@ class EnginePlayer @AssistedInject constructor(
         // the pipeline runs in serial mode (single engine). The
         // secondary engine instances stay alive in memory (they're
         // expensive to construct) — we just don't hand them to the
-        // streaming source for this pipeline lifetime. When the
-        // thermal status drops below MODERATE, [observeThermalStatus]
-        // triggers a pipeline rebuild that passes the full set of
-        // secondaries again, restoring the user's configured
-        // concurrency without re-loading models.
+        // streaming source for this pipeline lifetime. Issue #1126 —
+        // the cap is applied HERE, at construction time, off the live
+        // `cachedThermalStatus`; [observeThermalStatus] no longer forces
+        // a mid-playback rebuild (that caused an audible pause-then-repeat),
+        // so a thermal change takes effect on the next natural pipeline
+        // boundary (next chapter / seek / voice-swap / speed change),
+        // restoring or capping concurrency without re-loading models.
         val effectiveSecondaryHandles = if (
             thermalStatus >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
             secondaryHandles.isNotEmpty()
@@ -2774,20 +2810,6 @@ class EnginePlayer @AssistedInject constructor(
             // setVolume JNI call when the ramp is idle, which is the steady
             // state. Seeded in the firstSentence block below.
             var lastVol = -1f
-            // Issue #883 — pause-mid-write resume state. When the user
-            // pauses while we're partway through writing a chunk's PCM (or
-            // its trailing silence), the inner write loops break and we
-            // stash the in-flight chunk here along with how far we got.
-            // After the fast-pause park clears on resume, we re-enter the
-            // write phase for the SAME chunk at the saved offsets instead
-            // of pulling the next chunk from the queue — which would skip
-            // the rest of sentence N and jump to N+1, the audible "player
-            // skips a few seconds on pause" symptom. pausedPcmOffset is a
-            // byte index into chunk.pcm; pausedSilenceWritten is bytes of
-            // trailing silence already accepted by AudioTrack.
-            var pausedChunk: PcmChunk? = null
-            var pausedPcmOffset = 0
-            var pausedSilenceWritten = 0
             try {
                 while (pipelineRunning.get()) {
                     // Issue #540 — fast-pause park. When the user taps
@@ -2842,16 +2864,7 @@ class EnginePlayer @AssistedInject constructor(
                     // but because the consumer thread is the only thing
                     // waiting for the result, runBlocking just parks it
                     // exactly as queue.take() did pre-PR-A.
-                    // Issue #883 — if a prior iteration paused mid-write,
-                    // resume that exact chunk rather than dequeuing the
-                    // next one. resumedFromPause gates the per-chunk setup
-                    // below (sentence-range broadcast, firstSentence
-                    // prebuffer) so we don't re-fire it for a chunk the
-                    // listener was already partway through.
-                    val resumedFromPause = pausedChunk != null
-                    val chunkOrNull = if (resumedFromPause) {
-                        pausedChunk
-                    } else try {
+                    val chunkOrNull = try {
                         runBlocking { source.nextChunk() }
                     } catch (t: Throwable) {
                         // Issue #588 — pre-fix this was a silent
@@ -2910,8 +2923,6 @@ class EnginePlayer @AssistedInject constructor(
                     // and-forget on Main — withContext would force this
                     // thread to coordinate with the coroutine dispatcher,
                     // which is the whole reason we left coroutines.
-                    // #883 — skip on a pause-resume: the listener is still
-                    // inside this same sentence, the range is already live.
                     //
                     // #865 — gate on sentence-index change. Pre-fix this
                     // launched a new coroutine on EVERY chunk, even when
@@ -2922,7 +2933,7 @@ class EnginePlayer @AssistedInject constructor(
                     // write of currentSentenceIndex to this thread (single
                     // writer, volatile read elsewhere is safe) and only
                     // launch when the index actually changes.
-                    if (!resumedFromPause && chunk.sentenceIndex != currentSentenceIndex) {
+                    if (chunk.sentenceIndex != currentSentenceIndex) {
                         currentSentenceIndex = chunk.sentenceIndex
                         // Issue #974 (Part B) — dispatch the sentence-range
                         // emit with Dispatchers.Main.immediate. The highlight
@@ -3169,22 +3180,27 @@ class EnginePlayer @AssistedInject constructor(
                         // 16-bit mono PCM = 2 bytes per frame.
                         if (n > 0) totalFramesWritten += n / 2
                     }
-                    // Issue #540 — if we bailed because of user pause,
-                    // we may have written part of this chunk's PCM into
-                    // the AudioTrack ring buffer. That audio is still
-                    // queued and will be heard the moment resume() calls
-                    // track.play(). The remainder (chunk.pcm[written..])
-                    // is dropped on the floor — but since we're parked,
-                    // the SAME chunk will be retried on the next outer
-                    // loop iteration via a fresh nextChunk()... no, wait:
-                    // we already consumed this chunk from the queue.
-                    // Continuing past the trailing-silence branch below
-                    // is correct — the listener will hear the partial
-                    // chunk on resume, then the next chunk picks up
-                    // mid-sentence (~ 200 ms quantum, indistinguishable
-                    // from a clean pause to the listener).
-                    // Spool trailing silence from a shared zero-filled
-                    // buffer (no per-sentence allocation).
+                    // Issue #540 — if we broke out of the loop above because
+                    // the user paused mid-write, chunk.pcm[0..written] is
+                    // already in the AudioTrack ring buffer. The fast-pause
+                    // path keeps the track alive, so that audio plays the
+                    // moment resume() calls track.play(). The unwritten
+                    // remainder (chunk.pcm[written..]) is dropped: this chunk
+                    // was already dequeued, so the next outer iteration pulls
+                    // the FOLLOWING chunk — the tail of the current sentence is
+                    // lost across a pause/resume.
+                    //
+                    // #1144 — the #883 scaffold (pausedChunk / pausedPcmOffset /
+                    // pausedSilenceWritten) was meant to re-enter THIS chunk at
+                    // the saved byte offset to eliminate that tail-skip, but it
+                    // was never wired up (the fields were dead reads), so it has
+                    // been removed. Resuming exactly mid-sentence would re-init
+                    // `written` to the saved offset here and skip the trailing
+                    // silence already played; left as a possible follow-up — it
+                    // is runtime-only behaviour with no JVM test seam.
+                    //
+                    // Spool trailing silence from a shared zero-filled buffer
+                    // (no per-sentence allocation).
                     var remaining = chunk.trailingSilenceBytes
                     while (remaining > 0 && pipelineRunning.get()) {
                         if (userPaused.get()) break // #540 — same logic as PCM loop.
@@ -4196,6 +4212,31 @@ class EnginePlayer @AssistedInject constructor(
                 _uiEvents.tryEmit(PlaybackUiEvent.BookFinished)
             }
             return@withLock
+        }
+        // Issue #1127 — a FORWARD advance is a fresh listen of the incoming
+        // chapter: reaching the end of chapter N (auto-advance) or tapping
+        // Next means chapter N+1 must begin at its head, even if the user
+        // partially listened to N+1 earlier and a stale resume offset still
+        // sits in its playback_position row. The `loadAndPlay(charOffset=0)`
+        // below already drives the AUDIO from the head, but its persist of
+        // that 0 only lands AFTER the body-wait (up to
+        // CHAPTER_BODY_WAIT_TIMEOUT_MS). Reset the incoming chapter's row
+        // up-front so (a) the timeout/error path can't strand the stale
+        // offset, and (b) every external surface that reads the resume point
+        // DURING the transition — Library "Continue listening", Auto/Wear
+        // browse, the sync snapshot — sees the head, never the stale
+        // middle-of-chapter offset (the #1127 symptom). Forward only: a
+        // Previous tap / skip-back-into-prev owns its own offset semantics.
+        if (direction >= 0) {
+            runCatching { positionRepo.resetToChapterStart(fiction, nextId) }
+                .onFailure {
+                    android.util.Log.w(
+                        "EnginePlayer",
+                        "advanceChapter: resetToChapterStart($nextId) failed " +
+                            "(${it.javaClass.simpleName}: ${it.message}) — continuing; " +
+                            "loadAndPlay still loads at charOffset=0",
+                    )
+                }
         }
         // Issue #524 — surface a Buffering state while we wait for the
         // next chapter's body to land in the DB. Pre-fix the engine sat

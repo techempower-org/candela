@@ -7,6 +7,7 @@ import `in`.jphe.storyvox.data.db.StoryvoxDatabase
 import `in`.jphe.storyvox.data.db.entity.Chapter
 import `in`.jphe.storyvox.data.db.entity.Fiction
 import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
+import `in`.jphe.storyvox.data.repository.PlaybackPositionRepositoryImpl
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -36,7 +37,13 @@ import org.robolectric.annotation.Config
  * Also covers recent() + the cascade delete from chapter / fiction.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(manifest = Config.NONE)
+// Pin Robolectric's emulated SDK to 36 (its current ceiling — Robolectric
+// 4.16.1 supports API ≤36). The module compiles against compileSdk=37 with no
+// explicit targetSdk, so the test manifest defaults to targetSdkVersion=37 and
+// the runner otherwise fails to initialize ("targetSdkVersion=37 >
+// maxSdkVersion=36"). Tracked module-wide as #1132; pinned here so this class's
+// tests (incl. the #1127 regression below) run regardless of merge order.
+@Config(manifest = Config.NONE, sdk = [36])
 class PlaybackDaoTest {
 
     private lateinit var db: StoryvoxDatabase
@@ -310,6 +317,52 @@ class PlaybackDaoTest {
         assertEquals(1.25f, c1.playbackSpeed, 0.0001f)
 
         assertNull("non-existent chapter row is null", dao.get("f1", "nope"))
+    }
+
+    @Test
+    fun resetToChapterStart_snapsChapterToHead_andBecomesFreshestResume() = runTest {
+        // Issue #1127 reproduced at the persistence layer. The user partially
+        // heard ch3 (charOffset=500), backed up to ch2 and listened it to the
+        // end (a fresher updatedAt), so before auto-advancing INTO ch3 its row
+        // still carries the stale mid-chapter offset. resetToChapterStart must
+        // snap ch3 to its head so the next listen — and any surface reading the
+        // resume point mid-transition — starts at 0, never the stale offset.
+        val repo = PlaybackPositionRepositoryImpl(dao)
+        fictionDao.upsert(fiction("f1"))
+        chapterDao.upsert(chapter("c2", "f1", index = 1))
+        chapterDao.upsert(chapter("c3", "f1", index = 2))
+        dao.upsert(
+            PlaybackPosition(
+                "f1", "c3", charOffset = 500, paragraphIndex = 7,
+                playbackSpeed = 1.5f, durationEstimateMs = 90_000L, updatedAt = 100L,
+            ),
+        )
+        dao.upsert(PlaybackPosition("f1", "c2", charOffset = 8_000, updatedAt = 200L))
+
+        repo.resetToChapterStart("f1", "c3")
+
+        // ch3's exact row snaps to the head: cursor zeroed, row REPLACED in
+        // place (no stale 500, no duplicate under the composite PK), and the
+        // per-chapter speed + duration estimate preserved.
+        val c3 = dao.get("f1", "c3")
+        assertNotNull(c3)
+        assertEquals(0, c3!!.charOffset)
+        assertEquals(0, c3.paragraphIndex)
+        assertEquals(1.5f, c3.playbackSpeed, 0.0001f)
+        assertEquals(90_000L, c3.durationEstimateMs)
+
+        // Exactly two rows survive — the reset replaced ch3 rather than adding.
+        assertEquals(2, dao.allPositionsSnapshot().count { it.fictionId == "f1" })
+
+        // The bumped updatedAt makes ch3@0 the freshest resume target, so
+        // load()/observe() surface the head — the #1127 symptom is gone.
+        val resume = dao.get("f1")
+        assertNotNull(resume)
+        assertEquals("c3", resume!!.chapterId)
+        assertEquals(0, resume.charOffset)
+
+        // The sibling chapter the user actually finished is left untouched.
+        assertEquals(8_000, dao.get("f1", "c2")!!.charOffset)
     }
 
     @Test

@@ -21,10 +21,8 @@ class VoiceFamilyRegistryTest {
     @Test fun `registry exposes SystemTts Piper Kokoro Kitten Supertonic Azure and the upstream placeholder`() {
         val registry = VoiceFamilyRegistry()
         val ids = registry.descriptors.map { it.id }
-        // #676 added System TTS (zero-download first-launch tier); #1114
-        // scaffolded the Supertonic family — together bringing the registry
-        // to seven descriptors. (#1132: this assertion drifted to 6 while the
-        // Robolectric suite was un-runnable under compileSdk=37.)
+        // #676 — System TTS joined as the zero-download first-launch tier;
+        // #1120 — the Supertonic 3 scaffold added the seventh descriptor.
         assertEquals(
             "Registry should ship exactly seven descriptors today",
             7,

@@ -1,0 +1,36 @@
+PLAY STORE RELEASE NOTES — TEMPLATE
+====================================
+Hard limit: 500 characters per language (Play Console rejects longer).
+Live publish file: app/src/main/play/release-notes/en-US/default.txt
+Keep it user-facing: what changed for the listener, not issue numbers.
+3–5 bullets. Lead with the tagline from CHANGELOG.md.
+
+------------------------------------------------------------
+TEMPLATE (copy into default.txt, fill the placeholders):
+------------------------------------------------------------
+v<MAJOR.MINOR.PATCH> — <short tagline>
+
+• <headline change in plain language>
+• <second user-facing improvement>
+• <third user-facing improvement>
+• Fixes & polish: <one short line>
+
+------------------------------------------------------------
+EXAMPLE — v1.1.5 (this release; 470 chars, within limit):
+------------------------------------------------------------
+v1.1.5 — Voices, gears, and polish
+
+• Upgraded KittenTTS voices (v0.8): clearer, more natural speech with named speakers
+• Voice downloads are now gzip-compressed, so big voice models use less data
+• Inbox unread count now adds up correctly across new-chapter checks
+• Accessibility: clearer TalkBack labels for settings, chat read-aloud, and tool cards
+• Under the hood: build migration (AGP 9) and a dependency refresh
+
+------------------------------------------------------------
+NOTES
+- First production release should say "First public release" + a 4–5 bullet
+  feature summary (see full-description.txt for the feature set), still <=500.
+- Don't include version-internal jargon (module names, PR numbers) — those
+  live in CHANGELOG.md, not the Play listing.
+- Emoji are allowed but keep them sparse; Play flags promo-style copy
+  ("BEST!", "#1", excessive caps).

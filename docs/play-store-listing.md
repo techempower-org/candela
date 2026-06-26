@@ -44,7 +44,7 @@ Three drafts, ranked. JP picks final:
 Three drafts, ranked:
 
 1. **`Free books, tech guides, and accessible help — read aloud by TechEmpower.`** (74 ch) ✅ recommended — concrete benefit, mentions TechEmpower, no jargon.
-2. `Neural-voice audiobook player. 21 sources. Free, ad-free, on-device.` (68 ch) — leads with the audiobook angle.
+2. `Neural-voice audiobook player. 25 sources. Free, ad-free, on-device.` (68 ch) — leads with the audiobook angle.
 3. `Listen to anything text — tech guides, fiction, wiki, RSS — all on-device.` (74 ch) — leans into "anything text" but loses the TechEmpower hook.
 
 ### Full description (4000 char max)
@@ -61,7 +61,7 @@ through a high-quality neural text-to-speech engine that runs entirely on
 your device. No subscription. No ads. No tracking.
 
 Under the hood, Candela is a serious audiobook player for any text you
-have access to — twenty-one fiction and reference backends are wired in,
+have access to — twenty-five fiction and reference backends are wired in,
 side by side. Browse Royal Road, Archive of Our Own, Standard Ebooks,
 Project Gutenberg, Wikipedia, Hacker News, arXiv, PLOS, and more. Open
 EPUB files from your device's storage. Connect your Notion workspace,
@@ -92,7 +92,7 @@ section. Twelve accessibility audit findings closed in version 0.5.43;
 work continues.
 
 FEATURES
-• 21 fiction & reference backends — opt in to the ones you want
+• 25 fiction & reference backends — opt in to the ones you want
 • 3 on-device neural voice families (Piper, Kokoro, KittenTTS)
 • Optional Bring-Your-Own-Key cloud voices (Microsoft Azure)
 • Reader view with synced sentence highlighting
@@ -261,9 +261,9 @@ library state, encrypted in transit, deletable by the user.
 
 `https://candela.techempower.org/privacy/`
 
-The policy lives at `docs/privacy-policy.md`; Jekyll renders it at
-`/privacy/` via the `permalink: /privacy/` front-matter directive. Verify
-the URL resolves before Play submission.
+The policy lives at `docs/privacy.md`; Jekyll renders it at `/privacy/`
+from the filename under the site's pretty-permalink config (keep the file
+named `privacy.md`). Verify the URL resolves before Play submission.
 
 ---
 
