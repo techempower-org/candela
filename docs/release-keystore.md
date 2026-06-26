@@ -12,7 +12,7 @@ v1.0 Play Store launch.
 
 > **Audience.** JP (the developer) and any future maintainer who needs to
 > rebuild a release APK or recover from a keystore loss. Public-facing context
-> for users lives in [Privacy Policy](privacy-policy.html) and the
+> for users lives in [Privacy Policy](privacy.html) and the
 > [install guide](install.html).
 
 ---

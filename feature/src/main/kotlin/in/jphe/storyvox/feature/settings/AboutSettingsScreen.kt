@@ -9,11 +9,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
+
+/** Hosted privacy policy (source: `docs/privacy.md`). Play Console requires a
+ *  reachable privacy-policy URL, and the policy must be reachable from inside
+ *  the app too — surfaced here per #1138. */
+private const val PRIVACY_POLICY_URL = "https://candela.techempower.org/privacy/"
 
 /**
  * Settings → About subscreen (follow-up to #440 / #467).
@@ -35,6 +41,7 @@ fun AboutSettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
+    val uriHandler = LocalUriHandler.current
 
     SettingsSubscreenScaffold(title = stringResource(R.string.settings_about_title), onBack = onBack) { padding ->
         val s = state.settings ?: run {
@@ -72,6 +79,17 @@ fun AboutSettingsScreen(
                         MilestoneBadgePill(s.sigil.versionName)
                     }
                 }
+            }
+
+            // Privacy Policy link (#1138). Play Console requires a reachable
+            // privacy-policy URL; it must also be reachable from inside the
+            // app. Opens the hosted policy in the user's browser.
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_privacy_policy),
+                    subtitle = stringResource(R.string.settings_about_privacy_policy_subtitle),
+                    onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) },
+                )
             }
         }
     }

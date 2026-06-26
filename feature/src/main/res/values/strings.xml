@@ -656,6 +656,8 @@
     <string name="settings_about_version">Candela v%1$s</string>
     <string name="settings_about_dirty"> · dirty</string>
     <string name="settings_about_built"> · built %1$s</string>
+    <string name="settings_about_privacy_policy">Privacy Policy</string>
+    <string name="settings_about_privacy_policy_subtitle">Opens in your browser</string>
 
     <!-- Settings · AI subscreen -->
     <string name="settings_ai_title">AI</string>
