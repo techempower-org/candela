@@ -372,25 +372,25 @@ class VoiceManager @Inject constructor(
                 if (!onnxFile.exists() || !voicesFile.exists() || !tokensFile.exists()) {
                     sharedDir.mkdirs()
                     try {
-                        // kitten-nano-en-v0_1-fp16 sizes (sherpa-onnx
+                        // kitten-nano-en-v0_8-fp16 sizes (sherpa-onnx
                         // tts-models release, repackaged onto the
                         // jphein/VoxSherpa-TTS voices-v2 release for
                         // flat per-file URLs the OkHttp loop can
                         // stream — the upstream tar.bz2 would require
                         // in-app extraction we don't want to add).
-                        // Total ~23 MB on first install, dominated by
+                        // Total ~25 MB on first install, dominated by
                         // the ONNX. voices.bin is tiny (8 KB — just
                         // the per-speaker embedding table).
-                        val modelBytes = 23_848_586L
+                        val modelBytes = 25_165_824L
                         val voicesBytes = 8_192L
                         val totalBytes = modelBytes + voicesBytes  // tokens is ~1 KB, negligible
                         downloadFile(
-                            url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_1-model.onnx",
+                            url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_8-model.onnx",
                             target = onnxFile,
                             knownTotalBytes = modelBytes,
                         ) { read, _ -> emit(DownloadProgress.Downloading(read, totalBytes)) }
                         downloadFile(
-                            url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_1-voices.bin",
+                            url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_8-voices.bin",
                             target = voicesFile,
                             knownTotalBytes = voicesBytes,
                         ) { read, _ ->
@@ -399,7 +399,7 @@ class VoiceManager @Inject constructor(
                             emit(DownloadProgress.Downloading(modelBytes + read, totalBytes))
                         }
                         downloadFile(
-                            url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_1-tokens.txt",
+                            url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_8-tokens.txt",
                             target = tokensFile,
                             knownTotalBytes = 0L,
                         ) { _, _ -> }
