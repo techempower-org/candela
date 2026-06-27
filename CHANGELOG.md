@@ -9,6 +9,37 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.0] -- 2026-06-27
+
+**Play Store ready.** Supertonic 3 TTS engine, collapsing headers, chapter previews, DND sleep timer, and Play Store compliance polish.
+
+### Added
+
+- **Supertonic 3 TTS engine.** Third in-process voice family via VoxSherpa v2.9.0 — wires `SupertonicEngine` into `EnginePlayer`'s dispatch table with sample-rate cache, render-job support, and catalog integration. (#1191 / #1205)
+- **Collapsing headers.** Library and Browse screens now collapse their title bars on scroll for more content space, with smooth spring animations. (#1195 / #1213)
+- **Chapter content previews.** Chapter list entries show a snippet of the chapter body text, giving a quick preview before opening. (#1189 / #1201)
+- **Auto-enable Do Not Disturb with sleep timer.** When the sleep timer activates, Candela can optionally enable DND to silence notifications. (#1190 / #1199)
+- **Confirm before destructive sign-out.** Cloud sync sign-out now shows a confirmation dialog to prevent accidental data loss. (#1197 / #1200)
+- **Report objectionable content.** Settings → About now includes a "Report objectionable content" mailto link for App Store compliance. (#1140 / #1188)
+
+### Fixed
+
+- **User-Agent centralized.** All 16 source modules now send a descriptive `Candela/<version>` User-Agent instead of OkHttp's default, improving API compliance and debugging. (#1141 / #1196, #1204 / #1215)
+- **Supertonic voices gated.** Supertonic 3 voices are hidden from the catalog until the engine is present, preventing "engine not found" errors. (#1202 / #1209)
+- **uriHandler.openUri guards.** Two more unguarded `openUri` calls wrapped in try-catch to prevent crashes on devices without a default browser. (#1203 / #1207)
+- **Radio ExoPlayer position sampling.** ExoPlayer position polling now runs on the main looper, fixing a threading assertion on some devices. (#1192 / #1206)
+- **AO3 politeness gate.** Archive of Our Own requests are now rate-limited to 1 req/sec with honest compliance documentation. (#1141 / #1193)
+- **Sync sign-out cleanup.** InstantDB records are now deleted on sign-out instead of being orphaned. (#1139 / #1194)
+
+### Changed
+
+- **Play Store feature graphic.** Rebranded to Candela identity. (#1198 / #1212)
+- **NoopDaos test fakes.** Completed stale DAO fakes for epub-writer tests. (#1210)
+
+## [1.1.6] -- 2026-06-26
+
+**Play Store readiness.** Accessibility statement, browser guards, CRLF normalization, and CancellationException fixes.
+
 ## [1.1.5] -- 2026-06-26
 
 **Voices, gears, and polish.** KittenTTS v0.8 voices, gzip downloads, AGP 9 migration, inbox fix, and accessibility improvements across the board.
