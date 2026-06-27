@@ -60,6 +60,13 @@ data class UiChapter(
      *  FictionDetailViewModel composes the real value by combining
      *  this list with `CacheStateInspector.chapterStatesFor`. */
     val cacheState: ChapterCacheState = ChapterCacheState.None,
+    /** Issue #1189 — ~100-char snippet of the chapter's opening prose,
+     *  shown under the title so listeners can orient when a source numbers
+     *  its chapters generically ("Chapter 1", "Chapter 2", …). Null until
+     *  the body is cached (downloaded / read / pre-rendered); the row then
+     *  renders without a preview line. Composed in `AppBindings.chaptersFor`
+     *  from `ChapterRepository.observeChapterPreviews`. */
+    val preview: String? = null,
 )
 
 data class UiFollow(

@@ -5,6 +5,7 @@ import `in`.jphe.storyvox.data.db.dao.BookmarkRow
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDownloadStateRow
 import `in`.jphe.storyvox.data.db.dao.ChapterInfoRow
+import `in`.jphe.storyvox.data.db.dao.ChapterPreviewRow
 import `in`.jphe.storyvox.data.db.dao.PlaybackChapterRow
 import `in`.jphe.storyvox.data.db.dao.UnreadChapterRow
 import `in`.jphe.storyvox.data.db.entity.Chapter
@@ -233,6 +234,7 @@ class BookmarksSyncerTest {
         // ---- everything below is "not used by BookmarksSyncer" ----
         override suspend fun allChapters(fictionId: String): List<Chapter> = emptyList()
         override fun observeChapterInfosByFiction(fictionId: String): Flow<List<ChapterInfoRow>> = flowOf(emptyList())
+        override fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>> = flowOf(emptyList())
         override fun observe(id: String): Flow<Chapter?> = flowOf(null)
         override suspend fun get(id: String): Chapter? = null
         override fun observeDownloadStates(fictionId: String): Flow<List<ChapterDownloadStateRow>> = flowOf(emptyList())

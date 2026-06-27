@@ -7,6 +7,7 @@ import `in`.jphe.storyvox.data.repository.playback.PlaybackChapter
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,6 +35,19 @@ interface ChapterRepository {
      * or played without being downloaded if streamed live).
      */
     fun observePlayedChapterIds(fictionId: String): Flow<Set<String>>
+
+    /**
+     * Issue #1189 — observable map of chapterId → cleaned content preview
+     * (~100 chars of opening prose) for chapters that have a cached body.
+     * The UI combines this with [observeChapters] to show a snippet under
+     * each chapter title, so listeners can orient when a source numbers its
+     * chapters generically ("Chapter 1", "Chapter 2", …).
+     *
+     * Only chapters with a cached body (downloaded / read / pre-rendered)
+     * appear; the map grows as the user reads or downloads. A chapter absent
+     * from the map simply renders without a preview line.
+     */
+    fun observeChapterPreviews(fictionId: String): Flow<Map<String, String>>
 
     /** Schedule a single chapter download via WorkManager. */
     suspend fun queueChapterDownload(
@@ -137,6 +151,20 @@ class ChapterRepositoryImpl @Inject constructor(
 
     override fun observePlayedChapterIds(fictionId: String): Flow<Set<String>> =
         dao.observePlayedChapterIds(fictionId).map { it.toSet() }
+
+    override fun observeChapterPreviews(fictionId: String): Flow<Map<String, String>> =
+        dao.observeChapterPreviews(fictionId)
+            .map { rows ->
+                rows.mapNotNull { row ->
+                    chapterPreviewText(row.preview)?.let { row.id to it }
+                }.toMap()
+            }
+            // Room invalidates this query on any write to the `chapter`
+            // table (read-state toggles, download-state flips), but the
+            // preview content only changes when a body is (re)written —
+            // dedupe so an unrelated row write doesn't re-push an identical
+            // map down the combine in [chaptersFor].
+            .distinctUntilChanged()
 
     override fun observeDownloadState(fictionId: String): Flow<Map<String, ChapterDownloadState>> =
         dao.observeDownloadStates(fictionId).map { rows ->

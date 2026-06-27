@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.data.repository
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDownloadStateRow
 import `in`.jphe.storyvox.data.db.dao.ChapterInfoRow
+import `in`.jphe.storyvox.data.db.dao.ChapterPreviewRow
 import `in`.jphe.storyvox.data.db.dao.PlaybackChapterRow
 import `in`.jphe.storyvox.data.db.dao.UnreadChapterRow
 import `in`.jphe.storyvox.data.db.entity.Chapter
@@ -30,6 +31,7 @@ class ChapterRepositoryImplTest {
         private val infoFeeds = mutableMapOf<String, MutableStateFlow<List<ChapterInfoRow>>>()
         private val rowFeeds = mutableMapOf<String, MutableStateFlow<Chapter?>>()
         private val stateFeeds = mutableMapOf<String, MutableStateFlow<List<ChapterDownloadStateRow>>>()
+        private val previewFeeds = mutableMapOf<String, MutableStateFlow<List<ChapterPreviewRow>>>()
 
         var nextChapterIdResult: String? = null
         var previousChapterIdResult: String? = null
@@ -52,9 +54,18 @@ class ChapterRepositoryImplTest {
             rows.values.filter { it.fictionId == fictionId }
                 .map { ChapterDownloadStateRow(id = it.id, downloadState = it.downloadState) }
 
+        // Issue #1189 — mirror the production query: only rows with a
+        // non-blank body, carrying the first 400 chars of plainBody.
+        private fun previewRows(fictionId: String): List<ChapterPreviewRow> =
+            rows.values
+                .filter { it.fictionId == fictionId && !it.plainBody.isNullOrEmpty() }
+                .sortedBy { it.index }
+                .map { ChapterPreviewRow(id = it.id, preview = it.plainBody?.take(400)) }
+
         private fun publishAll(fictionId: String) {
             infoFeeds[fictionId]?.value = fictionRows(fictionId)
             stateFeeds[fictionId]?.value = stateRows(fictionId)
+            previewFeeds[fictionId]?.value = previewRows(fictionId)
         }
 
         private fun publishRow(id: String) {
@@ -90,6 +101,11 @@ class ChapterRepositoryImplTest {
         // tracking; emit empty so the new override compiles.
         override fun observePlayedChapterIds(fictionId: String): Flow<List<String>> =
             MutableStateFlow(emptyList())
+
+        // Issue #1189 — content-preview feed, derived from the backing rows'
+        // bodies so a body write re-emits (mirrors the real Room query).
+        override fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>> =
+            previewFeeds.getOrPut(fictionId) { MutableStateFlow(previewRows(fictionId)) }
 
         override suspend fun missingForFiction(fictionId: String): List<Chapter> {
             callLog += "missingForFiction($fictionId)"
@@ -382,6 +398,43 @@ class ChapterRepositoryImplTest {
         assertEquals(ChapterDownloadState.DOWNLOADED, states["c0"])
         assertEquals(ChapterDownloadState.QUEUED, states["c1"])
         assertEquals(ChapterDownloadState.NOT_DOWNLOADED, states["c2"])
+    }
+
+    // -- observeChapterPreviews (#1189) -----------------------------------------
+
+    @Test fun `observeChapterPreviews cleans bodies and omits chapters without one`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(
+            chapter(
+                "c0",
+                index = 0,
+                plainBody = "Chapter 1 &mdash; <b>The</b> wind howled &amp; the snow fell.",
+                htmlBody = "<p>body</p>",
+            ),
+        )
+        // No cached body → must not appear in the preview map at all.
+        dao.upsert(chapter("c1", index = 1, plainBody = null))
+
+        val previews = r.observeChapterPreviews("f1").first()
+
+        // Only the chapter with a body is present; tags stripped, entities
+        // decoded, and the redundant leading "Chapter 1 — " title removed.
+        assertEquals(setOf("c0"), previews.keys)
+        assertEquals("The wind howled & the snow fell.", previews["c0"])
+    }
+
+    @Test fun `observeChapterPreviews drops a chapter whose body is only its heading`() = runTest {
+        val (r, dao, _) = repo()
+        // Body that is nothing but the (generic) heading: cleaning would strip
+        // it to empty, so the cleaner falls back to the heading rather than
+        // emitting a blank — but a truly empty body yields no entry.
+        dao.upsert(chapter("c0", index = 0, plainBody = "Chapter 7", htmlBody = "<p>x</p>"))
+        dao.upsert(chapter("c1", index = 1, plainBody = "   ", htmlBody = "<p>x</p>"))
+
+        val previews = r.observeChapterPreviews("f1").first()
+
+        assertEquals(setOf("c0"), previews.keys)
+        assertEquals("Chapter 7", previews["c0"])
     }
 
     // -- queueChapterDownload ---------------------------------------------------

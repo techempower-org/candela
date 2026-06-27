@@ -188,6 +188,8 @@ private class FakeChapterRepo : ChapterRepository {
     override fun observeChapter(chapterId: String): Flow<ChapterContent?> = flowOf(null)
     override fun observeDownloadState(fictionId: String): Flow<Map<String, ChapterDownloadState>> = flowOf(emptyMap())
     override fun observePlayedChapterIds(fictionId: String): Flow<Set<String>> = flowOf(emptySet())
+    // Issue #1189 — content-preview feed; chat tools don't surface previews.
+    override fun observeChapterPreviews(fictionId: String): Flow<Map<String, String>> = flowOf(emptyMap())
     override suspend fun queueChapterDownload(fictionId: String, chapterId: String, requireUnmetered: Boolean) = Unit
     override suspend fun queueAllMissing(fictionId: String, requireUnmetered: Boolean) = Unit
     override suspend fun markRead(chapterId: String, read: Boolean) {

@@ -1617,6 +1617,9 @@ private fun UiChapter.toCardState(currentId: String?) = ChapterCardState(
     // flow's first emission), so the badge silently no-ops in that
     // window instead of flickering bogus state.
     cacheState = cacheState,
+    // Issue #1189 — content-preview snippet (null until the body is
+    // cached); the card hides the line when absent.
+    preview = preview,
 )
 
 /**

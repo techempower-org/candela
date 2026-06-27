@@ -604,10 +604,17 @@ private class RealFictionRepositoryUi(
         // played" chapter ids so the circle fills as soon as the DB row
         // flips. Both flows are Room-backed and re-emit on any relevant
         // write; downstream combine fires once with whichever lands last.
+        // Issue #1189 — fold in a third sibling flow: per-chapter content
+        // previews (chapterId → ~100-char snippet). Like the played-ids
+        // set, it's a slim Room-backed flow that only carries chapters with
+        // a cached body, so the map is empty until the user reads/downloads
+        // and grows from there; a chapter absent from the map renders with
+        // no preview line.
         kotlinx.coroutines.flow.combine(
             repo.observeFiction(fictionId),
             chapters.observePlayedChapterIds(fictionId),
-        ) { detail, playedIds ->
+            chapters.observeChapterPreviews(fictionId),
+        ) { detail, playedIds, previews ->
             detail?.chapters.orEmpty().map { ch ->
                 UiChapter(
                     id = ch.id,
@@ -617,6 +624,7 @@ private class RealFictionRepositoryUi(
                     durationLabel = ch.wordCount?.let { "${(it / 250).coerceAtLeast(1)} min" } ?: "",
                     isDownloaded = false,
                     isFinished = ch.id in playedIds,
+                    preview = previews[ch.id],
                 )
             }
         }

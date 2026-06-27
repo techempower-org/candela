@@ -349,6 +349,9 @@ class RealPlaybackControllerUiTest {
         // flow can compute `isFinished` after auto-advance. No-op here.
         override fun observePlayedChapterIds(fictionId: String): Flow<Set<String>> =
             flowOf(emptySet())
+        // Issue #1189 — content-preview feed. No-op for this playback test.
+        override fun observeChapterPreviews(fictionId: String): Flow<Map<String, String>> =
+            flowOf(emptyMap())
         override suspend fun queueChapterDownload(
             fictionId: String,
             chapterId: String,
