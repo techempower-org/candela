@@ -1,0 +1,171 @@
+<!--
+  Candela — Play Store feature graphic (1024×500) · issue #1198
+
+  Source generator for docs/play-store/v1.0/feature-1024x500.png. Rebuild
+  (run from the repo root) with:
+
+    google-chrome --headless=new --disable-gpu --force-device-scale-factor=1 \
+      --allow-file-access-from-files --hide-scrollbars --window-size=1024,500 \
+      --screenshot="$PWD/docs/play-store/v1.0/feature-raw.png" \
+      "file://$PWD/docs/play-store/feature-graphic.html"
+
+  Then flatten alpha to opaque RGB (Play Store requires a 24-bit PNG with no
+  transparency) and strip metadata:
+
+    convert docs/play-store/v1.0/feature-raw.png -background black \
+      -alpha remove -alpha off -strip -define png:compression-level=9 \
+      docs/play-store/v1.0/feature-1024x500.png && rm docs/play-store/v1.0/feature-raw.png
+
+  Palette is the app's "Library Nocturne" BrassRamp (core-ui/.../theme/Color.kt):
+  Brass100 #FDF2DD · Brass300 #E0C8A0 · Brass400 #C9A774 · Brass500 #B48C5A ·
+  Brass900 #1C1209 · OnSurfaceDark #E8DFD1 · OnSurfaceVariantDark #B8AE9F.
+-->
+<style>
+  html, body { margin: 0; padding: 0; }
+  /* Exact canvas — Play Store feature graphic is 1024×500. */
+  .stage {
+    position: relative;
+    width: 1024px;
+    height: 500px;
+    overflow: hidden;
+    font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+    /* Deep warm "nocturne" base: near-black brown, warmer toward the hero. */
+    background:
+      radial-gradient(120% 140% at 78% 50%, #3a2a14 0%, #241910 30%, #160f08 60%, #0d0805 100%);
+  }
+
+  /* Candlelight hero glow on the right third (kept clear of headline text so
+     Play Console's overlaid install button doesn't collide with copy). */
+  .glow {
+    position: absolute;
+    top: 50%;
+    left: 83%;
+    width: 560px;
+    height: 560px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(255,243,214,0.95) 0%,
+      rgba(255,224,158,0.55) 18%,
+      rgba(212,160,80,0.28) 38%,
+      rgba(120,90,48,0.12) 56%,
+      rgba(0,0,0,0) 72%);
+    filter: blur(2px);
+  }
+  /* Tight bright core, like a flame's center. */
+  .glow::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 190px; height: 190px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,250,238,0.98) 0%, rgba(255,236,190,0.6) 45%, rgba(255,236,190,0) 75%);
+  }
+
+  /* Subtle top-left vignette for depth. */
+  .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(80% 90% at 12% 18%, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 55%);
+    pointer-events: none;
+  }
+
+  .content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    gap: 52px;
+    padding: 0 64px;
+    box-sizing: border-box;
+  }
+
+  /* App-icon tile (rounded square, like the storefront icon chip). */
+  .tile {
+    flex: 0 0 auto;
+    width: 244px;
+    height: 244px;
+    border-radius: 54px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(224,200,160,0.30),
+      0 18px 48px rgba(0,0,0,0.55),
+      0 0 60px rgba(255,224,158,0.18);
+  }
+  .tile img { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+  .copy { display: flex; flex-direction: column; }
+
+  /* Mission/brand attribution above the wordmark: TechEmpower presents Candela. */
+  .eyebrow {
+    margin: 0 0 12px 6px;
+    font-family: 'DejaVu Sans', 'Liberation Sans', Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: #B8AE9F;
+  }
+
+  .wordmark {
+    font-size: 106px;
+    line-height: 0.96;
+    font-weight: 600;
+    letter-spacing: 1px;
+    /* Brushed-brass gradient fill. */
+    background: linear-gradient(178deg, #FDF2DD 0%, #F0E0C4 30%, #E0C8A0 55%, #C9A774 78%, #B48C5A 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.0);
+    filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 18px rgba(255,224,158,0.10));
+    margin: 0;
+  }
+
+  /* Thin brass rule between wordmark and tagline. */
+  .rule {
+    width: 132px;
+    height: 2px;
+    margin: 20px 0 18px 4px;
+    background: linear-gradient(90deg, #C9A774 0%, #7A5A30 100%);
+    border-radius: 2px;
+  }
+
+  .tagline {
+    font-size: 33px;
+    line-height: 1.18;
+    font-weight: 500;
+    color: #E8DFD1;
+    margin: 0 0 0 4px;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+  }
+
+  .footer {
+    margin: 22px 0 0 5px;
+    font-family: 'DejaVu Sans', 'Liberation Sans', Arial, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    color: #C9A774;
+  }
+  .footer .dot { color: #7A5A30; padding: 0 8px; }
+</style>
+
+<div class="stage">
+  <div class="glow"></div>
+  <div class="vignette"></div>
+  <div class="content">
+    <div class="tile"><img src="v1.0/icon-512.png" alt="Candela icon"></div>
+    <div class="copy">
+      <div class="eyebrow">A&nbsp;TechEmpower&nbsp;Project</div>
+      <h1 class="wordmark">Candela</h1>
+      <div class="rule"></div>
+      <p class="tagline">Technology for All.<br>Access Made Easy.</p>
+      <div class="footer">
+        Free<span class="dot">·</span>Accessible<span class="dot">·</span>On&#8209;Device
+      </div>
+    </div>
+  </div>
+</div>
