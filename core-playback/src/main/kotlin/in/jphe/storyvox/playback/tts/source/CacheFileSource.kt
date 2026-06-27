@@ -243,6 +243,12 @@ class CacheFileSource private constructor(
             val index = runCatching {
                 pcmCacheJson.decodeFromString(PcmIndex.serializer(), indexFile.readText())
             }.getOrElse { t ->
+                // #1175 — never rewrap cancellation as IOException. The caller
+                // keys its fall-back-to-streaming + cache-delete on IOException,
+                // so a CancellationException (pause/skip mid-open) would be
+                // misread as cache corruption and nuke a valid entry. Let it
+                // propagate so the open simply unwinds.
+                if (t is kotlin.coroutines.cancellation.CancellationException) throw t
                 throw IOException("PCM cache index unreadable: ${indexFile.name}", t)
             }
 
