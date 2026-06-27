@@ -101,4 +101,21 @@ class VoiceFamilyRegistryTest {
             )
         }
     }
+
+    @Test fun `Supertonic voices are gated out of the catalog until the engine lands (issue 1202)`() {
+        // #1202 — Supertonic 3 is scaffolded (#1114) but has no working
+        // engine until #1191 ships VoxSherpa's SupertonicEngine. v1.1.6
+        // shipped the 10 speakers as *selectable* picker rows that produced
+        // no audio (the EnginePlayer dispatch is a TODO(#1114) stub
+        // returning "Error: load returned null"), so VoiceCatalog gates
+        // them behind SUPERTONIC_ENABLED. Lock that in: while gated, no
+        // Supertonic entry may appear in the static catalog. The
+        // VoiceFamilyRegistry descriptor is deliberately kept (see the
+        // seven-descriptor test above), so this only guards the voices.
+        val supertonicVoices = VoiceCatalog.voices.filter { it.engineType is EngineType.Supertonic }
+        assertTrue(
+            "Supertonic voices must stay out of VoiceCatalog.voices while gated (#1202); found ${supertonicVoices.map { it.id }}",
+            supertonicVoices.isEmpty(),
+        )
+    }
 }

@@ -6,13 +6,38 @@ import `in`.jphe.storyvox.data.source.SystemTtsVoiceDescriptor
 
 object VoiceCatalog {
     /**
+     * Issue #1202 — Supertonic 3 voices are gated OUT of the shipped
+     * catalog until #1191 wires the real engine.
+     *
+     * Supertonic is fully scaffolded (#1114 — [supertonicEntries], the
+     * [VoiceFamilyRegistry] descriptor, and the `EngineType.Supertonic`
+     * dispatch points) but VoxSherpa has no `SupertonicEngine` yet, so
+     * every synth path is a `TODO(#1114)` stub that returns
+     * `"Error: load returned null"`. v1.1.6 shipped the 10 Supertonic
+     * voices as *selectable* picker rows that produced no audio; this
+     * flag keeps them out of the catalog until the engine can actually
+     * synthesize.
+     *
+     * Flip to `true` (one line) as part of #1191, once VoxSherpa v2.9.0
+     * ships the `SupertonicEngine` wrapper and the EnginePlayer dispatch
+     * is wired. The [VoiceFamilyRegistry] descriptor is intentionally
+     * left in place so the family still reads as a known/"coming" engine.
+     */
+    private const val SUPERTONIC_ENABLED = false
+
+    /**
      * The static catalog — Piper, Kokoro, and Kitten entries that ship
      * in-app. Azure voices are NOT here anymore; they're populated at
      * runtime from the live roster (see [azureEntriesFromRoster] and
      * `AzureVoiceProvider`). Combine via [voicesWithAzure] when you
      * need a unified list.
+     *
+     * Supertonic ([supertonicEntries]) is appended only when
+     * [SUPERTONIC_ENABLED] — gated for #1202 until #1191 lands the engine.
      */
-    val voices: List<CatalogEntry> = piperEntries() + kokoroEntries() + kittenEntries() + supertonicEntries()
+    val voices: List<CatalogEntry> =
+        piperEntries() + kokoroEntries() + kittenEntries() +
+            (if (SUPERTONIC_ENABLED) supertonicEntries() else emptyList<CatalogEntry>())
 
     /**
      * Combine the static catalog with the live Azure roster — used by
