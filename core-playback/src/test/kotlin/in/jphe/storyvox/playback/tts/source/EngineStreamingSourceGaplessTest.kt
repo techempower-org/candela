@@ -1,6 +1,9 @@
 package `in`.jphe.storyvox.playback.tts.source
 
 import `in`.jphe.storyvox.playback.tts.Sentence
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import org.junit.Assert.assertEquals
@@ -96,34 +99,88 @@ class EngineStreamingSourceGaplessTest {
     @Test
     fun `producedAllSentences stays false when close races a partially-drained source`() =
         runBlocking {
-            // Many sentences, but we close after consuming only one. The
-            // producer is mid-loop when close cancels it — the natural-end
-            // branch (which sets producedAll=true) never executes.
+            // #1166 — deterministic gating. The prior version pulled one
+            // chunk, called close(), and *assumed* the producer was still
+            // mid-stream. With an instant fake engine that assumption is a
+            // race: after close() clears the bounded queue (freeing the
+            // back-pressure slot) there is a window before the cancellation
+            // is actually delivered, and an instant producer can blast
+            // through the remaining sentences in it — either reaching the
+            // natural-end branch (producedAll=true) or slipping a stray
+            // chunk ahead of the END_PILL so the second nextChunk() returns
+            // non-null. Both are test races, not contract violations, and
+            // they made this test flaky.
+            //
+            // Fix: gate the engine. Sentence 0 synthesizes instantly; every
+            // later sentence parks inside generateAudioPCM until close()'s
+            // producerExecutor.shutdownNow() interrupts the worker. That
+            // turns "the producer is mid-stream, NOT at natural end, when
+            // close() lands" into a guarantee instead of a hope.
             val sentences = (0 until 50).map {
                 Sentence(it, it * 10, it * 10 + 8, "Sentence $it.")
             }
+            // Counts down the instant the producer enters the synth for
+            // sentence 1, so the test can wait until the producer is
+            // provably parked before racing close() against it.
+            val reachedGate = CountDownLatch(1)
+            // Never counted down by the test — the parked worker leaves the
+            // await only when close()'s executor shutdown interrupts it.
+            val gate = CountDownLatch(1)
+            val calls = AtomicInteger(0)
             val src = EngineStreamingSource(
                 sentences = sentences,
                 startSentenceIndex = 0,
-                engine = GaplessFakeVoiceEngine(22050) { ByteArray(50) },
+                engine = GaplessFakeVoiceEngine(22050) {
+                    if (calls.getAndIncrement() >= 1) {
+                        reachedGate.countDown()
+                        try {
+                            gate.await()
+                        } catch (_: InterruptedException) {
+                            // close() → producerExecutor.shutdownNow()
+                            // interrupted the parked worker. Swallow it and
+                            // return normally: the producer's
+                            // `if (!running.get()) return@launch` (running was
+                            // set false at the top of close()) then stops the
+                            // loop BEFORE this sentence is enqueued — the same
+                            // clean exit a real engine's cancelled synth
+                            // takes. producedAll is never set and no stray
+                            // chunk reaches the queue.
+                        }
+                    }
+                    ByteArray(50)
+                },
                 speed = 1f,
                 pitch = 1f,
                 engineMutex = Mutex(),
             )
 
-            // Pull one chunk so the producer is definitely past startup.
+            // Drain sentence 0, then block until the producer is provably
+            // parked mid-synth on sentence 1. close() now cannot lose a race
+            // to natural end — the producer physically cannot advance past
+            // the gate.
             assertNotNull(src.nextChunk())
+            assertTrue(
+                "producer should have parked inside the gated synth",
+                reachedGate.await(5, TimeUnit.SECONDS),
+            )
+
+            // Mid-stream, pre-close: the flag must already be false.
+            assertFalse(
+                "producedAllSentences must be false while the producer is parked mid-stream",
+                src.producedAllSentences,
+            )
 
             // Close mid-stream — same path as stopPlaybackPipeline.close.
+            // The executor shutdown interrupts the gated worker.
             src.close()
 
-            // A subsequent nextChunk returns null (close pushed END_PILL).
-            // But the flag is the test target — it must remain false
-            // because the producer was CANCELLED, not naturally exhausted.
-            // The post-#573 EnginePlayer gate (`naturalEnd =
+            // close() cleared the (empty) queue and pushed END_PILL, so the
+            // next dequeue is the pill, not a stray chunk. The flag must
+            // remain false because the producer was CANCELLED, not naturally
+            // exhausted — the post-#573 EnginePlayer gate (`naturalEnd =
             // source.producedAllSentences`) therefore correctly skips
-            // handleChapterDone for this case (user-initiated stop, not
-            // a chapter end).
+            // handleChapterDone for this case (user-initiated stop, not a
+            // chapter end).
             val end = src.nextChunk()
             assertNull(end)
 
