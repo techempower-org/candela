@@ -245,6 +245,9 @@ private fun CacheSizeSelector(
                     label = CacheQuotaOptions.label(opt),
                     onClick = { onQuotaChange(opt) },
                     variant = variant,
+                    // #1157 — radio-group semantics for this single-choice
+                    // cache-size picker (kdoc above calls these radio buttons).
+                    selected = opt == quotaBytes,
                     modifier = Modifier.weight(1f),
                 )
             }

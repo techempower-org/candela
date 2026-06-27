@@ -265,6 +265,9 @@ private fun EntryEditorDialog(
                             label = mt.label(),
                             onClick = { matchType = mt },
                             variant = variant,
+                            // #1157 — radio-group semantics for the
+                            // single-choice match-type picker.
+                            selected = matchType == mt,
                         )
                     }
                 }

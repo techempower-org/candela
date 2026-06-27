@@ -647,6 +647,8 @@
     <string name="settings_highlight_color_theme">Using the reading theme color</string>
     <string name="settings_highlight_color_custom">Custom color</string>
     <string name="settings_highlight_color_reset">Use theme color</string>
+    <!-- #1161 — TalkBack onClickLabel for the highlight-color reset link. -->
+    <string name="settings_highlight_color_reset_a11y">Reset highlight color to theme accent</string>
 
     <!-- Settings · Cloud voices subscreen -->
     <string name="settings_cloud_voices_title">Cloud voices</string>

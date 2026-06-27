@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
 
@@ -46,6 +47,12 @@ fun LibrarySortChip(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val chipCd = stringResource(R.string.library_sort_chip_cd)
+    // #1157 — the static contentDescription ("Sort library") used to
+    // *override* the visible active-mode label, so TalkBack never spoke
+    // the current sort. Publish the active mode as the node's state so
+    // it announces "Sort library, Recently added" instead of just
+    // "Sort library, button".
+    val currentSortLabel = labelFor(selected)
     Box(modifier = modifier) {
         AssistChip(
             onClick = { expanded = true },
@@ -65,6 +72,7 @@ fun LibrarySortChip(
             modifier = Modifier.semantics {
                 role = Role.Button
                 contentDescription = chipCd
+                stateDescription = currentSortLabel
             },
         )
         DropdownMenu(

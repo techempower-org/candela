@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.ui.a11y.LocalAccessibleTouchTargets
@@ -50,6 +51,20 @@ fun BrassButton(
     variant: BrassButtonVariant = BrassButtonVariant.Primary,
     enabled: Boolean = true,
     loading: Boolean = false,
+    /**
+     * #1157 — single-choice picker support. The codebase uses a row of
+     * BrassButtons (selected = [BrassButtonVariant.Primary], the rest
+     * [BrassButtonVariant.Secondary]) as a radio-group idiom in several
+     * settings pickers (cache size, AI provider/model, pronunciation
+     * match type). Pre-fix the selection was conveyed by fill colour
+     * only: TalkBack announced every option as a plain "button" with no
+     * "selected" state (WCAG 4.1.2) and the cue failed colour-only
+     * contrast (WCAG 1.4.1). When non-null this flips the button's
+     * a11y role from [Role.Button] to [Role.RadioButton] and publishes
+     * the `selected` state so TalkBack reads "<label>, selected, radio
+     * button". Leave null for ordinary action buttons.
+     */
+    selected: Boolean? = null,
 ) {
     // #690 Phase 2 — under [LocalAccessibleTouchTargets], grow the
     // button's minimum height from the M3 default 40dp to 64dp so
@@ -65,7 +80,19 @@ fun BrassButton(
     // text="" content-desc="" and flags NAF (the network-error retry
     // button under Browse → Hacker News was the report site, but every
     // BrassButton was affected).
-    val baseSem = Modifier.semantics(mergeDescendants = true) { role = Role.Button }
+    // #1157 — when `selected` is supplied the button is part of a
+    // single-choice picker, so expose it as a radio button with state;
+    // otherwise it stays a plain action button. mergeDescendants stays
+    // true either way so the inner Text(label) reaches the a11y tree
+    // (#743 canary [brassButtonMergesDescendantsForLabel]).
+    val baseSem = Modifier.semantics(mergeDescendants = true) {
+        if (selected != null) {
+            role = Role.RadioButton
+            this.selected = selected
+        } else {
+            role = Role.Button
+        }
+    }
     val sem = if (enlarged) {
         baseSem.then(Modifier.defaultMinSize(minHeight = 64.dp))
     } else {
