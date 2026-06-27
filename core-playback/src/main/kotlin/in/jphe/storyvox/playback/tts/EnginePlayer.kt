@@ -152,6 +152,51 @@ internal fun shouldCheckpointPosition(state: PlaybackState): Boolean =
     state.currentFictionId != null && state.currentChapterId != null
 
 /**
+ * Issue #1192 — pure resolver for the live audio-stream chapter position,
+ * factored out so its off-main-thread safety contract can be pinned in a
+ * unit test (EnginePlayerLiveAudioPositionTest) without standing up the full
+ * EnginePlayer + Hilt + sherpa-onnx graph — same constraint that gates
+ * [shouldAutoPlayAfterAdvance] / [shouldCheckpointPosition].
+ *
+ * [EnginePlayer.currentPositionMs] is documented "safe to call from any
+ * thread" and is in fact polled off-main every 50 ms by
+ * [in.jphe.storyvox.playback.PlaybackController]'s position loop (its scope is
+ * [kotlinx.coroutines.Dispatchers.Default]). For a live audio chapter the
+ * position lives on the sibling Media3 [androidx.media3.exoplayer.ExoPlayer],
+ * which is thread-confined to the Main looper — touching it off-main throws
+ * `IllegalStateException: Player is accessed on the wrong thread` (the #1192
+ * radio-playback crash, ~50 ms after the stream loaded; the same wrong-thread
+ * class as #969 / #553).
+ *
+ * So the live position is sampled from the player ONLY when [onMainLooper];
+ * off-main callers reuse [cachedMs] — the value last sampled on main. Either
+ * way the monotonic latch from [lastTruthfulMs] is applied so the reported
+ * position never regresses within a chapter (#536). The live-stream scrubber
+ * is hidden (#373), so a one-poll-stale value off-main is invisible.
+ *
+ * @param onMainLooper true iff the caller is on the player's application
+ *   (Main) looper — the only thread on which [samplePlayerPositionMs] is safe.
+ * @param samplePlayerPositionMs reads the live player position; returns null
+ *   when the player isn't built yet. Invoked ONLY when [onMainLooper].
+ * @return the position to report now plus the cache value the caller must
+ *   store back for the next off-main read.
+ */
+internal fun resolveLiveAudioPositionMs(
+    onMainLooper: Boolean,
+    cachedMs: Long,
+    lastTruthfulMs: Long,
+    samplePlayerPositionMs: () -> Long?,
+): LiveAudioPosition {
+    val cache = if (onMainLooper) (samplePlayerPositionMs() ?: cachedMs) else cachedMs
+    val reported = maxOf(cache, lastTruthfulMs)
+    return LiveAudioPosition(reportedMs = reported, cachedMs = cache)
+}
+
+/** Result of [resolveLiveAudioPositionMs]: the position to report now and the
+ *  cache value to persist for the next off-main read. */
+internal data class LiveAudioPosition(val reportedMs: Long, val cachedMs: Long)
+
+/**
  * Issue #1126 — did a thermal-status transition cross the MODERATE
  * boundary in either direction?
  *
@@ -1343,10 +1388,26 @@ class EnginePlayer @AssistedInject constructor(
         // Audio-stream chapters route through ExoPlayer, which owns
         // its own currentPosition. Defer to it; the UI scrubber for
         // live streams isn't useful anyway (#373 hides the rail).
+        //
+        // Issue #1192 — [audioStreamPlayer] is a Media3 ExoPlayer pinned to
+        // the Main looper, but currentPositionMs() is contractually "safe to
+        // call from any thread" and IS polled off-main every 50 ms by
+        // PlaybackController's position loop (scope = Dispatchers.Default).
+        // Reading ExoPlayer.currentPosition from that worker threw
+        // "Player is accessed on the wrong thread" ~50 ms after a radio
+        // stream loaded — the reported crash. Sample the player only on the
+        // main looper (the getState position-supplier / pause / resume paths);
+        // off-main callers reuse the last main-sampled value via the cache.
         if (state.isLiveAudioChapter) {
-            val pos = audioStreamPlayer?.currentPosition ?: 0L
-            if (pos > lastTruthfulPositionMs) lastTruthfulPositionMs = pos
-            return lastTruthfulPositionMs
+            val resolved = resolveLiveAudioPositionMs(
+                onMainLooper = Looper.myLooper() == Looper.getMainLooper(),
+                cachedMs = audioStreamPositionMs,
+                lastTruthfulMs = lastTruthfulPositionMs,
+                samplePlayerPositionMs = { audioStreamPlayer?.currentPosition },
+            )
+            audioStreamPositionMs = resolved.cachedMs
+            lastTruthfulPositionMs = resolved.reportedMs
+            return resolved.reportedMs
         }
 
         val track = audioTrack
@@ -4871,6 +4932,18 @@ class EnginePlayer @AssistedInject constructor(
      */
     private var audioStreamPlayer: androidx.media3.exoplayer.ExoPlayer? = null
 
+    /**
+     * Issue #1192 — last [audioStreamPlayer] position sampled on the Main
+     * looper. ExoPlayer is Main-confined; [currentPositionMs] is polled
+     * off-main by PlaybackController, so off-main reads serve this cache
+     * instead of touching the player (which would throw
+     * "Player is accessed on the wrong thread"). Written only on the main
+     * looper (the getState position-supplier / pause / resume paths) and
+     * reset to 0 on each fresh [loadAndPlayAudioStream]. `@Volatile` for
+     * the cross-thread read from PlaybackController's Dispatchers.Default poll.
+     */
+    @Volatile private var audioStreamPositionMs: Long = 0L
+
     /** Listener attached to [audioStreamPlayer] so isPlaying flips on
      *  the MediaSession surface follow real player events (buffer →
      *  ready → playing). Held so [stopAudioStreamPlayer] can detach
@@ -4918,6 +4991,10 @@ class EnginePlayer @AssistedInject constructor(
         stopPlaybackPipeline()
         sentences = emptyList()
         currentSentenceIndex = 0
+        // #1192 — drop the previous station's cached position so a station
+        // swap starts the (hidden) live scrubber at 0 rather than inheriting
+        // the prior stream's higher latched value.
+        audioStreamPositionMs = 0L
 
         // #807 — fresh chapter load wipes the retry budget; any pending
         // backoff from the previous load is cancelled so it doesn't
