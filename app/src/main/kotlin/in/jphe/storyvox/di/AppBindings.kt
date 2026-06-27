@@ -9,7 +9,10 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import `in`.jphe.storyvox.BuildConfig
 import `in`.jphe.storyvox.data.PalaceConfigImpl
+import `in`.jphe.storyvox.data.network.UserAgent
+import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.SettingsRepositoryUiImpl
 import `in`.jphe.storyvox.data.VoiceProviderUiImpl
 import `in`.jphe.storyvox.source.mempalace.config.PalaceConfig
@@ -73,6 +76,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import okhttp3.Interceptor
 
 /**
  * Hilt bindings that bridge `feature.api.*` UI contracts to the concrete
@@ -487,6 +491,35 @@ object AppBindings {
                 }
             }
         }
+
+    /**
+     * Issue #1141 — descriptive User-Agent interceptor, shared across the
+     * source modules whose upstreams require/request an identifying UA
+     * (Wikipedia, Wikisource, arXiv, Radio Browser). Built from the live
+     * build's [BuildConfig.VERSION_NAME] so the version never drifts out
+     * of sync with the app — see [UserAgent] for the policy rationale and
+     * the canonical string shape.
+     *
+     * Lives in `:app` because only the app module carries
+     * `BuildConfig.VERSION_NAME`; the per-source DI modules inject this
+     * [UserAgentHeader]-qualified interceptor into their dedicated
+     * OkHttpClient builders. It does not clobber a request that already
+     * set its own `User-Agent`, leaving room for a source to override if
+     * a future upstream needs a bespoke token.
+     */
+    @Provides @Singleton @UserAgentHeader
+    fun provideUserAgentInterceptor(): Interceptor {
+        val header = UserAgent.format(BuildConfig.VERSION_NAME)
+        return Interceptor { chain ->
+            val request = chain.request()
+            val withUserAgent = if (request.header("User-Agent") == null) {
+                request.newBuilder().header("User-Agent", header).build()
+            } else {
+                request
+            }
+            chain.proceed(withUserAgent)
+        }
+    }
 
     /**
      * Stub WebViewFetcher — Selene's `:core-data` declares the interface; the

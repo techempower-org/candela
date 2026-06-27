@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.radio
 
+import `in`.jphe.storyvox.data.network.UserAgent
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.SearchQuery
@@ -249,8 +250,16 @@ class RadioSourceTest {
         assertEquals("kvmr:live:0", RadioSource.liveChapterIdFor(kvmr))
     }
 
-    @Test fun `user-agent identifies storyvox-radio`() {
-        assertTrue(RadioSource.USER_AGENT.contains("storyvox-radio"))
-        assertTrue(RadioSource.USER_AGENT.contains("github.com/techempower-org/candela"))
+    // #1141 — the descriptive User-Agent is now centralised in
+    // `in.jphe.storyvox.data.network.UserAgent` and applied to every
+    // Radio Browser request by the shared UserAgentHeader interceptor.
+    // Radio Browser asks callers to identify the app + a contact channel
+    // so abusive clients can be reached directly; pin that contract here.
+    @Test fun `user-agent identifies candela with contact info`() {
+        val ua = UserAgent.format("9.9.9")
+        assertTrue("UA names the app + version", ua.contains("Candela/9.9.9"))
+        assertTrue("UA carries a contact URL", ua.contains("candela.techempower.org"))
+        assertTrue("UA carries a contact email", ua.contains("support@techempower.org"))
+        assertTrue("UA identifies the platform", ua.contains("Android"))
     }
 }

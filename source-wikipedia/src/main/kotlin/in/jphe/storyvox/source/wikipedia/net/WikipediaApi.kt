@@ -208,11 +208,14 @@ internal class WikipediaApi @Inject constructor(
             // signature + `withContext(Dispatchers.IO)` wrapper. The
             // original non-suspend shape crashed Browse → Wikipedia
             // with NetworkOnMainThreadException on first chip tap.
+            // #1141 — the descriptive `User-Agent` Wikimedia requires
+            // (project + contact) is applied for every request by the
+            // shared UserAgentHeader interceptor on the injected client;
+            // see `in.jphe.storyvox.data.network.UserAgent`.
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
                 .header("Accept-Language", extractLanguageFromUrl(url))
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -252,15 +255,6 @@ internal class WikipediaApi @Inject constructor(
         val host = url.substringAfter("://").substringBefore('/')
         val prefix = host.substringBefore(".wikipedia.org", missingDelimiterValue = "")
         return if (prefix.isNotBlank() && !prefix.contains('.')) prefix else "en"
-    }
-
-    companion object {
-        /** Wikimedia User-Agent policy
-         *  (https://meta.wikimedia.org/wiki/User-Agent_policy):
-         *  identify the project + give a contact. Without this the
-         *  REST API returns 403 for anonymous-tier traffic. */
-        const val USER_AGENT: String =
-            "storyvox-wikipedia/1.0 (https://github.com/jphein/storyvox; jp@jphein.com)"
     }
 }
 
