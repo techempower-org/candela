@@ -45,6 +45,18 @@ interface InstantBackend {
         updatedAt: Long,
     ): Result<Unit>
 
+    /**
+     * Delete a row by entity + id. Used by the sign-out data-deletion path
+     * (#1139) so signing out actually removes the user's cloud record, as
+     * the privacy policy promises.
+     *
+     * Idempotent: deleting a row that doesn't exist (a domain the user never
+     * pushed) is a success, not an error — InstantDB's transact treats a
+     * delete of a missing entity as a no-op. So a blanket purge across every
+     * domain is safe even when only some rows were ever written.
+     */
+    suspend fun delete(user: SignedInUser, entity: String, id: String): Result<Unit>
+
     /** Whether the backend is wired up to talk to a real InstantDB.
      *  False when [BuildConfig.INSTANTDB_APP_ID] is the sentinel. */
     val isConfigured: Boolean
@@ -75,6 +87,13 @@ class DisabledBackend : InstantBackend {
         updatedAt: Long,
     ): Result<Unit> = Result.failure(IllegalStateException(NOT_CONFIGURED))
 
+    /** Vacuous success: with sync disabled nothing was ever written to
+     *  InstantDB, so there is nothing to delete. The sign-out deletion path
+     *  (#1139) must not report a spurious failure just because this build
+     *  has no sync backend. */
+    override suspend fun delete(user: SignedInUser, entity: String, id: String): Result<Unit> =
+        Result.success(Unit)
+
     private companion object {
         const val NOT_CONFIGURED = "Sync isn't configured for this build (placeholder INSTANTDB_APP_ID)"
     }
@@ -98,6 +117,12 @@ class FakeInstantBackend : InstantBackend {
         updatedAt: Long,
     ): Result<Unit> {
         store[entity to id] = RowSnapshot(payload, updatedAt)
+        return Result.success(Unit)
+    }
+
+    override suspend fun delete(user: SignedInUser, entity: String, id: String): Result<Unit> {
+        // Idempotent like the real backend: removing an absent key is fine.
+        store.remove(entity to id)
         return Result.success(Unit)
     }
 }

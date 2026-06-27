@@ -48,6 +48,9 @@ class PronunciationDictSyncer @Inject constructor(
     override suspend fun push(user: SignedInUser): SyncOutcome = delegate.push(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = delegate.pull(user)
 
+    /** #1139 — delete the remote pronunciation-dict blob on sign-out. */
+    override suspend fun purge(user: SignedInUser): SyncOutcome = delegate.purge(user)
+
     private suspend fun readLocal(): Stamped<String>? {
         val dict = repo.current()
         if (dict.entries.isEmpty()) return null

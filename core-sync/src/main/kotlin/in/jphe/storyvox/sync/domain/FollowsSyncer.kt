@@ -35,6 +35,9 @@ class FollowsSyncer @Inject constructor(
     override suspend fun push(user: SignedInUser): SyncOutcome = delegate.push(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = delegate.pull(user)
 
+    /** #1139 — delete the remote follows set on sign-out. */
+    override suspend fun purge(user: SignedInUser): SyncOutcome = delegate.purge(user)
+
     suspend fun recordUnfollow(fictionId: String) {
         tombstones.add(DOMAIN, fictionId)
     }

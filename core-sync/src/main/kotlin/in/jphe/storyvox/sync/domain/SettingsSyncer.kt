@@ -9,6 +9,7 @@ import `in`.jphe.storyvox.sync.coordinator.ConflictPolicies
 import `in`.jphe.storyvox.sync.coordinator.Stamped
 import `in`.jphe.storyvox.sync.coordinator.SyncOutcome
 import `in`.jphe.storyvox.sync.coordinator.Syncer
+import `in`.jphe.storyvox.sync.coordinator.toPurgeOutcome
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.builtins.MapSerializer
@@ -86,6 +87,10 @@ class SettingsSyncer @Inject constructor(
 
     override suspend fun push(user: SignedInUser): SyncOutcome = reconcile(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = reconcile(user)
+
+    /** #1139 — delete the remote settings blob on sign-out. */
+    override suspend fun purge(user: SignedInUser): SyncOutcome =
+        backend.delete(user, ENTITY, rowId(user)).toPurgeOutcome()
 
     /**
      * Fetch the remote row, merge per-key against the local snapshot,

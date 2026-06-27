@@ -199,14 +199,59 @@ class HttpInstantBackendTest {
         )
     }
 
+    @Test fun `delete posts a single delete step with entity and id (issue 1139)`() = runTest {
+        val transport = FakeTransport(mapOf(
+            "/admin/transact" to TransportResult(200, """{"tx-id":43}"""),
+        ))
+        val backend = HttpInstantBackend("test-app", transport)
+
+        val res = backend.delete(
+            user,
+            entity = "blobs",
+            id = "0e9a6111-40d8-3ef1-9fd1-fadfe3240618",
+        )
+        assertTrue(res.isSuccess)
+
+        val call = transport.calls.single()
+        assertTrue(call.url.endsWith("/admin/transact?app_id=test-app"))
+        assertEquals("rt-1", call.headers["as-token"])
+        // Body: { steps: [["delete","blobs","0e9a6111-…"]], "throw-on-missing-attrs?": false }
+        // The delete step carries NO args object — that's the only shape
+        // difference from update; a stray payload object would be a wire drift.
+        assertTrue("body has steps envelope", call.body.contains("\"steps\""))
+        assertTrue("body includes delete verb", call.body.contains("\"delete\""))
+        assertFalse("delete must NOT carry an update verb", call.body.contains("\"update\""))
+        assertFalse("delete step carries no payload args", call.body.contains("\"payload\""))
+        assertTrue("body includes entity", call.body.contains("\"blobs\""))
+        assertTrue("body includes id", call.body.contains("\"0e9a6111-40d8-3ef1-9fd1-fadfe3240618\""))
+    }
+
+    @Test fun `delete surfaces server error on transact failure`() = runTest {
+        val transport = FakeTransport(mapOf(
+            "/admin/transact" to TransportResult(
+                403,
+                """{"message":"permission denied"}""",
+            ),
+        ))
+        val backend = HttpInstantBackend("test-app", transport)
+
+        val res = backend.delete(user, "blobs", "id")
+        assertTrue(res.isFailure)
+        assertTrue(
+            res.exceptionOrNull()?.message?.contains("permission denied") == true,
+        )
+    }
+
     @Test fun `placeholder appId disables the backend`() = runTest {
         val transport = FakeTransport(emptyMap())
         val backend = HttpInstantBackend(HttpInstantBackend.PLACEHOLDER_APP_ID, transport)
         assertFalse(backend.isConfigured)
         val r1 = backend.fetch(user, "blobs", "x")
         val r2 = backend.upsert(user, "blobs", "x", "p", 1L)
+        val r3 = backend.delete(user, "blobs", "x")
         assertTrue(r1.isFailure)
         assertTrue(r2.isFailure)
+        assertTrue(r3.isFailure)
         assertEquals("no network calls made", 0, transport.calls.size)
     }
 }
