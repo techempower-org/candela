@@ -46,6 +46,9 @@ class LibrarySyncer @Inject constructor(
     override suspend fun push(user: SignedInUser): SyncOutcome = delegate.push(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = delegate.pull(user)
 
+    /** #1139 — delete the remote library set on sign-out. */
+    override suspend fun purge(user: SignedInUser): SyncOutcome = delegate.purge(user)
+
     /** Record that the user removed a fiction from their library. Called
      *  from the FictionRepository's remove-from-library path so the
      *  removal propagates on next sync. */

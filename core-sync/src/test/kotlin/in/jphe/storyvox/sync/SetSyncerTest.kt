@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -81,6 +83,28 @@ class SetSyncerTest {
         val pull2 = syncer2.pull(USER)
         assertTrue(pull2 is SyncOutcome.Ok)
         assertEquals(setOf("a", "b", "c"), device2)
+    }
+
+    @Test fun `purge deletes the remote set row but keeps local (issue 1139)`() = runTest {
+        val backend = FakeInstantBackend()
+        val localState = mutableSetOf("a", "b")
+        val syncer = SetSyncer(
+            name = "library",
+            tombstones = InMemoryTombstones(),
+            localSnapshot = { localState.toSet() },
+            localAdd = { localState.add(it) },
+            localRemove = { localState.remove(it) },
+            remote = BackendSetRemote("library", backend),
+        )
+        syncer.push(USER)
+        val rowId = SyncIds.rowUuid("library", USER.userId)
+        assertNotNull("remote row exists after push", backend.fetch(USER, "sets", rowId).getOrThrow())
+
+        val outcome = syncer.purge(USER)
+        assertTrue(outcome is SyncOutcome.Ok)
+        assertNull("remote set row deleted by purge", backend.fetch(USER, "sets", rowId).getOrThrow())
+        // Sign-out deletes the CLOUD copy only — local membership is retained.
+        assertEquals(setOf("a", "b"), localState)
     }
 
     @Test fun `tombstone on one device removes the member on the other after sync`() = runTest {

@@ -103,6 +103,10 @@ class BackendSetRemote(
         )
     }
 
+    /** #1139 — delete this set domain's remote row on sign-out. */
+    override suspend fun delete(user: SignedInUser): Result<Unit> =
+        backend.delete(user, entity = ENTITY, id = rowId(user))
+
     private fun rowId(user: SignedInUser) = SyncIds.rowUuid(domain, user.userId)
 
     private companion object { const val ENTITY = "sets" }
@@ -131,6 +135,10 @@ class BackendBlobRemote(
             payload = payload.value,
             updatedAt = payload.updatedAt,
         )
+
+    /** #1139 — delete this blob domain's remote row on sign-out. */
+    override suspend fun delete(user: SignedInUser): Result<Unit> =
+        backend.delete(user, entity = ENTITY, id = rowId(user))
 
     private fun rowId(user: SignedInUser) = SyncIds.rowUuid(domain, user.userId)
 

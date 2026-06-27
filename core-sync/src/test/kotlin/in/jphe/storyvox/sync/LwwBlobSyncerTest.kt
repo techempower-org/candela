@@ -10,6 +10,7 @@ import `in`.jphe.storyvox.sync.domain.LwwBlobSyncer
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -48,6 +49,26 @@ class LwwBlobSyncerTest {
         assertNotNull(newDevice.value)
         assertEquals("hello", newDevice.value!!.value)
         assertEquals(1000L, newDevice.value!!.updatedAt)
+    }
+
+    @Test fun `purge deletes the remote blob row but keeps local (issue 1139)`() = runTest {
+        val backend = FakeInstantBackend()
+        val local = LocalCell().apply { value = Stamped("secret-data", 1000L) }
+        val syncer = LwwBlobSyncer(
+            name = "pronunciation",
+            localRead = { local.value },
+            localWrite = { local.value = it },
+            remote = BackendBlobRemote("pronunciation", backend),
+        )
+        syncer.push(USER)
+        val rowId = SyncIds.rowUuid("pronunciation", USER.userId)
+        assertNotNull("remote row exists after push", backend.fetch(USER, "blobs", rowId).getOrThrow())
+
+        val outcome = syncer.purge(USER)
+        assertTrue(outcome is SyncOutcome.Ok)
+        assertNull("remote blob row deleted by purge", backend.fetch(USER, "blobs", rowId).getOrThrow())
+        // Cloud-copy-only deletion — the local blob is intentionally retained.
+        assertNotNull("local copy retained after purge", local.value)
     }
 
     @Test fun `newer remote overrides local on pull`() = runTest {

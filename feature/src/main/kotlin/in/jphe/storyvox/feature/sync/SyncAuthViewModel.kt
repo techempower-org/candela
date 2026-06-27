@@ -124,13 +124,31 @@ class SyncAuthViewModel @Inject constructor(
         }
     }
 
-    /** Local sign-out + best-effort server sign-out. */
+    /**
+     * Sign out: delete the user's cloud data, revoke the token server-side,
+     * then wipe local credentials.
+     *
+     * Issue #1139 — signing out must actually delete the InstantDB record,
+     * as the privacy policy promises ("signing out of sync deletes your
+     * record"). [SyncCoordinator.purgeRemoteData] runs FIRST, while
+     * [current]'s refresh token is still valid — the admin delete API
+     * authorizes via as-token impersonation with that token, so deletion
+     * must precede [InstantClient.signOut] (which revokes it) and
+     * [InstantSession.clear] (which forgets it).
+     *
+     * All three steps are best-effort: an offline sign-out still completes
+     * locally (the user shouldn't be trapped signed-in), and the privacy
+     * policy's email-request path backstops a failed cloud delete. Local
+     * on-device library/positions are intentionally kept — see
+     * [SyncCoordinator]'s class kdoc.
+     */
     fun signOut() {
         val current = session.current() ?: run {
             _state.value = SignInState.SignedOut(email = "")
             return
         }
         viewModelScope.launch {
+            coordinator.purgeRemoteData(current) // #1139 delete cloud data while token is valid
             client.signOut(current.refreshToken) // best-effort; ignored on failure
             session.clear()
             _state.value = SignInState.SignedOut(email = "")

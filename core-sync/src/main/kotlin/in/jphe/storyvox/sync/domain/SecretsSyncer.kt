@@ -9,6 +9,7 @@ import `in`.jphe.storyvox.sync.coordinator.ConflictPolicies
 import `in`.jphe.storyvox.sync.coordinator.Stamped
 import `in`.jphe.storyvox.sync.coordinator.SyncOutcome
 import `in`.jphe.storyvox.sync.coordinator.Syncer
+import `in`.jphe.storyvox.sync.coordinator.toPurgeOutcome
 import `in`.jphe.storyvox.sync.crypto.UserDerivedKey
 import javax.crypto.SecretKey
 import javax.inject.Inject
@@ -135,6 +136,11 @@ class SecretsSyncer @Inject constructor(
 
     override suspend fun push(user: SignedInUser): SyncOutcome = reconcile(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = reconcile(user)
+
+    /** #1139 — delete the remote encrypted-secrets blob on sign-out. No
+     *  passphrase needed: deletion removes the row by id without reading it. */
+    override suspend fun purge(user: SignedInUser): SyncOutcome =
+        backend.delete(user, ENTITY, rowId(user)).toPurgeOutcome()
 
     private suspend fun reconcile(user: SignedInUser): SyncOutcome {
         val passphrase = passphraseProvider.get()

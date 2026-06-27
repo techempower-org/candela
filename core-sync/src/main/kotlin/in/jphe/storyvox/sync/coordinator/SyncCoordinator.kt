@@ -29,9 +29,12 @@ import kotlinx.coroutines.sync.withLock
  *    a push pass first (the "migration" — every local row that exists
  *    today gets uploaded so a fresh install on another device can pull
  *    it back).
- *  - On sign-out, we don't auto-wipe local state — the user signs out
- *    to disable sync, not to nuke their on-device library. The
- *    refresh token is cleared and the syncers go quiet.
+ *  - On sign-out, we don't auto-wipe LOCAL state — the user signs out
+ *    to disable sync, not to nuke their on-device library. But we DO
+ *    delete the user's CLOUD copy via [purgeRemoteData] (#1139), which
+ *    is the deletion the privacy policy promises ("signing out deletes
+ *    your InstantDB record"). The refresh token is then revoked +
+ *    cleared and the syncers go quiet.
  *
  * Concurrency model: a single [SupervisorJob] scope, with one mutex per
  * domain (so a push and pull for the same domain don't race) but
@@ -110,6 +113,42 @@ class SyncCoordinator @Inject constructor(
             android.util.Log.i(TAG, "syncNow: pullAll done, starting pushAll")
             requestPushAll()
         }
+    }
+
+    /**
+     * Delete every domain's remote (InstantDB) row for [user] — the
+     * data-deletion path the privacy policy promises on sign-out (#1139).
+     *
+     * Called from the sign-out flow BEFORE the refresh token is revoked /
+     * cleared, because the admin API authorizes the delete via as-token
+     * impersonation with that same token. Runs each domain's [Syncer.purge]
+     * under the domain's own mutex (so a concurrent push/pull can't race the
+     * delete), serially across domains for deterministic logging.
+     *
+     * Returns true iff every domain purged cleanly. Best-effort by design:
+     * an offline sign-out still completes (the caller proceeds regardless),
+     * and the privacy policy's email-request path is the backstop for the
+     * rare partial-failure case. Local on-device data is intentionally NOT
+     * touched here — see the class kdoc.
+     */
+    suspend fun purgeRemoteData(user: SignedInUser): Boolean {
+        android.util.Log.i(TAG, "purgeRemoteData: deleting ${syncers.size} domains for user=${user.userId.take(8)}…")
+        var allOk = true
+        for (syncer in syncers) {
+            val mutex = locks[syncer.name] ?: continue
+            val outcome = mutex.withLock {
+                runCatching { syncer.purge(user) }
+                    .getOrElse { SyncOutcome.Transient(it.message ?: "purge threw") }
+            }
+            if (outcome is SyncOutcome.Ok) {
+                android.util.Log.i(TAG, "purge ${syncer.name}: OK")
+            } else {
+                allOk = false
+                android.util.Log.w(TAG, "purge ${syncer.name}: $outcome")
+            }
+        }
+        android.util.Log.i(TAG, "purgeRemoteData: complete, allOk=$allOk")
+        return allOk
     }
 
     /** Request a push for every domain. Used by the post-sign-in
