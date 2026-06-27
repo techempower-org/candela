@@ -22,6 +22,20 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 private const val PRIVACY_POLICY_URL = "https://candela.techempower.org/privacy/"
 private const val ACCESSIBILITY_STATEMENT_URL = "https://candela.techempower.org/accessibility/"
 
+/** Content-report mailto (#1140). Play Store IARC content rating expects a
+ *  reporting channel for the user-generated content Candela surfaces from
+ *  third-party sources (AO3, Royal Road, etc.). Subject + body are URL-encoded
+ *  at click time via [android.net.Uri.encode] so the em-dash and newlines
+ *  survive the mailto: scheme. */
+private const val CONTENT_REPORT_EMAIL = "support@techempower.org"
+private const val CONTENT_REPORT_SUBJECT = "Candela — Content Report"
+private const val CONTENT_REPORT_BODY = "Source: \nTitle: \nURL: \nDescription of concern: \n"
+
+private fun contentReportMailto(): String =
+    "mailto:$CONTENT_REPORT_EMAIL" +
+        "?subject=${android.net.Uri.encode(CONTENT_REPORT_SUBJECT)}" +
+        "&body=${android.net.Uri.encode(CONTENT_REPORT_BODY)}"
+
 /**
  * Settings → About subscreen (follow-up to #440 / #467).
  *
@@ -99,6 +113,13 @@ fun AboutSettingsScreen(
                     title = stringResource(R.string.settings_about_accessibility),
                     subtitle = stringResource(R.string.settings_about_accessibility_subtitle),
                     onClick = { runCatching { uriHandler.openUri(ACCESSIBILITY_STATEMENT_URL) } },
+                )
+            }
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_report_content),
+                    subtitle = stringResource(R.string.settings_about_report_content_subtitle),
+                    onClick = { runCatching { uriHandler.openUri(contentReportMailto()) } },
                 )
             }
             SettingsGroupCard {
