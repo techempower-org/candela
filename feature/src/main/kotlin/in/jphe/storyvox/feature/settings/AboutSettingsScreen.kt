@@ -90,7 +90,7 @@ fun AboutSettingsScreen(
                 SettingsLinkRow(
                     title = stringResource(R.string.settings_about_privacy_policy),
                     subtitle = stringResource(R.string.settings_about_privacy_policy_subtitle),
-                    onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) },
+                    onClick = { runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) } },
                 )
             }
             SettingsGroupCard {
