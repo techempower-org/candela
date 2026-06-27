@@ -90,8 +90,8 @@ fun OssLicensesScreen(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { uriHandler.openUri(sourceUrl) }
                             .padding(vertical = spacing.xxs)
+                            .clickable { runCatching { uriHandler.openUri(sourceUrl) } }
                             .semantics { contentDescription = sourceLabel },
                     )
                 }
