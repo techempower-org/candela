@@ -19,6 +19,7 @@ import `in`.jphe.storyvox.source.ao3.auth.Ao3AuthSource
 import `in`.jphe.storyvox.source.ao3.auth.Ao3SessionHydrator
 import `in`.jphe.storyvox.source.ao3.net.Ao3Api
 import `in`.jphe.storyvox.source.ao3.net.Ao3CookieJar
+import `in`.jphe.storyvox.source.ao3.net.Ao3RateLimitInterceptor
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -65,7 +66,7 @@ internal object Ao3HttpModule {
     @Provides
     @Singleton
     @Ao3Http
-    fun provideClient(): OkHttpClient =
+    fun provideClient(rateLimit: Ao3RateLimitInterceptor): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             // EPUB downloads dominate the read budget. AO3's longest
@@ -78,6 +79,12 @@ internal object Ao3HttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1141 — process-wide 1 req/sec politeness gate. Shared
+            // singleton across both clients so anonymous catalog fetches
+            // and authed reads draw from one budget. OTW is publicly
+            // anti-scraping; AO3 was the only high-risk source with no
+            // throttle (Royal Road already gates at 1 req/sec).
+            .addInterceptor(rateLimit)
             .build()
 
     /**
@@ -94,7 +101,10 @@ internal object Ao3HttpModule {
     @Provides
     @Singleton
     @Ao3AuthedHttp
-    fun provideAuthedClient(jar: Ao3CookieJar): OkHttpClient =
+    fun provideAuthedClient(
+        jar: Ao3CookieJar,
+        rateLimit: Ao3RateLimitInterceptor,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .cookieJar(jar)
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -103,6 +113,9 @@ internal object Ao3HttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1141 — same shared politeness gate as the anonymous
+            // client (see provideClient). One budget across both.
+            .addInterceptor(rateLimit)
             .addInterceptor { chain ->
                 val req = chain.request().newBuilder()
                     .header("User-Agent", Ao3Api.USER_AGENT)
