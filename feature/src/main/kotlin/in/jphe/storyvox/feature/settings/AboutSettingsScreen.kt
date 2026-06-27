@@ -20,6 +20,7 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  *  reachable privacy-policy URL, and the policy must be reachable from inside
  *  the app too — surfaced here per #1138. */
 private const val PRIVACY_POLICY_URL = "https://candela.techempower.org/privacy/"
+private const val ACCESSIBILITY_STATEMENT_URL = "https://candela.techempower.org/accessibility/"
 
 /**
  * Settings → About subscreen (follow-up to #440 / #467).
@@ -91,6 +92,13 @@ fun AboutSettingsScreen(
                     title = stringResource(R.string.settings_about_privacy_policy),
                     subtitle = stringResource(R.string.settings_about_privacy_policy_subtitle),
                     onClick = { runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) } },
+                )
+            }
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_accessibility),
+                    subtitle = stringResource(R.string.settings_about_accessibility_subtitle),
+                    onClick = { runCatching { uriHandler.openUri(ACCESSIBILITY_STATEMENT_URL) } },
                 )
             }
             SettingsGroupCard {
