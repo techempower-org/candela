@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextDecoration
 import `in`.jphe.storyvox.data.source.filter.FilterDimension
 import `in`.jphe.storyvox.feature.R
@@ -337,7 +342,17 @@ private fun NumberRangeSection(
         },
         valueRange = dim.min..dim.max,
         steps = ((dim.max - dim.min) / dim.step).toInt() - 1,
-        modifier = Modifier.fillMaxWidth(),
+        // #1158 — M3 only exposes the slider role + a raw value; the
+        // dimension name (SectionLabel) and the unit/range Text above are
+        // sibling nodes TalkBack never associates. Name + range-with-units
+        // here so it reads "Length, 50 to 200 words" instead of "50.0, slider".
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = dim.label
+                stateDescription =
+                    "${formatNumber(rangeMin, dim.step)} to ${formatNumber(rangeMax, dim.step)}$suffix"
+            },
     )
 }
 
@@ -375,18 +390,31 @@ private fun ToggleSection(
     onChange: (FilterState) -> Unit,
 ) {
     val checked = state.boolVal(dim.key) ?: dim.default
+    // #1158 — pre-fix the label Text and the Switch were separate focus
+    // stops, so TalkBack landed on the Switch and said "Switch, on" with no
+    // idea which filter it controlled. The toggleable Row now owns the
+    // Role.Switch semantics + name, merging both into one node that reads
+    // "Completed only, on, switch"; the inner Switch defers (onCheckedChange
+    // = null) so it isn't a redundant, unlabeled second focus stop.
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = { value ->
+                    if (value == dim.default) onChange(state.without(dim.key))
+                    else onChange(state.with(dim.key, FilterValue.BoolVal(value)))
+                },
+            )
+            .semantics { contentDescription = dim.label },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(dim.label, style = MaterialTheme.typography.bodyLarge)
         Switch(
             checked = checked,
-            onCheckedChange = { value ->
-                if (value == dim.default) onChange(state.without(dim.key))
-                else onChange(state.with(dim.key, FilterValue.BoolVal(value)))
-            },
+            onCheckedChange = null,
         )
     }
 }
