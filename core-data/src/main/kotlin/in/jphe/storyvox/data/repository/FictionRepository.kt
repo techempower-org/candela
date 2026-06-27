@@ -550,6 +550,7 @@ class FictionRepositoryImpl @Inject constructor(
                 lastDownloadError = previous.lastDownloadError,
                 userMarkedRead = previous.userMarkedRead,
                 firstReadAt = previous.firstReadAt,
+                audioUrl = fresh.audioUrl ?: previous.audioUrl,
             )
         }
         // Issues #349 / #652 — RSS feeds (and any future window-style
@@ -705,6 +706,7 @@ internal fun ChapterInfo.toEntity(fictionId: String): Chapter = Chapter(
     publishedAt = publishedAt,
     wordCount = wordCount,
     downloadState = ChapterDownloadState.NOT_DOWNLOADED,
+    audioUrl = audioUrl,
 )
 
 internal fun Chapter.toInfo(): ChapterInfo = ChapterInfo(
@@ -714,6 +716,7 @@ internal fun Chapter.toInfo(): ChapterInfo = ChapterInfo(
     title = title,
     publishedAt = publishedAt,
     wordCount = wordCount,
+    audioUrl = audioUrl,
 )
 
 internal fun toInfo(row: `in`.jphe.storyvox.data.db.dao.ChapterInfoRow): ChapterInfo = ChapterInfo(
