@@ -1114,12 +1114,8 @@ private fun LibraryGridBody(
                         onClick = { onTapFiction(fiction.id) },
                         onLongClick = { onLongPress(fiction) },
                     )
+                    .testTag(TestTags.LibraryItem)
                     .clearAndSetSemantics {
-                        // UI-test selector for an individual library tile.
-                        // Every fiction cell carries the same `library-item`
-                        // tag; flows select the first match (or count) rather
-                        // than by title.
-                        testTag = TestTags.LibraryItem
                         role = Role.Button
                         contentDescription = itemDescription
                         onClick(label = "Open") { onTapFiction(fiction.id); true }
