@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.2] -- 2026-06-27
+
+Hotfix: radio and LibriVox no longer show a false "Paused for a call" panel while audio is playing.
+
+### Fixed
+
+- **False focus-lost diagnostic on audio streams.** ExoPlayer manages its own audio focus for radio/LibriVox streams, but the diagnostic monitor was checking the TTS-path `AudioFocusController` — which wasn't held — producing a permanent "Paused for a call" overlay. Now skipped for live audio chapters. (#1225 / #1226)
+
 ## [1.2.1] -- 2026-06-27
 
 Hotfix: radio and LibriVox audio streams now play immediately instead of showing a permanent "Retry" error.
