@@ -201,11 +201,14 @@ internal class WikisourceApi @Inject constructor(
     // with NetworkOnMainThreadException on first chip tap.
     private suspend fun getRaw(url: String): FictionResult<String> = withContext(Dispatchers.IO) {
         try {
+            // #1141 — the descriptive `User-Agent` Wikimedia requires
+            // (project + contact) is applied for every request by the
+            // shared UserAgentHeader interceptor on the injected client;
+            // see `in.jphe.storyvox.data.network.UserAgent`.
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
                 .header("Accept-Language", "en")
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -243,12 +246,6 @@ internal class WikisourceApi @Inject constructor(
          *  Keeping the host as a const avoids the WikipediaConfig
          *  DataStore plumbing for a single-language launch. */
         const val BASE_URL: String = "https://en.wikisource.org"
-
-        /** Wikimedia User-Agent policy — identify the project + give a
-         *  contact URL. Without this the REST API returns 403 for
-         *  anonymous-tier traffic. */
-        const val USER_AGENT: String =
-            "storyvox-wikisource/1.0 (https://github.com/jphein/storyvox; jp@jphein.com)"
     }
 }
 

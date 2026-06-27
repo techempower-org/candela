@@ -131,10 +131,14 @@ internal class ArxivApi @Inject constructor(
     private suspend fun getRaw(url: String): FictionResult<String> =
         withContext(Dispatchers.IO) {
             try {
+                // #1141 — the identifying `User-Agent` arXiv asks
+                // automated clients to send is applied for every request
+                // by the shared UserAgentHeader interceptor on the
+                // injected client; see
+                // `in.jphe.storyvox.data.network.UserAgent`.
                 val req = Request.Builder()
                     .url(url)
                     .header("Accept", "application/atom+xml, text/html;q=0.9, */*;q=0.5")
-                    .header("User-Agent", USER_AGENT)
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
@@ -192,11 +196,6 @@ internal class ArxivApi @Inject constructor(
 
         /** Per-paper abstract page host. */
         const val ABS_BASE: String = "https://arxiv.org/abs"
-
-        /** arXiv requests an identifying User-Agent on automated traffic
-         *  (see https://info.arxiv.org/help/robots.html). */
-        const val USER_AGENT: String =
-            "storyvox-arxiv/1.0 (https://github.com/techempower-org/candela; jp@jphein.com)"
     }
 }
 

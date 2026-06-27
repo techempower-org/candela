@@ -174,13 +174,14 @@ internal class RadioBrowserApi @Inject constructor(
 
     private suspend fun doRequest(url: String): FictionResult<String> = withContext(Dispatchers.IO) {
         try {
+            // #1141 — Radio Browser asks clients to identify themselves
+            // so abusive callers can be contacted directly. The
+            // descriptive `User-Agent` is applied for every request by the
+            // shared UserAgentHeader interceptor on the injected client;
+            // see `in.jphe.storyvox.data.network.UserAgent`.
             val request = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
-                // Radio Browser asks clients to identify themselves so
-                // abusive callers can be contacted directly. The repo
-                // URL doubles as the contact channel.
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(request).execute().use { resp ->
@@ -216,9 +217,6 @@ internal class RadioBrowserApi @Inject constructor(
          * round-robin DNS endpoint is a worse fit for our usage shape.
          */
         const val BASE_URL: String = "https://de1.api.radio-browser.info"
-
-        const val USER_AGENT: String =
-            "storyvox-radio/0.5.32 (+https://github.com/techempower-org/candela)"
     }
 }
 
