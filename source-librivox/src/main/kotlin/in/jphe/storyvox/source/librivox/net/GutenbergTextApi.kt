@@ -8,6 +8,7 @@ import okhttp3.Request
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.coroutineContext
 
 /**
  * Issue #1046 — fetch the public-domain *text* that matches a LibriVox
@@ -62,7 +63,14 @@ internal class GutenbergTextApi @Inject constructor(
                 .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
-            client.newCall(request).execute().use { resp ->
+            // The blocking `execute()` below doesn't observe coroutine
+            // cancellation on its own; tie the OkHttp call's lifetime to
+            // this coroutine's Job so a cancelled scope (e.g. the reader
+            // pane closes mid-fetch) aborts the in-flight request instead
+            // of leaking the socket until the response completes.
+            val call = client.newCall(request)
+            coroutineContext[kotlinx.coroutines.Job]?.invokeOnCompletion { call.cancel() }
+            call.execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 when {
                     resp.code == 404 ->
@@ -134,7 +142,12 @@ internal class GutenbergTextApi @Inject constructor(
          * absent (a rare malformed file) the whole trimmed text is kept
          * so the reader still gets the book rather than nothing.
          */
-        internal fun stripGutenbergBoilerplate(raw: String): String {
+        internal fun stripGutenbergBoilerplate(input: String): String {
+            // Gutenberg plain-text files ship with CRLF (and the odd lone
+            // CR) line endings. Normalize to `\n` first so the marker
+            // line-slicing (`indexOf('\n', …)`) and the reader's paragraph
+            // splitting both see a single, consistent line terminator.
+            val raw = input.replace("\r\n", "\n").replace("\r", "\n")
             val startMatch = START_MARKER.find(raw)
             val afterStart = if (startMatch != null) {
                 // Skip to the end of the marker's line.

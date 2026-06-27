@@ -428,8 +428,7 @@ internal class LibriVoxSource @Inject constructor(
      *  paragraph newlines become `<br/>`). The reader's text pane reads
      *  `plainBody`, but persistence keeps both. */
     private fun gutenbergHtml(plain: String): String =
-        plain.split(PARAGRAPH_BREAK)
-            .asSequence()
+        PARAGRAPH_BREAK.splitToSequence(plain)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .joinToString(separator = "") { para ->

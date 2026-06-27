@@ -2646,6 +2646,13 @@ class EnginePlayer @AssistedInject constructor(
                             "fromSentence=$currentSentenceIndex base=${key.fileBaseName().take(12)}",
                     )
                 }.onFailure { t ->
+                    // #1175 — a cancellation here (user paused/skipped while the
+                    // cache entry was being opened) is NOT cache corruption.
+                    // Deleting on cancel would nuke a perfectly valid entry and
+                    // force a full re-render on the next play — the exact
+                    // cache-integrity behavior #1130 set out to protect. Rethrow
+                    // so the open unwinds without touching disk.
+                    if (t is kotlin.coroutines.cancellation.CancellationException) throw t
                     // #1128 — the entry is "complete" (isComplete passed) but
                     // failed CacheFileSource's integrity gate: empty/degenerate
                     // index, truncated/missing .pcm, or unreadable idx.json.
@@ -4230,6 +4237,10 @@ class EnginePlayer @AssistedInject constructor(
         if (direction >= 0) {
             runCatching { positionRepo.resetToChapterStart(fiction, nextId) }
                 .onFailure {
+                    // #1175 — don't swallow cancellation during advanceChapter.
+                    // If this reset is cancelled (skip/cancel), the coroutine
+                    // must stop, not fall through into the load/play below.
+                    if (it is kotlin.coroutines.cancellation.CancellationException) throw it
                     android.util.Log.w(
                         "EnginePlayer",
                         "advanceChapter: resetToChapterStart($nextId) failed " +

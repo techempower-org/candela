@@ -25,4 +25,4 @@ FEATURES
 • Dark and light themes; TalkBack-friendly; WCAG AA contrast
 • Free, GPL-3.0, ad-free, no tracking, no account required
 
-Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools, training, and software. Open source at github.com/techempower-org/candela.
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools, training, and software. Open source on GitHub.
