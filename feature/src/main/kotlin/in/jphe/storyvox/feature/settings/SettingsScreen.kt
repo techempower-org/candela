@@ -1330,7 +1330,9 @@ internal fun AzureSection(
             annotated,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.clickable(role = Role.Button, onClickLabel = "Open Azure Speech docs") {
-                uriHandler.openUri(helpUrl)
+                // #1203 — guard against ActivityNotFoundException on devices
+                // with no browser (same fix as #1177/#1186).
+                runCatching { uriHandler.openUri(helpUrl) }
             },
         )
 
