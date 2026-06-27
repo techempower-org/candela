@@ -22,6 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -169,6 +172,10 @@ private fun SignedInBody(
             },
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
+            // #1160: while the sheet is open the header flips "Syncing in
+            // progress" → "Signed in" with no tap. Polite live region so
+            // TalkBack announces the change; per-domain rows stay quiet.
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
     }
     Text(

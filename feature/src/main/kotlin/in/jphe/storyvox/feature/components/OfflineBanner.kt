@@ -15,6 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
@@ -29,9 +32,11 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * status banners. The retry CTA is optional: Browse wires it to a re-fetch,
  * Library passes `null` (there's nothing to retry until the user taps a cover).
  *
- * A11y: TalkBack announces the message once when the banner enters composition,
- * which is the whole point of the issue — one announcement instead of one per
- * failed network retry.
+ * A11y: the banner is a [LiveRegionMode.Polite] live region so TalkBack
+ * announces the offline message when it appears (and again if it re-appears
+ * after reconnecting) — without a tap, focus never moves here, so composition
+ * entry alone does not reliably announce. Polite (not Assertive) so it queues
+ * behind whatever the user is currently hearing instead of interrupting.
  */
 @Composable
 fun OfflineBanner(
@@ -45,7 +50,8 @@ fun OfflineBanner(
         ),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.md, vertical = spacing.xs),
+            .padding(horizontal = spacing.md, vertical = spacing.xs)
+            .semantics { liveRegion = LiveRegionMode.Polite },
     ) {
         Row(
             modifier = Modifier.padding(

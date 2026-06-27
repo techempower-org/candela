@@ -34,7 +34,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -111,6 +113,13 @@ fun RecapModal(
                     text = stringResource(subtitleResFor(state)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    // #1160: the recap runs Loading → Streaming → Done/Error
+                    // with no tap. This subtitle is the one header node whose
+                    // text tracks state (in-flight → done → error), so making
+                    // it a polite live region announces each transition once.
+                    // The streamed body is deliberately NOT a live region —
+                    // announcing per token would be unusable.
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
 
@@ -324,6 +333,10 @@ private fun ErrorBody(state: RecapUiState.Error) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
+            // #1160: the error body mounts on a failed recap with no tap;
+            // announce the actual error assertively so TalkBack surfaces it
+            // (the polite header subtitle only carries a neutral descriptor).
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
         )
     }
     // Suppress "unused parameter" — Color is used via colorScheme.

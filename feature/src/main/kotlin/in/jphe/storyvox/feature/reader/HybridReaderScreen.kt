@@ -20,6 +20,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -494,6 +497,11 @@ private fun ExplicitArgsLoadingPrompt(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
+                    // #1160: this pre-controller screen flips loading → Slow →
+                    // TimedOut with no tap. The silent flip to this actionable
+                    // "Couldn't start / Retry" state is the worst gap — announce
+                    // assertively so TalkBack surfaces it immediately.
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
                 )
                 Spacer(Modifier.height(spacing.xs))
                 Text(
@@ -533,6 +541,8 @@ private fun ExplicitArgsLoadingPrompt(
                     text = stringResource(R.string.reader_still_loading),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
+                    // #1160: announce the loading → Slow transition politely.
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
                 Spacer(Modifier.height(spacing.xs))
                 Text(
@@ -558,6 +568,8 @@ private fun ExplicitArgsLoadingPrompt(
                     text = stringResource(R.string.reader_loading_chapter),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
+                    // #1160: announce entry into the chapter-loading state.
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
         }

@@ -44,6 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.settings.components.SectionHeading
 import `in`.jphe.storyvox.ui.component.MagicTitleBar
@@ -324,6 +328,24 @@ fun SettingsHubScreen(
                     onClick = onOpenAllSettings,
                 )
             }
+            }
+            // #1160: rows self-hide on a non-matching query, so a search with
+            // no hits collapsed to a blank card with no feedback. Surface a
+            // polite live-region "No results" line. SettingsHubSections is
+            // test-pinned to mirror the rendered rows, so reusing matchesHubQuery
+            // over it tracks visibility exactly; a blank query matches every
+            // section, so this branch only fires when the user has typed.
+            val hasResults = SettingsHubSections.any { matchesHubQuery(query, it.title, it.subtitle) }
+            if (!hasResults) {
+                Text(
+                    text = stringResource(R.string.settings_hub_no_results, query.trim()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
         }
     }
