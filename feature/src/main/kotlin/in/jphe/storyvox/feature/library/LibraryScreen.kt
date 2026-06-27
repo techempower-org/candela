@@ -36,11 +36,13 @@ import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -70,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.BrassProgressBar
+import `in`.jphe.storyvox.ui.component.CollapsingHeader
 import `in`.jphe.storyvox.ui.component.coverSourceFamilyFor
 import `in`.jphe.storyvox.ui.component.FictionCoverThumb
 import `in`.jphe.storyvox.ui.component.fictionMonogram
@@ -151,6 +154,13 @@ fun LibraryScreen(
     val isOffline by viewModel.isOffline.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
 
+    // Issue #1195 — let the top app bar slide away as the content scrolls
+    // down (and return on scroll up). The sub-tab row, search bar and
+    // filter chips collapse independently via [CollapsingHeader] below;
+    // the two nested-scroll connections cascade (the bar consumes scroll
+    // first until fully hidden, then the chrome, then the list).
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     // #328 — dedupe defensively before the LazyVerticalGrid sees the list.
     // Compose enforces unique item keys; duplicates throw and crash the
     // activity. Hoisted out of the grid builder via remember so the
@@ -209,6 +219,7 @@ fun LibraryScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         // Issue #255 — Library used to fade straight from the system status
         // bar into a Resume card with no header — no 'Library' title, no
         // identity. The shared [MagicTitleBar] (#830) renders a
@@ -218,6 +229,7 @@ fun LibraryScreen(
         topBar = {
             MagicTitleBar(
                 title = stringResource(R.string.library_title),
+                scrollBehavior = scrollBehavior,
                 actions = {
                     // Issue #533 — top-bar action icons used to pack
                     // flush together at 0dp gap on the Flip3 (1080dp
@@ -303,74 +315,88 @@ fun LibraryScreen(
             }
         },
     ) { scaffoldPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(scaffoldPadding)) {
-            // Issue #158 — Library sub-tabs. SecondaryScrollableTabRow
-            // rather than the fixed SecondaryTabRow because the
-            // restructure (v0.5.40) grew the tab count to five
-            // (Library / Browse / Follows / Inbox / History) and the
-            // labels do not fit the Flip3 portrait width laid out
-            // evenly. Scrollable is the same pattern BrowseScreen
-            // already uses for its narrow-viewport tab row, so this
-            // stays inside the existing visual vocabulary.
-            //
-            // Layering with #116 (shelves): the chip row is shown only
-            // on Tab.Library — on Tab.Browse / Follows the embedded
-            // surfaces own their own scoping, on Tab.Inbox / History
-            // the chip row isn't meaningful.
-            // Issue #532 — the tab row used to use `edgePadding = 0.dp`
-            // which lined the rightmost tab flush with the screen edge.
-            // On the Flip3 cover (1080dp narrow) only 4 of the 5 tabs
-            // fit visibly with no visual hint that "History" (the
-            // fifth) is reachable by horizontal swipe. Bumping
-            // edgePadding to spacing.md (16dp) lets the rightmost
-            // visible tab land as an obviously-partial chip — the same
-            // "scroll for more →" discoverability fix the
-            // VoiceLibrary chip row uses (#420 + #534). Scroll
-            // mechanics were already wired; this is the discovery fix.
-            SecondaryScrollableTabRow(
-                selectedTabIndex = state.tab.ordinal,
-                modifier = Modifier.fillMaxWidth(),
-                edgePadding = spacing.md,
-            ) {
-                LibraryTab.entries.forEach { tab ->
-                    val isSelected = state.tab == tab
-                    Tab(
-                        selected = isSelected,
-                        onClick = { viewModel.selectTab(tab) },
-                        // Issue #613 (v1.0 blocker) — Material3's Tab
-                        // applies Role.Tab via its internal clickable on
-                        // 1.2+, but earlier baselines + custom
-                        // SecondaryScrollableTabRow layouts have been
-                        // observed (R5CRB0W66MK semantics dump,
-                        // 2026-05-15) dropping the role on the merged
-                        // node. Belt-and-suspenders an explicit
-                        // `role = Role.Tab` + `selected` here so the
-                        // a11y tree always carries both, regardless of
-                        // Material version. The semantics modifier
-                        // comes BEFORE Tab's internal clickable so the
-                        // role properties get merged in rather than
-                        // overwritten.
-                        modifier = Modifier.semantics {
-                            role = Role.Tab
-                            selected = isSelected
-                        },
-                        text = {
-                            // Issue #383 — Inbox tab carries an unread-count
-                            // badge. BadgedBox positions the badge at the
-                            // top-right of the label without disturbing the
-                            // tab row's alignment. Zero unread = no badge
-                            // (same convention as FollowsScreen #290).
-                            if (tab == LibraryTab.Inbox && state.inboxUnreadCount > 0) {
-                                BadgedBox(
-                                    badge = {
-                                        Badge(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                                        ) {
-                                            Text(state.inboxUnreadCount.toString())
-                                        }
-                                    },
-                                ) {
+        CollapsingHeader(
+            modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+            // Issue #1195 — re-expand the chrome on every sub-tab switch so
+            // each surface opens with its full header rather than inheriting
+            // the previous list's collapse offset.
+            resetKey = state.tab,
+            header = {
+                // Issue #158 — Library sub-tabs. SecondaryScrollableTabRow
+                // rather than the fixed SecondaryTabRow because the
+                // restructure (v0.5.40) grew the tab count to five
+                // (Library / Browse / Follows / Inbox / History) and the
+                // labels do not fit the Flip3 portrait width laid out
+                // evenly. Scrollable is the same pattern BrowseScreen
+                // already uses for its narrow-viewport tab row, so this
+                // stays inside the existing visual vocabulary.
+                //
+                // Layering with #116 (shelves): the chip row is shown only
+                // on Tab.Library — on Tab.Browse / Follows the embedded
+                // surfaces own their own scoping, on Tab.Inbox / History
+                // the chip row isn't meaningful.
+                // Issue #532 — the tab row used to use `edgePadding = 0.dp`
+                // which lined the rightmost tab flush with the screen edge.
+                // On the Flip3 cover (1080dp narrow) only 4 of the 5 tabs
+                // fit visibly with no visual hint that "History" (the
+                // fifth) is reachable by horizontal swipe. Bumping
+                // edgePadding to spacing.md (16dp) lets the rightmost
+                // visible tab land as an obviously-partial chip — the same
+                // "scroll for more →" discoverability fix the
+                // VoiceLibrary chip row uses (#420 + #534). Scroll
+                // mechanics were already wired; this is the discovery fix.
+                SecondaryScrollableTabRow(
+                    selectedTabIndex = state.tab.ordinal,
+                    modifier = Modifier.fillMaxWidth(),
+                    edgePadding = spacing.md,
+                ) {
+                    LibraryTab.entries.forEach { tab ->
+                        val isSelected = state.tab == tab
+                        Tab(
+                            selected = isSelected,
+                            onClick = { viewModel.selectTab(tab) },
+                            // Issue #613 (v1.0 blocker) — Material3's Tab
+                            // applies Role.Tab via its internal clickable on
+                            // 1.2+, but earlier baselines + custom
+                            // SecondaryScrollableTabRow layouts have been
+                            // observed (R5CRB0W66MK semantics dump,
+                            // 2026-05-15) dropping the role on the merged
+                            // node. Belt-and-suspenders an explicit
+                            // `role = Role.Tab` + `selected` here so the
+                            // a11y tree always carries both, regardless of
+                            // Material version. The semantics modifier
+                            // comes BEFORE Tab's internal clickable so the
+                            // role properties get merged in rather than
+                            // overwritten.
+                            modifier = Modifier.semantics {
+                                role = Role.Tab
+                                selected = isSelected
+                            },
+                            text = {
+                                // Issue #383 — Inbox tab carries an unread-count
+                                // badge. BadgedBox positions the badge at the
+                                // top-right of the label without disturbing the
+                                // tab row's alignment. Zero unread = no badge
+                                // (same convention as FollowsScreen #290).
+                                if (tab == LibraryTab.Inbox && state.inboxUnreadCount > 0) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                            ) {
+                                                Text(state.inboxUnreadCount.toString())
+                                            }
+                                        },
+                                    ) {
+                                        Text(
+                                            text = tab.label,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                        )
+                                    }
+                                } else {
                                     Text(
                                         text = tab.label,
                                         style = MaterialTheme.typography.labelLarge,
@@ -378,78 +404,74 @@ fun LibraryScreen(
                                         softWrap = false,
                                     )
                                 }
-                            } else {
-                                Text(
-                                    text = tab.label,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                )
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
-            }
 
-            when (state.tab) {
-                LibraryTab.Library -> Column(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
-                    // #786 — offline banner above the Library grid. Cached
-                    // covers still render, but tapping a non-downloaded
-                    // fiction needs a network fetch we can't satisfy, so warn
-                    // up-front rather than letting the tap dead-end on a
-                    // timeout. No retry CTA: there's nothing to retry until
-                    // the user taps a cover, and reconnect dismisses it.
-                    if (isOffline) {
-                        OfflineBanner()
-                    }
-                    // Issue #785 — search bar above the chip/sort row. Filters
-                    // the library grid by title or author as the user types
-                    // (debounced at 300ms in the ViewModel). Works in
-                    // combination with the shelf chip filter.
-                    LibrarySearchBar(
-                        query = state.searchQuery,
-                        onQueryChange = viewModel::onSearchQueryChange,
-                        onClear = viewModel::clearSearch,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.md),
-                    )
-                    // #116 — chip strip above the grid (and above the
-                    // Resume card) so it's always reachable regardless of
-                    // scroll. #438 collapsed the old `Reading` tab into a
-                    // chip in this row, so this strip is the *only* nested
-                    // navigation surface for shelves now — no more
-                    // duplicate-label tab/chip pair.
-                    //
-                    // #793 — sort dropdown sits trailing in the same row.
-                    // ShelfChipRow takes `weight(1f)` so its horizontal
-                    // scroll can grow into the available width without
-                    // pushing the sort chip off-screen.
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ShelfChipRow(
-                            selected = state.filter,
-                            onSelect = viewModel::selectFilter,
-                            modifier = Modifier.weight(1f),
+                // Issue #1195 — the Library tab's search bar + filter/sort
+                // chips ride in the collapsing header so they scroll away
+                // with the grid. The other sub-tabs (Follows / Inbox /
+                // History) carry no chrome here beyond the tab row above.
+                if (state.tab == LibraryTab.Library) {
+                    Column(modifier = Modifier.padding(top = spacing.md)) {
+                        // #786 — offline banner above the Library grid. Cached
+                        // covers still render, but tapping a non-downloaded
+                        // fiction needs a network fetch we can't satisfy, so warn
+                        // up-front rather than letting the tap dead-end on a
+                        // timeout. No retry CTA: there's nothing to retry until
+                        // the user taps a cover, and reconnect dismisses it.
+                        if (isOffline) {
+                            OfflineBanner()
+                        }
+                        // Issue #785 — search bar above the chip/sort row. Filters
+                        // the library grid by title or author as the user types
+                        // (debounced at 300ms in the ViewModel). Works in
+                        // combination with the shelf chip filter.
+                        LibrarySearchBar(
+                            query = state.searchQuery,
+                            onQueryChange = viewModel::onSearchQueryChange,
+                            onClear = viewModel::clearSearch,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.md),
                         )
-                        LibrarySortChip(
-                            selected = state.sortMode,
-                            onSelect = viewModel::selectSortMode,
-                            modifier = Modifier.padding(end = spacing.md),
-                        )
+                        // #116 — chip strip above the grid (and above the
+                        // Resume card) so it's always reachable regardless of
+                        // scroll. #438 collapsed the old `Reading` tab into a
+                        // chip in this row, so this strip is the *only* nested
+                        // navigation surface for shelves now — no more
+                        // duplicate-label tab/chip pair.
+                        //
+                        // #793 — sort dropdown sits trailing in the same row.
+                        // ShelfChipRow takes `weight(1f)` so its horizontal
+                        // scroll can grow into the available width without
+                        // pushing the sort chip off-screen.
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ShelfChipRow(
+                                selected = state.filter,
+                                onSelect = viewModel::selectFilter,
+                                modifier = Modifier.weight(1f),
+                            )
+                            LibrarySortChip(
+                                selected = state.sortMode,
+                                onSelect = viewModel::selectSortMode,
+                                modifier = Modifier.padding(end = spacing.md),
+                            )
+                        }
                     }
-                    // Issue #452 — LazyVerticalGrid inside a Column needs a
-                    // bounded height constraint. Without `weight(1f)`, the
-                    // grid was being measured with `Constraints.Infinity` on
-                    // the inner axis: it survived in portrait because the
-                    // parent Column's natural height happened to bound it,
-                    // but in landscape (or Flip3 unfolded → wider-than-tall)
-                    // the unbounded measurement collapsed the grid to zero
-                    // rows. Wrapping in a Box with `weight(1f)` gives the
-                    // grid a concrete bounded height in both orientations.
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                }
+            },
+            content = {
+                when (state.tab) {
+                    // Issue #452 / #1195 — the grid is the scroll container
+                    // that drives the header collapse; [CollapsingHeader]
+                    // bounds its height, replacing the old `weight(1f)` Box
+                    // wrapper that previously gave the grid a concrete height.
+                    LibraryTab.Library -> Box(modifier = Modifier.fillMaxSize()) {
                         LibraryGridBody(
                             state = state,
                             dedupedFictions = dedupedFictions,
@@ -459,33 +481,33 @@ fun LibraryScreen(
                             onOpenTechEmpower = onOpenTechEmpower,
                         )
                     }
-                }
 
-                // Restructure (v0.5.40) — Follows embedded under Library.
-                LibraryTab.Follows -> Box(modifier = Modifier.fillMaxSize()) {
-                    FollowsScreen(
-                        onOpenFiction = onOpenFiction,
-                        onOpenSignIn = onOpenFollowsSignIn,
-                        embedded = true,
-                    )
-                }
+                    // Restructure (v0.5.40) — Follows embedded under Library.
+                    LibraryTab.Follows -> Box(modifier = Modifier.fillMaxSize()) {
+                        FollowsScreen(
+                            onOpenFiction = onOpenFiction,
+                            onOpenSignIn = onOpenFollowsSignIn,
+                            embedded = true,
+                        )
+                    }
 
-                LibraryTab.Inbox -> Box(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
-                    InboxList(
-                        events = state.inbox,
-                        onOpenEvent = viewModel::openInboxEvent,
-                        onMarkAllRead = viewModel::markAllInboxRead,
-                    )
-                }
+                    LibraryTab.Inbox -> Box(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
+                        InboxList(
+                            events = state.inbox,
+                            onOpenEvent = viewModel::openInboxEvent,
+                            onMarkAllRead = viewModel::markAllInboxRead,
+                        )
+                    }
 
-                LibraryTab.History -> Box(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
-                    HistoryList(
-                        entries = state.history,
-                        onOpenChapter = viewModel::openHistoryEntry,
-                    )
+                    LibraryTab.History -> Box(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
+                        HistoryList(
+                            entries = state.history,
+                            onOpenChapter = viewModel::openHistoryEntry,
+                        )
+                    }
                 }
-            }
-        }
+            },
+        )
     }
 
     AddByUrlSheet(
@@ -928,15 +950,21 @@ private fun ContinueListeningEntry.progressFraction(): Float? {
 }
 
 /**
- * Issue #452 — structural marker for [LibraryGridLandscapeTest]. Set
- * to `true` when `LibraryGridBody` is wrapped in a
- * `Box(Modifier.weight(1f).fillMaxWidth())` inside its parent Column.
- * The regressed pre-#452 shape placed `LazyVerticalGrid` directly as a
- * Column child without a weight wrapper; in landscape orientation
- * (incl. Z Flip3 unfolded) the grid measured to zero height and the
- * library appeared empty even though the books were in the database.
+ * Issue #452 — structural marker for [LibraryGridLandscapeTest]. Set to
+ * `true` while `LibraryGridBody` is given a concrete, bounded inner-axis
+ * height so its `LazyVerticalGrid` can never be measured with an unbounded
+ * height. The regressed pre-#452 shape placed `LazyVerticalGrid` directly
+ * as a `Column(fillMaxSize)` child without a bounded wrapper; in landscape
+ * orientation (incl. Z Flip3 unfolded) the grid measured to zero height
+ * and the library appeared empty even though the books were in the database.
+ *
+ * #452 originally fixed this with a `Box(Modifier.weight(1f))` wrapper.
+ * #1195 moved the grid into [CollapsingHeader]'s content slot, which
+ * measures it with `maxHeight = viewport - visibleHeader` — still a
+ * concrete bounded height, so the guarantee holds. Flip to `false` only if
+ * a refactor lets the grid be measured unbounded again.
  */
-internal const val libraryGridIsWeightBounded: Boolean = true
+internal const val libraryGridIsHeightBounded: Boolean = true
 
 /**
  * Issue #452 — pinned value of the `GridCells.Adaptive` `minSize` (in

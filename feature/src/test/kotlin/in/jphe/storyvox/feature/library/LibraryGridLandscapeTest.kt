@@ -12,9 +12,11 @@ import org.junit.Test
  * wider-than-tall state) the unbounded measurement collapsed the grid
  * to zero rows and the user's books became invisible.
  *
- * Fix: wrap `LibraryGridBody` in `Box(Modifier.weight(1f).fillMaxWidth())`
- * inside the parent Column so the grid always has a concrete bounded
- * inner-axis constraint.
+ * Fix: give `LibraryGridBody` a concrete bounded inner-axis height.
+ * #452 did this with a `Box(Modifier.weight(1f).fillMaxWidth())` wrapper;
+ * #1195 moved the grid into `CollapsingHeader`'s content slot, which
+ * measures it with `maxHeight = viewport - visibleHeader`. Either way the
+ * grid is never measured unbounded.
  *
  * The grid also uses `GridCells.Adaptive(minSize = 140.dp)`, which
  * remains the right choice in both orientations: at 140dp minimum the
@@ -46,15 +48,17 @@ class LibraryGridLandscapeTest {
     }
 
     @Test
-    fun `LibraryGridBody is wrapped in a weight-bounded Box per issue #452`() {
-        // Structural canary — see the marker constant in
-        // LibraryScreen. If a future refactor drops the Box wrapper
-        // and goes back to the regressed shape (LazyVerticalGrid as
-        // direct Column child), the canary flips false and this fails
-        // before the user-facing landscape regression returns.
+    fun `LibraryGridBody has a bounded inner-axis height per issue #452`() {
+        // Structural canary — see the marker constant in LibraryScreen.
+        // If a future refactor lets the grid be measured unbounded again
+        // (the regressed shape: LazyVerticalGrid as a direct
+        // Column(fillMaxSize) child), the canary flips false and this
+        // fails before the user-facing landscape regression returns.
+        // #1195 — the bound now comes from CollapsingHeader's content slot
+        // rather than a weight(1f) Box, but the guarantee is the same.
         assertTrue(
-            "LibraryGridBody must be wrapped in a weight(1f)/fillMaxWidth Box (issue #452)",
-            libraryGridIsWeightBounded,
+            "LibraryGridBody must be measured with a concrete bounded height (issue #452 / #1195)",
+            libraryGridIsHeightBounded,
         )
     }
 
