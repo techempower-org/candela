@@ -69,9 +69,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -1393,6 +1395,10 @@ private fun FailedDownloadSubtile(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // a11y (#1156) — the failure tile appears without a tap when a
+            // download dies; Assertive so TalkBack speaks the failure +
+            // retry affordance rather than leaving it for a focus-walk.
+            .semantics { liveRegion = LiveRegionMode.Assertive }
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f))
             .padding(spacing.sm),

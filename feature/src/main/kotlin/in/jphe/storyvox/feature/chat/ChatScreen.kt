@@ -57,8 +57,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -259,6 +261,20 @@ private fun TurnBubble(
     }
     val alignment = if (isUser) Alignment.End else Alignment.Start
 
+    // a11y (#1154) — role is otherwise conveyed only by colour +
+    // alignment, so TalkBack reads the thread as one undifferentiated
+    // wall of text. Merge a spoken speaker prefix onto the bubble. When
+    // a user turn is image-only (blank text), name the image rather than
+    // announce an empty "You said:".
+    val spokenLabel = when {
+        turn.text.isNotBlank() -> stringResource(
+            if (isUser) R.string.chat_bubble_user_cd else R.string.chat_bubble_assistant_cd,
+            turn.text,
+        )
+        turn.imageUri != null -> stringResource(R.string.chat_bubble_user_image_cd)
+        else -> ""
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = alignment,
@@ -266,6 +282,7 @@ private fun TurnBubble(
         Box(
             modifier = Modifier
                 .widthIn(max = 320.dp)
+                .semantics(mergeDescendants = true) { contentDescription = spokenLabel }
                 .background(containerColor, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
@@ -397,6 +414,13 @@ private fun StreamingBubble(text: String) {
         Box(
             modifier = Modifier
                 .widthIn(max = 320.dp)
+                // a11y (#1154) — Polite live region re-announces the
+                // assistant's reply as the partial grows, so a TalkBack
+                // user hears the answer stream in rather than sitting in
+                // silence. No speaker prefix here: a prefix on a region
+                // that re-fires every delta would stutter "Librarian
+                // said…" on each token.
+                .semantics { liveRegion = LiveRegionMode.Polite }
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant,
                     RoundedCornerShape(12.dp),
@@ -463,6 +487,11 @@ private fun ToolCallCard(event: ToolCallEvent) {
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
                 contentDescription = statusText
+                // a11y (#1154) — the card flips in-flight → success/error
+                // with no user tap, so make it a live region; otherwise
+                // the transition is read only if focus happens to land
+                // here. Polite: a tool result is informational, not urgent.
+                liveRegion = LiveRegionMode.Polite
             }
             .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(8.dp))
             .background(
@@ -768,12 +797,21 @@ private fun ChatInput(
                     )
                 }
             }
+            val inputCd = stringResource(R.string.chat_input_field_cd)
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 enabled = enabled,
                 placeholder = { Text(stringResource(R.string.chat_ask_question_placeholder)) },
-                modifier = Modifier.weight(1f),
+                // a11y (#1154) — the placeholder is announced only while
+                // the field is empty + focused; once text is present
+                // TalkBack has no name for the chat's primary input. A
+                // semantics contentDescription gives it a persistent name
+                // without adding a floating label that competes with the
+                // placeholder visually.
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = inputCd },
                 singleLine = false,
                 maxLines = 4,
             )
@@ -814,6 +852,9 @@ private fun ImageDroppedBanner(onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // a11y (#1154) — banner appears without a tap; Polite because
+            // the message still sent (this is an FYI, not a failure).
+            .semantics { liveRegion = LiveRegionMode.Polite }
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = spacing.md, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -852,6 +893,9 @@ private fun ErrorBanner(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // a11y (#1154) — Assertive: an error interrupts the user's
+            // flow and needs to preempt whatever TalkBack is reading.
+            .semantics { liveRegion = LiveRegionMode.Assertive }
             .background(MaterialTheme.colorScheme.errorContainer)
             .padding(horizontal = spacing.md, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,

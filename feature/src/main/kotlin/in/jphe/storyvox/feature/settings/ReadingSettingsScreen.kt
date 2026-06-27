@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -465,14 +466,25 @@ private fun ChannelSlider(name: String, value: Float, onValue: (Float) -> Unit) 
             text = name.take(1),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // #1159 — the channel name now lives on the Slider's semantics
+            // (with the 0-255 value) so TalkBack reads "Red, 128" as one node.
+            // Clear this single-letter label from the a11y tree so it isn't a
+            // redundant "R" focus stop preceding the slider.
             modifier = Modifier
                 .width(16.dp)
-                .semantics { contentDescription = name },
+                .clearAndSetSemantics {},
         )
         Slider(
             value = value,
             onValueChange = onValue,
-            modifier = Modifier.fillMaxWidth(),
+            // #1159 — pre-fix the slider announced only the bare M3 percent
+            // ("57%"); name + 0-255 channel value here yield "Red, 128".
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = name
+                    stateDescription = "${(value * 255).roundToInt()}"
+                },
         )
     }
 }

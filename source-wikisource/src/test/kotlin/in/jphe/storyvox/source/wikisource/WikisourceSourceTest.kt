@@ -314,6 +314,29 @@ class WikisourceSourceTest {
         assertFalse(titles.contains("License"))
     }
 
+    @Test
+    fun `unclosed trailing section at EOF is skipped without throwing`() {
+        // #1165: a truncated Parsoid response can end immediately after a
+        // <section> open tag. The old fallback (endIdx = html.length) drove
+        // substring(sliceStart, html.length - 10) to begin > end →
+        // StringIndexOutOfBoundsException. The fix skips the broken slice.
+        val html =
+            """<section data-mw-section-id="0"><p>Prose.</p></section>""" +
+                """<section data-mw-section-id="1">"""
+
+        val sections = splitTopLevelSections(html)
+        assertEquals(1, sections.size)
+        assertEquals("Text", sections[0].title)
+        assertTrue(sections[0].html.contains("Prose"))
+    }
+
+    @Test
+    fun `html ending immediately after a lone section open tag yields no sections`() {
+        // Minimal crash repro from #1165: the only section is truncated.
+        val sections = splitTopLevelSections("""<section data-mw-section-id="1">""")
+        assertTrue(sections.isEmpty())
+    }
+
     // ─── HTML scrubbing ──────────────────────────────────────────────
 
     @Test

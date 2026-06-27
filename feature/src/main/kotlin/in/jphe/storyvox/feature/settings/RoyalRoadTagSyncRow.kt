@@ -15,6 +15,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -160,7 +163,12 @@ fun RoyalRoadTagSyncRow(
                     text = msg,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
+                    // #1160: the sync outcome appears asynchronously after the
+                    // user taps "Sync now" — no further tap moves focus here, so
+                    // announce it politely when it lands.
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
                 )
             } ?: Spacer(Modifier.weight(1f))
 

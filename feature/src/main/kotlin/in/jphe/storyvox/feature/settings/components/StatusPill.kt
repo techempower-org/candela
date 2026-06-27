@@ -14,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
@@ -51,7 +54,17 @@ fun StatusPill(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.md, vertical = spacing.sm),
+            .padding(horizontal = spacing.md, vertical = spacing.sm)
+            // #1160: pill text flips ("Syncing…" → "Connected" / "Key rejected")
+            // without a tap, so TalkBack must announce it. Errors are assertive
+            // (interrupt) since they're actionable; healthy/neutral states are polite.
+            .semantics {
+                liveRegion = if (tone == StatusTone.Error) {
+                    LiveRegionMode.Assertive
+                } else {
+                    LiveRegionMode.Polite
+                }
+            },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {

@@ -49,7 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -209,6 +211,13 @@ fun OcrCaptureScreen(
                 Text(
                     stringResource(R.string.ocr_recognizing),
                     style = MaterialTheme.typography.bodyMedium,
+                    // a11y (#1155) — this screen exists so blind/low-vision
+                    // users can scan print, so "is OCR running?" must be
+                    // spoken. Assertive: the user just tapped Capture and is
+                    // waiting on exactly this feedback.
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Assertive
+                    },
                 )
             }
 
@@ -216,7 +225,11 @@ fun OcrCaptureScreen(
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    // a11y (#1155) — a failed scan must be announced, not
+                    // left for a focus-walk to discover. Assertive.
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { liveRegion = LiveRegionMode.Assertive },
                 ) {
                     Text(
                         err,
@@ -245,6 +258,13 @@ fun OcrCaptureScreen(
                         state.totalWords,
                     ),
                     style = MaterialTheme.typography.labelLarge,
+                    // a11y (#1155) — re-announces the running tally after
+                    // each successful capture ("3 pages · 540 words") so a
+                    // non-visual user hears the scan landed. Polite: success
+                    // info, no need to preempt.
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    },
                 )
 
                 CapturedPagesList(

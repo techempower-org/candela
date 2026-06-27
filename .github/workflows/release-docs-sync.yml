@@ -9,6 +9,10 @@ name: Release docs sync
 # CODEOWNERS review, no auto-merge. This workflow OWNS the release-current
 # sections of wiki Home.md (the version line, the "Latest release" line, and
 # the "What's new in vX.Y.Z" section), regenerated from CHANGELOG.md each tag.
+# It ALSO owns the intro/Pages source + module counts ("twenty-five fiction
+# backends", "thirty-eight modules"), which render_release_home.py recomputes
+# live from settings.gradle.kts + the source-* tree so they can't silently
+# re-stale (#1146) — previously those numbers were owned by no workflow.
 #
 # The repo's own docs/index.md + README headline are deliberately NOT touched
 # here — those ride the normal human-reviewed PR flow into main. This workflow

@@ -375,4 +375,51 @@ class SecretsSyncerTest {
             handed.all { it == ' ' || it == ' ' },
         )
     }
+
+    @Test fun `concurrent different-key adds both survive a round-trip (regression #1162)`() = runTest {
+        // #1162 (data loss): whole-bag LWW dropped the loser's ENTIRE
+        // secret set when two devices edited DIFFERENT keys between syncs.
+        // Per-key union merge must keep both devices' unique secrets — and
+        // propagate them to the cloud so a third device pulls the union.
+        val backend = FakeInstantBackend()
+        val now = System.currentTimeMillis()
+
+        // Device A originates two secrets with a LATER bag stamp (now+1h).
+        // Under the old LWW, A's newer bag would win wholesale and erase
+        // anything B added.
+        val prefsA = FakePrefs().apply {
+            edit().putString("llm.openai_key", "sk-from-A").apply()
+            edit().putString("github.token", "ghp-from-A").apply()
+            edit().putLong("instantdb.secrets_synced_at", now + 3_600_000L).apply()
+        }
+        SecretsSyncer(prefsA, backend, { PASSPHRASE.copyOf() }).push(USER)
+
+        // Device B holds a DIFFERENT secret with an EARLIER bag stamp
+        // (now-1h). On pull it sees the newer remote; old LWW adopted the
+        // remote wholesale, so B's slack token never reached the cloud
+        // (silently lost on B's next reinstall).
+        val prefsB = FakePrefs().apply {
+            edit().putString("pref_source_slack_token", "xoxb-from-B").apply()
+            edit().putLong("instantdb.secrets_synced_at", now - 3_600_000L).apply()
+        }
+        SecretsSyncer(prefsB, backend, { PASSPHRASE.copyOf() }).pull(USER)
+
+        // B now holds the UNION locally (its own key + A's two keys).
+        assertEquals("xoxb-from-B", prefsB.getString("pref_source_slack_token", null))
+        assertEquals("sk-from-A", prefsB.getString("llm.openai_key", null))
+        assertEquals("ghp-from-A", prefsB.getString("github.token", null))
+
+        // The cloud now holds the union too — a fresh device C pulls all
+        // three secrets. Under whole-bag LWW, C would be missing the slack
+        // token (it never made it past B's local store).
+        val prefsC = FakePrefs()
+        SecretsSyncer(prefsC, backend, { PASSPHRASE.copyOf() }).pull(USER)
+        assertEquals("sk-from-A", prefsC.getString("llm.openai_key", null))
+        assertEquals("ghp-from-A", prefsC.getString("github.token", null))
+        assertEquals(
+            "device B's unique secret must survive to the cloud and reach a third device",
+            "xoxb-from-B",
+            prefsC.getString("pref_source_slack_token", null),
+        )
+    }
 }
