@@ -318,6 +318,11 @@
     <string name="sync_different_email">Use a different email</string>
     <string name="sync_done">Done</string>
     <string name="sync_sign_out">Sign out</string>
+    <!-- Sign-out confirmation (#1197): sign-out deletes all synced cloud data (#1194), so force an explicit, loud choice. -->
+    <string name="sync_sign_out_confirm_title">Delete your synced data?</string>
+    <string name="sync_sign_out_confirm_body">Signing out will permanently delete all your synced data from the cloud — your library, reading positions, bookmarks, voice settings, and follows. Data on this device will remain until you uninstall.\n\nThis cannot be undone.</string>
+    <string name="sync_sign_out_confirm_button">Sign out &amp; delete</string>
+    <string name="sync_sign_out_confirm_dismiss">Keep syncing</string>
 
     <!-- Fiction detail -->
     <string name="fiction_clear_cache_title">Clear cached audio for %1$s?</string>

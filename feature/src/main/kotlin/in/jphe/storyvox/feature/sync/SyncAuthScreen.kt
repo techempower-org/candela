@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -18,9 +19,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -223,6 +229,11 @@ private fun SignedInPanel(
     onSignOut: () -> Unit,
     onClose: () -> Unit,
 ) {
+    // #1197 — sign-out now permanently deletes all synced cloud data
+    // (#1194), so gate it behind an explicit, undismissable confirmation
+    // rather than firing on a single tap of an OutlinedButton.
+    var showSignOutConfirm by remember { mutableStateOf(false) }
+
     Text(
         text = "Signed in",
         style = MaterialTheme.typography.titleMedium,
@@ -241,7 +252,54 @@ private fun SignedInPanel(
     ) { Text(stringResource(R.string.sync_done)) }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(
-        onClick = onSignOut,
+        onClick = { showSignOutConfirm = true },
         modifier = Modifier.fillMaxWidth(),
     ) { Text(stringResource(R.string.sync_sign_out)) }
+
+    if (showSignOutConfirm) {
+        SignOutConfirmDialog(
+            onConfirm = {
+                showSignOutConfirm = false
+                onSignOut()
+            },
+            onDismiss = { showSignOutConfirm = false },
+        )
+    }
+}
+
+/**
+ * Destructive-action confirmation for sync sign-out (#1197).
+ *
+ * Sign-out deletes all synced cloud data (#1194), so the dialog forces
+ * an explicit choice: [DialogProperties] disables both back-press and
+ * outside-tap dismissal, and the confirm button is tinted with
+ * [MaterialTheme.colorScheme.error] to signal that it destroys data.
+ */
+@Composable
+private fun SignOutConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sync_sign_out_confirm_title)) },
+        text = { Text(stringResource(R.string.sync_sign_out_confirm_body)) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text(stringResource(R.string.sync_sign_out_confirm_button)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.sync_sign_out_confirm_dismiss))
+            }
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+        ),
+    )
 }
