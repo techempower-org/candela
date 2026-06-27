@@ -49,9 +49,9 @@ import javax.inject.Singleton
  * picker (see [FANDOM_TAGS]); when no genre is selected the source
  * defaults to the Marvel Cinematic Universe feed (the curated list's
  * largest fandom) so the picker has something to render on first
- * open. Users wanting other fandoms use Search (deferred — AO3's
- * search is HTML-only and we don't want any scraping in v1) or a
- * future tag-picker UI.
+ * open. Users wanting other fandoms use Search (now live via
+ * [Ao3Api.searchWorks] — an HTML scrape of `/works/search`; see the
+ * compliance caveats below) or a future tag-picker UI.
  *
  * #408 — the Atom feed URL is built from each tag's numeric AO3 id
  * rather than its slug. AO3 dropped the slug→numeric redirect
@@ -62,10 +62,23 @@ import javax.inject.Singleton
  *
  * Legal posture: AO3 is run by the Organization for Transformative
  * Works, a 501(c)(3). Their ToS draws a hard line at commercial
- * scraping and paid-access apps. storyvox is free, open-source, and
- * uses only the two official surfaces above — no HTML scraping, no
- * paywall, no ads. The User-Agent identifies us with a contact URL so
- * OTW Ops can route any concerns to a real address.
+ * scraping and paid-access apps; storyvox is free, open-source, and
+ * has no paywall and no ads. The User-Agent identifies us with a
+ * contact URL so OTW Ops can route any concerns to a real address,
+ * and (#1141) requests are rate-limited to one per second via
+ * [Ao3RateLimitInterceptor][in.jphe.storyvox.source.ao3.net.Ao3RateLimitInterceptor].
+ *
+ * Compliance caveats (#1141 — be honest about what we actually do):
+ *  - Browse uses per-tag Atom feeds (`/tags/<id>/feed.atom`) and the
+ *    user's own index pages (`/users/<u>/subscriptions|readings`),
+ *    all of which AO3's robots.txt permits.
+ *  - But two surfaces touch robots.txt-*disallowed* paths for the
+ *    wildcard user-agent: per-work EPUB download (`/downloads/`) and
+ *    work Search ([Ao3Api.searchWorks] → `/works/search?`, which is
+ *    an HTML scrape). EPUB download is the only content path AO3
+ *    offers, so honoring robots there would disable the source
+ *    entirely; whether/how to reconcile this is a product decision
+ *    tracked in #1141. Do NOT assume "no scraping" — Search scrapes.
  *
  * Caveat carried in the issue: some "Archive Warning: Choose Not to
  * Use Warnings" works require a logged-in session for the EPUB
