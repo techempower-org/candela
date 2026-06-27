@@ -32,7 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -255,7 +258,15 @@ private fun ComposePhase(
 @Composable
 private fun RenderingPhase(progress: Float) {
     val spacing = LocalSpacing.current
-    Text("Creating your audiobook…", style = MaterialTheme.typography.titleMedium)
+    // #1160: the sheet flips Compose → Rendering → Done/Failed without a tap.
+    // The phase headline is a polite live region so TalkBack announces the
+    // transition; the climbing % is deliberately NOT a live region (announcing
+    // per-percent would be noise).
+    Text(
+        "Creating your audiobook…",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
     Text(
         "Narrating chapters offline. You can leave this screen — we'll keep going " +
             "in the background.",
@@ -283,7 +294,12 @@ private fun DonePhase(
     onDone: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Text("Your audiobook is ready", style = MaterialTheme.typography.titleMedium)
+    // #1160: announce arrival at the Done phase (no tap moves focus here).
+    Text(
+        "Your audiobook is ready",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
     Text(
         "$fileName · $chapterCount chapter${if (chapterCount == 1) "" else "s"}",
         style = MaterialTheme.typography.bodySmall,
@@ -319,7 +335,13 @@ private fun DonePhase(
 
 @Composable
 private fun FailedPhase(message: String, onRetry: () -> Unit) {
-    Text("Couldn't create the audiobook", style = MaterialTheme.typography.titleMedium)
+    // #1160: failure is actionable (Retry) — announce assertively so TalkBack
+    // interrupts rather than queuing behind whatever was being read.
+    Text(
+        "Couldn't create the audiobook",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+    )
     Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     BrassButton(
         label = "Try again",

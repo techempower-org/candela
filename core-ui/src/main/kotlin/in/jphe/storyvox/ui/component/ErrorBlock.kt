@@ -16,6 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -118,7 +121,14 @@ fun ErrorBlock(
         }
 
         ErrorPlacement.Banner -> Card(
-            modifier = modifier.fillMaxWidth().padding(horizontal = spacing.md, vertical = spacing.xs),
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.md, vertical = spacing.xs)
+                // #1160: the banner is inserted above existing content on a
+                // refresh/append failure — focus doesn't move, so without a
+                // live region "Couldn't refresh" is never spoken. Assertive
+                // because it reports a failure the user should hear promptly.
+                .semantics { liveRegion = LiveRegionMode.Assertive },
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.onErrorContainer,

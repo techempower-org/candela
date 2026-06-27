@@ -535,6 +535,7 @@
     <string name="settings_hub_descriptor">Pick a section to configure.</string>
     <string name="settings_hub_search_label">Search settings</string>
     <string name="settings_hub_clear_search">Clear search</string>
+    <string name="settings_hub_no_results">No settings match “%1$s”. Try a different term or clear the search.</string>
     <string name="settings_hub_voice_playback_title">Voice &amp; Playback</string>
     <string name="settings_hub_voice_playback_subtitle">Voice, speed, cadence, pitch.</string>
     <string name="settings_hub_voice_library_title">Voice library</string>
