@@ -106,7 +106,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.rotate
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
+import androidx.compose.material3.ExperimentalMaterial3Api
 
+// Issue #1195 — MagicTitleBar's signature now carries an (optional,
+// experimental) TopAppBarScrollBehavior, so every call site opts in.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoiceLibraryScreen(
     viewModel: VoiceLibraryViewModel = hiltViewModel(),

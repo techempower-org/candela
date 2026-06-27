@@ -10,6 +10,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,14 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * [Icons.Outlined.AutoAwesome] used by the Settings hub heading, so it
  * reads as one design family. Slots for [navigationIcon] and [actions]
  * mirror the underlying [CenterAlignedTopAppBar] API.
+ *
+ * Issue #1195 — pass a [scrollBehavior] (e.g.
+ * `TopAppBarDefaults.enterAlwaysScrollBehavior()`) to let the bar slide
+ * away as the screen's content scrolls down and return on scroll up,
+ * reclaiming vertical space on small phones. The host must also wire
+ * `Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)` onto
+ * its [androidx.compose.material3.Scaffold]. Default null keeps the bar
+ * pinned (the behavior for every call site that doesn't opt in).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,10 +53,12 @@ fun MagicTitleBar(
     modifier: Modifier = Modifier,
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable () -> Unit = {},
+    scrollBehavior: TopAppBarScrollBehavior? = null,
 ) {
     val spacing = LocalSpacing.current
     CenterAlignedTopAppBar(
         modifier = modifier,
+        scrollBehavior = scrollBehavior,
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -87,12 +98,14 @@ fun MagicTitleBar(
  */
 internal const val magicTitleBarMarksTitleAsHeading: Boolean = true
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(name = "MagicTitleBar — dark", widthDp = 360)
 @Composable
 private fun PreviewMagicTitleBarDark() = LibraryNocturneTheme(darkTheme = true) {
     MagicTitleBar(title = "Library")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(name = "MagicTitleBar — light", widthDp = 360)
 @Composable
 private fun PreviewMagicTitleBarLight() = LibraryNocturneTheme(darkTheme = false) {

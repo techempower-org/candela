@@ -43,6 +43,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -56,6 +58,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
@@ -70,6 +73,7 @@ import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.cascadeReveal
+import `in`.jphe.storyvox.ui.component.CollapsingHeader
 import `in`.jphe.storyvox.ui.component.coverSourceFamilyFor
 import `in`.jphe.storyvox.ui.component.ErrorBlock
 import `in`.jphe.storyvox.ui.component.friendlyErrorMessage
@@ -95,6 +99,9 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 @Composable
 private fun BrowseScaffoldOrFrame(
     embedded: Boolean,
+    // Issue #1195 — drives the collapsing top bar on the standalone path.
+    // Null on the embedded path (Library owns the bar there).
+    scrollBehavior: TopAppBarScrollBehavior? = null,
     content: @Composable () -> Unit,
 ) {
     if (embedded) {
@@ -102,9 +109,18 @@ private fun BrowseScaffoldOrFrame(
         content()
     } else {
         Scaffold(
+            modifier = if (scrollBehavior != null) {
+                Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+            } else {
+                Modifier
+            },
             topBar = {
                 // #830 — shared title bar across all primary-nav surfaces.
-                MagicTitleBar(title = stringResource(R.string.browse_title))
+                // #1195 — slides away as the listing scrolls (standalone path).
+                MagicTitleBar(
+                    title = stringResource(R.string.browse_title),
+                    scrollBehavior = scrollBehavior,
+                )
             },
         ) { scaffoldPadding ->
             Box(modifier = Modifier.fillMaxSize().padding(scaffoldPadding)) {
@@ -172,15 +188,34 @@ fun BrowseScreen(
         out
     }
 
+    // Issue #1195 — collapsing top bar for the standalone Browse Scaffold.
+    // enterAlways so the bar returns the instant the user scrolls up. The
+    // carousel + tab row collapse independently via [CollapsingHeader] below;
+    // the two nested-scroll connections cascade (bar first, then chrome).
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     // Restructure (v0.5.40) — when embedded under Library, skip the
     // standalone Scaffold/TopAppBar: the parent screen already owns
     // those. The inner Box stays in both branches because the RSS FAB
     // uses `Modifier.align(Alignment.BottomEnd)` against it.
     BrowseScaffoldOrFrame(
         embedded = embedded,
+        // Issue #1195 — only the standalone path owns a top bar to collapse.
+        scrollBehavior = if (embedded) null else scrollBehavior,
     ) {
     Box(modifier = Modifier.fillMaxSize()) {
-    Column(modifier = Modifier.fillMaxSize().padding(top = spacing.md)) {
+    // Issue #1195 — the source carousel, tab row and filter funnel scroll
+    // away as the listing is scrolled and return on scroll-up. The header is
+    // composed in every content state (loading / empty / error / grid), so
+    // source + tab switching keeps working even on a non-scrolling state.
+    CollapsingHeader(
+        modifier = Modifier.fillMaxSize(),
+        // Re-expand whenever the listing identity changes (source / tab /
+        // query / filter); the grid resets its own scroll-to-top on the same
+        // signals, so header and list stay in sync.
+        resetKey = "${state.sourceId}|${state.tab}|${state.query}|${state.filterState.activeCount()}",
+        header = {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = spacing.md)) {
         // v0.5.72 — magical hero source carousel for the first-class
         // Browse tab. Replaces the v0.5.40 chip strip with brass-edged
         // source cards showing icon + name + tagline so the picker
@@ -361,7 +396,9 @@ fun BrowseScreen(
         if (isOffline && state.items.isNotEmpty()) {
             OfflineBanner(onRetry = { viewModel.loadMore() })
         }
-
+    }
+        },
+        content = {
         when {
             // Issue #241 — RR listings are gated on sign-in. CTA sits ahead
             // of the SkeletonGrid branch so the user never sees a loading
@@ -626,7 +663,8 @@ fun BrowseScreen(
                 }  // #776 PullToRefreshBox
             }
         }
-    }
+        },
+    )
 
     // Issue #247 — FAB for RSS feed management. Only visible on the
     // RSS source; other backends manage subscriptions elsewhere
