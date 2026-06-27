@@ -111,7 +111,6 @@ internal open class StandardEbooksApi @Inject constructor(
             try {
                 val req = Request.Builder()
                     .url(url)
-                    .header("User-Agent", USER_AGENT)
                     .header("Accept", "application/epub+zip")
                     .get()
                     .build()
@@ -203,7 +202,6 @@ internal open class StandardEbooksApi @Inject constructor(
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/xhtml+xml, text/html, */*")
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -236,7 +234,7 @@ internal open class StandardEbooksApi @Inject constructor(
          * URL routes any rate-limit / abuse signal back to a real human
          * — same etiquette as the Gutenberg client (#237).
          */
-        const val USER_AGENT = "storyvox-standardebooks/1.0 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

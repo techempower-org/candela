@@ -40,7 +40,6 @@ class RssFetcher @Inject constructor(
         try {
             val builder = Request.Builder()
                 .url(url)
-                .header("User-Agent", USER_AGENT)
                 .header("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml")
             if (!previousEtag.isNullOrBlank()) builder.header("If-None-Match", previousEtag)
             if (!previousLastModified.isNullOrBlank()) builder.header("If-Modified-Since", previousLastModified)
@@ -73,7 +72,7 @@ class RssFetcher @Inject constructor(
     companion object {
         // Identifies storyvox in feed-server logs so feed authors can
         // see who's pulling. Same posture move as the GitHub backend.
-        const val USER_AGENT = "storyvox-rss/1.0 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

@@ -11,8 +11,10 @@ import dagger.Lazy
 import `in`.jphe.storyvox.data.repository.net.NetworkPatience
 import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
 import `in`.jphe.storyvox.data.source.FictionSource
+import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.rss.RssSource
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -35,7 +37,10 @@ internal object RssHttpModule {
     @Provides
     @Singleton
     @RssHttp
-    fun provideClient(patienceConfig: Lazy<NetworkPatienceConfig>): OkHttpClient {
+    fun provideClient(
+        patienceConfig: Lazy<NetworkPatienceConfig>,
+        @UserAgentHeader userAgent: Interceptor,
+    ): OkHttpClient {
         // Issue #597 — user-tunable patience preset. `Lazy<>` breaks
         // a Dagger graph cycle (NetworkPatienceConfig ↔ source-map
         // closure); see [RoyalRoadHttpModule.provideClient] for the
@@ -50,6 +55,9 @@ internal object RssHttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1204 — shared descriptive UA on every request
+            // (see in.jphe.storyvox.data.network.UserAgent).
+            .addInterceptor(userAgent)
             .addInterceptor { chain ->
                 val patience = patienceConfig.get().currentPatienceSync()
                 chain

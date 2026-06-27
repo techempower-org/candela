@@ -10,9 +10,11 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.source.FictionSource
+import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.standardebooks.StandardEbooksSource
 import `in`.jphe.storyvox.source.standardebooks.net.StandardEbooksApi
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -48,7 +50,9 @@ internal object StandardEbooksHttpModule {
     @Provides
     @Singleton
     @StandardEbooksHttp
-    fun provideClient(): OkHttpClient =
+    fun provideClient(
+        @UserAgentHeader userAgent: Interceptor,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             // EPUB downloads dominate the read budget — give them
@@ -58,6 +62,9 @@ internal object StandardEbooksHttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1204 — shared descriptive UA on every request (see
+            // in.jphe.storyvox.data.network.UserAgent).
+            .addInterceptor(userAgent)
             .build()
 
     @Provides

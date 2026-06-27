@@ -90,7 +90,6 @@ internal class OutlineApi @Inject constructor(
                     .header("Authorization", "Bearer ${state.apiKey}")
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
-                    .header("User-Agent", USER_AGENT)
                     .post(body.toRequestBody("application/json".toMediaType()))
                     .build()
                 client.newCall(req).execute().use { resp ->
@@ -121,7 +120,7 @@ internal class OutlineApi @Inject constructor(
     }
 
     companion object {
-        const val USER_AGENT = "storyvox-outline/1.0 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

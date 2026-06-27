@@ -50,7 +50,6 @@ open class GitHubProfileService @Inject constructor(
             .url(USER_URL)
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", API_VERSION)
-            .header("User-Agent", USER_AGENT)
             .build()
         val response = try {
             httpClient.newCall(req).await()
@@ -81,7 +80,7 @@ open class GitHubProfileService @Inject constructor(
     private companion object {
         const val USER_URL: String = "https://api.github.com/user"
         const val API_VERSION: String = "2022-11-28"
-        const val USER_AGENT: String = "storyvox/0.4 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
         val JSON: Json = Json {
             ignoreUnknownKeys = true
             explicitNulls = false

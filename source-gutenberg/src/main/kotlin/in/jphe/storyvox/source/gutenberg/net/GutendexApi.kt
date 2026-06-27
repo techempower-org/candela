@@ -120,7 +120,6 @@ internal class GutendexApi @Inject constructor(
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -154,7 +153,6 @@ internal class GutendexApi @Inject constructor(
         try {
             val req = Request.Builder()
                 .url(url)
-                .header("User-Agent", USER_AGENT)
                 .header("Accept", "application/epub+zip")
                 .get()
                 .build()
@@ -183,12 +181,10 @@ internal class GutendexApi @Inject constructor(
     companion object {
         const val BASE_URL = "https://gutendex.com"
 
-        /**
-         * Identifies storyvox in the User-Agent per PG's robot policy
-         * — the contact URL gives operators a way to reach us if our
-         * traffic ever looks misbehaved.
-         */
-        const val USER_AGENT = "storyvox-gutenberg/1.0 (+https://github.com/jphein/storyvox)"
+        // #1204 — the per-request User-Agent is applied for every call by the
+        // shared @UserAgentHeader interceptor on the injected client; see
+        // in.jphe.storyvox.data.network.UserAgent. (Removed the stale
+        // storyvox-gutenberg/jphein UA constant.)
 
         /**
          * Build the `/books` query string with whichever params are

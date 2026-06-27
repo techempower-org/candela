@@ -259,7 +259,6 @@ internal open class GitHubApi @Inject constructor(
                 .url(url)
                 .header("Accept", "application/vnd.github+json")
                 .header("X-GitHub-Api-Version", API_VERSION)
-                .header("User-Agent", USER_AGENT)
                 .build()
             val response = try {
                 httpClient.newCall(req).await()
@@ -303,7 +302,7 @@ internal open class GitHubApi @Inject constructor(
         // Generic UA — GitHub requires *something* in User-Agent for
         // unauthenticated REST calls. App version travels in BuildConfig
         // when we need it; for now identifying as the project is enough.
-        const val USER_AGENT: String = "storyvox/0.4 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

@@ -184,7 +184,6 @@ internal class LibriVoxApi @Inject constructor(
                 // LibriVox / archive.org ask clients to identify
                 // themselves; the repo URL doubles as the contact channel
                 // and lets their ops contact abusive callers directly.
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(request).execute().use { resp ->
@@ -222,8 +221,7 @@ internal class LibriVoxApi @Inject constructor(
          *  response. */
         const val PAGE_SIZE: Int = 50
 
-        const val USER_AGENT: String =
-            "storyvox-librivox/1.0 (+https://github.com/techempower-org/candela)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

@@ -75,7 +75,6 @@ internal open class HackerNewsApi @Inject constructor(
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -116,7 +115,6 @@ internal open class HackerNewsApi @Inject constructor(
                 val req = Request.Builder()
                     .url(url)
                     .header("Accept", "application/json")
-                    .header("User-Agent", USER_AGENT)
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
@@ -141,7 +139,6 @@ internal open class HackerNewsApi @Inject constructor(
                 val req = Request.Builder()
                     .url(url)
                     .header("Accept", "application/json")
-                    .header("User-Agent", USER_AGENT)
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
@@ -187,9 +184,9 @@ internal open class HackerNewsApi @Inject constructor(
         const val FIREBASE_BASE = "https://hacker-news.firebaseio.com"
         const val ALGOLIA_BASE = "https://hn.algolia.com/api/v1"
 
-        /** Polite identifier — gives any future rate-limit hits a contact
-         *  point. Matches the pattern used by `:source-gutenberg`. */
-        const val USER_AGENT = "storyvox-hackernews/1.0 (+https://github.com/techempower-org/candela)"
+        // #1204 — the per-request User-Agent is applied for every call by the
+        // shared @UserAgentHeader interceptor on the injected client; see
+        // in.jphe.storyvox.data.network.UserAgent.
 
         /** Browse landing fetches the first 50 of ~500 top-story ids
          *  per #379's spec. Defined here so the source and tests share

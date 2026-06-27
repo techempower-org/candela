@@ -215,7 +215,6 @@ internal class NotionApi @Inject constructor(
                 .header("Authorization", "Bearer ${state.apiToken}")
                 .header("Notion-Version", state.apiVersion)
                 .header("Accept", "application/json")
-                .header("User-Agent", NotionDefaults.USER_AGENT)
             when (method) {
                 "POST" -> reqBuilder.post((body ?: "{}").toRequestBody(mediaTypeJson))
                 else -> reqBuilder.get()

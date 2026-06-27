@@ -11,9 +11,11 @@ import dagger.Lazy
 import `in`.jphe.storyvox.data.repository.net.NetworkPatience
 import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
 import `in`.jphe.storyvox.data.source.FictionSource
+import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.notion.NotionPATSource
 import `in`.jphe.storyvox.source.notion.NotionTechEmpowerSource
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -40,7 +42,10 @@ internal object NotionHttpModule {
     @Provides
     @Singleton
     @NotionHttp
-    fun provideClient(patienceConfig: Lazy<NetworkPatienceConfig>): OkHttpClient {
+    fun provideClient(
+        patienceConfig: Lazy<NetworkPatienceConfig>,
+        @UserAgentHeader userAgent: Interceptor,
+    ): OkHttpClient {
         // Issue #597 — user-tunable patience preset. Notion's multi-
         // page block-children walks especially benefit from the
         // Patient (30s budget) preset. `Lazy<>` breaks the Dagger
@@ -54,6 +59,9 @@ internal object NotionHttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1204 — shared descriptive UA on every request
+            // (see in.jphe.storyvox.data.network.UserAgent).
+            .addInterceptor(userAgent)
             .addInterceptor { chain ->
                 val patience = patienceConfig.get().currentPatienceSync()
                 chain
