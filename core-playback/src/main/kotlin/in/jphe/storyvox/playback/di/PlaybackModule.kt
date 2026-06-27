@@ -5,7 +5,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import `in`.jphe.storyvox.playback.AndroidDndController
 import `in`.jphe.storyvox.playback.DefaultPlaybackController
+import `in`.jphe.storyvox.playback.DndController
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.SleepTimer
 import `in`.jphe.storyvox.playback.TtsVolumeRamp
@@ -25,6 +27,11 @@ abstract class PlaybackModule {
     @Binds
     @Singleton
     abstract fun bindVolumeRamp(impl: TtsVolumeRamp): VolumeRamp
+
+    /** Issue #1190 — auto Do Not Disturb around the sleep timer. */
+    @Binds
+    @Singleton
+    abstract fun bindDndController(impl: AndroidDndController): DndController
 
     /** PR-F (#86) — background PCM cache pre-render scheduler. */
     @Binds

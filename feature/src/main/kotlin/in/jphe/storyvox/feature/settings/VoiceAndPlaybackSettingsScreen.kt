@@ -45,6 +45,7 @@ fun VoiceAndPlaybackSettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     SettingsSubscreenScaffold(title = stringResource(R.string.settings_voice_title), onBack = onBack) { padding ->
         val s = state.settings ?: run {
@@ -210,6 +211,38 @@ fun VoiceAndPlaybackSettingsScreen(
                     subtitle = stringResource(R.string.settings_voice_bedtime_auto_subtitle),
                     checked = s.sleepBedtimeAutoEnabled,
                     onCheckedChange = viewModel::setSleepBedtimeAutoEnabled,
+                )
+
+                // Issue #1190 — auto Do Not Disturb with the sleep timer.
+                // DND access is a *special* grant the user flips manually
+                // (the manifest ACCESS_NOTIFICATION_POLICY permission is
+                // not enough on its own), so flipping this ON hops once to
+                // the system DND-access screen when access isn't held yet.
+                // The actual filter swap happens in core-playback's
+                // AndroidDndController, which no-ops until access is
+                // granted — the toggle never dead-ends.
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_voice_dnd_sleep_title),
+                    subtitle = stringResource(R.string.settings_voice_dnd_sleep_subtitle),
+                    checked = s.dndWithSleepTimerEnabled,
+                    onCheckedChange = { enabled ->
+                        viewModel.setDndWithSleepTimerEnabled(enabled)
+                        if (enabled) {
+                            val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                            if (nm != null && !nm.isNotificationPolicyAccessGranted) {
+                                // Guarded — a stripped ROM may not resolve
+                                // the DND-access settings activity (mirrors
+                                // the uriHandler guard in #1177).
+                                runCatching {
+                                    context.startActivity(
+                                        android.content.Intent(
+                                            android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS,
+                                        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }
+                            }
+                        }
+                    },
                 )
             }
         }

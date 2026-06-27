@@ -348,6 +348,12 @@ object AppBindings {
     fun provideBedtimeSleepConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig = impl
 
+    /** Issue #1190 — auto Do Not Disturb with the sleep timer. Same
+     *  singleton; consumed by `:core-playback`'s `AndroidDndController`. */
+    @Provides @Singleton
+    fun provideSleepTimerDndConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.playback.SleepTimerDndConfig = impl
+
     /** Issue #596 — user-tunable PCM-cache pre-render window size.
      *  Same singleton; consumed by `:core-playback`'s
      *  `PrerenderTriggers`. */
