@@ -256,7 +256,15 @@ internal class WikipediaSource @Inject constructor(
             is FictionResult.Success -> htmlResult.value
             is FictionResult.Failure -> return htmlResult
         }
-        val sections = splitTopLevelSections(html)
+        val sections = runCatching { splitTopLevelSections(html) }
+            .getOrElse { e ->
+                // #1165: malformed/truncated Parsoid HTML must surface as a
+                // graceful Failure, not an escaping exception.
+                return FictionResult.NetworkError(
+                    message = "Failed to parse Wikipedia article HTML",
+                    cause = e,
+                )
+            }
         val chapters = sections.mapIndexed { idx, section ->
             ChapterInfo(
                 id = chapterIdFor(fictionId, idx),
@@ -292,7 +300,13 @@ internal class WikipediaSource @Inject constructor(
             ?: return FictionResult.NotFound("Wikipedia chapter id not recognized: $chapterId")
         return when (val r = api.pageHtml(title)) {
             is FictionResult.Success -> {
-                val sections = splitTopLevelSections(r.value)
+                val sections = runCatching { splitTopLevelSections(r.value) }
+                    .getOrElse { e ->
+                        return FictionResult.NetworkError(
+                            message = "Failed to parse Wikipedia article HTML",
+                            cause = e,
+                        )
+                    }
                 val section = sections.getOrNull(sectionIndex)
                     ?: return FictionResult.NotFound(
                         "Section $sectionIndex not found in $title",
@@ -536,7 +550,13 @@ internal fun splitTopLevelSections(html: String): List<WikipediaSection> {
         }
         if (endIdx < 0) endIdx = html.length
         val sliceStart = openMatch.range.last + 1 // content starts after the open tag
-        val rawHtml = html.substring(sliceStart, endIdx - closeTag.length).trim()
+        val sliceEnd = endIdx - closeTag.length
+        // #1165: an unclosed <section> at EOF (truncated HTML) leaves
+        // sliceStart > sliceEnd, so substring(begin, end) would throw
+        // StringIndexOutOfBoundsException. Skip it, mirroring source-plos's
+        // `if (endIdx < 0) continue`.
+        if (sliceStart > sliceEnd) continue
+        val rawHtml = html.substring(sliceStart, sliceEnd).trim()
         val title = extractSectionTitle(rawHtml, sectionId)
         if (shouldDropSection(title)) continue
         sections.add(WikipediaSection(title = title, html = rawHtml))

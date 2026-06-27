@@ -93,6 +93,32 @@ class WikipediaSectionSplitTest {
     }
 
     @Test
+    fun `unclosed trailing section at EOF is skipped without throwing`() {
+        // #1165: a truncated Parsoid response can end immediately after a
+        // <section> open tag with no matching </section>. The old code
+        // fell back to endIdx = html.length and called
+        // substring(sliceStart, html.length - 10) with begin > end →
+        // StringIndexOutOfBoundsException. The fix skips the broken slice.
+        val html =
+            """<section data-mw-section-id="0"><p>Lead paragraph.</p></section>""" +
+                """<section data-mw-section-id="1">"""
+
+        val sections = splitTopLevelSections(html)
+        // Lead survives; the unclosed trailing section is dropped.
+        assertEquals(1, sections.size)
+        assertEquals("Introduction", sections[0].title)
+        assertTrue(sections[0].html.contains("Lead paragraph"))
+    }
+
+    @Test
+    fun `html ending immediately after a lone section open tag yields no sections`() {
+        // Minimal crash repro from #1165: the only section is truncated.
+        // Must return empty, not throw.
+        val sections = splitTopLevelSections("""<section data-mw-section-id="1">""")
+        assertTrue(sections.isEmpty())
+    }
+
+    @Test
     fun `cruft scrubber removes edit links and citation refs`() {
         val html = """
             <p>Marie Curie was a physicist.<sup id="cite_ref-1" class="reference">[1]</sup></p>
