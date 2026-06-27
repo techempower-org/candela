@@ -45,8 +45,6 @@ internal class NoopFictionDao : FictionDao {
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
     override suspend fun touchMetadata(id: String, now: Long) = Unit
     override suspend fun setSourceId(id: String, sourceId: String) = Unit
-    // Pre-existing gap (predates #1189): fake fell behind the FictionDao
-    // interface when the source-URL accessors landed. Filled to compile.
     override suspend fun getSourceUrl(id: String): String? = null
     override suspend fun setSourceUrlIfAbsent(id: String, url: String) = Unit
     override suspend fun placeholdersToBackfill(cutoff: Long): List<Fiction> = emptyList()
@@ -93,9 +91,6 @@ internal class NoopChapterDao : ChapterDao {
         audioUrl: String?,
     ) = Unit
     override suspend fun setRead(id: String, read: Boolean, now: Long) = Unit
-    // Pre-existing gap (predates #1189): this no-op fake fell behind the
-    // ChapterDao interface when #982's markFollowedCaughtUp landed. Filled
-    // here so the module's test source compiles.
     override suspend fun markFollowedCaughtUp(now: Long): Int = 0
     override suspend fun trimDownloadedBodies(fictionId: String, keepLast: Int) = Unit
     override suspend fun setBookmark(id: String, charOffset: Int?) = Unit
