@@ -117,12 +117,7 @@ dependencies {
     // voice family wrapping sherpa-onnx's OfflineTtsSupertonicModelConfig +
     // GenerationConfig path (Supertonic 3: seven-file int8 bundle, 10
     // voices, 24 kHz, unicode-tokenised flow-matching, no espeak data).
-    // Pinned to the feature branch's JitPack SNAPSHOT until v2.9.0 is
-    // tagged; locally it resolves from mavenLocal (settings.gradle.kts
-    // lists mavenLocal ahead of JitPack), on CI from JitPack's
-    // branch→SNAPSHOT build. Bump to v2.9.0 once the VoxSherpa PR merges
-    // and is tagged.
-    implementation("com.github.techempower-org:VoxSherpa-TTS:feat-supertonic-engine-SNAPSHOT")
+    implementation("com.github.techempower-org:VoxSherpa-TTS:v2.9.0")
     implementation("com.github.k2-fsa:sherpa-onnx:1.13.3")
 
     // Media3 — session, player base classes
