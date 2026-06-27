@@ -26,6 +26,10 @@ interface VolumeRamp {
 class SleepTimer @Inject constructor(
     private val volumeRamp: VolumeRamp,
     private val pauseAction: PauseAction,
+    // Issue #1190 — flips system Do Not Disturb on while a timer is armed
+    // and restores it when the timer fires or is cancelled. No-op unless
+    // the user opted in and granted notification-policy access.
+    private val dndController: DndController,
 ) {
     private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var job: Job? = null
@@ -35,7 +39,8 @@ class SleepTimer @Inject constructor(
         volumeRamp: VolumeRamp,
         pauseAction: PauseAction,
         scope: CoroutineScope,
-    ) : this(volumeRamp, pauseAction) {
+        dndController: DndController = NoopDndController,
+    ) : this(volumeRamp, pauseAction, dndController) {
         this.scope = scope
     }
 
@@ -75,6 +80,9 @@ class SleepTimer @Inject constructor(
         _remainingMs.value = null
         volumeRamp.set(1.0f)
         job = scope.launch {
+            // #1190 — arm DND for the duration of the timer. Idempotent,
+            // so re-arming an already-running timer won't re-snapshot.
+            dndController.activateForSleepTimer()
             when (mode) {
                 is SleepTimerMode.Duration -> runCountdown(mode.minutes * 60_000L)
                 SleepTimerMode.EndOfChapter -> {
@@ -109,6 +117,8 @@ class SleepTimer @Inject constructor(
         // Drop the consumed signal so a future EndOfChapter timer
         // doesn't see a stale value (issue #34).
         chapterEndSignal.resetReplayCache()
+        // #1190 — timer fired and playback paused; hand DND back.
+        dndController.restorePrevious()
     }
 
     fun cancel() {
@@ -121,6 +131,8 @@ class SleepTimer @Inject constructor(
         // ended while the timer was active should not arm the next
         // timer (issue #34).
         chapterEndSignal.resetReplayCache()
+        // #1190 — user cancelled the timer; restore their DND state.
+        dndController.restorePrevious()
     }
 
     fun interface PauseAction {

@@ -715,6 +715,8 @@
     <string name="settings_voice_shake_extend_option">%1$d min</string>
     <string name="settings_voice_bedtime_auto_title">Sleep timer with Bedtime mode</string>
     <string name="settings_voice_bedtime_auto_subtitle">Auto-start the sleep timer when your phone enters Sleep or Bedtime mode.</string>
+    <string name="settings_voice_dnd_sleep_title">Do Not Disturb with sleep timer</string>
+    <string name="settings_voice_dnd_sleep_subtitle">Silence notifications while a sleep timer is running, then restore your previous setting when it ends. Needs Do Not Disturb access.</string>
 
     <!-- Settings · Performance subscreen -->
     <string name="settings_performance_title">Performance</string>
