@@ -17,6 +17,7 @@ import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.util.UnstableApi
 import com.CodeBySonu.VoxSherpa.KittenEngine
 import com.CodeBySonu.VoxSherpa.KokoroEngine
+import com.CodeBySonu.VoxSherpa.SupertonicEngine
 import com.CodeBySonu.VoxSherpa.VoiceEngine
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -400,8 +401,10 @@ class EnginePlayer @AssistedInject constructor(
     @Volatile
     private var secondaryKittenEngines: List<com.CodeBySonu.VoxSherpa.KittenEngine> = emptyList()
 
-    // TODO(#1114): Supertonic secondaries for Tier 3 parallel-synth.
-    // Uncomment and wire when VoxSherpa v2.9.0 ships SupertonicEngine.
+    // Issue #1114 — Supertonic has no Tier 3 secondaries: it runs serial
+    // (each session loads four ONNX graphs, so a multi-instance fan-out is
+    // memory-heavy). SupertonicEngine supports a public constructor, so
+    // wiring secondaries here is a future parallel-synth enhancement.
     // @Volatile
     // private var secondarySupertonicEngines: List<SupertonicEngine> = emptyList()
 
@@ -1495,10 +1498,8 @@ class EnginePlayer @AssistedInject constructor(
                             runCatching { KokoroEngine.getInstance().sampleRate }
                         is EngineType.Kitten ->
                             runCatching { KittenEngine.getInstance().sampleRate }
-                        is EngineType.Supertonic -> {
-                            // TODO(#1114): warm SupertonicEngine.getInstance()
-                            // when VoxSherpa v2.9.0 ships. No-op for now.
-                        }
+                        is EngineType.Supertonic ->
+                            runCatching { SupertonicEngine.getInstance().sampleRate }
                         is EngineType.Azure -> {
                             // Azure has no JNI singleton to warm; the
                             // HTTPS client lazy-inits on first request
@@ -2063,14 +2064,15 @@ class EnginePlayer @AssistedInject constructor(
                         primaryResult ?: "Error: load returned null"
                     }
                     is EngineType.Supertonic -> {
-                        // TODO(#1114) — Supertonic 3 loadAndPlay path.
-                        // Mirrors Kitten structurally: shared model, multi-
-                        // speaker via speakerId. VoxSherpa v2.8.0 has no
-                        // SupertonicEngine yet; stub returns an error so the
-                        // scaffold compiles and the UI surfaces the voice
-                        // family (catalog, filter, picker) without crashing
-                        // if someone taps a Supertonic voice before the
-                        // engine lands.
+                        // Issue #1114 — Supertonic 3 loadAndPlay path.
+                        // Mirrors Kitten structurally: one shared 7-file int8
+                        // bundle underpins all 10 speakers; switching speakers
+                        // reuses the loaded engine via setActiveSpeakerId (the
+                        // speaker id is just a GenerationConfig knob, no
+                        // reload). Tier 3 secondaries are NOT wired for
+                        // Supertonic — each session loads four ONNX graphs
+                        // (duration/encoder/vector/vocoder), so it runs serial
+                        // for now (see the secondary-engines branch below).
                         secondaryPiperEngines.forEach { runCatching { it.destroy() } }
                         secondaryPiperEngines = emptyList()
                         secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
@@ -2081,7 +2083,15 @@ class EnginePlayer @AssistedInject constructor(
                         systemTtsEngine = null
                         loadedSystemTtsEngineName = null
                         loadedSystemTtsVoiceName = null
-                        "Error: Supertonic engine not yet available (needs VoxSherpa v2.9.0)"
+                        val sharedDir = voiceManager.supertonicSharedDir()
+                        SupertonicEngine.getInstance().setActiveSpeakerId(
+                            (active.engineType as EngineType.Supertonic).speakerId,
+                        )
+                        val parallelState = parallelSynthConfig.currentParallelSynthState()
+                        val nt = parallelState.threadsPerInstance
+                        SupertonicEngine.getInstance()
+                            .loadModel(context, sharedDir.absolutePath, nt)
+                            ?: "Error: load returned null"
                     }
                     is EngineType.Azure -> {
                         // Tier 3 (#88) — voice swap AWAY from local
@@ -2518,8 +2528,10 @@ class EnginePlayer @AssistedInject constructor(
                     }
                 }
             }
-            // TODO(#1114): Supertonic secondaries — wire when VoxSherpa
-            // v2.9.0 ships. Empty list = serial mode until then.
+            // Issue #1114 — Supertonic runs serial (no Tier 3 secondaries).
+            // The engine supports multi-instance construction, but each
+            // Supertonic session loads four ONNX graphs, so a fan-out is
+            // memory-heavy; deferred as a future parallel-synth enhancement.
             is EngineType.Supertonic -> emptyList()
             is EngineType.Azure -> {
                 // Reuse the parallelSynthInstances knob as Azure
@@ -3511,8 +3523,9 @@ class EnginePlayer @AssistedInject constructor(
                         // Issue #119 — Kitten dispatch.
                         is EngineType.Kitten -> KittenEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
-                        // TODO(#1114): SupertonicEngine.getInstance().generateAudioPCM(...)
-                        is EngineType.Supertonic -> null
+                        // Issue #1114 — Supertonic dispatch.
+                        is EngineType.Supertonic -> SupertonicEngine.getInstance()
+                            .generateAudioPCM(text, speed, pitch)
                         else -> VoiceEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
                     }
@@ -5267,9 +5280,18 @@ class EnginePlayer @AssistedInject constructor(
                         KittenEngine.getInstance().loadModel(context, onnx, tokens, voicesBin)
                             ?: "Error: load returned null"
                     }
-                    // TODO(#1114): wire SupertonicEngine recap path.
-                    is EngineType.Supertonic ->
-                        return@withContext "Error: Supertonic unsupported in recap (needs VoxSherpa v2.9.0)"
+                    // Issue #1114 — Supertonic recap path. Like Kitten, no
+                    // Tier 3 secondaries (recap is a one-off short read; the
+                    // primary engine is sufficient).
+                    is EngineType.Supertonic -> {
+                        val sharedDir = voiceManager.supertonicSharedDir()
+                        SupertonicEngine.getInstance().setActiveSpeakerId(
+                            (active.engineType as EngineType.Supertonic).speakerId,
+                        )
+                        SupertonicEngine.getInstance()
+                            .loadModel(context, sharedDir.absolutePath)
+                            ?: "Error: load returned null"
+                    }
                     is EngineType.Azure -> return@withContext "Error: Azure unsupported in recap"
                     is EngineType.SystemTts -> {
                         // #676 — recap-aloud path for System TTS.

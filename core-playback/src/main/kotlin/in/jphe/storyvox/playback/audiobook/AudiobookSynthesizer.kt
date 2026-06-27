@@ -3,9 +3,9 @@ package `in`.jphe.storyvox.playback.audiobook
 import android.content.Context
 import com.CodeBySonu.VoxSherpa.KittenEngine
 import com.CodeBySonu.VoxSherpa.KokoroEngine
+import com.CodeBySonu.VoxSherpa.SupertonicEngine
 import com.CodeBySonu.VoxSherpa.VoiceEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
-import `in`.jphe.storyvox.playback.EngineSampleRateCache
 import `in`.jphe.storyvox.playback.cache.EngineMutex
 import `in`.jphe.storyvox.playback.tts.SentenceChunker
 import `in`.jphe.storyvox.playback.tts.detectLocale
@@ -60,9 +60,8 @@ class AudiobookSynthesizer @Inject constructor(
         when (voice.engineType) {
             is EngineType.Kokoro -> KokoroEngine.getInstance().sampleRate
             is EngineType.Kitten -> KittenEngine.getInstance().sampleRate
-            // TODO(#1114): replace with SupertonicEngine.getInstance().sampleRate
-            // when VoxSherpa v2.9.0 ships. Uses the cache default (24 kHz) for now.
-            is EngineType.Supertonic -> EngineSampleRateCache.supertonicRate()
+            // Issue #1114 — Supertonic engine sample rate.
+            is EngineType.Supertonic -> SupertonicEngine.getInstance().sampleRate
             else -> VoiceEngine.getInstance().sampleRate
         }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE_HZ
 
@@ -148,9 +147,12 @@ class AudiobookSynthesizer @Inject constructor(
                 KittenEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
                     ?: ERR_LOAD_NULL
             }
-            // TODO(#1114): wire SupertonicEngine.loadModel when VoxSherpa v2.9.0 ships.
-            is EngineType.Supertonic ->
-                "Error: Supertonic engine not yet available (needs VoxSherpa v2.9.0)"
+            is EngineType.Supertonic -> {
+                val sharedDir = voiceManager.supertonicSharedDir()
+                SupertonicEngine.getInstance().setActiveSpeakerId(type.speakerId)
+                SupertonicEngine.getInstance().loadModel(appContext, sharedDir.absolutePath)
+                    ?: ERR_LOAD_NULL
+            }
             // Guarded in loadVoice; defensive typed errors keep the when exhaustive.
             is EngineType.Azure -> "Error: Azure not supported for export"
             is EngineType.SystemTts -> "Error: System TTS not supported for export"
@@ -160,8 +162,7 @@ class AudiobookSynthesizer @Inject constructor(
         when (voice.engineType) {
             is EngineType.Kokoro -> KokoroEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
             is EngineType.Kitten -> KittenEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            // TODO(#1114): SupertonicEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Supertonic -> null
+            is EngineType.Supertonic -> SupertonicEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
             is EngineType.Azure, is EngineType.SystemTts -> null
             else -> VoiceEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
         }

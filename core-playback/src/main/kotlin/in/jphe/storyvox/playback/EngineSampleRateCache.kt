@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.playback
 
 import com.CodeBySonu.VoxSherpa.KittenEngine
 import com.CodeBySonu.VoxSherpa.KokoroEngine
+import com.CodeBySonu.VoxSherpa.SupertonicEngine
 import com.CodeBySonu.VoxSherpa.VoiceEngine
 
 /**
@@ -83,9 +84,10 @@ object EngineSampleRateCache {
      *  per #119 — 24 kHz across every speaker. */
     private const val DEFAULT_KITTEN = 24000
 
-    /** Issue #1114 — Default Supertonic 3 sample rate. Assumed 24 kHz
-     *  (the standard for modern sherpa-onnx multi-speaker models).
-     *  TODO(#1114): verify against actual Supertonic 3 model output. */
+    /** Issue #1114 — Default Supertonic 3 sample rate (24 kHz, the
+     *  standard for modern sherpa-onnx multi-speaker models). Used only as
+     *  the pre-load fallback; once a model loads, [readSupertonicFromEngine]
+     *  reads the engine's actual rate and seeds the cache. */
     private const val DEFAULT_SUPERTONIC = 24000
 
     /** Cached rates. 0 = "not yet observed"; readers fall through to
@@ -192,9 +194,9 @@ object EngineSampleRateCache {
     private fun readKittenFromEngine(): Int =
         runCatching { KittenEngine.getInstance().sampleRate }.getOrDefault(0)
 
-    /** TODO(#1114): VoxSherpa has no SupertonicEngine yet. Returns 0 so
-     *  callers fall through to DEFAULT_SUPERTONIC. Replace with
-     *  `SupertonicEngine.getInstance().sampleRate` when VoxSherpa v2.9.0
-     *  ships. */
-    private fun readSupertonicFromEngine(): Int = 0
+    /** Issue #1114 — reads the loaded Supertonic engine's sample rate.
+     *  Returns 0 before a model is loaded so callers fall through to
+     *  DEFAULT_SUPERTONIC (24 kHz). */
+    private fun readSupertonicFromEngine(): Int =
+        runCatching { SupertonicEngine.getInstance().sampleRate }.getOrDefault(0)
 }

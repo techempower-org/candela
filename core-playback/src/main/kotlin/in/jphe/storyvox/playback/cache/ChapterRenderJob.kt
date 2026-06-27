@@ -13,6 +13,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.CodeBySonu.VoxSherpa.KittenEngine
 import com.CodeBySonu.VoxSherpa.KokoroEngine
+import com.CodeBySonu.VoxSherpa.SupertonicEngine
 import com.CodeBySonu.VoxSherpa.VoiceEngine
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -146,16 +147,9 @@ class ChapterRenderJob @AssistedInject constructor(
             )
             return Result.success()
         }
-        // TODO(#1114) — Skip Supertonic background pre-rendering until
-        // VoxSherpa ships a SupertonicEngine wrapper. Remove this guard
-        // when the engine is wired in.
-        if (voice.engineType is EngineType.Supertonic) {
-            Log.i(
-                LOG_TAG,
-                "pcm-cache PRERENDER-SKIP-SUPERTONIC chapterId=$chapterId voiceId=${voice.id}",
-            )
-            return Result.success()
-        }
+        // Issue #1114 — Supertonic pre-renders like the other local engines
+        // (Piper/Kokoro/Kitten); no skip guard. It's an in-process VoxSherpa
+        // engine, so the loadModel + generateAudioPCM bridge below handles it.
 
         // 4. Build the cache key. Render at the 1.0×/1.0× empty-dict
         // identity — see kdoc on speed/pitch quantization.
@@ -312,9 +306,12 @@ class ChapterRenderJob @AssistedInject constructor(
                 KittenEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
                     ?: "Error: load returned null"
             }
-            // TODO(#1114): wire SupertonicEngine.loadModel when VoxSherpa v2.9.0 ships.
-            is EngineType.Supertonic ->
-                "Error: Supertonic engine not yet available (needs VoxSherpa v2.9.0)"
+            is EngineType.Supertonic -> {
+                val sharedDir = voiceManager.supertonicSharedDir()
+                SupertonicEngine.getInstance().setActiveSpeakerId(type.speakerId)
+                SupertonicEngine.getInstance().loadModel(appContext, sharedDir.absolutePath)
+                    ?: "Error: load returned null"
+            }
             // Guarded above — defensive fall-through if surface evolves.
             is EngineType.Azure -> "Error: Azure not supported in background pre-render"
             // #676 — also guarded above; mirrors Azure with a typed error
@@ -327,8 +324,8 @@ class ChapterRenderJob @AssistedInject constructor(
         when (voice.engineType) {
             is EngineType.Kokoro -> KokoroEngine.getInstance().sampleRate
             is EngineType.Kitten -> KittenEngine.getInstance().sampleRate
-            // TODO(#1114): SupertonicEngine.getInstance().sampleRate
-            is EngineType.Supertonic -> EngineSampleRateCache.supertonicRate()
+            // Issue #1114 — Supertonic engine sample rate.
+            is EngineType.Supertonic -> SupertonicEngine.getInstance().sampleRate
             else -> VoiceEngine.getInstance().sampleRate
         }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE_HZ
 
@@ -338,8 +335,8 @@ class ChapterRenderJob @AssistedInject constructor(
                 .generateAudioPCM(text, 1.0f, 1.0f)
             is EngineType.Kitten -> KittenEngine.getInstance()
                 .generateAudioPCM(text, 1.0f, 1.0f)
-            // TODO(#1114): SupertonicEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Supertonic -> null
+            is EngineType.Supertonic -> SupertonicEngine.getInstance()
+                .generateAudioPCM(text, 1.0f, 1.0f)
             else -> VoiceEngine.getInstance()
                 .generateAudioPCM(text, 1.0f, 1.0f)
         }
