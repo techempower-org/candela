@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.1] -- 2026-06-27
+
+Hotfix: radio and LibriVox audio streams now play immediately instead of showing a permanent "Retry" error.
+
+### Fixed
+
+- **Audio chapter race condition.** Radio and LibriVox chapters now carry their stream URL from creation time via `ChapterInfo.audioUrl`, eliminating the race between `ChapterDownloadWorker.setBody()` and `EnginePlayer.loadAndPlay()` that caused permanent "Chapter not ready" errors. (#1221 / #1222)
+
 ## [1.2.0] -- 2026-06-27
 
 **Play Store ready.** Supertonic 3 TTS engine, collapsing headers, chapter previews, DND sleep timer, and Play Store compliance polish.
