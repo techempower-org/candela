@@ -373,6 +373,7 @@ internal class RadioSource @Inject constructor(
             sourceChapterId = "live",
             index = 0,
             title = "Live",
+            audioUrl = station.streamUrl,
         )
 
     companion object {

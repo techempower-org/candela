@@ -374,6 +374,7 @@ internal class LibriVoxSource @Inject constructor(
             sourceChapterId = sectionNumber.ifBlank { (index + 1).toString() },
             index = index,
             title = title.ifBlank { "Section ${sectionNumber.ifBlank { (index + 1).toString() }}" },
+            audioUrl = listenUrl.ifBlank { null },
         )
 
     /** Issue #1046 — TOC entry for the open-domain text companion. Sits
