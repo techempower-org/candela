@@ -670,6 +670,9 @@
     <string name="settings_about_privacy_policy_subtitle">Opens in your browser</string>
     <string name="settings_about_accessibility">Accessibility Statement</string>
     <string name="settings_about_accessibility_subtitle">How Candela supports assistive technology</string>
+    <!-- Settings · About → Report objectionable content (#1140, IARC content-rating compliance) -->
+    <string name="settings_about_report_content">Report objectionable content</string>
+    <string name="settings_about_report_content_subtitle">Flag inappropriate content from third-party sources</string>
     <!-- Settings · About → Open-source licenses (#1142) -->
     <string name="settings_about_licenses">Open-source licenses</string>
     <string name="settings_about_licenses_subtitle">The libraries that power Candela.</string>
