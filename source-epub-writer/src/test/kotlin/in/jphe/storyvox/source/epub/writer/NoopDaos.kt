@@ -4,6 +4,7 @@ import `in`.jphe.storyvox.data.db.dao.ChapterCacheUsageRow
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDownloadStateRow
 import `in`.jphe.storyvox.data.db.dao.ChapterInfoRow
+import `in`.jphe.storyvox.data.db.dao.ChapterPreviewRow
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackChapterRow
 import `in`.jphe.storyvox.data.db.dao.UnreadChapterRow
@@ -44,6 +45,10 @@ internal class NoopFictionDao : FictionDao {
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
     override suspend fun touchMetadata(id: String, now: Long) = Unit
     override suspend fun setSourceId(id: String, sourceId: String) = Unit
+    // Pre-existing gap (predates #1189): fake fell behind the FictionDao
+    // interface when the source-URL accessors landed. Filled to compile.
+    override suspend fun getSourceUrl(id: String): String? = null
+    override suspend fun setSourceUrlIfAbsent(id: String, url: String) = Unit
     override suspend fun placeholdersToBackfill(cutoff: Long): List<Fiction> = emptyList()
     override suspend fun placeholderCount(): Int = 0
     override suspend fun markBackfillFailed(id: String, now: Long) = Unit
@@ -55,6 +60,7 @@ internal class NoopFictionDao : FictionDao {
 
 internal class NoopChapterDao : ChapterDao {
     override fun observeChapterInfosByFiction(fictionId: String): Flow<List<ChapterInfoRow>> = flowOf(emptyList())
+    override fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>> = flowOf(emptyList())
     override fun observe(id: String): Flow<Chapter?> = flowOf(null)
     override suspend fun get(id: String): Chapter? = null
     override suspend fun exists(id: String): Boolean = false
@@ -87,6 +93,10 @@ internal class NoopChapterDao : ChapterDao {
         audioUrl: String?,
     ) = Unit
     override suspend fun setRead(id: String, read: Boolean, now: Long) = Unit
+    // Pre-existing gap (predates #1189): this no-op fake fell behind the
+    // ChapterDao interface when #982's markFollowedCaughtUp landed. Filled
+    // here so the module's test source compiles.
+    override suspend fun markFollowedCaughtUp(now: Long): Int = 0
     override suspend fun trimDownloadedBodies(fictionId: String, keepLast: Int) = Unit
     override suspend fun setBookmark(id: String, charOffset: Int?) = Unit
     override suspend fun getBookmark(id: String): Int? = null

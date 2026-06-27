@@ -4,6 +4,7 @@ import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterCacheUsageRow
 import `in`.jphe.storyvox.data.db.dao.ChapterDownloadStateRow
 import `in`.jphe.storyvox.data.db.dao.ChapterInfoRow
+import `in`.jphe.storyvox.data.db.dao.ChapterPreviewRow
 import `in`.jphe.storyvox.data.db.dao.ContinueListeningRow
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.LastPlayedRow
@@ -230,6 +231,7 @@ class PlaybackPositionSyncerTest {
 
         override suspend fun allChapters(fictionId: String): List<Chapter> = emptyList()
         override fun observeChapterInfosByFiction(fictionId: String): Flow<List<ChapterInfoRow>> = flowOf(emptyList())
+        override fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>> = flowOf(emptyList())
         override fun observe(id: String): Flow<Chapter?> = flowOf(null)
         override suspend fun get(id: String): Chapter? = null
         override fun observeDownloadStates(fictionId: String): Flow<List<ChapterDownloadStateRow>> = flowOf(emptyList())
