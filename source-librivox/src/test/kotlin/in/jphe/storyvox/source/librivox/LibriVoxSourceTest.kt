@@ -219,4 +219,15 @@ class LibriVoxSourceTest {
         val raw = "A short public-domain snippet with no PG wrapper."
         assertEquals(raw, GutenbergTextApi.stripGutenbergBoilerplate(raw))
     }
+
+    @Test fun `stripGutenbergBoilerplate normalizes CRLF and lone CR line endings`() {
+        // Gutenberg files ship CRLF; the marker line-slicing keys off `\n`,
+        // so the body must come back with normalized `\n` separators and no
+        // stray carriage returns (issue #1176).
+        val raw = "junk\r\n***START OF THE PROJECT GUTENBERG EBOOK FOO***\r\n" +
+            "Line one.\r\nLine two.\r\n***END OF THE PROJECT GUTENBERG EBOOK FOO***\r\nfooter"
+        val body = GutenbergTextApi.stripGutenbergBoilerplate(raw)
+        assertEquals("Line one.\nLine two.", body)
+        assertFalse("no carriage returns remain", body.contains('\r'))
+    }
 }
