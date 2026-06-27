@@ -32,7 +32,6 @@ class ReadabilityFetcher @Inject constructor(
         try {
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", USER_AGENT)
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                 .build()
             client.newCall(request).execute().use { response ->
@@ -79,6 +78,6 @@ class ReadabilityFetcher @Inject constructor(
         // Polite UA — identifies us as a personal audiobook reader so a
         // server admin who notices the traffic can see what it's for.
         // Same convention as the RSS / Wikipedia / Outline backends.
-        const val USER_AGENT = "storyvox-readability/1.0 (+https://github.com/techempower-org/candela)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }

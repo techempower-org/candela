@@ -166,7 +166,6 @@ internal class DiscordApi @Inject constructor(
                 // single most common bot-onboarding mistake.
                 .header("Authorization", "Bot ${state.apiToken}")
                 .header("Accept", "application/json")
-                .header("User-Agent", DiscordDefaults.USER_AGENT)
                 .get()
                 .build()
             client.newCall(request).execute().use { resp ->

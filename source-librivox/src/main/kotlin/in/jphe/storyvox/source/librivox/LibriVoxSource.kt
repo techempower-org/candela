@@ -474,8 +474,7 @@ internal class LibriVoxSource @Inject constructor(
          */
         internal fun bookIdFromFictionId(fictionId: String): String = fictionId.trim()
 
-        const val USER_AGENT: String =
-            "storyvox-librivox/1.0 (+https://github.com/techempower-org/candela)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
 
         /**
          * Sentinel prefixes used by [applyFilters] to smuggle the

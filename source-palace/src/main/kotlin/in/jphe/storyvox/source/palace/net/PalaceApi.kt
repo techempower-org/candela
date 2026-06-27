@@ -94,7 +94,6 @@ internal class PalaceApi @Inject constructor(
             try {
                 val req = Request.Builder()
                     .url(url)
-                    .header("User-Agent", USER_AGENT)
                     .header("Accept", "application/epub+zip")
                     .get()
                     .build()
@@ -150,7 +149,6 @@ internal class PalaceApi @Inject constructor(
                     "application/atom+xml;profile=opds-catalog, application/atom+xml, " +
                         "application/xml;q=0.9, */*;q=0.1",
                 )
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -184,6 +182,6 @@ internal class PalaceApi @Inject constructor(
          * URL routes any rate-limit / abuse signal back to a real human
          * — same etiquette as the Gutenberg / Standard Ebooks clients.
          */
-        const val USER_AGENT = "storyvox-palace/1.0 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }

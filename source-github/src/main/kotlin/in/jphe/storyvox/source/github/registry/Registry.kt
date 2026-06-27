@@ -83,7 +83,6 @@ internal open class Registry @Inject constructor(
         val req = Request.Builder()
             .url(REGISTRY_URL)
             .header("Accept", "application/json")
-            .header("User-Agent", USER_AGENT)
             .build()
         val response = try {
             httpClient.newCall(req).await()
@@ -118,8 +117,7 @@ internal open class Registry @Inject constructor(
     companion object {
         const val REGISTRY_URL: String =
             "https://raw.githubusercontent.com/techempower-org/candela-registry/main/registry.json"
-        const val USER_AGENT: String =
-            "storyvox/0.5 (+https://github.com/techempower-org/candela)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

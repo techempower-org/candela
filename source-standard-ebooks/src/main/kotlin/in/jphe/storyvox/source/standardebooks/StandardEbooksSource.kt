@@ -51,8 +51,9 @@ import javax.inject.Singleton
  *
  * Legal posture: zero ToS friction. Every release is dedicated to the
  * public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/);
- * we send a `storyvox-standardebooks/1.0` User-Agent so any rate-limit
- * hits route to a real contact.
+ * we send the shared descriptive User-Agent (app + version + contact, see
+ * `in.jphe.storyvox.data.network.UserAgent`) so any rate-limit hits route
+ * to a real contact.
  */
 @SourcePlugin(
     id = SourceIds.STANDARD_EBOOKS,

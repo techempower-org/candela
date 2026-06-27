@@ -60,7 +60,6 @@ internal class GutenbergTextApi @Inject constructor(
                 .header("Accept", "text/plain")
                 // gutenberg.org's robot policy asks clients to identify
                 // themselves; reuse the LibriVox user-agent contact.
-                .header("User-Agent", USER_AGENT)
                 .get()
                 .build()
             // The blocking `execute()` below doesn't observe coroutine
@@ -96,8 +95,7 @@ internal class GutenbergTextApi @Inject constructor(
     companion object {
         const val BASE_URL: String = "https://www.gutenberg.org"
 
-        const val USER_AGENT: String =
-            "storyvox-librivox/1.0 (+https://github.com/techempower-org/candela)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
 
         /**
          * Gutenberg's stable "Plain Text UTF-8" download alias. 302-

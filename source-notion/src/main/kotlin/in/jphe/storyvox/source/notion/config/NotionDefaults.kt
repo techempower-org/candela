@@ -93,8 +93,7 @@ object NotionDefaults {
      * the project + gives a contact path so Notion's abuse / rate-limit
      * tooling can route concerns somewhere useful.
      */
-    const val USER_AGENT: String =
-        "storyvox-notion/1.0 (+https://github.com/techempower-org/candela)"
+    // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
 
     /**
      * Issue #393 / v0.5.26 — four-fiction layout for TechEmpower in

@@ -46,8 +46,7 @@ object DiscordDefaults {
     /** User-Agent header per Discord's API guidelines — should
      *  identify storyvox and the version so Discord's abuse team can
      *  reach out before banning a misbehaving bot. */
-    const val USER_AGENT: String =
-        "Storyvox-Discord/1.0 (+https://github.com/techempower-org/candela)"
+    // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
 
     /**
      * Issue #517 — Discord channel id for the TechEmpower peer-support

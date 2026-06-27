@@ -274,7 +274,6 @@ internal class NotionUnofficialApi @Inject constructor(
                 // client uses for consistency. Spoofing a browser UA
                 // would be misleading and the unofficial endpoint
                 // doesn't gate on it anyway.
-                .header("User-Agent", NotionDefaults.USER_AGENT)
                 .post(body.toRequestBody(mediaTypeJson))
             client.newCall(reqBuilder.build()).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()

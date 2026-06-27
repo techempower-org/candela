@@ -77,7 +77,6 @@ open class DeviceFlowApi @Inject constructor(
             .url(deviceCodeUrl)
             .post(body)
             .header("Accept", "application/json")
-            .header("User-Agent", USER_AGENT)
             .build()
         val response = try {
             httpClient.newCall(req).await()
@@ -138,7 +137,6 @@ open class DeviceFlowApi @Inject constructor(
             .url(accessTokenUrl)
             .post(body)
             .header("Accept", "application/json")
-            .header("User-Agent", USER_AGENT)
             .build()
         val response = try {
             httpClient.newCall(req).await()
@@ -207,7 +205,7 @@ open class DeviceFlowApi @Inject constructor(
 
     companion object {
         const val DEVICE_CODE_GRANT: String = "urn:ietf:params:oauth:grant-type:device_code"
-        const val USER_AGENT: String = "storyvox/0.4 (+https://github.com/jphein/storyvox)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
         // ignoreUnknownKeys: GitHub freely adds new fields; don't break on them.
         // explicitNulls = false: keeps the wire format permissive on optional values.
         private val JSON: Json = Json {

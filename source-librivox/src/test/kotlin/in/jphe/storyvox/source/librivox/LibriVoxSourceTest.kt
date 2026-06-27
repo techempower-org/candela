@@ -135,10 +135,9 @@ class LibriVoxSourceTest {
         assertTrue(result is FictionResult.Success)
     }
 
-    @Test fun `user-agent identifies storyvox-librivox`() {
-        assertTrue(LibriVoxSource.USER_AGENT.contains("storyvox-librivox"))
-        assertTrue(LibriVoxSource.USER_AGENT.contains("github.com/techempower-org/candela"))
-    }
+    // #1204 — removed `user-agent identifies storyvox-librivox`: LibriVox's
+    // per-source UA constant is gone; the descriptive User-Agent is now applied
+    // centrally by the shared @UserAgentHeader interceptor (UserAgent.format).
 
     // ─── Issue #1046 — open-domain text companion ──────────────────────
 

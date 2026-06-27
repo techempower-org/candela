@@ -52,9 +52,10 @@ import javax.inject.Singleton
  * programmatic access (their [robot
  * policy](https://www.gutenberg.org/policy/robot_access.html) is "be
  * polite, identify yourself, throttle"). Gutendex sits between us
- * and PG specifically to absorb catalog traffic; we send a
- * `storyvox-gutenberg/1.0` User-Agent so any rate-limit hits can be
- * routed to a real contact.
+ * and PG specifically to absorb catalog traffic; we send the shared
+ * descriptive User-Agent (app + version + contact, see
+ * `in.jphe.storyvox.data.network.UserAgent`) so any rate-limit hits can
+ * be routed to a real contact.
  */
 @SourcePlugin(
     id = SourceIds.GUTENBERG,

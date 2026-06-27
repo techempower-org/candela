@@ -173,7 +173,6 @@ internal open class PlosApi @Inject constructor(
                     .url(url)
                     .header("Accept", "application/json, text/html, */*")
                     .header("Accept-Language", "en")
-                    .header("User-Agent", USER_AGENT)
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
@@ -224,8 +223,7 @@ internal open class PlosApi @Inject constructor(
          *  (anonymous traffic works without one), but their public docs
          *  ask harvesters to identify themselves so an op can reach out
          *  if a client misbehaves. */
-        const val USER_AGENT: String =
-            "storyvox-plos/1.0 (https://github.com/jphein/storyvox; jp@jphein.com)"
+        // #1204 — UA applied via the shared @UserAgentHeader interceptor (UserAgent.kt).
     }
 }
 

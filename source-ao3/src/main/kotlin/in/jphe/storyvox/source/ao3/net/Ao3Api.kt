@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.ao3.net
 
+import `in`.jphe.storyvox.data.network.UserAgent
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
@@ -417,7 +418,21 @@ internal class Ao3Api @Inject constructor(
             return "/works/search?$qs"
         }
 
-        const val USER_AGENT = "storyvox-ao3/1.0 (+https://github.com/jphein/storyvox)"
+        /**
+         * #1204 — AO3 identity used by the anonymous + authed OkHttp clients
+         * AND the login WebView's `userAgentString` (see Ao3AuthWebView /
+         * Ao3HttpModule). Built from the centralized [UserAgent] tokens so the
+         * rebrand + contact info live in one place; versionless because a
+         * WebView can't read `BuildConfig.VERSION_NAME` from a source module.
+         * Replaces the stale pre-rebrand `storyvox-ao3/jphein` string.
+         *
+         * AO3 keeps this explicit constant rather than the shared
+         * `@UserAgentHeader` interceptor because the WebView path needs a
+         * literal string, and OTW Ops asks for ONE identity across a client's
+         * traffic — so the OkHttp calls and the WebView advertise the same UA.
+         */
+        val USER_AGENT: String =
+            "${UserAgent.APP_NAME} (${UserAgent.CONTACT_URL}; ${UserAgent.CONTACT_EMAIL}) ${UserAgent.PLATFORM}"
 
         /**
          * Cheap signal that AO3 returned the login form instead of
