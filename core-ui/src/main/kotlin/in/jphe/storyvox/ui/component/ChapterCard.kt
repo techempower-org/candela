@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.playback.cache.ChapterCacheState
 import `in`.jphe.storyvox.ui.a11y.A11ySpeakChapterMode
@@ -51,6 +52,16 @@ data class ChapterCardState(
      *  `FictionDetailScreen.toCardState` forwards the real value from
      *  the view-model's per-fiction cache-state flow. */
     val cacheState: ChapterCacheState = ChapterCacheState.None,
+    /** Issue #1189 — ~100-char snippet of the chapter's opening prose,
+     *  rendered under the title to disambiguate generically-numbered
+     *  chapters. Null / blank hides the line entirely (the common case for
+     *  a chapter whose body isn't cached yet), so cards without a preview
+     *  look exactly as they did pre-#1189. Deliberately NOT folded into the
+     *  TalkBack [contentDescription] below: appending ~100 chars to every
+     *  row's announcement would bloat list-swipe readout, and the snippet is
+     *  a visual orientation aid — the title (already announced) is what a
+     *  screen-reader user navigates by. */
+    val preview: String? = null,
 )
 
 @Composable
@@ -168,6 +179,23 @@ fun ChapterCard(
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                 )
+                // Issue #1189 — content preview. Sits between the title and
+                // the published·duration metadata so the visual order is
+                // title → taste-of-the-prose → metadata. Hidden when blank
+                // (body not cached yet) so the card collapses to its
+                // pre-#1189 two-line shape. bodySmall / onSurfaceVariant
+                // keeps it clearly subordinate to the titleMedium title.
+                val preview = state.preview?.takeIf { it.isNotBlank() }
+                if (preview != null) {
+                    Text(
+                        preview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                     modifier = Modifier.padding(top = 2.dp),

@@ -5,6 +5,7 @@ import `in`.jphe.storyvox.sync.coordinator.ConflictPolicies
 import `in`.jphe.storyvox.sync.coordinator.Stamped
 import `in`.jphe.storyvox.sync.coordinator.SyncOutcome
 import `in`.jphe.storyvox.sync.coordinator.Syncer
+import `in`.jphe.storyvox.sync.coordinator.toPurgeOutcome
 
 /**
  * Reusable last-write-wins syncer for blob-shaped domains — the
@@ -29,10 +30,17 @@ class LwwBlobSyncer(
     interface BlobRemote {
         suspend fun fetch(user: SignedInUser): Result<Stamped<String>?>
         suspend fun push(user: SignedInUser, payload: Stamped<String>): Result<Unit>
+
+        /** Delete the remote row backing this blob domain (#1139). */
+        suspend fun delete(user: SignedInUser): Result<Unit>
     }
 
     override suspend fun push(user: SignedInUser): SyncOutcome = reconcile(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = reconcile(user)
+
+    /** #1139 — delete the remote blob row. Local copy is untouched
+     *  (sign-out deletes the cloud copy only; see [Syncer.purge]). */
+    override suspend fun purge(user: SignedInUser): SyncOutcome = remote.delete(user).toPurgeOutcome()
 
     private suspend fun reconcile(user: SignedInUser): SyncOutcome {
         val tag = "LwwSyncer[$name]"

@@ -272,7 +272,11 @@ fun AccessibilitySettingsScreen(
                     title = stringResource(R.string.settings_accessibility_learn_more_title),
                     subtitle = stringResource(R.string.settings_accessibility_learn_more_subtitle),
                     onClick = {
-                        uriHandler.openUri("https://candela.techempower.org/accessibility")
+                        // #1203 — guard against ActivityNotFoundException on
+                        // devices with no browser (same fix as #1177/#1186).
+                        runCatching {
+                            uriHandler.openUri("https://candela.techempower.org/accessibility")
+                        }
                     },
                 )
             }

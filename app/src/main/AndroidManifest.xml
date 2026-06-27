@@ -18,6 +18,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Issue #1190 — auto Do Not Disturb with the sleep timer. A normal
+         permission (no runtime prompt), but actually toggling DND
+         additionally needs the user to grant notification-policy access
+         from system settings; the Voice & Playback toggle hops the user
+         there once via ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
     <!-- Issue #995 — OCR scan-to-read. CAMERA is requested at runtime
          with a plain-language rationale before the system prompt; a
          denied camera never dead-ends the feature (the gallery-pick

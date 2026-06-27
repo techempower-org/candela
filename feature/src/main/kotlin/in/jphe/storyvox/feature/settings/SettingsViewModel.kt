@@ -551,6 +551,10 @@ class SettingsViewModel @Inject constructor(
     fun setSleepBedtimeAutoEnabled(enabled: Boolean) =
         viewModelScope.launch { repo.setSleepBedtimeAutoEnabled(enabled) }
 
+    /** Issue #1190 — auto Do Not Disturb with the sleep timer. */
+    fun setDndWithSleepTimerEnabled(enabled: Boolean) =
+        viewModelScope.launch { repo.setDndWithSleepTimerEnabled(enabled) }
+
     /** Issue #596 — PCM-cache pre-render window size in chapters. */
     fun setPrerenderChapterCount(count: Int) =
         viewModelScope.launch { repo.setPrerenderChapterCount(count) }

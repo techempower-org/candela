@@ -40,7 +40,36 @@ interface Syncer {
      * whether to LWW, union, or max-scalar.
      */
     suspend fun pull(user: SignedInUser): SyncOutcome
+
+    /**
+     * Delete this domain's remote (InstantDB) row(s) for [user]. Called by
+     * [SyncCoordinator.purgeRemoteData] on sign-out so signing out actually
+     * removes the user's cloud record — the deletion the privacy policy
+     * promises (#1139).
+     *
+     * Deliberately ABSTRACT (no default): a privacy/compliance guarantee
+     * must not silently skip a domain. Adding a new syncer forces a
+     * deliberate `purge` decision at compile time, the same safety the
+     * multibound `Set<Syncer>` gives the push/pull paths.
+     *
+     * Scope: this deletes only the CLOUD copy. Local on-device data is
+     * intentionally left intact (signing out disables sync; uninstalling
+     * clears local) — see [SyncCoordinator]'s class kdoc. Idempotent: a
+     * domain the user never pushed deletes a missing row, which the backend
+     * treats as success.
+     */
+    suspend fun purge(user: SignedInUser): SyncOutcome
 }
+
+/**
+ * Map a remote-delete [Result] to the [SyncOutcome] the purge path expects.
+ * Any failure is [SyncOutcome.Transient] — purge is best-effort on sign-out
+ * and the privacy policy's email-request path backstops the offline case.
+ */
+internal fun Result<Unit>.toPurgeOutcome(): SyncOutcome = fold(
+    onSuccess = { SyncOutcome.Ok(recordsAffected = 1) },
+    onFailure = { SyncOutcome.Transient(it.message ?: "delete failed") },
+)
 
 /** Result of a single push or pull. */
 sealed interface SyncOutcome {

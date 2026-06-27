@@ -4,6 +4,7 @@ import `in`.jphe.storyvox.data.db.dao.ChapterCacheUsageRow
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDownloadStateRow
 import `in`.jphe.storyvox.data.db.dao.ChapterInfoRow
+import `in`.jphe.storyvox.data.db.dao.ChapterPreviewRow
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackChapterRow
 import `in`.jphe.storyvox.data.db.dao.UnreadChapterRow
@@ -44,7 +45,6 @@ internal class NoopFictionDao : FictionDao {
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
     override suspend fun touchMetadata(id: String, now: Long) = Unit
     override suspend fun setSourceId(id: String, sourceId: String) = Unit
-    // #989 — sourceUrl rebuild persistence (added after this fake was first written).
     override suspend fun getSourceUrl(id: String): String? = null
     override suspend fun setSourceUrlIfAbsent(id: String, url: String) = Unit
     override suspend fun placeholdersToBackfill(cutoff: Long): List<Fiction> = emptyList()
@@ -58,6 +58,7 @@ internal class NoopFictionDao : FictionDao {
 
 internal class NoopChapterDao : ChapterDao {
     override fun observeChapterInfosByFiction(fictionId: String): Flow<List<ChapterInfoRow>> = flowOf(emptyList())
+    override fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>> = flowOf(emptyList())
     override fun observe(id: String): Flow<Chapter?> = flowOf(null)
     override suspend fun get(id: String): Chapter? = null
     override suspend fun exists(id: String): Boolean = false
@@ -90,7 +91,6 @@ internal class NoopChapterDao : ChapterDao {
         audioUrl: String?,
     ) = Unit
     override suspend fun setRead(id: String, read: Boolean, now: Long) = Unit
-    // #982 — "Mark all caught up" on the Follows screen (added after this fake was first written).
     override suspend fun markFollowedCaughtUp(now: Long): Int = 0
     override suspend fun trimDownloadedBodies(fictionId: String, keepLast: Int) = Unit
     override suspend fun setBookmark(id: String, charOffset: Int?) = Unit

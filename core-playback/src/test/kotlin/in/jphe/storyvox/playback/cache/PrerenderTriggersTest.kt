@@ -102,6 +102,9 @@ class PrerenderTriggersTest {
             flowOf(emptyMap())
         override fun observePlayedChapterIds(fictionId: String): Flow<Set<String>> =
             flowOf(emptySet())
+        // Issue #1189 — content-preview feed; not exercised by prerender tests.
+        override fun observeChapterPreviews(fictionId: String): Flow<Map<String, String>> =
+            flowOf(emptyMap())
         override suspend fun queueChapterDownload(
             fictionId: String, chapterId: String, requireUnmetered: Boolean,
         ) {

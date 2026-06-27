@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.data.repository
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDownloadStateRow
 import `in`.jphe.storyvox.data.db.dao.ChapterInfoRow
+import `in`.jphe.storyvox.data.db.dao.ChapterPreviewRow
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackChapterRow
 import `in`.jphe.storyvox.data.db.dao.UnreadChapterRow
@@ -285,6 +286,10 @@ class FictionRepositoryImplTest {
 
         override fun observeChapterInfosByFiction(fictionId: String): Flow<List<ChapterInfoRow>> =
             infoFeeds.getOrPut(fictionId) { MutableStateFlow(fictionRows(fictionId)) }
+
+        // Issue #1189 — content-preview feed; this test doesn't assert previews.
+        override fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>> =
+            MutableStateFlow<List<ChapterPreviewRow>>(emptyList())
 
         override fun observe(id: String): Flow<Chapter?> = MutableStateFlow(rows[id])
 

@@ -7,10 +7,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
+import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.wikisource.WikisourceSource
 import `in`.jphe.storyvox.source.wikisource.net.WikisourceApi
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -38,7 +40,9 @@ internal object WikisourceHttpModule {
     @Provides
     @Singleton
     @WikisourceHttp
-    fun provideClient(): OkHttpClient =
+    fun provideClient(
+        @UserAgentHeader userAgent: Interceptor,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -46,6 +50,10 @@ internal object WikisourceHttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1141 — Wikimedia *requires* a descriptive UA with contact
+            // info per https://meta.wikimedia.org/wiki/User-Agent_policy;
+            // anonymous traffic without one is 403'd into a restrictive tier.
+            .addInterceptor(userAgent)
             .build()
 
     @Provides

@@ -18,23 +18,27 @@ import org.junit.Test
  */
 class VoiceFamilyRegistryTest {
 
-    @Test fun `registry exposes SystemTts Piper Kokoro Kitten Supertonic Azure and the upstream placeholder`() {
+    @Test fun `registry exposes SystemTts Piper Kokoro Kitten Azure and the upstream placeholder (Supertonic gated, issue 1202)`() {
         val registry = VoiceFamilyRegistry()
         val ids = registry.descriptors.map { it.id }
-        // #676 — System TTS joined as the zero-download first-launch tier;
-        // #1120 — the Supertonic 3 scaffold added the seventh descriptor.
+        // #676 — System TTS joined as the zero-download first-launch tier.
+        // #1120 — the Supertonic 3 scaffold added a seventh descriptor, but
+        // #1202 gates the Supertonic family card OUT until #1191 lands the
+        // engine (VoiceCatalog.SUPERTONIC_ENABLED = false), so a shipped
+        // build exposes six descriptors today.
         assertEquals(
-            "Registry should ship exactly seven descriptors today",
-            7,
+            "Registry should ship exactly six descriptors while Supertonic is gated (#1202)",
+            6,
             registry.descriptors.size,
         )
         assertTrue(VoiceFamilyIds.SYSTEM_TTS in ids)
         assertTrue(VoiceFamilyIds.PIPER in ids)
         assertTrue(VoiceFamilyIds.KOKORO in ids)
         assertTrue(VoiceFamilyIds.KITTEN in ids)
-        assertTrue(VoiceFamilyIds.SUPERTONIC in ids)
         assertTrue(VoiceFamilyIds.AZURE in ids)
         assertTrue(VoiceFamilyIds.VOXSHERPA_UPSTREAMS in ids)
+        // #1202 — Supertonic family card hidden until #1191 lands the engine.
+        assertFalse(VoiceFamilyIds.SUPERTONIC in ids)
     }
 
     @Test fun `EngineType SystemTts maps to SYSTEM_TTS family regardless of engine or voice name`() {
@@ -100,5 +104,22 @@ class VoiceFamilyRegistryTest {
                 familyId in knownFamilies,
             )
         }
+    }
+
+    @Test fun `Supertonic voices are gated out of the catalog until the engine lands (issue 1202)`() {
+        // #1202 — Supertonic 3 is scaffolded (#1114) but has no working
+        // engine until #1191 ships VoxSherpa's SupertonicEngine. v1.1.6
+        // shipped the 10 speakers as *selectable* picker rows that produced
+        // no audio (the EnginePlayer dispatch is a TODO(#1114) stub
+        // returning "Error: load returned null"), so VoiceCatalog gates
+        // them behind SUPERTONIC_ENABLED. Lock that in: while gated, no
+        // Supertonic entry may appear in the static catalog. The
+        // VoiceFamilyRegistry descriptor is deliberately kept (see the
+        // seven-descriptor test above), so this only guards the voices.
+        val supertonicVoices = VoiceCatalog.voices.filter { it.engineType is EngineType.Supertonic }
+        assertTrue(
+            "Supertonic voices must stay out of VoiceCatalog.voices while gated (#1202); found ${supertonicVoices.map { it.id }}",
+            supertonicVoices.isEmpty(),
+        )
     }
 }

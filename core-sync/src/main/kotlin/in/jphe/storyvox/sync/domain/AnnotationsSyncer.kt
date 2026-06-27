@@ -9,6 +9,7 @@ import `in`.jphe.storyvox.sync.client.InstantBackend
 import `in`.jphe.storyvox.sync.client.SignedInUser
 import `in`.jphe.storyvox.sync.coordinator.SyncOutcome
 import `in`.jphe.storyvox.sync.coordinator.Syncer
+import `in`.jphe.storyvox.sync.coordinator.toPurgeOutcome
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.Serializable
@@ -80,6 +81,10 @@ class AnnotationsSyncer @Inject constructor(
 
     override suspend fun push(user: SignedInUser): SyncOutcome = reconcile(user)
     override suspend fun pull(user: SignedInUser): SyncOutcome = reconcile(user)
+
+    /** #1139 — delete the remote annotations blob on sign-out. */
+    override suspend fun purge(user: SignedInUser): SyncOutcome =
+        backend.delete(user, ENTITY, rowId(user)).toPurgeOutcome()
 
     private suspend fun reconcile(user: SignedInUser): SyncOutcome {
         val localRows = annotationDao.allAnnotations()

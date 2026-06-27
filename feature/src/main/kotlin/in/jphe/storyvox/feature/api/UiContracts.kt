@@ -60,6 +60,13 @@ data class UiChapter(
      *  FictionDetailViewModel composes the real value by combining
      *  this list with `CacheStateInspector.chapterStatesFor`. */
     val cacheState: ChapterCacheState = ChapterCacheState.None,
+    /** Issue #1189 — ~100-char snippet of the chapter's opening prose,
+     *  shown under the title so listeners can orient when a source numbers
+     *  its chapters generically ("Chapter 1", "Chapter 2", …). Null until
+     *  the body is cached (downloaded / read / pre-rendered); the row then
+     *  renders without a preview line. Composed in `AppBindings.chaptersFor`
+     *  from `ChapterRepository.observeChapterPreviews`. */
+    val preview: String? = null,
 )
 
 data class UiFollow(
@@ -1277,6 +1284,11 @@ data class UiSettings(
      *  / DND mode during playback. Uses [sleepShakeExtendMinutes] as
      *  the timer duration. Per-device pref (NOT synced). */
     val sleepBedtimeAutoEnabled: Boolean = false,
+    /** Issue #1190 — auto-enable system Do Not Disturb while a sleep
+     *  timer is armed, restoring the prior interruption filter when it
+     *  expires or is cancelled. Requires notification-policy access.
+     *  Per-device pref (NOT synced). */
+    val dndWithSleepTimerEnabled: Boolean = false,
     /**
      * Issue #596 — PCM-cache pre-render window size, in chapters.
      * The pre-render scheduler caches the next N chapters ahead of the
@@ -1815,6 +1827,9 @@ interface SettingsRepositoryUi {
     suspend fun setSleepShakeExtendMinutes(minutes: Int) = Unit
     /** Auto-arm sleep timer on Bedtime / DND mode. Default no-op. */
     suspend fun setSleepBedtimeAutoEnabled(enabled: Boolean) = Unit
+    /** Issue #1190 — auto Do Not Disturb with the sleep timer. Default
+     *  no-op so existing test fakes compile without overrides. */
+    suspend fun setDndWithSleepTimerEnabled(enabled: Boolean) = Unit
     /**
      * Issue #596 — set the PCM-cache pre-render window size, in
      * chapters. Snapped to [1, 2, 3, 5] on write. Default impl is a

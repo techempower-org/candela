@@ -7,9 +7,11 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
+import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.arxiv.ArxivSource
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -36,7 +38,9 @@ internal object ArxivHttpModule {
     @Provides
     @Singleton
     @ArxivHttp
-    fun provideClient(): OkHttpClient =
+    fun provideClient(
+        @UserAgentHeader userAgent: Interceptor,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -44,6 +48,9 @@ internal object ArxivHttpModule {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            // #1141 — arXiv asks automated clients to identify themselves
+            // (https://info.arxiv.org/help/robots.html).
+            .addInterceptor(userAgent)
             .build()
 
     @Provides

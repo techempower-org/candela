@@ -5,6 +5,7 @@ import `in`.jphe.storyvox.sync.coordinator.ConflictPolicies
 import `in`.jphe.storyvox.sync.coordinator.SyncOutcome
 import `in`.jphe.storyvox.sync.coordinator.Syncer
 import `in`.jphe.storyvox.sync.coordinator.TombstonesAccess
+import `in`.jphe.storyvox.sync.coordinator.toPurgeOutcome
 
 /**
  * Reusable syncer for set-shaped domains — Library, Follows, Starred
@@ -66,6 +67,9 @@ class SetSyncer(
             tombstones: Map<String, Long>,
             memberData: Map<String, String>,
         ): Result<Unit>
+
+        /** Delete the remote row backing this set domain (#1139). */
+        suspend fun delete(user: SignedInUser): Result<Unit>
     }
 
     data class RemoteSet(
@@ -77,6 +81,10 @@ class SetSyncer(
     override suspend fun push(user: SignedInUser): SyncOutcome = pushImpl(user)
 
     override suspend fun pull(user: SignedInUser): SyncOutcome = pushImpl(user)
+
+    /** #1139 — delete the remote set row. Local membership is untouched
+     *  (sign-out deletes the cloud copy only; see [Syncer.purge]). */
+    override suspend fun purge(user: SignedInUser): SyncOutcome = remote.delete(user).toPurgeOutcome()
 
     /**
      * Push and pull are the same operation for set sync: read both

@@ -36,6 +36,30 @@ interface ChapterDao {
     )
     fun observeChapterInfosByFiction(fictionId: String): Flow<List<ChapterInfoRow>>
 
+    /**
+     * Issue #1189 — slim per-chapter content-preview feed for the
+     * FictionDetail chapter list. Returns only chapters that already have
+     * a cached body (downloaded / read / pre-rendered), keyed by id, with
+     * just the opening slice of `plainBody` rather than the whole blob.
+     *
+     * `SUBSTR(plainBody, 1, 400)` bounds the bytes that cross the flow
+     * boundary to ~400 chars/row instead of the multi-KB body — the
+     * repository then cleans + truncates this to the ~100-char snippet the
+     * card shows. Sibling to [observeChapterInfosByFiction] (the TOC feed,
+     * which deliberately reads no body columns at all): the preview feed is
+     * combined in alongside the TOC rather than fattening it, so a fiction
+     * with no cached bodies yet pays nothing for previews.
+     */
+    @Query(
+        """
+        SELECT id, SUBSTR(plainBody, 1, 400) AS preview
+          FROM chapter
+         WHERE fictionId = :fictionId
+           AND plainBody IS NOT NULL AND plainBody <> ''
+        """,
+    )
+    fun observeChapterPreviews(fictionId: String): Flow<List<ChapterPreviewRow>>
+
     @Query("SELECT * FROM chapter WHERE id = :id")
     fun observe(id: String): Flow<Chapter?>
 
@@ -517,6 +541,19 @@ data class ChapterInfoRow(
     val title: String,
     val publishedAt: Long?,
     val wordCount: Int?,
+)
+
+/**
+ * Issue #1189 — (chapterId, opening-slice-of-body) projection backing
+ * [ChapterDao.observeChapterPreviews]. `preview` is the first ~400 chars of
+ * `plainBody` (still raw — residual tags/entities/whitespace possible); the
+ * repository runs it through `chapterPreviewText` before it reaches the UI.
+ * Nullable to match the column, though the query's `plainBody <> ''` guard
+ * means rows always carry text in practice.
+ */
+data class ChapterPreviewRow(
+    val id: String,
+    val preview: String?,
 )
 
 /** Joined chapter+fiction projection for the playback layer. */

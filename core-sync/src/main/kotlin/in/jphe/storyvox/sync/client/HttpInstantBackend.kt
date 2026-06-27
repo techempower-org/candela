@@ -193,6 +193,50 @@ class HttpInstantBackend(
         Unit
     }
 
+    /**
+     * Delete a row via a single `["delete", entity, id]` transact step
+     * (#1139 — the sign-out data-deletion path). Same admin-transact
+     * endpoint + as-token auth as [upsert]; the only difference is the verb
+     * and that a delete step carries no args object.
+     *
+     * Idempotent on the server: deleting a row that was never written
+     * returns 200, so purging every domain is safe even when only some rows
+     * exist. Wire shape mirrors `tx.<entity>[<id>].delete()` in the JS admin
+     * SDK (`client/packages/admin/src/index.ts`).
+     */
+    override suspend fun delete(
+        user: SignedInUser,
+        entity: String,
+        id: String,
+    ): Result<Unit> = runCatching {
+        if (!isConfigured) error(NOT_CONFIGURED)
+        android.util.Log.d(TAG, "delete: entity=$entity id=${id.take(12)}…")
+        val body = json.encodeToString(
+            JsonObject.serializer(),
+            buildJsonObject {
+                put("steps", buildJsonArray {
+                    add(buildJsonArray {
+                        add(JsonPrimitive("delete"))
+                        add(JsonPrimitive(entity))
+                        add(JsonPrimitive(id))
+                    })
+                })
+                put("throw-on-missing-attrs?", JsonPrimitive(false))
+            },
+        )
+        val res = transport.postJson(
+            url = "$apiUri/admin/transact?app_id=$appId",
+            jsonBody = body,
+            headers = adminHeaders(user.refreshToken),
+        )
+        if (!res.isSuccessful) {
+            android.util.Log.w(TAG, "delete: HTTP ${res.code} for $entity/${id.take(12)}…")
+            error(parseError(res, "transact"))
+        }
+        android.util.Log.d(TAG, "delete: HTTP ${res.code} OK")
+        Unit
+    }
+
     private fun adminHeaders(refreshToken: String): Map<String, String> = mapOf(
         // Lowercase header keys — exactly how the JS admin SDK sets them
         // (see `client/packages/admin/src/index.ts`). HTTP headers are

@@ -49,6 +49,7 @@ import `in`.jphe.storyvox.data.repository.net.NetworkPatience
 import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
 import `in`.jphe.storyvox.data.repository.playback.AutoBrowserConfig
 import `in`.jphe.storyvox.data.repository.playback.PrerenderChapterCountConfig
+import `in`.jphe.storyvox.data.repository.playback.SleepTimerDndConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
 import `in`.jphe.storyvox.feature.api.PalaceProbeResult
 import `in`.jphe.storyvox.feature.api.ReadingDirection
@@ -672,6 +673,9 @@ private object Keys {
     // ── Sleep timer shake-to-extend (issue #150) ───────────────────
     val SLEEP_SHAKE_TO_EXTEND_ENABLED = booleanPreferencesKey("pref_sleep_shake_to_extend_enabled")
 
+    // ── Auto Do Not Disturb with the sleep timer (issue #1190) ─────
+    val SLEEP_TIMER_DND_ENABLED = booleanPreferencesKey("pref_sleep_timer_dnd_enabled")
+
     // ── Debug overlay (Vesper, v0.4.97) ────────────────────────────
     /** Master switch for the on-Reader debug overlay. Default false;
      *  power users opt in from Settings → Developer. The dedicated
@@ -1107,6 +1111,7 @@ class SettingsRepositoryUiImpl(
     PlaybackResumePolicyConfig,
     `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
     SleepTimerExtendConfig,
+    SleepTimerDndConfig,
     `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig,
     PrerenderChapterCountConfig,
     AutoBrowserConfig,
@@ -1531,6 +1536,8 @@ class SettingsRepositoryUiImpl(
                 prefs[Keys.SLEEP_SHAKE_EXTEND_MINUTES] ?: 15,
             ),
             sleepBedtimeAutoEnabled = prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: false,
+            // Issue #1190 — auto Do Not Disturb while a sleep timer runs.
+            dndWithSleepTimerEnabled = prefs[Keys.SLEEP_TIMER_DND_ENABLED] ?: false,
             // Issue #596 — pre-render window in chapters.
             prerenderChapterCount = snapPrerenderChapterCount(
                 prefs[Keys.PRERENDER_CHAPTER_COUNT] ?: 5,
@@ -1812,6 +1819,16 @@ class SettingsRepositoryUiImpl(
     }
 
     override suspend fun currentShakeExtendMinutes(): Int = shakeExtendMinutes.first()
+
+    // --- SleepTimerDndConfig (issue #1190, consumed by core-playback's
+    //     AndroidDndController) ---
+
+    override val dndWithSleepTimerEnabled: Flow<Boolean> = store.data.map { prefs ->
+        prefs[Keys.SLEEP_TIMER_DND_ENABLED] ?: false
+    }
+
+    override suspend fun currentDndWithSleepTimerEnabled(): Boolean =
+        dndWithSleepTimerEnabled.first()
 
     // --- BedtimeSleepConfig (consumed by core-playback's
     //     StoryvoxPlaybackService to auto-arm sleep timer on DND) ---
@@ -2577,6 +2594,13 @@ class SettingsRepositoryUiImpl(
 
     override suspend fun setSleepBedtimeAutoEnabled(enabled: Boolean) {
         store.edit { it[Keys.SLEEP_BEDTIME_AUTO_ENABLED] = enabled }
+    }
+
+    /** Issue #1190 — auto Do Not Disturb with the sleep timer.
+     *  Per-device (NOT synced); DND is an inherently device-local
+     *  concern. */
+    override suspend fun setDndWithSleepTimerEnabled(enabled: Boolean) {
+        store.edit { it[Keys.SLEEP_TIMER_DND_ENABLED] = enabled }
     }
 
     /** Issue #596 — PCM-cache pre-render window in chapters. Synced as of #916. */
