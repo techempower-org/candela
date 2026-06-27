@@ -44,6 +44,9 @@ internal class NoopFictionDao : FictionDao {
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
     override suspend fun touchMetadata(id: String, now: Long) = Unit
     override suspend fun setSourceId(id: String, sourceId: String) = Unit
+    // #989 — sourceUrl rebuild persistence (added after this fake was first written).
+    override suspend fun getSourceUrl(id: String): String? = null
+    override suspend fun setSourceUrlIfAbsent(id: String, url: String) = Unit
     override suspend fun placeholdersToBackfill(cutoff: Long): List<Fiction> = emptyList()
     override suspend fun placeholderCount(): Int = 0
     override suspend fun markBackfillFailed(id: String, now: Long) = Unit
@@ -87,6 +90,8 @@ internal class NoopChapterDao : ChapterDao {
         audioUrl: String?,
     ) = Unit
     override suspend fun setRead(id: String, read: Boolean, now: Long) = Unit
+    // #982 — "Mark all caught up" on the Follows screen (added after this fake was first written).
+    override suspend fun markFollowedCaughtUp(now: Long): Int = 0
     override suspend fun trimDownloadedBodies(fictionId: String, keepLast: Int) = Unit
     override suspend fun setBookmark(id: String, charOffset: Int?) = Unit
     override suspend fun getBookmark(id: String): Int? = null
