@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.3] -- 2026-06-27
+
+Supertonic 3 voices are now visible in the voice catalog.
+
+### Fixed
+
+- **Supertonic 3 voices enabled.** The `SUPERTONIC_ENABLED` gate was never flipped when the engine landed in v1.2.0 — Supertonic voices now appear in Settings > Voices. (#1236 / #1237)
+
 ## [1.2.2] -- 2026-06-27
 
 Hotfix: radio and LibriVox no longer show a false "Paused for a call" panel while audio is playing.
