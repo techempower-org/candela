@@ -267,7 +267,10 @@ class AudioOutputMonitor @Inject constructor(
         // 3. Audio focus lost → we asked the framework, the framework
         //    said no. Translate the most-likely-cause (best effort —
         //    Android doesn't expose the focus-stack contents).
-        if (!audioFocus.isHeld()) {
+        //    Skip for live-audio chapters (#1225): ExoPlayer manages its
+        //    own focus (handleAudioFocus=true); AudioFocusController is
+        //    only relevant for the TTS AudioTrack path.
+        if (!state.isLiveAudioChapter && !audioFocus.isHeld()) {
             return WaitReason.FocusLost(cause = guessFocusCause())
         }
 
