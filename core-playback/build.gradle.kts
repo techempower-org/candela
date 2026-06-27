@@ -113,7 +113,11 @@ dependencies {
     // shared model + speaker index, public no-arg ctor for Tier 3
     // parallelism, XNNPACK→CPU fallback). Storyvox dispatches via
     // EngineType.Kitten in this PR.
-    implementation("com.github.techempower-org:VoxSherpa-TTS:v2.8.0")
+    // v2.9.0 (storyvox #1114) adds SupertonicEngine — fourth in-process
+    // voice family wrapping sherpa-onnx's OfflineTtsSupertonicModelConfig +
+    // GenerationConfig path (Supertonic 3: seven-file int8 bundle, 10
+    // voices, 24 kHz, unicode-tokenised flow-matching, no espeak data).
+    implementation("com.github.techempower-org:VoxSherpa-TTS:v2.9.0")
     implementation("com.github.k2-fsa:sherpa-onnx:1.13.3")
 
     // Media3 — session, player base classes

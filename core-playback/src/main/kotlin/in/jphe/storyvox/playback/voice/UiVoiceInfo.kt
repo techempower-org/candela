@@ -100,17 +100,14 @@ sealed interface EngineType {
     /**
      * Supertonic 3 speaker — shared Supertonic model, picks a speaker by index.
      *
-     * Issue #1114 — fourth in-process voice family. Wraps sherpa-onnx's
-     * `OfflineTtsSupertonicModelConfig` path (available in sherpa-onnx
-     * 1.13.2+). Architecturally a twin of [Kokoro] and [Kitten]: a single
-     * shared model supports 10 speakers selected at synth time by
-     * [speakerId].
-     *
-     * TODO(#1114): VoxSherpa v2.8.0 has no `SupertonicEngine` wrapper yet.
-     * The scaffold stubs all call sites with TODO markers; a VoxSherpa
-     * v2.9.0 update is the follow-up dependency. Alternatively, the engine
-     * could call sherpa-onnx's `OfflineTts` directly using
-     * `OfflineTtsSupertonicModelConfig`.
+     * Issue #1114 — fourth in-process voice family. Backed by VoxSherpa's
+     * `SupertonicEngine`, which wraps sherpa-onnx's
+     * `OfflineTtsSupertonicModelConfig` + `GenerationConfig` path
+     * (sherpa-onnx 1.13.x). Architecturally a twin of [Kokoro] and
+     * [Kitten]: a single shared (seven-file int8) bundle supports 10
+     * speakers selected at synth time by [speakerId]. Unlike the other
+     * families it's unicode-tokenised (no espeak data) and runs through
+     * `generateWithConfig` rather than the legacy `generate(text,sid,speed)`.
      */
     data class Supertonic(val speakerId: Int) : EngineType
 

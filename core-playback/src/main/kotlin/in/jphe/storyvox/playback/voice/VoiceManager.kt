@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.annotation.VisibleForTesting
+import com.CodeBySonu.VoxSherpa.SupertonicEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.jphe.storyvox.data.source.AzureVoiceProvider
 import `in`.jphe.storyvox.data.source.SystemTtsVoiceProvider
@@ -211,8 +212,8 @@ class VoiceManager @Inject constructor(
         // is the single source of truth for "every Kitten voice is
         // playable." Each speaker is just an index into voices.bin.
         val kittenReady = isKittenSharedModelInstalled()
-        // TODO(#1114): wire isSupertonicSharedModelInstalled() when
-        // the download pipeline lands.
+        // Issue #1114 — Supertonic mirrors Kokoro/Kitten: shared-bundle
+        // presence makes every Supertonic speaker playable.
         val supertonicReady = isSupertonicSharedModelInstalled()
         VoiceCatalog.voicesWithAzureAndSystemTts(azureRoster, systemTtsRoster)
             .filter {
@@ -304,15 +305,13 @@ class VoiceManager @Inject constructor(
             File(dir, "tokens.txt").exists()
     }
 
-    /** Issue #1114 — Supertonic 3 mirrors Kokoro/Kitten: shared model
-     *  presence is the single source of truth. TODO(#1114): verify the
-     *  on-disk artifact names against the actual Supertonic 3 model
-     *  bundle when the download pipeline is wired. */
+    /** Issue #1114 — Supertonic 3 mirrors Kokoro/Kitten: shared-model
+     *  presence is the single source of truth for "every Supertonic voice
+     *  is playable." Unlike the other engines, the bundle is seven files
+     *  (see [SupertonicEngine.MODEL_FILES]) — all must be present. */
     private fun isSupertonicSharedModelInstalled(): Boolean {
         val dir = supertonicSharedDir()
-        return File(dir, "model.onnx").exists() &&
-            File(dir, "voices.bin").exists() &&
-            File(dir, "tokens.txt").exists()
+        return SupertonicEngine.MODEL_FILES.all { File(dir, it).exists() }
     }
 
     sealed interface DownloadProgress {
@@ -503,14 +502,71 @@ class VoiceManager @Inject constructor(
                 emit(DownloadProgress.Done)
             }
             is EngineType.Supertonic -> {
-                // TODO(#1114) — Supertonic 3 shared-model download.
-                // Mirrors Kitten's pattern: one shared dir with model.onnx +
-                // tokens.txt + voices.bin (or equivalent). Stub until the
-                // model hosting URL and file sizes are known.
-                emit(DownloadProgress.Failed(
-                    "Supertonic download not yet available — engine ships in a follow-up PR",
-                ))
-                return@flow
+                // Issue #1114 — Supertonic 3 ships as a seven-file int8
+                // bundle (see [SupertonicEngine.MODEL_FILES]). One shared dir
+                // underpins all 10 speakers; first install lands the bundle,
+                // subsequent voice picks just flip the active speaker index
+                // with no additional payload.
+                //
+                // PLACEHOLDER HOSTING: the upstream pack
+                // (sherpa-onnx-supertonic-3-tts-int8-2026-05-11) is
+                // distributed as a tar.bz2, which this flat-file streaming
+                // loop can't extract in-app. The seven files must be
+                // re-hosted as flat per-file release assets — the same way
+                // the Kitten/Kokoro bundles were repackaged onto a VoxSherpa
+                // release. Until that release is cut, the GETs below 404 and
+                // the UI surfaces a Failed state: the wiring is complete, only
+                // the asset hosting is pending. Update [supertonicBaseUrl] and
+                // the size estimate when the release lands.
+                val supertonicBaseUrl =
+                    "https://github.com/techempower-org/VoxSherpa-TTS/releases/download/supertonic-v1"
+                // Rough total for the progress bar; the int8 pack is ~60 MB.
+                // Exact per-file sizes land with hosting (contentLength from
+                // the response refines the bar mid-download).
+                val supertonicTotalBytes = 60_000_000L
+                val sharedDir = supertonicSharedDir()
+                val present = SupertonicEngine.MODEL_FILES.all {
+                    File(sharedDir, it).let { f -> f.exists() && f.length() > 0 }
+                }
+                if (!present) {
+                    sharedDir.mkdirs()
+                    try {
+                        var done = 0L
+                        for (name in SupertonicEngine.MODEL_FILES) {
+                            val target = File(sharedDir, name)
+                            if (target.exists() && target.length() > 0) continue
+                            val url = "$supertonicBaseUrl/$name"
+                            // ONNX graphs are the big files and benefit from
+                            // the gzip-capable path; the JSON / .bin metadata
+                            // files are tiny, so raw is fine.
+                            if (name.endsWith(".onnx")) {
+                                downloadFile(url, target, knownTotalBytes = 0L) { read, _ ->
+                                    emit(DownloadProgress.Downloading(done + read, supertonicTotalBytes))
+                                }
+                            } else {
+                                downloadFileRaw(url, target, knownTotalBytes = 0L) { read, _ ->
+                                    emit(DownloadProgress.Downloading(done + read, supertonicTotalBytes))
+                                }
+                            }
+                            done += target.length()
+                        }
+                    } catch (ce: CancellationException) {
+                        // User-driven cancel — re-throw to honour structured
+                        // concurrency. Partial files survive (no wipe) so a
+                        // sibling that finished before the cancel isn't
+                        // re-fetched on retry. Mirrors the Kokoro/Kitten path.
+                        throw ce
+                    } catch (t: Throwable) {
+                        // Real failure: wipe the shared dir so retries are
+                        // deterministic (a half-written ONNX would fail to
+                        // load). Mirrors the Kokoro/Kitten branches.
+                        sharedDir.deleteRecursively()
+                        emit(DownloadProgress.Failed(t.message ?: t::class.java.simpleName))
+                        return@flow
+                    }
+                }
+                markInstalled(voiceId)
+                emit(DownloadProgress.Done)
             }
             EngineType.Piper -> {
                 val piper = entry.piper

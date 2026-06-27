@@ -859,9 +859,9 @@ object VoiceCatalog {
      * prosody and naturalness than Kitten (Low) and sits alongside the best
      * Piper voices. Studio is reserved for the curated Kokoro peak.
      *
-     * TODO(#1114): sizeBytes is 0L (shared-model sentinel, same as
-     * Kokoro/Kitten). Update to the actual model size once the download
-     * pipeline is wired.
+     * sizeBytes is 0L — the shared-model sentinel (same as Kokoro/Kitten):
+     * all 10 speakers share one download, so a per-voice byte count is
+     * misleading and the Voice Library suppresses the size chip when it's 0.
      */
     private fun supertonicEntries(): List<CatalogEntry> {
         fun supertonic(id: String, displayName: String, speakerId: Int, gender: VoiceGender): CatalogEntry =
