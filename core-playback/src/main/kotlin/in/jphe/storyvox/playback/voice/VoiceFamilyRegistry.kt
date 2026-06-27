@@ -103,8 +103,13 @@ class VoiceFamilyRegistry @Inject constructor() {
     /** All known voice families, in display order. System TTS comes
      *  first as the zero-download first-launch tier (#676); then the
      *  in-process neural families (Piper / Kokoro / Kitten); then
-     *  cloud (Azure); then placeholders. */
-    val descriptors: List<VoiceFamilyDescriptor> = listOf(
+     *  cloud (Azure); then placeholders.
+     *
+     *  Supertonic would sit after Kitten but is gated OUT until #1191
+     *  lands the engine (#1202) — [listOfNotNull] drops it while
+     *  [VoiceCatalog.SUPERTONIC_ENABLED] is false, so a shipped build
+     *  shows six descriptors, not seven. */
+    val descriptors: List<VoiceFamilyDescriptor> = listOfNotNull(
         VoiceFamilyDescriptor(
             id = VoiceFamilyIds.SYSTEM_TTS,
             displayName = "System TTS",
@@ -151,16 +156,24 @@ class VoiceFamilyRegistry @Inject constructor() {
             defaultEnabled = true,
             engineFamily = VoiceEngineFamily.Local,
         ),
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.SUPERTONIC,
-            displayName = "Supertonic 3",
-            description = "Local high-quality · shared model, 10 en_US speakers",
-            sourceUrl = "https://github.com/k2-fsa/sherpa-onnx",
-            license = "Apache 2.0",
-            sizeHint = "~TBD MB shared model, 10 en_US speakers (F1–F5 / M1–M5)",
-            defaultEnabled = true,
-            engineFamily = VoiceEngineFamily.Local,
-        ),
+        // #1202 — the Supertonic family card is gated until #1191 lands the
+        // engine, sharing [VoiceCatalog.SUPERTONIC_ENABLED] with the voices.
+        // listOfNotNull drops this entry while gated so a shipped build does
+        // not surface an empty "coming" Supertonic family card.
+        if (VoiceCatalog.SUPERTONIC_ENABLED) {
+            VoiceFamilyDescriptor(
+                id = VoiceFamilyIds.SUPERTONIC,
+                displayName = "Supertonic 3",
+                description = "Local high-quality · shared model, 10 en_US speakers",
+                sourceUrl = "https://github.com/k2-fsa/sherpa-onnx",
+                license = "Apache 2.0",
+                sizeHint = "~TBD MB shared model, 10 en_US speakers (F1–F5 / M1–M5)",
+                defaultEnabled = true,
+                engineFamily = VoiceEngineFamily.Local,
+            )
+        } else {
+            null
+        },
         VoiceFamilyDescriptor(
             id = VoiceFamilyIds.AZURE,
             displayName = "Azure HD voices",

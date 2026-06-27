@@ -20,10 +20,12 @@ object VoiceCatalog {
      *
      * Flip to `true` (one line) as part of #1191, once VoxSherpa v2.9.0
      * ships the `SupertonicEngine` wrapper and the EnginePlayer dispatch
-     * is wired. The [VoiceFamilyRegistry] descriptor is intentionally
-     * left in place so the family still reads as a known/"coming" engine.
+     * is wired. `internal` (not `private`) so [VoiceFamilyRegistry] reads
+     * the same single flag to hide the Supertonic family card too while
+     * gated (#1202) — an empty "coming" family card in a shipped app is
+     * confusing. One flag flip re-enables both the voices and the card.
      */
-    private const val SUPERTONIC_ENABLED = false
+    internal const val SUPERTONIC_ENABLED = false
 
     /**
      * The static catalog — Piper, Kokoro, and Kitten entries that ship
