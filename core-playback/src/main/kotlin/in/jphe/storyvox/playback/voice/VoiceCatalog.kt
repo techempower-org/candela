@@ -25,7 +25,7 @@ object VoiceCatalog {
      * gated (#1202) — an empty "coming" family card in a shipped app is
      * confusing. One flag flip re-enables both the voices and the card.
      */
-    internal const val SUPERTONIC_ENABLED = false
+    internal const val SUPERTONIC_ENABLED = true
 
     /**
      * The static catalog — Piper, Kokoro, and Kitten entries that ship
