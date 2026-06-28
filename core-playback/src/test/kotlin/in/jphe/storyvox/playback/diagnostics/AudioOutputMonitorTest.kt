@@ -123,6 +123,52 @@ class AudioOutputMonitorTest {
     }
 
     @Test
+    fun `diagnose returns FocusLost when focus not held on the TTS path`() {
+        // Precedence #3: the TTS AudioTrack path relies on
+        // AudioFocusController to own focus. A fresh (never-acquired)
+        // controller reports isHeld()==false, so a non-live chapter that
+        // claims to be Playing must surface FocusLost. This pins the
+        // "guard on" side of the #1225 fix — the focus check still fires
+        // for everything that isn't a live-audio chapter.
+        val m = monitor() // default controller, focus never acquired
+        val r = m.diagnose(
+            state = PlaybackState(
+                currentChapterId = "c1",
+                chapterTitle = "Chapter 1",
+                isLiveAudioChapter = false,
+            ),
+            engine = EngineState.Playing,
+            positionMs = 1000L,
+        )
+        assertTrue("TTS path with un-held focus should be FocusLost — got $r", r is WaitReason.FocusLost)
+    }
+
+    @Test
+    fun `diagnose skips FocusLost for live-audio chapters (#1225)`() {
+        // Regression for #1225: radio / LibriVox streams play through
+        // ExoPlayer (handleAudioFocus=true), so AudioFocusController never
+        // acquires focus and isHeld() stays false even while audio is
+        // healthy. The focus-loss branch must be skipped for live-audio
+        // chapters, or the diagnostic panel falsely shows "Paused for a
+        // call" over normal playback. Same un-held controller as the test
+        // above — only isLiveAudioChapter differs.
+        val m = monitor()
+        val r = m.diagnose(
+            state = PlaybackState(
+                currentChapterId = "c1",
+                chapterTitle = "Radio Stream",
+                isLiveAudioChapter = true,
+            ),
+            engine = EngineState.Playing,
+            positionMs = 1000L,
+        )
+        assertTrue(
+            "Live-audio chapter must not surface a false FocusLost — got $r",
+            r !is WaitReason.FocusLost,
+        )
+    }
+
+    @Test
     fun `diagnose returns DeviceMuted when STREAM_MUSIC volume is zero`() {
         val af = AudioFocusController(RuntimeEnvironment.getApplication())
         af.acquire()
