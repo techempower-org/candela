@@ -1,6 +1,6 @@
 # Cloud sync (InstantDB)
 
-Candela v0.6 introduces cloud sync via [InstantDB](https://www.instantdb.com).
+Candela introduces cloud sync via [InstantDB](https://www.instantdb.com) (shipped in v0.5.12).
 The goal: a reinstall (or accidental `adb uninstall`) doesn't wipe your
 library, follows, reading positions, bookmarks, pronunciation dictionary,
 or your AI keys. Sign in on a new device → everything comes back.

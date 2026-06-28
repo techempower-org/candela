@@ -47,7 +47,7 @@ Candela is **thirty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38)
       │               │  in-process)   │
       ▼               │                ▼
 ┌─────────────────────────────┐  ┌──────────────────────┐
-│ Fiction sources (21)        │  │ :core-sync           │
+│ Fiction sources (25)        │  │ :core-sync           │
 │ ─────────────────────────── │  │ InstantDB sync —     │
 │ :source-royalroad           │  │ library / follows /  │
 │ :source-github              │  │ positions / book-    │
@@ -75,6 +75,12 @@ Candela is **thirty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38)
 │ ─────────────────────────── │  │ → 0.8 s on Tab A7    │
 │ :source-readability         │  │ Lite                 │
 │ :source-epub-writer         │  └──────────────────────┘
+│ :source-audiobook-writer    │
+│                             │
+│ Local files (v1.1.0):       │
+│ :source-pdf                 │
+│ :source-ocr                 │
+│ :source-librivox            │
 │                             │
 │ TTS backends                │
 │ ─────────────────────────── │
