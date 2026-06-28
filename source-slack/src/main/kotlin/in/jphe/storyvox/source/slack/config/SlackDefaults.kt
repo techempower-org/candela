@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.slack.config
 
+import `in`.jphe.storyvox.data.network.UserAgent
+
 /**
  * Issue #454 — Slack backend defaults. Minimal: no bundled bot
  * token (ToS posture — storyvox doesn't ship credentials and won't
@@ -27,7 +29,7 @@ object SlackDefaults {
      *  identifying ourselves makes abuse-team contact easier if a
      *  bot misbehaves. Mirrors the Discord / Telegram UA pattern. */
     const val USER_AGENT: String =
-        "Storyvox-Slack/1.0 (+https://github.com/techempower-org/candela)"
+        UserAgent.APP_NAME + "-Slack/1.0 (+" + UserAgent.CONTACT_URL + ")"
 
     /** `conversations.list` page size. Slack caps this at 1000 but
      *  recommends staying ≤200 for performance + rate-limit

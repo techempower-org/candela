@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.telegram.config
 
+import `in`.jphe.storyvox.data.network.UserAgent
+
 /**
  * Issue #462 — Telegram backend defaults. Minimal: no bundled bot
  * token (ToS posture — storyvox doesn't ship credentials and won't
@@ -24,7 +26,7 @@ object TelegramDefaults {
      *  but identifying ourselves makes abuse-team contact easier
      *  if a bot misbehaves. Mirrors the Discord UA pattern. */
     const val USER_AGENT: String =
-        "Storyvox-Telegram/1.0 (+https://github.com/techempower-org/candela)"
+        UserAgent.APP_NAME + "-Telegram/1.0 (+" + UserAgent.CONTACT_URL + ")"
 
     /** Max messages per `getUpdates` poll. The API caps at 100;
      *  we pull the full window so a single poll reflects every

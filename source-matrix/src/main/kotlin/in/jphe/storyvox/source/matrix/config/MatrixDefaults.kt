@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.matrix.config
 
+import `in`.jphe.storyvox.data.network.UserAgent
+
 /**
  * Issue 457 — Matrix backend defaults. Matrix is federated, so there
  * is no single matrix.org-style default homeserver baked in — the
@@ -54,9 +56,9 @@ object MatrixDefaults {
     const val MAX_COALESCE_MINUTES: Int = 30
 
     /** User-Agent header surfaced to the homeserver so admins can
-     *  identify storyvox traffic + the version in their logs. Matrix
+     *  identify Candela traffic + the version in their logs. Matrix
      *  homeservers are commonly self-hosted on small hardware; a
-     *  clear UA keeps storyvox from looking like an anonymous scrape. */
+     *  clear UA keeps Candela from looking like an anonymous scrape. */
     const val USER_AGENT: String =
-        "Storyvox-Matrix/1.0 (+https://github.com/techempower-org/candela)"
+        UserAgent.APP_NAME + "-Matrix/1.0 (+" + UserAgent.CONTACT_URL + ")"
 }
