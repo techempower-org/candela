@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.llm.auth
 
+import `in`.jphe.storyvox.data.network.UserAgent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -188,7 +189,8 @@ open class AnthropicTeamsAuthApi @Inject constructor(
     )
 
     companion object {
-        const val USER_AGENT: String = "storyvox/0.4 (+https://github.com/jphein/storyvox)"
+        const val USER_AGENT: String =
+            UserAgent.APP_NAME + " (" + UserAgent.CONTACT_URL + "; " + UserAgent.CONTACT_EMAIL + ")"
         private val JSON_MEDIA = "application/json".toMediaType()
         private val JSON: Json = Json {
             ignoreUnknownKeys = true
