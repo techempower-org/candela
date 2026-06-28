@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -355,7 +356,7 @@ private fun FollowCard(follow: UiFollow, onClick: () -> Unit) {
                 modifier = Modifier.size(width = 56.dp, height = 84.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(follow.fiction.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                Text(follow.fiction.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(follow.fiction.author, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (follow.unreadCount > 0) {
