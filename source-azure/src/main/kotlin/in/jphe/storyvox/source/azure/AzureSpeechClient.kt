@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.source.azure
 
 import android.os.SystemClock
+import `in`.jphe.storyvox.data.network.UserAgent
 import `in`.jphe.storyvox.data.source.AzureVoiceDescriptor
 import `in`.jphe.storyvox.source.azure.di.AzureHttp
 import kotlinx.coroutines.flow.Flow
@@ -580,7 +581,8 @@ open class AzureSpeechClient @Inject constructor(
          *  service-side debugging when a request misbehaves. The
          *  version suffix is filled by Hilt at runtime; tests use
          *  the literal string. */
-        internal const val USER_AGENT = "storyvox/azure-tts"
+        internal const val USER_AGENT =
+            UserAgent.APP_NAME + "/azure-tts (" + UserAgent.CONTACT_URL + ")"
 
         /** Read size for the streaming variant. 8 KB lines up with TLS
          *  record sizes (most chunks come in at one record per read)
