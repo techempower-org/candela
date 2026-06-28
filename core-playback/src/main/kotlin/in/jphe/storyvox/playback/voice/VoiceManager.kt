@@ -508,22 +508,9 @@ class VoiceManager @Inject constructor(
                 // subsequent voice picks just flip the active speaker index
                 // with no additional payload.
                 //
-                // PLACEHOLDER HOSTING: the upstream pack
-                // (sherpa-onnx-supertonic-3-tts-int8-2026-05-11) is
-                // distributed as a tar.bz2, which this flat-file streaming
-                // loop can't extract in-app. The seven files must be
-                // re-hosted as flat per-file release assets — the same way
-                // the Kitten/Kokoro bundles were repackaged onto a VoxSherpa
-                // release. Until that release is cut, the GETs below 404 and
-                // the UI surfaces a Failed state: the wiring is complete, only
-                // the asset hosting is pending. Update [supertonicBaseUrl] and
-                // the size estimate when the release lands.
                 val supertonicBaseUrl =
                     "https://github.com/techempower-org/VoxSherpa-TTS/releases/download/supertonic-v1"
-                // Rough total for the progress bar; the int8 pack is ~60 MB.
-                // Exact per-file sizes land with hosting (contentLength from
-                // the response refines the bar mid-download).
-                val supertonicTotalBytes = 60_000_000L
+                val supertonicTotalBytes = 145_295_768L
                 val sharedDir = supertonicSharedDir()
                 val present = SupertonicEngine.MODEL_FILES.all {
                     File(sharedDir, it).let { f -> f.exists() && f.length() > 0 }

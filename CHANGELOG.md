@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.4] -- 2026-06-28
+
+Supertonic 3 model files hosted and downloadable.
+
+### Fixed
+
+- **Supertonic model hosting.** Extracted the 7 model files from the upstream sherpa-onnx tar.bz2 and uploaded them as flat assets to VoxSherpa-TTS `supertonic-v1` release. Updated the progress bar size estimate from 60 MB placeholder to the actual 139 MB. (#1236)
+
 ## [1.2.3] -- 2026-06-27
 
 Supertonic 3 voices are now visible in the voice catalog.
