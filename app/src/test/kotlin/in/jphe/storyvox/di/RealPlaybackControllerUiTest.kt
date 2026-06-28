@@ -389,13 +389,13 @@ class RealPlaybackControllerUiTest {
         override fun observeFiction(id: String): Flow<FictionDetail?> = flowOf(null)
         override fun observeIsInLibrary(id: String): Flow<Boolean> = flowOf(false)
         override suspend fun browsePopular(page: Int, sourceId: String) =
-            FictionResult.Success(ListPage<FictionSummary>(emptyList(), hasMore = false))
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
         override suspend fun browseLatest(page: Int, sourceId: String) =
-            FictionResult.Success(ListPage<FictionSummary>(emptyList(), hasMore = false))
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
         override suspend fun browseByGenre(genre: String, page: Int, sourceId: String) =
-            FictionResult.Success(ListPage<FictionSummary>(emptyList(), hasMore = false))
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
         override suspend fun search(query: SearchQuery, sourceId: String) =
-            FictionResult.Success(ListPage<FictionSummary>(emptyList(), hasMore = false))
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
         override suspend fun cacheBrowseListing(
             result: FictionResult<ListPage<FictionSummary>>,
         ) = result
