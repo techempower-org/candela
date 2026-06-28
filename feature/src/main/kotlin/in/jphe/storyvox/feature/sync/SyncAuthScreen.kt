@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.feature.sync
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -49,7 +50,7 @@ import `in`.jphe.storyvox.ui.component.MagicCircularProgress
  * One screen, three field configurations:
  *  - Email entry → "Send code"
  *  - Code entry → "Verify"
- *  - Signed in → status + "Sign out"
+ *  - Signed in → status + "Purge cloud data" / "Sign out"
  *
  * Why one screen rather than a multi-step navigation graph: the user
  * journey is linear and short, and a Compose `when (state)` keeps the
@@ -122,7 +123,9 @@ fun SyncAuthScreen(
                 is SignInState.Verifying -> InProgress("Verifying…")
                 is SignInState.SignedIn -> SignedInPanel(
                     email = current.user.email ?: "(no email on file)",
+                    purge = current.purge,
                     onSignOut = viewModel::signOut,
+                    onPurge = viewModel::purgeRemoteData,
                     onClose = onClose,
                 )
             }
@@ -226,13 +229,20 @@ private fun InProgress(label: String) {
 @Composable
 private fun SignedInPanel(
     email: String,
+    purge: PurgeState,
     onSignOut: () -> Unit,
+    onPurge: () -> Unit,
     onClose: () -> Unit,
 ) {
-    // #1197 — sign-out now permanently deletes all synced cloud data
-    // (#1194), so gate it behind an explicit, undismissable confirmation
-    // rather than firing on a single tap of an OutlinedButton.
+    // #1248 — sign-out and "purge cloud data" are now distinct actions.
+    // Sign-out only clears the LOCAL session (cloud data survives, so it's
+    // a light, reversible confirmation), while purging permanently deletes
+    // the cloud record and is gated behind its own destructive, undismiss-
+    // able confirmation. The purge button is only ever rendered here, i.e.
+    // when the user is signed in.
     var showSignOutConfirm by remember { mutableStateOf(false) }
+    var showPurgeConfirm by remember { mutableStateOf(false) }
+    val purging = purge == PurgeState.Running
 
     Text(
         text = "Signed in",
@@ -249,12 +259,73 @@ private fun SignedInPanel(
     Button(
         onClick = onClose,
         modifier = Modifier.fillMaxWidth(),
+        enabled = !purging,
     ) { Text(stringResource(R.string.sync_done)) }
+    Spacer(Modifier.height(8.dp))
+    // Destructive: delete the cloud record. Placed ABOVE sign-out and
+    // tinted with the error colour so it reads as the dangerous action —
+    // sign-out is now safe/reversible since cloud data survives it.
+    OutlinedButton(
+        onClick = { showPurgeConfirm = true },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !purging,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.error,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+    ) { Text(stringResource(R.string.sync_purge)) }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(
         onClick = { showSignOutConfirm = true },
         modifier = Modifier.fillMaxWidth(),
+        enabled = !purging,
     ) { Text(stringResource(R.string.sync_sign_out)) }
+
+    // Purge progress / outcome (#1248). The coordinator makes network
+    // calls, so surface a spinner while in flight and a success/error line
+    // afterward. The result line is a polite live region so TalkBack
+    // announces the outcome.
+    when (purge) {
+        PurgeState.Running -> {
+            Spacer(Modifier.height(20.dp))
+            MagicCircularProgress(
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .size(36.dp)
+                    .semantics {
+                        contentDescription = "Loading: deleting your cloud data"
+                        liveRegion = LiveRegionMode.Polite
+                    },
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.sync_purge_running),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        PurgeState.Success -> {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.sync_purge_success),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        PurgeState.Error -> {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.sync_purge_error),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        PurgeState.Idle -> Unit
+    }
 
     if (showSignOutConfirm) {
         SignOutConfirmDialog(
@@ -265,15 +336,27 @@ private fun SignedInPanel(
             onDismiss = { showSignOutConfirm = false },
         )
     }
+
+    if (showPurgeConfirm) {
+        PurgeConfirmDialog(
+            onConfirm = {
+                showPurgeConfirm = false
+                onPurge()
+            },
+            onDismiss = { showPurgeConfirm = false },
+        )
+    }
 }
 
 /**
- * Destructive-action confirmation for sync sign-out (#1197).
+ * Light confirmation for sync sign-out (#1197, revised #1248).
  *
- * Sign-out deletes all synced cloud data (#1194), so the dialog forces
- * an explicit choice: [DialogProperties] disables both back-press and
- * outside-tap dismissal, and the confirm button is tinted with
- * [MaterialTheme.colorScheme.error] to signal that it destroys data.
+ * Sign-out now only clears the LOCAL session — cloud data is preserved, so
+ * this is a reversible action (the user can sign back in to resume
+ * syncing). Deleting cloud data is the separate, destructive
+ * [PurgeConfirmDialog]. Accordingly this is a light speed-bump rather than
+ * a hard gate: it stays dismissable (default [DialogProperties]) and the
+ * confirm button uses the default tint rather than the error colour.
  */
 @Composable
 private fun SignOutConfirmDialog(
@@ -285,16 +368,47 @@ private fun SignOutConfirmDialog(
         title = { Text(stringResource(R.string.sync_sign_out_confirm_title)) },
         text = { Text(stringResource(R.string.sync_sign_out_confirm_body)) },
         confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.sync_sign_out_confirm_button))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.sync_sign_out_confirm_dismiss))
+            }
+        },
+    )
+}
+
+/**
+ * Destructive-action confirmation for purging cloud data (#1248).
+ *
+ * Purging permanently deletes the user's InstantDB record, so the dialog
+ * forces an explicit choice: [DialogProperties] disables both back-press
+ * and outside-tap dismissal, and the confirm button is tinted with
+ * [MaterialTheme.colorScheme.error] to signal that it destroys data. The
+ * local session is untouched — the user stays signed in afterward.
+ */
+@Composable
+private fun PurgeConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sync_purge_confirm_title)) },
+        text = { Text(stringResource(R.string.sync_purge_confirm_body)) },
+        confirmButton = {
             TextButton(
                 onClick = onConfirm,
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
-            ) { Text(stringResource(R.string.sync_sign_out_confirm_button)) }
+            ) { Text(stringResource(R.string.sync_purge_confirm_button)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.sync_sign_out_confirm_dismiss))
+                Text(stringResource(R.string.sync_purge_confirm_dismiss))
             }
         },
         properties = DialogProperties(
