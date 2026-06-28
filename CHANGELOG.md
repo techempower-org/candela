@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.5] -- 2026-06-28
+
+Supertonic voices load without crashing.
+
+### Fixed
+
+- **Supertonic XNNPACK crash.** The int8 ONNX graphs trigger a SIGSEGV inside XNNPACK on ARM64 during session creation. Native crashes bypass Java's try/catch provider fallback, killing the process before the CPU retry can run. Switched Supertonic to CPU-only provider (VoxSherpa-TTS v2.10.0). (#1236)
+
 ## [1.2.4] -- 2026-06-28
 
 Supertonic 3 model files hosted and downloadable.
