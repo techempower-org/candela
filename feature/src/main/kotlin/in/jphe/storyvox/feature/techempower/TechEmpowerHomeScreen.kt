@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.data.TechEmpowerLinks
 import `in`.jphe.storyvox.ui.R as UiR
@@ -446,6 +447,7 @@ private fun GuideChip(title: String, onClick: () -> Unit) {
             color = brass,
             textAlign = TextAlign.Center,
             maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

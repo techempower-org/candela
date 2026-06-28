@@ -178,6 +178,7 @@ fun ChapterCard(
                     stripChapterPrefix(state.title),
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 // Issue #1189 — content preview. Sits between the title and
                 // the published·duration metadata so the visual order is
