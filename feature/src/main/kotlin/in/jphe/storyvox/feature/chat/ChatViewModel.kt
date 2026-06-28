@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.repository.ChapterRepository
 import `in`.jphe.storyvox.data.repository.FictionMemoryRepository
 import `in`.jphe.storyvox.data.repository.ShelfRepository
+import `in`.jphe.storyvox.data.source.plugin.SourcePluginRegistry
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
@@ -241,6 +242,11 @@ class ChatViewModel @Inject constructor(
     private val shelfRepo: ShelfRepository? = null,
     private val chapterRepo: ChapterRepository? = null,
     private val llmRepo: LlmRepository? = null,
+    /** Issue #1227 — source catalog the search_sources / get_book_details
+     *  tools read from. Nullable + defaulted like the repos above so the
+     *  positional test-construction path still compiles; Hilt always
+     *  binds the real singleton in the app. */
+    private val sourceRegistry: SourcePluginRegistry? = null,
 ) : ViewModel() {
 
     /** Issue #217 — cross-fiction prompt-block builder. The title
@@ -642,6 +648,10 @@ class ChatViewModel @Inject constructor(
             fictionRepo = fictionRepo,
             playback = playback,
             settingsRepo = settingsRepo,
+            // Hilt always binds the singleton; the empty fallback only
+            // applies to the positional test-construction path, where it
+            // degrades search to "no enabled sources" rather than crashing.
+            sourceRegistry = sourceRegistry ?: SourcePluginRegistry(emptySet()),
             onOpenVoiceLibrary = {
                 _navEvents.tryEmit(ChatNavEvent.OpenVoiceLibrary)
             },

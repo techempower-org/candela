@@ -527,6 +527,8 @@ private fun describeInFlight(name: String): String = when (name) {
     "mark_chapter_read" -> stringResource(R.string.chat_tool_in_flight_mark_chapter_read)
     "set_speed" -> stringResource(R.string.chat_tool_in_flight_set_speed)
     "open_voice_library" -> stringResource(R.string.chat_tool_in_flight_open_voice_library)
+    "search_sources" -> stringResource(R.string.chat_tool_in_flight_search_sources)
+    "get_book_details" -> stringResource(R.string.chat_tool_in_flight_get_book_details)
     else -> stringResource(R.string.chat_tool_in_flight_generic, name)
 }
 

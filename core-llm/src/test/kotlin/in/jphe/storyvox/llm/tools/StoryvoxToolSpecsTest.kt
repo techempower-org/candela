@@ -11,10 +11,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Issue #216 — contract tests for the v1 [StoryvoxToolSpecs] catalog.
- * Locks in: exactly five tools, non-blank descriptions, valid
+ * Issue #216 / #1227 — contract tests for the [StoryvoxToolSpecs]
+ * catalog. Locks in: exactly seven tools, non-blank descriptions, valid
  * JSON-schema shape for every parameter, the explicit shelf enum for
- * `add_to_shelf`, and the speed clamp range for `set_speed`.
+ * `add_to_shelf`, the speed clamp range for `set_speed`, and the
+ * required/optional param split for `search_sources` / `get_book_details`.
  *
  * These are intentionally tight assertions — every advertised tool
  * round-trips through Anthropic's `input_schema` validator, so a
@@ -23,17 +24,19 @@ import org.junit.Test
 class StoryvoxToolSpecsTest {
 
     @Test
-    fun `catalog has exactly five v1 tools`() {
+    fun `catalog has exactly the seven registered tools`() {
         val names = StoryvoxToolSpecs.ALL.map { it.name }.toSet()
-        assertEquals(5, names.size)
+        assertEquals(7, names.size)
         assertTrue(
-            "Expected v1 tool set",
+            "Expected the full tool set",
             names == setOf(
                 "add_to_shelf",
                 "queue_chapter",
                 "mark_chapter_read",
                 "set_speed",
                 "open_voice_library",
+                "search_sources",
+                "get_book_details",
             ),
         )
     }
@@ -151,5 +154,36 @@ class StoryvoxToolSpecsTest {
         val schema = StoryvoxToolSpecs.openVoiceLibrary.toAnthropicInputSchema()
         assertEquals(0, schema["properties"]!!.jsonObject.size)
         assertEquals(0, schema["required"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `search_sources requires only query, with optional source and limit`() {
+        val spec = StoryvoxToolSpecs.searchSources
+        val required = spec.parameters.filter { it.required }.map { it.name }.toSet()
+        assertEquals("Only query is required", setOf("query"), required)
+        val optional = spec.parameters.filterNot { it.required }.map { it.name }.toSet()
+        assertEquals(setOf("source", "limit"), optional)
+        // The limit param advertises the catalog's clamp ceiling so the
+        // model self-limits before the handler coerces.
+        val limit = spec.parameters.single { it.name == "limit" } as ToolParameter.IntParam
+        assertEquals(1, limit.min)
+        assertEquals(StoryvoxToolSpecs.SEARCH_LIMIT_MAX, limit.max)
+    }
+
+    @Test
+    fun `get_book_details requires only fictionId, with optional source`() {
+        val spec = StoryvoxToolSpecs.getBookDetails
+        val required = spec.parameters.filter { it.required }.map { it.name }.toSet()
+        assertEquals(setOf("fictionId"), required)
+        val optional = spec.parameters.filterNot { it.required }.map { it.name }.toSet()
+        assertEquals(setOf("source"), optional)
+    }
+
+    @Test
+    fun `search limit default is within the allowed range`() {
+        assertTrue(
+            "Default must sit inside 1..max",
+            StoryvoxToolSpecs.SEARCH_LIMIT_DEFAULT in 1..StoryvoxToolSpecs.SEARCH_LIMIT_MAX,
+        )
     }
 }
