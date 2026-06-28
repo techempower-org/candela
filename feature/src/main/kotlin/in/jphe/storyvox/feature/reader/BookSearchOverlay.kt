@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,6 +108,8 @@ fun BookSearchOverlay(
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.45f))
                     .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
                         role = Role.Button,
                         onClickLabel = stringResource(R.string.reader_search_close),
                         onClick = onClose,
@@ -150,8 +153,10 @@ private fun BookSearchPanel(
     LaunchedEffect(state.open) {
         if (state.open) focus.requestFocus()
     }
-    // Keep the selected result scrolled into view as the chevrons step it.
-    LaunchedEffect(state.selectedIndex, state.results.size) {
+    LaunchedEffect(state.results.size) {
+        if (hasResults) listState.scrollToItem(0)
+    }
+    LaunchedEffect(state.selectedIndex) {
         if (hasResults && state.selectedIndex in state.results.indices) {
             listState.animateScrollToItem(state.selectedIndex)
         }
@@ -360,7 +365,7 @@ private fun BookSearchResultRow(
             .background(rowColor)
             .clickable(
                 role = Role.Button,
-                onClickLabel = result.chapterTitle,
+                onClickLabel = stringResource(R.string.reader_book_search_go_to),
                 onClick = onClick,
             )
             .padding(horizontal = spacing.md, vertical = spacing.sm),

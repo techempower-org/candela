@@ -195,6 +195,7 @@
     <string name="reader_book_search_position_description">Result %1$d of %2$d</string>
     <!-- Footer shown when the chapter cap was hit before scanning the whole book -->
     <string name="reader_book_search_truncated">Showing the first %1$d chapters.</string>
+    <string name="reader_book_search_go_to">Go to match</string>
     <!-- Header: how many chapters contain the query -->
     <plurals name="reader_book_search_chapter_count">
         <item quantity="one">%1$d chapter</item>
