@@ -1,16 +1,17 @@
 ---
 layout: default
 title: Voice catalog
-description: Three in-process voice families (Piper, Kokoro, KittenTTS) plus optional Azure HD cloud voices. Sizes, quality tiers, refresh workflow, and why we don't quantize.
+description: Four in-process voice families (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices. Sizes, quality tiers, refresh workflow, and why we don't quantize.
 ---
 
 # Voice catalog
 
-Candela ships **three local voice families**, with an **optional cloud backend** wired in for users who want studio-grade narration on slow devices:
+Candela ships **four local voice families**, with an **optional cloud backend** wired in for users who want studio-grade narration on slow devices:
 
 - **[Piper](https://github.com/rhasspy/piper)** *(local, in-process)* — single-speaker, compact, fast. Each voice is ~14–30 MB. Best for first-time installs and for fast turnaround on slow hardware.
 - **[Kokoro](https://github.com/hexgrad/kokoro)** *(local, in-process)* — multi-speaker, ~330 MB single download, ships dozens of voice profiles in one model. Higher quality, slower to synthesize.
 - **KittenTTS** *(local, in-process — shipped v0.5.36, [#119](https://github.com/techempower-org/candela/issues/119))* — the lightest tier, ~24 MB shared across 8 en_US speakers. Designed for slow devices where Piper-high struggles. The "first chapter in 10 seconds" voice family.
+- **Supertonic 3** *(local, in-process — newest, live since v1.2.3, [#1191](https://github.com/techempower-org/candela/issues/1191))* — 10 en_US speakers (5 female, 5 male) from a ~139 MB shared model. The newest neural family; a step up in naturalness for modern devices.
 - **[Azure Cognitive Services HD voices](https://learn.microsoft.com/azure/ai-services/speech-service/text-to-speech)** *(cloud, BYOK)* — opt-in, paid by you to Microsoft, never by Candela. Studio-grade narration with offline fallback to a local voice if your key fails or the network drops. See [Cloud voices](#cloud-voices-azure-hd-byok) below.
 
 Local voices run **in-process** via the [VoxSherpa-TTS](https://github.com/techempower-org/VoxSherpa-TTS) `:engine-lib` AAR, which wraps [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) for inference. No second APK, no system-TTS handoff, no per-character billing.

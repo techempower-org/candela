@@ -235,8 +235,9 @@ You have the right to:
   InstantDB sync record (you can view via the sync settings screen).
 - **Delete your data.** Uninstall the app to delete on-device data; sign
   out of sync to delete the InstantDB record.
-- **Export your data.** EPUB export of your library is on the roadmap;
-  contact us if you need an export today.
+- **Export your data.** Per-fiction EPUB and chaptered `.m4b` audiobook
+  export shipped in the v1.x line; contact us if you need a full export
+  of your account data.
 - **Contact us with privacy questions** at the contact address listed at
   the top of this document.
 

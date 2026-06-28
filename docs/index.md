@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Candela — TechEmpower's accessible resource app, with audiobook everything
-description: TechEmpower's accessible resource app — free tech guides, peer-support Discord, dial 211 for local help. Under the hood, a neural-voice audiobook player for twenty-five fiction backends with three in-process voice families plus optional Azure HD cloud voices. Free, GPL-3.0, no telemetry.
+description: TechEmpower's accessible resource app — free tech guides, peer-support Discord, dial 211 for local help. Under the hood, a neural-voice audiobook player for twenty-five fiction backends with four in-process voice families plus optional Azure HD cloud voices. Free, GPL-3.0, no telemetry.
 image: /screenshots/03-reader.png
 ---
 
@@ -71,7 +71,7 @@ image: /screenshots/03-reader.png
     <div class="card">
       <h3>On-device neural TTS</h3>
       <p>
-        Three voice families ship — <a href="https://github.com/rhasspy/piper">Piper</a> (compact),
+        Four voice families ship — <a href="https://github.com/rhasspy/piper">Piper</a> (compact),
         <a href="https://github.com/hexgrad/kokoro">Kokoro</a> (multi-speaker), and
         <strong>KittenTTS</strong> (lightest tier, designed for slow devices). Voices download
         once, then live on-device. No cloud, no API keys, no per-character billing.
@@ -250,11 +250,31 @@ image: /screenshots/03-reader.png
       <h3>Matrix</h3>
       <p>Federated open-standard chat (matrix.org, kde.org, FOSDEM, self-hosted Synapse / Dendrite / Conduit) — rooms are fictions, messages are chapters with same-sender coalescing.</p>
     </a>
+    <a class="source-card" href="https://librivox.org">
+      <span class="source-glyph" aria-hidden="true">LV</span>
+      <h3>LibriVox</h3>
+      <p>Public-domain audiobooks read by volunteers — streamed as real human narration (not TTS). Thousands of classic titles.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">PDF</span>
+      <h3>Local PDF</h3>
+      <p>Open a PDF from your device and have its text read aloud, page by page.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">OCR</span>
+      <h3>Scanned text (OCR)</h3>
+      <p>Point your camera at a page — on-device ML Kit turns the photo into narrated text. Nothing leaves the phone.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">URL</span>
+      <h3>Any web article</h3>
+      <p>Paste any link — Readability extraction turns an arbitrary web page into a single-chapter fiction. No URL is a dead-end.</p>
+    </a>
   </div>
 </section>
 
 <section class="voices">
-  <h2>Three voice families, all on-device</h2>
+  <h2>Four voice families, all on-device</h2>
   <p class="muted">
     Voices download on demand from the <code>voices-v2</code> release; nothing is bundled in the APK.
     The voice picker shows what's installed and what's available. <a href="voices/">Full voice catalog →</a>
@@ -403,8 +423,8 @@ image: /screenshots/03-reader.png
   <p>
     <strong>Where Candela is now:</strong> <strong>twenty-five fiction backends</strong> behind a
     plugin-seam architecture (a new backend is ~4 touchpoints — a <code>@SourcePlugin</code> annotation
-    plus KSP-generated Hilt registration); <strong>three in-process neural voice families</strong>
-    (Piper, Kokoro, KittenTTS) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
+    plus KSP-generated Hilt registration); <strong>four in-process neural voice families</strong>
+    (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
     pipeline for glitch-free playback; a <strong>hybrid reader/audiobook view</strong> that highlights
     the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>cross-device InstantDB
     sync</strong>; an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,

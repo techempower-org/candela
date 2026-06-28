@@ -21,14 +21,14 @@ Stream chapters from **twenty-five fiction backends** — [Royal Road](https://r
   </picture>
 </div>
 
-> **What just shipped** lives on the [latest release](https://github.com/techempower-org/candela/releases/latest) and in the [changelog](CHANGELOG.md) — both always resolve to the current version, so this line never goes stale. Where Candela is now: **twenty-five fiction backends** behind a plugin-seam architecture (a new backend is ~4 touchpoints — `@SourcePlugin` annotation + KSP-generated Hilt registration); **three in-process neural voice families** (Piper, Kokoro, KittenTTS) plus optional Azure HD cloud voices; **AI chat per fiction** with cross-fiction memory, function calling, and multi-modal image input; a **hybrid reader/audiobook view** that highlights the spoken sentence in brass; **Wear OS** support; and a **TechEmpower-first** home. GPL-3.0 (downstream of the engine, not a posture choice — see [License](#license)).
+> **What just shipped** lives on the [latest release](https://github.com/techempower-org/candela/releases/latest) and in the [changelog](CHANGELOG.md) — both always resolve to the current version, so this line never goes stale. Where Candela is now: **twenty-five fiction backends** behind a plugin-seam architecture (a new backend is ~4 touchpoints — `@SourcePlugin` annotation + KSP-generated Hilt registration); **four in-process neural voice families** (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; **AI chat per fiction** with cross-fiction memory, function calling, and multi-modal image input; a **hybrid reader/audiobook view** that highlights the spoken sentence in brass; **Wear OS** support; and a **TechEmpower-first** home. GPL-3.0 (downstream of the engine, not a posture choice — see [License](#license)).
 
 ---
 
 ## What it does
 
 - **Twenty-five fiction backends, side by side.** Browse [Royal Road](https://royalroad.com) with the full filter set (tags include/exclude, status, type, length, rating, content warnings, sort); browse fiction repos on GitHub via the curated [candela-registry](https://github.com/techempower-org/candela-registry) plus live `/search/repositories` results; subscribe to any **RSS / Atom feed** with a managed suggested-feeds list from [candela-feeds](https://github.com/techempower-org/candela-feeds); pull articles from a self-hosted **[Outline](https://www.getoutline.com)** wiki; mount a **[Memory Palace](https://github.com/techempower-org/mempalace)** you host yourself; open **local EPUB files** from any folder via the system file picker; browse **Project Gutenberg's** 70,000+ public-domain books; pull fanfic from **Archive of Our Own** (per-tag feeds + official EPUBs); read **Standard Ebooks'** hand-curated typographically-polished classics; narrate any **Wikipedia** or **Wikisource** article (heading-split chapters; Wikisource walks multi-part works as `/Subpage` chapters); listen to **Radio** with 5 curated stations (KVMR 89.3, Capital Public Radio, KQED 88.5, KCSB 91.9, SomaFM Groove Salad) plus **Radio Browser API** search across 30,000+ stations worldwide; read a **Notion** database (defaults to the techempower.org content DB — paste an integration token and you're in); narrate **Hacker News** top stories + Ask HN / Show HN threads with comments; listen to **arXiv** abstracts in cs.AI and other categories; read **PLOS** open-access peer-reviewed science papers; or pull serialized fiction from **Discord** channels (channels = fictions, messages = chapters, bot-token auth). Open **local PDF files** and **scanned documents** (on-device OCR turns photos and scans into readable text); browse **LibriVox** public-domain human-narrated audiobooks; pull serialized fiction from **Telegram**, **Slack**, and **Matrix** channels; browse **Palace Project** free-library titles; and turn **any web article** into a chapter via Readability extraction. Each backend has its own on/off toggle in **Settings → Plugins** (the plugin manager iterates the registry, so adding a new backend is automatic).
-- **Plays chapters as audiobooks** through an in-process neural TTS engine. **Three voice families ship**: [Piper](https://github.com/rhasspy/piper) (compact, ~14–30 MB per voice), [Kokoro](https://github.com/hexgrad/kokoro) (multi-speaker, ~330 MB total), and **KittenTTS** (lightest tier, ~24 MB shared across 8 en_US speakers — designed for slow devices where Piper struggles). Voice models download on demand from `voices-v2`; nothing is bundled in the APK. No cloud, no API keys, no per-character billing.
+- **Plays chapters as audiobooks** through an in-process neural TTS engine. **Four voice families ship**: [Piper](https://github.com/rhasspy/piper) (compact, ~14–30 MB per voice), [Kokoro](https://github.com/hexgrad/kokoro) (multi-speaker, ~330 MB total), **KittenTTS** (lightest tier, ~24 MB shared across 8 en_US speakers — designed for slow devices where Piper struggles), and **Supertonic 3** (newest — live since v1.2.3, 10 en_US speakers from a ~139 MB shared model). Voice models download on demand from `voices-v2`; nothing is bundled in the APK. No cloud, no API keys, no per-character billing.
 - **Optional cloud voices** — bring-your-own-key [Azure Cognitive Services HD voices](https://learn.microsoft.com/azure/ai-services/speech-service/text-to-speech) for studio-grade narration on slow devices. Offline fallback to the local engine if your key fails or the network drops. Azure is opt-in, never required, never billed by Candela.
 - **Tier 3 multi-engine parallel synthesis.** Run 1–8 VoxSherpa engine instances side-by-side, each with its own thread pool, so a single sentence's chunks render in parallel and the next sentence is already queued before the current one finishes. Twin sliders in **Settings → Performance** (Engines, Threads/engine) let you tune for your CPU. The producer pins to a dedicated `URGENT_AUDIO` thread to keep audio scheduling honest under load.
 - **Highlights the current sentence** in brass as the engine speaks. Swipe between audiobook view (cover, scrubber, transport) and reader view (chapter text). The highlight glides between sentences to match the read-aloud rhythm.
@@ -41,6 +41,12 @@ Stream chapters from **twenty-five fiction backends** — [Royal Road](https://r
 - **Voice library with tiers and favorites.** Engine-grouped picker, star toggles for the voices you keep coming back to, and a Starred surface that floats them to the top.
 - **Sleep timer** with 15/30/45/60-minute presets, an "end of chapter" mode, a countdown pulse as time runs out, and shake-to-extend during the fade-out tail (#150).
 - **Smart-resume CTA** — the Library "Resume" button respects your last paused/playing intent so it never auto-plays at you when you opened the app to *read*.
+- **Highlights & notes.** Long-press to select text in the reader, pick a colour, and attach a note — highlights persist and sync, and tapping a saved one lets you edit or remove it. Plus **find-in-chapter** search with next/previous match, and **chapter previews** (a body-text snippet in the chapter list).
+- **Library shelves & sort.** Built-in **Reading / Read / Wishlist** shelves (a book can sit on several at once), and sort the library by title, author, recently added, recently played, or longest-unread.
+- **Make your own audiobook.** Export any fiction to a chaptered `.m4b` with per-chapter markers, rendered through your chosen neural voice — play it in any audiobook app. EPUB export too.
+- **Now-Playing home-screen widget** — play/pause, next, and the sleep timer straight from your launcher (1×1 / 4×1 / 4×2 sizes).
+- **Bedtime auto-sleep + Do Not Disturb.** The sleep timer can auto-arm when your phone enters Bedtime mode, and optionally silence notifications while it runs.
+- **First-run onboarding** — a three-screen welcome (intro → voice picker → first fiction) gets newcomers listening in under a minute.
 - **Library + Follows tabs** with sign-in via WebView (your Royal Road follow list syncs into the app).
 - **Infinite-scroll Browse** across every tab.
 - **Cheap polling for new chapters.** GitHub-sourced fictions watch the repo's HEAD SHA; the manifest is only re-scanned when something changes — one HTTP request per fiction per check.
@@ -163,7 +169,7 @@ The CI workflow (`.github/workflows/android.yml`) shows the canonical build step
       │               │  in-process)   │
       ▼               │                ▼
 ┌─────────────────────────────┐  ┌──────────────────────┐
-│ Fiction sources (21)        │  │ :core-sync           │
+│ Fiction sources (25)        │  │ :core-sync           │
 │ ─────────────────────────── │  │ InstantDB sync —     │
 │ :source-royalroad           │  │ library / follows /  │
 │ :source-github              │  │ positions / book-    │
@@ -191,6 +197,12 @@ The CI workflow (`.github/workflows/android.yml`) shows the canonical build step
 │ ─────────────────────────── │
 │ :source-readability         │
 │ :source-epub-writer         │
+│ :source-audiobook-writer    │
+│                             │
+│ Local files (v1.1.0):       │
+│ :source-pdf                 │
+│ :source-ocr                 │
+│ :source-librivox            │
 │                             │
 │ TTS backends                │
 │ ─────────────────────────── │
@@ -200,7 +212,7 @@ The CI workflow (`.github/workflows/android.yml`) shows the canonical build step
                    (audio out)
 ```
 
-34 Gradle modules now (was 13 at v0.4.x; 29 at v0.5.38). Fiction sources implement `FictionSource` from `:core-data` and self-register via the `@SourcePlugin` annotation; the `:core-plugin-ksp` KSP processor emits a Hilt `@IntoSet` factory per annotated class, so `SourcePluginRegistry` discovers them at startup. Adding a new backend is ~4 touchpoints today (was ~17 pre-Phase-2). The playback layer is independent of the UI; the local engine library is a single transitive dep on `:core-playback`. AI chat lives in its own `:core-llm` module — the seven-provider matrix shares one `ChatStreamEvent` flow type that carries text deltas + tool-call events + tool-result events end-to-end. Cross-device sync lives in `:core-sync` against InstantDB. A `:baselineprofile` producer module (UI Automator hot-path walk) emits `baseline-prof.txt` for the AndroidX Baseline Profile plugin — cold launch dropped 6.7 s → 0.8 s on Tab A7 Lite (v0.5.46).
+38 Gradle modules now (was 13 at v0.4.x; 29 at v0.5.38). Fiction sources implement `FictionSource` from `:core-data` and self-register via the `@SourcePlugin` annotation; the `:core-plugin-ksp` KSP processor emits a Hilt `@IntoSet` factory per annotated class, so `SourcePluginRegistry` discovers them at startup. Adding a new backend is ~4 touchpoints today (was ~17 pre-Phase-2). The playback layer is independent of the UI; the local engine library is a single transitive dep on `:core-playback`. AI chat lives in its own `:core-llm` module — the seven-provider matrix shares one `ChatStreamEvent` flow type that carries text deltas + tool-call events + tool-result events end-to-end. Cross-device sync lives in `:core-sync` against InstantDB. A `:baselineprofile` producer module (UI Automator hot-path walk) emits `baseline-prof.txt` for the AndroidX Baseline Profile plugin — cold launch dropped 6.7 s → 0.8 s on Tab A7 Lite (v0.5.46).
 
 Design specs (each shipped or in flight) read as a thread:
 
@@ -224,7 +236,7 @@ Per-dreamer detail specs live in `scratch/dreamers/`.
 | Storage | Room, DataStore Preferences, EncryptedSharedPreferences |
 | Networking | OkHttp + Jsoup (RR is HTML, not JSON) + commonmark (GitHub markdown) |
 | Playback | Media3 SimpleBasePlayer + custom AudioTrack pipeline + Tier 3 multi-engine producer |
-| TTS (local) | VoxSherpa-TTS engine-lib (Piper + Kokoro on sherpa-onnx) — in-process |
+| TTS (local) | VoxSherpa-TTS engine-lib (Piper + Kokoro + KittenTTS + Supertonic on sherpa-onnx) — in-process |
 | TTS (cloud, optional) | Azure Cognitive Services HD voices (BYOK) with offline fallback |
 | Async | Coroutines + Flow |
 | Wear OS | Compose for Wear, `play-services-wearable` |

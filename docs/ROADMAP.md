@@ -11,9 +11,10 @@ Last refreshed for **v1.1.5** (AGP 9 migration + deprecation cleanup). Prior maj
 
 ## Shipped in the v0.5 line
 
-The full v0.5 line landed the bulk of the user-visible surface — twenty-one fiction
-backends, three voice families, the AI chat heavies, performance work that hit the
-0.8 s cold-launch target, the a11y pass, and the TechEmpower repositioning.
+The v0.5 line landed the bulk of the user-visible surface, and the v1.x line has since
+carried it to **twenty-five fiction backends** and **four voice families** — plus the
+AI chat heavies, performance work that hit the 0.8 s cold-launch target, the a11y
+pass, and the TechEmpower repositioning.
 
 ### Voice + audio
 - [x] **KittenTTS** lightest-tier voice family (v0.5.36, [#119](https://github.com/techempower-org/candela/issues/119)) — ~24 MB shared across 8 en_US speakers, "first chapter in 10 seconds" on slow devices
@@ -59,6 +60,29 @@ backends, three voice families, the AI chat heavies, performance work that hit t
 - [x] **17 → 21 fiction backends** — Telegram + Palace + Slack + Matrix (v0.5.51) on top of Hacker News, arXiv, PLOS, Discord, Wikisource, Radio Browser (v0.5.38)
 - [x] **`@SourcePlugin` annotation + KSP processor** (v0.5.27) — adding a backend is ~4 touchpoints; Plugin manager auto-discovers
 - [x] **Plugin manager Settings hub** — brass-edged card grid iterating the registry
+
+---
+
+## Shipped in the v1.x line
+
+The v1.x line broadened sources, added a fourth voice family, and filled in the reading surface.
+
+### Sources & voices
+- [x] **OCR, PDF, and LibriVox sources** (v1.1.0) — on-device scan-to-read (ML Kit), local PDF read-aloud, and public-domain human-narrated audiobooks; the roster reaches **25 fiction backends**
+- [x] **Supertonic 3 voice family** — engine wired v1.2.0 ([#1191](https://github.com/techempower-org/candela/issues/1191)), voices enabled v1.2.3, models hosted v1.2.4 ([#1236](https://github.com/techempower-org/candela/issues/1236)); 10 en_US speakers, the fourth in-process family
+- [x] **KittenTTS v0.8 voices** (v1.1.5) — clearer nano models with named speakers
+
+### Reading & library
+- [x] **In-reader highlights & notes** (v1.1.3, [#1079](https://github.com/techempower-org/candela/issues/1079)) — long-press select, pick a colour, optional note; persists and syncs
+- [x] **Find-in-chapter search** + **chapter previews** (v1.2.0)
+- [x] **Library shelves & sort** — Reading / Read / Wishlist (many-to-many) + five sort modes ([#793](https://github.com/techempower-org/candela/issues/793))
+- [x] **Make-your-own-audiobook** — chaptered `.m4b` export ([#1003](https://github.com/techempower-org/candela/issues/1003)); plus EPUB export
+
+### Playback & extras
+- [x] **Bedtime auto-sleep** (v1.1.4) + **auto Do Not Disturb with the sleep timer** (v1.2.0)
+- [x] **Now-Playing home-screen widget** — play/pause, next, sleep from the launcher
+- [x] **First-run onboarding** (v1.0, [#599](https://github.com/techempower-org/candela/issues/599)) — three-screen welcome
+- [x] **Play Store readiness** (v1.1.6 / v1.2.0) — accessibility statement, content reporting, compliance polish
 
 ---
 
