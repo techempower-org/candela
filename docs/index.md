@@ -424,7 +424,7 @@ image: /screenshots/03-reader.png
     <strong>Where Candela is now:</strong> <strong>twenty-five fiction backends</strong> behind a
     plugin-seam architecture (a new backend is ~4 touchpoints — a <code>@SourcePlugin</code> annotation
     plus KSP-generated Hilt registration); <strong>four in-process neural voice families</strong>
-    (Piper, Kokoro, KittenTTS) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
+    (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
     pipeline for glitch-free playback; a <strong>hybrid reader/audiobook view</strong> that highlights
     the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>cross-device InstantDB
     sync</strong>; an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,
