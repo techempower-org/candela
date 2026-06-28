@@ -9,10 +9,12 @@ import `in`.jphe.storyvox.sync.client.SignedInUser
 import `in`.jphe.storyvox.sync.client.SyncAuthResult
 import `in`.jphe.storyvox.sync.coordinator.SyncCoordinator
 import javax.inject.Inject
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * UI state machine for the sync sign-in screen.
@@ -141,6 +143,14 @@ class SyncAuthViewModel @Inject constructor(
      * policy's email-request path backstops a failed cloud delete. Local
      * on-device library/positions are intentionally kept — see
      * [SyncCoordinator]'s class kdoc.
+     *
+     * Issue #1217 — the local wipe ([InstantSession.clear] + the state
+     * reset) runs in a [NonCancellable] `finally`, so a cancellation of
+     * this coroutine mid-purge (e.g. the ViewModel being cleared as the
+     * user navigates away) can't strand a half-signed-out state where the
+     * cloud record is gone but the device still holds the now-revoked
+     * token and renders as signed-in. The cloud-side calls stay
+     * cancellable (they're best-effort); only the local wipe is guarded.
      */
     fun signOut() {
         val current = session.current() ?: run {
@@ -148,10 +158,18 @@ class SyncAuthViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            coordinator.purgeRemoteData(current) // #1139 delete cloud data while token is valid
-            client.signOut(current.refreshToken) // best-effort; ignored on failure
-            session.clear()
-            _state.value = SignInState.SignedOut(email = "")
+            try {
+                coordinator.purgeRemoteData(current) // #1139 delete cloud data while token is valid
+                client.signOut(current.refreshToken) // best-effort; ignored on failure
+            } finally {
+                // #1217 — local wipe must complete even if the coroutine is
+                // cancelled during the cloud purge above, or we leave a
+                // half-signed-out state.
+                withContext(NonCancellable) {
+                    session.clear()
+                    _state.value = SignInState.SignedOut(email = "")
+                }
+            }
         }
     }
 
