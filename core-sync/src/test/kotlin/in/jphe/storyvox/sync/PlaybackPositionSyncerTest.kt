@@ -265,5 +265,10 @@ class PlaybackPositionSyncerTest {
         override suspend fun cacheUsage(): ChapterCacheUsageRow = error("not used")
         override suspend fun chapterIdsForFiction(fictionId: String): List<String> = emptyList()
         override suspend fun deleteByIds(ids: List<String>) = error("not used")
+        override suspend fun searchChapters(
+            fictionId: String,
+            query: String,
+            limit: Int,
+        ): List<`in`.jphe.storyvox.data.db.dao.ChapterSearchRow> = error("not used")
     }
 }
