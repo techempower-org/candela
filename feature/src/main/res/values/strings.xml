@@ -318,11 +318,20 @@
     <string name="sync_different_email">Use a different email</string>
     <string name="sync_done">Done</string>
     <string name="sync_sign_out">Sign out</string>
-    <!-- Sign-out confirmation (#1197): sign-out deletes all synced cloud data (#1194), so force an explicit, loud choice. -->
-    <string name="sync_sign_out_confirm_title">Delete your synced data?</string>
-    <string name="sync_sign_out_confirm_body">Signing out will permanently delete all your synced data from the cloud — your library, reading positions, bookmarks, voice settings, and follows. Data on this device will remain until you uninstall.\n\nThis cannot be undone.</string>
-    <string name="sync_sign_out_confirm_button">Sign out &amp; delete</string>
-    <string name="sync_sign_out_confirm_dismiss">Keep syncing</string>
+    <!-- Sign-out confirmation (#1197, revised #1248): sign-out now only clears the LOCAL session — cloud data is preserved so the user can sign back in to resume syncing. Deleting cloud data is a separate, explicit action (sync_purge_* below). -->
+    <string name="sync_sign_out_confirm_title">Sign out of sync?</string>
+    <string name="sync_sign_out_confirm_body">Your cloud data will remain intact. You can sign back in to resume syncing.</string>
+    <string name="sync_sign_out_confirm_button">Sign out</string>
+    <string name="sync_sign_out_confirm_dismiss">Cancel</string>
+    <!-- Purge cloud data (#1248): a destructive, irreversible action, separate from sign-out. Deletes the user's InstantDB cloud record while keeping the local session signed in. -->
+    <string name="sync_purge">Purge cloud data</string>
+    <string name="sync_purge_confirm_title">Delete your cloud data?</string>
+    <string name="sync_purge_confirm_body">This permanently deletes all your synced data from the cloud — your library, reading positions, bookmarks, voice settings, and follows. Data on this device is not affected, and you stay signed in.\n\nThis cannot be undone.</string>
+    <string name="sync_purge_confirm_button">Delete cloud data</string>
+    <string name="sync_purge_confirm_dismiss">Cancel</string>
+    <string name="sync_purge_running">Deleting your cloud data…</string>
+    <string name="sync_purge_success">Your cloud data has been deleted.</string>
+    <string name="sync_purge_error">Couldn\'t delete your cloud data. Please try again.</string>
 
     <!-- Fiction detail -->
     <string name="fiction_clear_cache_title">Clear cached audio for %1$s?</string>

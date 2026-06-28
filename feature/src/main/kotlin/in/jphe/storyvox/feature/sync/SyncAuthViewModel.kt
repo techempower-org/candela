@@ -127,30 +127,29 @@ class SyncAuthViewModel @Inject constructor(
     }
 
     /**
-     * Sign out: delete the user's cloud data, revoke the token server-side,
-     * then wipe local credentials.
+     * Sign out: revoke the refresh token server-side, then wipe local
+     * credentials. Cloud data is intentionally PRESERVED.
      *
-     * Issue #1139 — signing out must actually delete the InstantDB record,
-     * as the privacy policy promises ("signing out of sync deletes your
-     * record"). [SyncCoordinator.purgeRemoteData] runs FIRST, while
-     * [current]'s refresh token is still valid — the admin delete API
-     * authorizes via as-token impersonation with that token, so deletion
-     * must precede [InstantClient.signOut] (which revokes it) and
-     * [InstantSession.clear] (which forgets it).
+     * Issue #1248 — sign-out and "purge cloud data" are now separate
+     * actions. Sign-out used to delete the user's InstantDB record first
+     * (#1139), so there was no way to sign out on one device while keeping
+     * the cloud copy for the others, nor to sign out at all without losing
+     * everything. Deleting cloud data is now an explicit, separately-
+     * confirmed action — see [purgeRemoteData]. After signing out the user
+     * can sign back in and pull their cloud data down again.
      *
-     * All three steps are best-effort: an offline sign-out still completes
-     * locally (the user shouldn't be trapped signed-in), and the privacy
-     * policy's email-request path backstops a failed cloud delete. Local
+     * Both remaining steps are best-effort: an offline sign-out still
+     * completes locally (the user shouldn't be trapped signed-in). Local
      * on-device library/positions are intentionally kept — see
      * [SyncCoordinator]'s class kdoc.
      *
      * Issue #1217 — the local wipe ([InstantSession.clear] + the state
      * reset) runs in a [NonCancellable] `finally`, so a cancellation of
-     * this coroutine mid-purge (e.g. the ViewModel being cleared as the
+     * this coroutine mid-sign-out (e.g. the ViewModel being cleared as the
      * user navigates away) can't strand a half-signed-out state where the
-     * cloud record is gone but the device still holds the now-revoked
-     * token and renders as signed-in. The cloud-side calls stay
-     * cancellable (they're best-effort); only the local wipe is guarded.
+     * token is revoked server-side but the device still holds it and
+     * renders as signed-in. The cloud-side [InstantClient.signOut] call
+     * stays cancellable (it's best-effort); only the local wipe is guarded.
      */
     fun signOut() {
         val current = session.current() ?: run {
@@ -159,16 +158,53 @@ class SyncAuthViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                coordinator.purgeRemoteData(current) // #1139 delete cloud data while token is valid
                 client.signOut(current.refreshToken) // best-effort; ignored on failure
             } finally {
                 // #1217 — local wipe must complete even if the coroutine is
-                // cancelled during the cloud purge above, or we leave a
+                // cancelled during the cloud call above, or we leave a
                 // half-signed-out state.
                 withContext(NonCancellable) {
                     session.clear()
                     _state.value = SignInState.SignedOut(email = "")
                 }
+            }
+        }
+    }
+
+    /**
+     * Issue #1248 — explicitly delete the user's cloud (InstantDB) record
+     * WITHOUT signing out. Separate from [signOut] so a user can delete
+     * their cloud data while keeping their local session (and can sign out
+     * on one device without affecting the cloud copy other devices rely
+     * on).
+     *
+     * Delegates to [SyncCoordinator.purgeRemoteData], which deletes every
+     * domain's remote row using the still-valid refresh token (the admin
+     * delete API authorizes via as-token impersonation). Best-effort by
+     * design — the coordinator returns false if any domain failed, and the
+     * privacy policy's email-request path backstops a partial failure.
+     *
+     * Progress + outcome are surfaced via [SignInState.SignedIn.purge] so
+     * the screen can show a loading indicator while the network calls run
+     * and a success/error result afterward. The local session is untouched
+     * — the user stays signed in throughout.
+     */
+    fun purgeRemoteData() {
+        val current = session.current() ?: run {
+            _state.value = SignInState.SignedOut(email = "")
+            return
+        }
+        val signedIn = _state.value as? SignInState.SignedIn ?: return
+        _state.value = signedIn.copy(purge = PurgeState.Running)
+        viewModelScope.launch {
+            val ok = coordinator.purgeRemoteData(current)
+            // Only publish the outcome if we're still on the signed-in
+            // screen — the user may have signed out / navigated away while
+            // the network calls were in flight.
+            (_state.value as? SignInState.SignedIn)?.let { now ->
+                _state.value = now.copy(
+                    purge = if (ok) PurgeState.Success else PurgeState.Error,
+                )
             }
         }
     }
@@ -184,7 +220,25 @@ sealed interface SignInState {
     data class SendingCode(val email: String) : SignInState
     data class CodePrompt(val email: String, val code: String, val error: String?) : SignInState
     data class Verifying(val email: String, val code: String) : SignInState
-    data class SignedIn(val user: SignedInUser) : SignInState
+    data class SignedIn(
+        val user: SignedInUser,
+        val purge: PurgeState = PurgeState.Idle,
+    ) : SignInState
+}
+
+/**
+ * Issue #1248 — progress/outcome of an explicit "purge cloud data" action,
+ * tracked on [SignInState.SignedIn] so the screen can render a loading
+ * indicator while the coordinator's network calls run and a success/error
+ * result afterward without leaving the signed-in screen. [Error] carries
+ * no message: [SyncCoordinator.purgeRemoteData] is a best-effort boolean,
+ * so the screen shows a generic retry prompt.
+ */
+sealed interface PurgeState {
+    data object Idle : PurgeState
+    data object Running : PurgeState
+    data object Success : PurgeState
+    data object Error : PurgeState
 }
 
 /**
