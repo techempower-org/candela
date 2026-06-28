@@ -525,6 +525,23 @@ class ReaderViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
+     * Issue #1234 — the current fiction's author, for the share-quote
+     * attribution line. The playback state carries the fiction *title* and
+     * chapter title but not the author, so we resolve it from the fiction row
+     * keyed on the live fictionId (re-subscribing only on a book switch, like
+     * [chapters]). Blank while no fiction is loaded or the source has no
+     * author; [QuoteShareFormatter] drops a blank author from the attribution.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val currentAuthor: StateFlow<String> = playback.state
+        .map { it.fictionId }
+        .distinctUntilChanged()
+        .flatMapLatest { id ->
+            if (id.isNullOrBlank()) flowOf("") else fictionRepo.fictionById(id).map { it?.author.orEmpty() }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    /**
      * Issue #946 — magical reader auto-scroll toggle. Default true so
      * existing users keep their read-along behavior; flipping to false
      * frees the chapter body for manual scrolling while audio continues.
