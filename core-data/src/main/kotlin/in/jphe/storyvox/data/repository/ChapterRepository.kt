@@ -6,8 +6,10 @@ import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
 import `in`.jphe.storyvox.data.repository.playback.PlaybackChapter
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -165,6 +167,13 @@ class ChapterRepositoryImpl @Inject constructor(
             // dedupe so an unrelated row write doesn't re-push an identical
             // map down the combine in [chaptersFor].
             .distinctUntilChanged()
+            // Issue #1220 — chapterPreviewText (heavy regex + HTML-decode)
+            // runs over every chapter in the .map above; without flowOn it
+            // executes on the collector (Main) thread and janks large
+            // chapter lists. Move the whole upstream chain — the map and the
+            // distinctUntilChanged comparison — onto Default.
+            .flowOn(Dispatchers.Default)
+            .flowOn(Dispatchers.Default)
 
     override fun observeDownloadState(fictionId: String): Flow<Map<String, ChapterDownloadState>> =
         dao.observeDownloadStates(fictionId).map { rows ->
