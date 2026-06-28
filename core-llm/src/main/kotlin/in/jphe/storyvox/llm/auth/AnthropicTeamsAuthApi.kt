@@ -188,7 +188,7 @@ open class AnthropicTeamsAuthApi @Inject constructor(
     )
 
     companion object {
-        const val USER_AGENT: String = "storyvox/0.4 (+https://github.com/jphein/storyvox)"
+        const val USER_AGENT: String = "Candela (https://candela.techempower.org; support@techempower.org)"
         private val JSON_MEDIA = "application/json".toMediaType()
         private val JSON: Json = Json {
             ignoreUnknownKeys = true

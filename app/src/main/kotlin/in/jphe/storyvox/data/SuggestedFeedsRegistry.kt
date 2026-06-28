@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.data
 
+import `in`.jphe.storyvox.BuildConfig
+import `in`.jphe.storyvox.data.network.UserAgent
 import `in`.jphe.storyvox.feature.api.SuggestedFeed
 import `in`.jphe.storyvox.feature.api.SuggestedFeedKind
 import javax.inject.Inject
@@ -124,7 +126,14 @@ class SuggestedFeedsRegistry @Inject constructor() {
     companion object {
         const val REGISTRY_URL =
             "https://raw.githubusercontent.com/techempower-org/candela-feeds/main/suggestions.json"
-        const val USER_AGENT = "storyvox/1.0 (+https://github.com/jphein/storyvox)"
+        /**
+         * Descriptive User-Agent built from the centralized [UserAgent]
+         * tokens + the live build version (#1216). `:app` carries
+         * `BuildConfig.VERSION_NAME`, so this can use the full
+         * `UserAgent.format()` shape. Replaces the stale pre-rebrand
+         * `storyvox/1.0 (jphein)` string.
+         */
+        val USER_AGENT: String = UserAgent.format(BuildConfig.VERSION_NAME)
         const val SUPPORTED_SCHEMA_VERSION = 1
     }
 }
