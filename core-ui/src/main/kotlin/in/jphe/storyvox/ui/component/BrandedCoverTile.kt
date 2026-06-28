@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import `in`.jphe.storyvox.ui.theme.BrassRamp
@@ -156,6 +157,7 @@ fun BrandedCoverTile(
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (!author.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -169,6 +171,7 @@ fun BrandedCoverTile(
                         color = brass,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

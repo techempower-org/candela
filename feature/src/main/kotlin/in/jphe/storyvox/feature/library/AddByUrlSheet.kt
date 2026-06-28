@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiRouteCandidate
@@ -208,6 +209,7 @@ private fun ChooseSourceBody(
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
     )
 
     LazyColumn(

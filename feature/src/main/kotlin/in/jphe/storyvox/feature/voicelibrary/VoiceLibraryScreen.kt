@@ -66,6 +66,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -1525,6 +1527,19 @@ private fun VoiceAvatar(
 ) {
     val brass = MaterialTheme.colorScheme.primary
     val avatarBg = engineAvatarColor(voice.engineType)
+    // #912 follow-up — the monogram was always Color.White, which fails
+    // contrast on the lighter engine chips in light mode (the brass / plum /
+    // inversePrimary backgrounds composite to a pale fill over the cream
+    // surface). Choose black or white by the chip's effective luminance so the
+    // initial stays legible in every theme. 0.179 is the WCAG relative-
+    // luminance crossover where black and white yield equal contrast.
+    val monogramColor = if (
+        avatarBg.compositeOver(MaterialTheme.colorScheme.surface).luminance() > 0.179f
+    ) {
+        Color.Black
+    } else {
+        Color.White
+    }
     val initial = voice.displayName.firstOrNull()?.uppercaseChar() ?: '?'
     Box(
         modifier = Modifier
@@ -1544,7 +1559,7 @@ private fun VoiceAvatar(
             text = initial.toString(),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = monogramColor,
         )
     }
 }
