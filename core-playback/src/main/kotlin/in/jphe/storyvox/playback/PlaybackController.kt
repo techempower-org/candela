@@ -818,6 +818,15 @@ class DefaultPlaybackController @Inject constructor(
 
     override fun setSpeed(speed: Float) {
         val clamped = speed.coerceIn(0.5f, 3.0f)
+        // #1231 — no-op when the speed is already what's playing.
+        // [EnginePlayer.setSpeed] unconditionally tears down + rebuilds the
+        // pipeline (the #555 position handoff), so a redundant set — e.g. the
+        // per-fiction auto-restore flow re-emitting a value the live slider
+        // drag already applied — would hiccup the audio for nothing. Both the
+        // settings/effective-speed collector and the reader slider already feed
+        // distinct values; this guards the one case they can't see (a flow
+        // value converging on the live engine speed).
+        if (clamped == state.value.speed) return
         player?.setSpeed(clamped)
     }
 

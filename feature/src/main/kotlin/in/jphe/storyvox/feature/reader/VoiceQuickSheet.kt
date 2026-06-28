@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import `in`.jphe.storyvox.feature.R
@@ -82,6 +83,12 @@ internal fun VoiceQuickSheetContent(
     pitchInterpolationHighQuality: Boolean,
     onSetSpeed: (Float) -> Unit,
     onPersistSpeed: (Float) -> Unit,
+    // #1231 — speed-scope toggle: true when the current book has its own
+    // pinned speed. Tapping a chip pins ("This book") or clears ("All books").
+    // Defaulted so previews / unit tests that exercise the chip rows don't
+    // have to supply them.
+    perBookSpeedActive: Boolean = false,
+    onToggleSpeedScope: (Boolean) -> Unit = {},
     onSetPitch: (Float) -> Unit,
     onPersistPitch: (Float) -> Unit,
     onSetPunctuationPause: (Float) -> Unit,
@@ -116,6 +123,34 @@ internal fun VoiceQuickSheetContent(
         // the value is committed immediately. The slider stays
         // available for fine-tuning between presets.
         QuickSheetHeader(stringResource(R.string.reader_voice_speed_header), "${"%.2f".format(state.speed)}×")
+        // #1231 — scope toggle: pin this speed to just this book, or apply it
+        // to all books (the global default). Hidden for live-audio/radio
+        // chapters, which always play at 1.0× (per-book speed is meaningless
+        // for a live stream).
+        if (!state.isLiveAudioChapter) {
+            val thisBookCd = stringResource(R.string.reader_speed_scope_this_book_cd)
+            val allBooksCd = stringResource(R.string.reader_speed_scope_all_books_cd)
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                FilterChip(
+                    selected = perBookSpeedActive,
+                    onClick = { if (!perBookSpeedActive) onToggleSpeedScope(true) },
+                    label = { Text(stringResource(R.string.reader_speed_scope_this_book)) },
+                    modifier = Modifier.semantics {
+                        contentDescription = thisBookCd
+                        role = Role.RadioButton
+                    },
+                )
+                FilterChip(
+                    selected = !perBookSpeedActive,
+                    onClick = { if (perBookSpeedActive) onToggleSpeedScope(false) },
+                    label = { Text(stringResource(R.string.reader_speed_scope_all_books)) },
+                    modifier = Modifier.semantics {
+                        contentDescription = allBooksCd
+                        role = Role.RadioButton
+                    },
+                )
+            }
+        }
         QuickSheetPresetChipRow(
             presets = SPEED_PRESETS,
             isSelected = { preset -> isSpeedPresetSelected(state.speed, preset) },

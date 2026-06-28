@@ -18,6 +18,7 @@ import `in`.jphe.storyvox.data.db.migration.MIGRATION_11_12
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_12_13
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_13_14
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_14_15
+import `in`.jphe.storyvox.data.db.migration.MIGRATION_15_16
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -157,6 +158,8 @@ class StoryvoxDatabaseMigrationTest {
         helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
         // #1083 — v15 adds inbox_event.newChapterCount. Chain through.
         helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).close()
+        // #1231 — chain through v16 (fiction.playbackSpeed).
+        helper.runMigrationsAndValidate(dbName, 16, true, MIGRATION_15_16).close()
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
@@ -164,6 +167,7 @@ class StoryvoxDatabaseMigrationTest {
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
                 MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
+                MIGRATION_15_16,
             )
             .build()
 
@@ -330,6 +334,8 @@ class StoryvoxDatabaseMigrationTest {
         helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
         // #1083 — chain through v15 (inbox_event.newChapterCount).
         helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).close()
+        // #1231 — chain through v16 (fiction.playbackSpeed).
+        helper.runMigrationsAndValidate(dbName, 16, true, MIGRATION_15_16).close()
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
@@ -337,6 +343,7 @@ class StoryvoxDatabaseMigrationTest {
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
                 MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
+                MIGRATION_15_16,
             )
             .build()
 
@@ -1133,6 +1140,8 @@ class StoryvoxDatabaseMigrationTest {
         helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
         // #1083 — chain through v15 (inbox_event.newChapterCount).
         helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).close()
+        // #1231 — chain through v16 (fiction.playbackSpeed).
+        helper.runMigrationsAndValidate(dbName, 16, true, MIGRATION_15_16).close()
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
@@ -1140,6 +1149,7 @@ class StoryvoxDatabaseMigrationTest {
                 MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                 MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
                 MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
+                MIGRATION_15_16,
             )
             .build()
 
@@ -1301,6 +1311,100 @@ class StoryvoxDatabaseMigrationTest {
         ).use { c ->
             assertTrue(c.moveToFirst())
             assertEquals(5, c.getInt(0))
+        }
+
+        db.close()
+    }
+
+    /**
+     * Issue #1231 — v16 adds the nullable `fiction.playbackSpeed` column so a
+     * book can pin its own playback speed (auto-restored on load) independent
+     * of the global default. Purely additive; existing rows get NULL (inherit
+     * the global/effective speed).
+     *
+     * Seeds a v15 fiction row, runs 15->16, and asserts the column exists, is
+     * nullable, defaults to NULL on the pre-existing row, and that a pinned
+     * speed write round-trips. `runMigrationsAndValidate(..., 16, true,
+     * MIGRATION_15_16)` also triggers Room's schema validation against
+     * `16.json`, so a malformed ALTER TABLE or a drifted entity fails here too.
+     */
+    @Test fun `migrate v15 to v16 adds fiction playbackSpeed column`() {
+        val dbName = "playback-speed-migration-test.db"
+
+        helper.createDatabase(dbName, 4).close()
+        helper.runMigrationsAndValidate(dbName, 5, true, MIGRATION_4_5).close()
+        helper.runMigrationsAndValidate(dbName, 6, true, MIGRATION_5_6).close()
+        helper.runMigrationsAndValidate(dbName, 7, true, MIGRATION_6_7).close()
+        helper.runMigrationsAndValidate(dbName, 8, true, MIGRATION_7_8).close()
+        helper.runMigrationsAndValidate(dbName, 9, true, MIGRATION_8_9).close()
+        helper.runMigrationsAndValidate(dbName, 10, true, MIGRATION_9_10).close()
+        helper.runMigrationsAndValidate(dbName, 11, true, MIGRATION_10_11).close()
+        helper.runMigrationsAndValidate(dbName, 12, true, MIGRATION_11_12).close()
+        helper.runMigrationsAndValidate(dbName, 13, true, MIGRATION_12_13).close()
+        helper.runMigrationsAndValidate(dbName, 14, true, MIGRATION_13_14).close()
+        helper.runMigrationsAndValidate(dbName, 15, true, MIGRATION_14_15).use { db ->
+            // Seed a fiction at v15 so the existing row exercises the
+            // NULL-default behaviour after the column lands.
+            db.execSQL(
+                """
+                INSERT INTO fiction(
+                    id, sourceId, title, author, genres, tags, status,
+                    chapterCount, firstSeenAt, metadataFetchedAt,
+                    inLibrary, followedRemotely, notesEverSeen
+                ) VALUES (
+                    'rr:42', 'royalroad', 'Mother of Learning', 'nobody103',
+                    '[]', '[]', 'ONGOING', 0, 0, 0, 1, 0, 0
+                )
+                """.trimIndent(),
+            )
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            dbName,
+            16,
+            /* validateDroppedTables = */ true,
+            MIGRATION_15_16,
+        )
+
+        db.query("PRAGMA table_info('fiction')").use { c ->
+            var sawColumn = false
+            while (c.moveToNext()) {
+                val name = c.getString(c.getColumnIndexOrThrow("name"))
+                if (name == "playbackSpeed") {
+                    sawColumn = true
+                    val type = c.getString(c.getColumnIndexOrThrow("type"))
+                    assertEquals("REAL", type)
+                    val notnull = c.getInt(c.getColumnIndexOrThrow("notnull"))
+                    assertEquals(
+                        "playbackSpeed must be nullable (NULL = inherit global)",
+                        0,
+                        notnull,
+                    )
+                }
+            }
+            assertTrue(
+                "fiction.playbackSpeed column must exist post-migration",
+                sawColumn,
+            )
+        }
+
+        // Pre-existing v15 row must round-trip with a NULL playbackSpeed.
+        db.query(
+            "SELECT id, playbackSpeed FROM fiction WHERE id = 'rr:42'",
+        ).use { c ->
+            assertTrue("seeded v15 fiction row must survive the migration", c.moveToFirst())
+            assertEquals("rr:42", c.getString(0))
+            assertTrue(
+                "playbackSpeed must default to NULL for existing rows",
+                c.isNull(1),
+            )
+        }
+
+        // A pinned per-book speed write round-trips through the new column.
+        db.execSQL("UPDATE fiction SET playbackSpeed = 1.5 WHERE id = 'rr:42'")
+        db.query("SELECT playbackSpeed FROM fiction WHERE id = 'rr:42'").use { c ->
+            assertTrue(c.moveToFirst())
+            assertEquals(1.5f, c.getFloat(0), 0.0001f)
         }
 
         db.close()

@@ -107,7 +107,11 @@ object AppBindings {
         controller: PlaybackController,
         chapters: ChapterRepository,
         settings: SettingsRepositoryUi,
-    ): PlaybackControllerUi = RealPlaybackControllerUi(context, controller, chapters, settings)
+        // #1231 — per-fiction speed auto-restore needs to read the loaded
+        // book's pinned speed from the data layer.
+        fictionRepo: FictionRepository,
+    ): PlaybackControllerUi =
+        RealPlaybackControllerUi(context, controller, chapters, settings, fictionRepo)
 
     /**
      * Vesper (v0.4.97) — debug snapshot binding. Sits alongside
@@ -596,6 +600,13 @@ private class RealFictionRepositoryUi(
     override fun observeIsInLibrary(fictionId: String): Flow<Boolean> =
         repo.observeIsInLibrary(fictionId)
 
+    // #1231 — per-fiction playback speed passthrough to Selene's data layer.
+    override fun observePlaybackSpeed(fictionId: String): Flow<Float?> =
+        repo.observePlaybackSpeed(fictionId)
+
+    override suspend fun setPlaybackSpeed(fictionId: String, speed: Float?) =
+        repo.setPlaybackSpeed(fictionId, speed)
+
     override fun chaptersFor(fictionId: String): Flow<List<UiChapter>> =
         // Issue #282 — the previous mapping hard-coded `isFinished = false`,
         // so the played-indicator on the Fiction detail chapter list never
@@ -852,11 +863,21 @@ private class RealBrowseRepositoryUi(
  * new bytes from the network.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+/**
+ * #1231 — the inputs that decide which speed the engine runs at: the loaded
+ * fiction and whether it's a live-audio chapter. Distinct-keyed so the
+ * per-fiction speed observation only restarts on an actual book / radio change,
+ * not on every position tick from [PlaybackController.state].
+ */
+private data class FictionSpeedKey(val fictionId: String?, val isLiveAudio: Boolean)
+
 internal class RealPlaybackControllerUi(
     private val context: Context,
     private val controller: PlaybackController,
     private val chapters: ChapterRepository,
     private val settings: SettingsRepositoryUi,
+    // #1231 — source of the loaded book's pinned per-fiction speed.
+    private val fictionRepo: FictionRepository,
 ) : PlaybackControllerUi {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -902,14 +923,49 @@ internal class RealPlaybackControllerUi(
         // the playback pipeline if anything's playing, so a duplicate emission
         // from DataStore hydration would interrupt audio for no reason.
         scope.launch {
-            // #195 — observe the *effective* speed/pitch (per-voice
-            // override, with global fallback) so a voice swap that
-            // brings new override values triggers setSpeed/setPitch
-            // automatically. distinctUntilChanged is still load-bearing
-            // — same value re-emitting (e.g. settings hydration) would
-            // otherwise rebuild the playback pipeline mid-sentence.
-            settings.settings
-                .map { it.effectiveSpeed }
+            // #195 + #1231 — resolve the speed the engine should run at,
+            // re-evaluated whenever the loaded book changes, its pinned
+            // per-book speed changes, or the effective (per-voice override
+            // → global) default changes.
+            //
+            // Resolution order:
+            //   1. Live-audio / radio chapter → 1.0×. Speeding a live stream
+            //      is meaningless (#1231); force baseline regardless of any
+            //      stored or effective value.
+            //   2. A non-null per-fiction `playbackSpeed` → that book's pin.
+            //   3. Otherwise the effective speed (#195 per-voice override
+            //      with the global `pref_default_speed` fallback).
+            //
+            // flatMapLatest keys on (fictionId, isLiveAudio): a book switch
+            // tears down the old book's per-speed observation and starts the
+            // new one. When no book is loaded yet (cold start, currentFictionId
+            // null) we still track the effective speed so the engine is
+            // pre-set before the first chapter loads — matching the pre-#1231
+            // behaviour. distinctUntilChanged + the controller's own
+            // same-value guard keep a redundant emission from rebuilding the
+            // pipeline mid-sentence.
+            controller.state
+                .map { FictionSpeedKey(it.currentFictionId, it.isLiveAudioChapter) }
+                .distinctUntilChanged()
+                .flatMapLatest { key ->
+                    val effective = settings.settings
+                        .map { it.effectiveSpeed }
+                        .distinctUntilChanged()
+                    if (key.fictionId == null) {
+                        effective
+                    } else {
+                        combine(
+                            fictionRepo.observePlaybackSpeed(key.fictionId),
+                            effective,
+                        ) { perBook, eff ->
+                            when {
+                                key.isLiveAudio -> 1.0f
+                                perBook != null -> perBook
+                                else -> eff
+                            }
+                        }
+                    }
+                }
                 .distinctUntilChanged()
                 .collect { controller.setSpeed(it) }
         }

@@ -139,6 +139,13 @@ fun AudiobookView(
     onPickVoice: () -> Unit,
     onSetSpeed: (Float) -> Unit,
     onPersistSpeed: (Float) -> Unit,
+    /** #1231 — true when the current book has its own pinned speed; drives the
+     *  voice quick-sheet's "This book / All books" scope toggle. Default false
+     *  so older callsites (tests, previews) keep compiling. */
+    perBookSpeedActive: Boolean = false,
+    /** #1231 — pin the current speed to this book (true) or clear the pin and
+     *  fall back to the global default (false). */
+    onToggleSpeedScope: (Boolean) -> Unit = {},
     onSetPitch: (Float) -> Unit,
     onPersistPitch: (Float) -> Unit,
     onStartSleepTimer: (UiSleepTimerMode) -> Unit,
@@ -1045,6 +1052,8 @@ fun AudiobookView(
                     pitchInterpolationHighQuality = pitchInterpolationHighQuality,
                     onSetSpeed = onSetSpeed,
                     onPersistSpeed = onPersistSpeed,
+                    perBookSpeedActive = perBookSpeedActive,
+                    onToggleSpeedScope = onToggleSpeedScope,
                     onSetPitch = onSetPitch,
                     onPersistPitch = onPersistPitch,
                     onSetPunctuationPause = onSetPunctuationPause,

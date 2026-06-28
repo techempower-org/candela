@@ -508,6 +508,29 @@ class ReaderViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
+     * Issue #1231 — the loaded book's pinned per-fiction speed, or null when
+     * it inherits the global default. Observed per-fiction (re-subscribes on a
+     * book switch) so the reader's speed-scope toggle reflects the right book.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val perBookSpeed: StateFlow<Float?> = playback.state
+        .map { it.fictionId }
+        .distinctUntilChanged()
+        .flatMapLatest { id ->
+            if (id.isNullOrBlank()) flowOf(null) else fictionRepo.observePlaybackSpeed(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Issue #1231 — whether the speed control's "this book" scope is active
+     * (the current book has its own pinned speed). Drives the segmented toggle
+     * in the voice quick-sheet and the routing in [persistSpeed].
+     */
+    val speedIsPerBook: StateFlow<Boolean> = perBookSpeed
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /**
      * Issue #999 phase 2 — the loaded chapter's saved highlights, observed
      * per-chapter so the reader renders only the current chapter's spans and
      * the observer re-subscribes on a chapter switch (not on every fiction
@@ -737,8 +760,37 @@ class ReaderViewModel @Inject constructor(
         playback.setSpeed(speed)
     }
 
+    /**
+     * Issue #1231 — commit a speed change to the active scope. When the
+     * current book is pinned ("this book"), the new speed updates that book's
+     * override; otherwise it updates the global default. The reader's speed
+     * chips + slider both route through here on commit; the auto-restore flow
+     * in RealPlaybackControllerUi reacts to whichever store changed.
+     */
     fun persistSpeed(speed: Float) {
-        viewModelScope.launch { settings.setDefaultSpeed(speed) }
+        val fictionId = uiState.value.playback?.fictionId
+        viewModelScope.launch {
+            if (fictionId != null && speedIsPerBook.value) {
+                fictionRepo.setPlaybackSpeed(fictionId, speed)
+            } else {
+                settings.setDefaultSpeed(speed)
+            }
+        }
+    }
+
+    /**
+     * Issue #1231 — flip the speed-scope for the current book. `perBook = true`
+     * pins the book to the speed it's playing at right now; `false` clears the
+     * pin so the book reverts to the global/effective default. A pin/clear is
+     * all this does — the live engine speed is re-resolved by the auto-restore
+     * flow reacting to the persisted change. No-op when no book is loaded.
+     */
+    fun toggleSpeedScope(perBook: Boolean) {
+        val fictionId = uiState.value.playback?.fictionId ?: return
+        val currentSpeed = uiState.value.playback?.speed ?: 1.0f
+        viewModelScope.launch {
+            fictionRepo.setPlaybackSpeed(fictionId, if (perBook) currentSpeed else null)
+        }
     }
 
     fun setPitch(pitch: Float) {

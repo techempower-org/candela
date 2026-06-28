@@ -108,6 +108,15 @@ interface FictionRepository {
     suspend fun setDownloadMode(id: String, mode: DownloadMode?)
     suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?)
 
+    /**
+     * Issue #1231 — per-fiction playback speed. [setPlaybackSpeed] pins (or,
+     * with `null`, clears) the book's own speed; [observePlaybackSpeed] is the
+     * reactive read the playback wiring uses to auto-restore that speed on
+     * load and the reader UI uses to reflect whether "this book" is pinned.
+     */
+    suspend fun setPlaybackSpeed(id: String, speed: Float?)
+    fun observePlaybackSpeed(id: String): Flow<Float?>
+
     suspend fun setFollowedRemote(id: String, followed: Boolean): FictionResult<Unit>
 
     /**
@@ -385,6 +394,13 @@ class FictionRepositoryImpl @Inject constructor(
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) {
         fictionDao.setPinnedVoice(id, voiceId, locale)
     }
+
+    override suspend fun setPlaybackSpeed(id: String, speed: Float?) {
+        fictionDao.updatePlaybackSpeed(id, speed)
+    }
+
+    override fun observePlaybackSpeed(id: String): Flow<Float?> =
+        fictionDao.observe(id).map { it?.playbackSpeed }.distinctUntilChanged()
 
     override suspend fun setFollowedRemote(id: String, followed: Boolean): FictionResult<Unit> =
         withContext(Dispatchers.IO) {
