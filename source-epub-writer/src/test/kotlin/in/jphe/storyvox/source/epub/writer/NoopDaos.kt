@@ -97,4 +97,9 @@ internal class NoopChapterDao : ChapterDao {
     override suspend fun getBookmark(id: String): Int? = null
     override suspend fun allBookmarks(): List<`in`.jphe.storyvox.data.db.dao.BookmarkRow> = emptyList()
     override suspend fun cacheUsage(): ChapterCacheUsageRow = ChapterCacheUsageRow(count = 0, bytes = 0L)
+    override suspend fun searchChapters(
+        fictionId: String,
+        query: String,
+        limit: Int,
+    ): List<`in`.jphe.storyvox.data.db.dao.ChapterSearchRow> = emptyList()
 }

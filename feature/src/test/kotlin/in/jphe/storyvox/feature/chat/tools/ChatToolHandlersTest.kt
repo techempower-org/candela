@@ -205,6 +205,11 @@ private class FakeChapterRepo : ChapterRepository {
     override suspend fun cachedBodyUsage() = CachedBodyUsage(0, 0L)
     override suspend fun setChapterBookmark(chapterId: String, charOffset: Int?) = Unit
     override suspend fun chapterBookmark(chapterId: String): Int? = null
+    override suspend fun searchChapterBodies(
+        fictionId: String,
+        query: String,
+        limit: Int,
+    ): List<`in`.jphe.storyvox.data.db.dao.ChapterSearchRow> = emptyList()
 }
 
 private class FakeFictionRepoT : FictionRepositoryUi {
