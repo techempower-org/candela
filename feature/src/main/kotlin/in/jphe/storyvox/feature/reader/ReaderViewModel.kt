@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.db.entity.Annotation
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
+import `in`.jphe.storyvox.data.repository.ChapterRepository
 import `in`.jphe.storyvox.data.repository.ContinueListeningEntry
+import `in`.jphe.storyvox.data.repository.DEFAULT_BOOK_SEARCH_LIMIT
 import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
 import `in`.jphe.storyvox.data.repository.playback.PlaybackResumePolicyConfig
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
@@ -25,10 +27,15 @@ import `in`.jphe.storyvox.llm.LlmError
 import `in`.jphe.storyvox.llm.feature.ChapterRecap
 import `in`.jphe.storyvox.ui.component.ReaderView
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -160,6 +167,49 @@ sealed class RecapUiState {
     }
 }
 
+/**
+ * Issue #1229 — observable state for the reader's whole-book search overlay.
+ * [HybridReaderScreen] collects this; the overlay renders the field
+ * ([query]), the [results] list (one row per matching chapter), a stepper
+ * over them ([selectedIndex]), and a [phase]-driven empty/searching/no-match
+ * surface. [truncated] is set when the chapter cap was hit so the overlay can
+ * tell the user not every chapter was searched.
+ */
+@Immutable
+data class BookSearchUiState(
+    val open: Boolean = false,
+    val query: String = "",
+    val results: List<BookSearchResult> = emptyList(),
+    val selectedIndex: Int = 0,
+    val phase: BookSearchPhase = BookSearchPhase.Idle,
+    val truncated: Boolean = false,
+)
+
+/** Issue #1229 — lifecycle of a single book-search query. */
+enum class BookSearchPhase {
+    /** No query yet (or below the minimum length) — show the prompt copy. */
+    Idle,
+    /** Query is in flight against the DB / search core. */
+    Searching,
+    /** Search finished — [BookSearchUiState.results] is authoritative (may be empty). */
+    Done,
+}
+
+/** Issue #1229 — debounce before a keystroke triggers a DB search. */
+private const val BOOK_SEARCH_DEBOUNCE_MS = 250L
+
+/** Issue #1229 — minimum query length before searching, so a single common
+ *  letter doesn't pull every chapter body into memory. */
+private const val MIN_BOOK_SEARCH_QUERY = 2
+
+/** Issue #1229 — internal carrier for the debounced results pipeline, merged
+ *  with the open/query/selection flows into the public [BookSearchUiState]. */
+private data class BookSearchResultsState(
+    val phase: BookSearchPhase = BookSearchPhase.Idle,
+    val results: List<BookSearchResult> = emptyList(),
+    val truncated: Boolean = false,
+)
+
 @HiltViewModel
 class ReaderViewModel @Inject constructor(
     private val playback: PlaybackControllerUi,
@@ -190,6 +240,15 @@ class ReaderViewModel @Inject constructor(
      * "Highlights & notes" list, so phase 2 doesn't add a parallel `*Ui` port.
      */
     private val annotationRepo: AnnotationRepository,
+    /**
+     * Issue #1229 — in-book text search. The reader runs a whole-book
+     * find through [ChapterRepository.searchChapterBodies] (a `LIKE`
+     * pre-filter over the fiction's downloaded chapters) and refines the
+     * hits with the pure [searchBook] core. Injected as the core-data
+     * repository directly — the same seam the playback layer + FictionDetail
+     * already use — so book-search doesn't add a parallel `*Ui` port.
+     */
+    private val chapterRepo: ChapterRepository,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -524,6 +583,75 @@ class ReaderViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    // ─── Issue #1229: whole-book ("find in book") search ──────────────────
+    private val _bookSearchOpen = MutableStateFlow(false)
+    private val _bookSearchQuery = MutableStateFlow("")
+    private val _bookSearchSelected = MutableStateFlow(0)
+
+    /**
+     * Debounced query × currently-loaded fiction → refined results, computed
+     * off the main thread. `flatMapLatest` cancels a stale search the moment
+     * the user types another character or the loaded book changes, so only
+     * the newest query's DB scan + [searchBook] pass survives. A query below
+     * [MIN_BOOK_SEARCH_QUERY] (or no fiction) collapses to the idle state
+     * without touching the DB.
+     */
+    @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val bookSearchResults: StateFlow<BookSearchResultsState> = combine(
+        _bookSearchQuery
+            .debounce(BOOK_SEARCH_DEBOUNCE_MS)
+            .map { it.trim() }
+            .distinctUntilChanged(),
+        playback.state.map { it.fictionId }.distinctUntilChanged(),
+    ) { query, fictionId -> query to fictionId }
+        .flatMapLatest { (query, fictionId) ->
+            if (query.length < MIN_BOOK_SEARCH_QUERY || fictionId.isNullOrBlank()) {
+                flowOf(BookSearchResultsState())
+            } else {
+                flow {
+                    emit(BookSearchResultsState(phase = BookSearchPhase.Searching))
+                    val rows = chapterRepo.searchChapterBodies(fictionId, query, DEFAULT_BOOK_SEARCH_LIMIT)
+                    val results = searchBook(
+                        rows.map { ChapterBody(it.id, it.index, it.title, it.plainBody) },
+                        query,
+                    )
+                    emit(
+                        BookSearchResultsState(
+                            phase = BookSearchPhase.Done,
+                            results = results,
+                            // The chapter cap was hit — not every chapter was scanned.
+                            truncated = rows.size >= DEFAULT_BOOK_SEARCH_LIMIT,
+                        ),
+                    )
+                }.flowOn(Dispatchers.Default)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BookSearchResultsState())
+
+    /**
+     * Issue #1229 — merged book-search state for [HybridReaderScreen]'s
+     * overlay: open flag, the live query text, the refined results, the
+     * stepper selection (clamped into range as the result set changes), and
+     * the search phase / truncation flags.
+     */
+    val bookSearch: StateFlow<BookSearchUiState> = combine(
+        _bookSearchOpen,
+        _bookSearchQuery,
+        bookSearchResults,
+        _bookSearchSelected,
+    ) { open, query, res, selected ->
+        val safeSelected =
+            if (res.results.isEmpty()) 0 else selected.coerceIn(0, res.results.lastIndex)
+        BookSearchUiState(
+            open = open,
+            query = query,
+            results = res.results,
+            selectedIndex = safeSelected,
+            phase = res.phase,
+            truncated = res.truncated,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BookSearchUiState())
+
     /**
      * Issue #946 — magical reader auto-scroll toggle. Default true so
      * existing users keep their read-along behavior; flipping to false
@@ -726,6 +854,60 @@ class ReaderViewModel @Inject constructor(
         _loadingPhase.value = LoadingPhase.Loading
         _bookFinished.value = false
         playback.startListening(fictionId = fictionId, chapterId = chapterId)
+    }
+
+    // ─── Issue #1229: book-search actions ─────────────────────────────────
+    fun openBookSearch() { _bookSearchOpen.value = true }
+
+    fun closeBookSearch() {
+        _bookSearchOpen.value = false
+        _bookSearchQuery.value = ""
+        _bookSearchSelected.value = 0
+    }
+
+    fun setBookSearchQuery(query: String) {
+        _bookSearchQuery.value = query
+        // A fresh query re-bases the stepper at the first result.
+        _bookSearchSelected.value = 0
+    }
+
+    /** Step the result selection forward / back with wraparound, reusing the
+     *  #998 cycling math so an empty list is a safe no-op. */
+    fun selectNextResult() {
+        val count = bookSearch.value.results.size
+        if (count > 0) {
+            _bookSearchSelected.value = nextMatchIndex(bookSearch.value.selectedIndex, count)
+        }
+    }
+
+    fun selectPreviousResult() {
+        val count = bookSearch.value.results.size
+        if (count > 0) {
+            _bookSearchSelected.value = prevMatchIndex(bookSearch.value.selectedIndex, count)
+        }
+    }
+
+    /**
+     * Navigate to a search result: load its chapter at the first match's char
+     * offset and land on the reader (text) pane so the hit is visible — the
+     * existing auto-scroll (#946/#919) settles the seeked sentence into view.
+     * We deliberately don't auto-play: the user asked to *find* a passage, not
+     * to start narration there; they can press play. Closes the overlay; a
+     * blank-id window (cold-load) drops the tap rather than firing a malformed
+     * load.
+     */
+    fun openBookSearchResult(result: BookSearchResult) {
+        val fictionId = uiState.value.playback?.fictionId ?: return
+        closeBookSearch()
+        _loadingPhase.value = LoadingPhase.Loading
+        _bookFinished.value = false
+        _activePane.value = ReaderView.Reader
+        playback.startListening(
+            fictionId = fictionId,
+            chapterId = result.chapterId,
+            charOffset = result.matchOffset,
+            autoPlay = false,
+        )
     }
     fun nextSentence() = playback.nextSentence()
     fun previousSentence() = playback.previousSentence()

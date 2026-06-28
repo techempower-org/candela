@@ -101,6 +101,8 @@ fun HybridReaderScreen(
     val wordHighlightArgb by viewModel.wordHighlightArgb.collectAsStateWithLifecycle()
     // Issue #999 phase 2 — the loaded chapter's saved highlights.
     val chapterHighlights by viewModel.chapterHighlights.collectAsStateWithLifecycle()
+    // Issue #1229 — whole-book ("find in book") search overlay state.
+    val bookSearch by viewModel.bookSearch.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -295,6 +297,9 @@ fun HybridReaderScreen(
                 onOpenLibrary = {
                     playbackState.fictionId?.let { onOpenLibrary(it) }
                 },
+                // Issue #1229 — top-bar magnifying glass opens the whole-book
+                // search overlay (rendered below, over both panes).
+                onOpenSearch = viewModel::openBookSearch,
                 // Issue #1016 — the visible "Read along" chip flips the
                 // shell to the reader pane exactly as the rightward swipe
                 // does. setActivePane feeds HybridReaderShell's
@@ -382,6 +387,19 @@ fun HybridReaderScreen(
                 onDeleteHighlight = viewModel::deleteHighlight,
             )
         },
+    )
+
+    // Issue #1229 — whole-book search overlay. Floats over whichever reader
+    // pane is active; rendered above the shell but below the recap/debug
+    // surfaces so those still win if they happen to coincide. Self-gated by
+    // `bookSearch.open` (renders unconditionally so the entrance/exit animate).
+    BookSearchOverlay(
+        state = bookSearch,
+        onQueryChange = viewModel::setBookSearchQuery,
+        onPrev = viewModel::selectPreviousResult,
+        onNext = viewModel::selectNextResult,
+        onResultClick = viewModel::openBookSearchResult,
+        onClose = viewModel::closeBookSearch,
     )
 
     // Recap modal — overlays everything when not Hidden. Driven by

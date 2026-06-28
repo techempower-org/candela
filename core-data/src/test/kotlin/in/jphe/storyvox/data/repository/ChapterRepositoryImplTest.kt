@@ -242,6 +242,28 @@ class ChapterRepositoryImplTest {
             )
         }
 
+        // Issue #1229 — mirror the production LIKE query: downloaded chapters
+        // of the fiction whose body contains the (ASCII-case-insensitive)
+        // needle, in reading order, capped at [limit].
+        override suspend fun searchChapters(
+            fictionId: String,
+            query: String,
+            limit: Int,
+        ): List<`in`.jphe.storyvox.data.db.dao.ChapterSearchRow> {
+            callLog += "searchChapters($fictionId, $query, $limit)"
+            return rows.values
+                .filter { it.fictionId == fictionId && !it.plainBody.isNullOrEmpty() }
+                .filter { it.plainBody!!.contains(query, ignoreCase = true) }
+                .sortedBy { it.index }
+                .take(limit)
+                .map {
+                    `in`.jphe.storyvox.data.db.dao.ChapterSearchRow(
+                        id = it.id, index = it.index, title = it.title,
+                        plainBody = it.plainBody!!,
+                    )
+                }
+        }
+
         // Issue #121 — bookmark read/write. Reflect the underlying rows
         // so getBookmark stays consistent after setBookmark; matches the
         // SQL update + select pair on the real DAO.
@@ -623,5 +645,53 @@ class ChapterRepositoryImplTest {
 
         dao.previousChapterIdResult = null
         assertNull(r.getPreviousChapterId("c-first"))
+    }
+
+    // -- searchChapterBodies (#1229) -------------------------------------------
+
+    @Test fun `searchChapterBodies returns matching downloaded chapters in index order`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, plainBody = "the dragon sleeps"))
+        dao.upsert(chapter("c1", index = 1, plainBody = "nothing here"))
+        dao.upsert(chapter("c2", index = 2, plainBody = "a DRAGON wakes"))
+
+        val hits = r.searchChapterBodies("f1", "dragon")
+        assertEquals(listOf("c0", "c2"), hits.map { it.id })
+        assertEquals(listOf(0, 2), hits.map { it.index })
+        assertEquals("the dragon sleeps", hits.first().plainBody)
+    }
+
+    @Test fun `searchChapterBodies is case-insensitive`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, plainBody = "The Sword of Aeons"))
+        assertEquals(listOf("c0"), r.searchChapterBodies("f1", "SWORD").map { it.id })
+    }
+
+    @Test fun `searchChapterBodies excludes chapters with no body`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, plainBody = null))
+        dao.upsert(chapter("c1", index = 1, plainBody = ""))
+        assertTrue(r.searchChapterBodies("f1", "anything").isEmpty())
+    }
+
+    @Test fun `searchChapterBodies blank query short-circuits without touching DAO`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, plainBody = "body"))
+        assertTrue(r.searchChapterBodies("f1", "   ").isEmpty())
+        assertTrue(dao.callLog.none { it.startsWith("searchChapters(") })
+    }
+
+    @Test fun `searchChapterBodies trims the needle before querying`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, plainBody = "find the relic"))
+        assertEquals(listOf("c0"), r.searchChapterBodies("f1", "  relic  ").map { it.id })
+        assertTrue(dao.callLog.any { it == "searchChapters(f1, relic, $DEFAULT_BOOK_SEARCH_LIMIT)" })
+    }
+
+    @Test fun `searchChapterBodies honours the limit`() = runTest {
+        val (r, dao, _) = repo()
+        repeat(5) { dao.upsert(chapter("c$it", index = it, plainBody = "echo $it")) }
+        val hits = r.searchChapterBodies("f1", "echo", limit = 3)
+        assertEquals(listOf("c0", "c1", "c2"), hits.map { it.id })
     }
 }
