@@ -15,6 +15,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test-compile:
+    name: Test Compile
+    runs-on: [self-hosted, linux, android]
+    timeout-minutes: 30
+    if: github.event_name == 'pull_request'
+    env:
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+      ANDROID_HOME: /home/jp/Android/Sdk
+      ANDROID_SDK_ROOT: /home/jp/Android/Sdk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Materialize local.properties from runner-persistent location
+        run: |
+          if [ -f /home/jp/Projects/storyvox/local.properties ]; then
+            cp /home/jp/Projects/storyvox/local.properties ./local.properties
+          fi
+
+      - name: Compile test sources
+        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew compileDebugUnitTestKotlin --no-daemon --stacktrace
+
   build:
     # Job key + name kept verbatim ("build" / "Build APK") so the
     # workflow's required-status-check context on `main` flips to a
