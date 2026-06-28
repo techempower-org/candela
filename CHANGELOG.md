@@ -9,6 +9,30 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.2.5] -- 2026-06-28
+
+Supertonic voices load without crashing.
+
+### Fixed
+
+- **Supertonic XNNPACK crash.** The int8 ONNX graphs trigger a SIGSEGV inside XNNPACK on ARM64 during session creation. Native crashes bypass Java's try/catch provider fallback, killing the process before the CPU retry can run. Switched Supertonic to CPU-only provider (VoxSherpa-TTS v2.10.0). (#1236)
+
+## [1.2.4] -- 2026-06-28
+
+Supertonic 3 model files hosted and downloadable.
+
+### Fixed
+
+- **Supertonic model hosting.** Extracted the 7 model files from the upstream sherpa-onnx tar.bz2 and uploaded them as flat assets to VoxSherpa-TTS `supertonic-v1` release. Updated the progress bar size estimate from 60 MB placeholder to the actual 139 MB. (#1236)
+
+## [1.2.3] -- 2026-06-27
+
+Supertonic 3 voices are now visible in the voice catalog.
+
+### Fixed
+
+- **Supertonic 3 voices enabled.** The `SUPERTONIC_ENABLED` gate was never flipped when the engine landed in v1.2.0 — Supertonic voices now appear in Settings > Voices. (#1236 / #1237)
+
 ## [1.2.2] -- 2026-06-27
 
 Hotfix: radio and LibriVox no longer show a false "Paused for a call" panel while audio is playing.
