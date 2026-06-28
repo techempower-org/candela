@@ -41,12 +41,24 @@ internal class Ao3RateLimitInterceptor @Inject constructor() : Interceptor {
 
     private val lock = Any()
 
-    @Volatile
+    /**
+     * Monotonic-clock millis ([System.nanoTime] / 1_000_000) of the last
+     * request's start. Guarded by [lock]; no `@Volatile` is needed because
+     * every read and write happens inside the `synchronized` block.
+     */
     private var lastRequestAt: Long = 0L
 
     override fun intercept(chain: Interceptor.Chain): Response {
         synchronized(lock) {
-            val now = System.currentTimeMillis()
+            // Monotonic clock (issue #1219): System.nanoTime() is immune to
+            // wall-clock jumps (NTP steps, manual time changes). With a
+            // non-monotonic source — the old System.currentTimeMillis() — a
+            // backward adjustment could make `wait` enormous and freeze this
+            // dispatcher thread inside Thread.sleep. Only deltas between
+            // nanoTime() reads are meaningful, so we keep the field in millis
+            // and the sleep math unchanged. Monotonicity also structurally
+            // bounds `wait` to at most MIN_REQUEST_INTERVAL_MS.
+            val now = System.nanoTime() / 1_000_000
             val wait = (lastRequestAt + MIN_REQUEST_INTERVAL_MS) - now
             if (wait > 0) {
                 try {
@@ -57,7 +69,7 @@ internal class Ao3RateLimitInterceptor @Inject constructor() : Interceptor {
                     Thread.currentThread().interrupt()
                 }
             }
-            lastRequestAt = System.currentTimeMillis()
+            lastRequestAt = System.nanoTime() / 1_000_000
         }
         return chain.proceed(chain.request())
     }
