@@ -319,6 +319,38 @@ internal fun crossedThermalModerateBoundary(prev: Int, status: Int): Boolean =
         status < ThermalMonitor.THERMAL_STATUS_MODERATE)
 
 /**
+ * Issue #1311 — did playback reach a "natural end" having produced ZERO
+ * audio chunks?
+ *
+ * The producer ([in.jphe.storyvox.playback.tts.source.EngineStreamingSource])
+ * sets `producedAllSentences = true` once it has *walked* every sentence —
+ * but it `?: continue`s past any sentence whose `generateAudioPCM` returns
+ * null (engine not loaded, synth failure), enqueueing no chunk for it. If
+ * EVERY sentence comes back null the producer still flips that flag and
+ * pushes END_PILL, so the consumer reads `naturalEnd = producedAllSentences
+ * = true` having dequeued no chunks. Pre-#1311 that drove handleChapterDone
+ * → advanceChapter and the chapter was SILENTLY SKIPPED — the same
+ * user-visible failure class as #1262, but originating in synthesis rather
+ * than the buffering watchdog.
+ *
+ * [chunksEmitted] is the consumer's running count of non-null chunks
+ * dequeued for the chapter; zero at a natural end means "the chapter
+ * produced no audio at all," so the caller surfaces a retryable error
+ * instead of advancing.
+ *
+ * This is the empty-*PCM* sibling of the #442 empty-*sentence* guard (which
+ * fires before the pipeline starts, when the chunker yields 0 sentences);
+ * this fires after, when sentences existed but none synthesised to audio.
+ *
+ * Extracted as a top-level function so the rule can be exercised in a pure
+ * unit test (EnginePlayerSilentChapterTest) without standing up the full
+ * EnginePlayer + Hilt + sherpa-onnx graph — same constraint that gates
+ * [shouldAutoPlayAfterAdvance] / [shouldCheckpointPosition].
+ */
+internal fun isSilentNaturalEnd(naturalEnd: Boolean, chunksEmitted: Int): Boolean =
+    naturalEnd && chunksEmitted == 0
+
+/**
  * Issue #189 — playback state for the one-shot recap-aloud TTS pipeline.
  * Distinct from [PlaybackState] because the recap is a transient utterance
  * with its own AudioTrack; conflating the two would force every chapter
@@ -3092,6 +3124,12 @@ class EnginePlayer @AssistedInject constructor(
         consumerThread = Thread({
             AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
             var naturalEnd = false
+            // Issue #1311 — count non-null chunks dequeued this chapter.
+            // A natural end (producedAllSentences) reached with zero chunks
+            // means every sentence's synth returned null and the chapter is
+            // silent; surface an error rather than silently auto-advancing
+            // past it (see [isSilentNaturalEnd] + the finally below).
+            var chunksProduced = 0
             var firstSentence = true
             // Track AudioTrack pause state so the buffer-low check below can
             // toggle play/pause without thrashing JNI on every iteration.
@@ -3212,6 +3250,11 @@ class EnginePlayer @AssistedInject constructor(
                         break
                     }
                     val chunk = chunkOrNull
+                    // #1311 — a non-null chunk means the producer emitted
+                    // real synth output (null PCM is `?: continue`'d in the
+                    // producer and never enqueued), so this chapter is not
+                    // silent. Counted for the silent-chapter guard below.
+                    chunksProduced++
 
                     // Surface the new sentence range BEFORE writing. Fire-
                     // and-forget on Main — withContext would force this
@@ -3591,6 +3634,51 @@ class EnginePlayer @AssistedInject constructor(
                     }
                 }
             } finally {
+                // Issue #1311 — silent-chapter guard, checked BEFORE the
+                // natural-end fanout below. The producer can report
+                // producedAllSentences=true having emitted ZERO audio chunks:
+                // every sentence's generateAudioPCM returned null (engine not
+                // loaded / synth failure) so the producer loop `?: continue`'d
+                // past all of them. `naturalEnd` was then set from that flag,
+                // and the #573 block below would dispatch handleChapterDone →
+                // advanceChapter, SILENTLY SKIPPING the chapter (same
+                // user-visible failure as #1262's hourglass skip, but from
+                // synthesis rather than the buffering watchdog). Surface a
+                // retryable typed error and do NOT advance, so the chapter is
+                // never silently lost. Mirror of the #442 empty-sentence guard
+                // (which fires before the pipeline starts); this catches the
+                // empty-PCM case after it.
+                if (isSilentNaturalEnd(naturalEnd, chunksProduced)) {
+                    android.util.Log.w(
+                        "EnginePlayer",
+                        "#1311 silent chapter: producedAllSentences=true but 0 audio " +
+                            "chunks emitted for ${sentences.size} sentence(s) — surfacing a " +
+                            "retryable error instead of auto-advancing (pre-#1311 this " +
+                            "silently skipped the chapter). Likely the engine wasn't loaded " +
+                            "or synth returned null for every sentence.",
+                    )
+                    // Do NOT finalizeCache(): an empty render must not write an
+                    // .idx.json sidecar — that would poison the entry into a
+                    // permanent silent-but-"complete" cache hit (the #1128
+                    // class of bug). Leaving only the partial .meta.json keeps
+                    // the next play a clean MISS that re-renders from scratch.
+                    runCatching { track.flush() }
+                    runCatching { track.release() }
+                    scope.launch {
+                        _observableState.update {
+                            it.copy(
+                                isPlaying = false,
+                                isBuffering = false,
+                                error = PlaybackError.ChapterFetchFailed(
+                                    "This chapter couldn't be read aloud — no audio was " +
+                                        "produced. Tap retry, or skip to the next chapter.",
+                                ),
+                            )
+                        }
+                        invalidateState()
+                    }
+                    return@Thread
+                }
                 // #573 — Gapless: fire the natural-end fanout FIRST,
                 // BEFORE we tear the AudioTrack down. Pre-fix the
                 // order was:
