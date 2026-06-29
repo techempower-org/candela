@@ -21,6 +21,7 @@ import `in`.jphe.storyvox.data.db.dao.AnnotationDao
 import `in`.jphe.storyvox.data.db.dao.AuthDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterHistoryDao
+import `in`.jphe.storyvox.data.db.dao.CharacterVoiceDao
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.FictionMemoryDao
 import `in`.jphe.storyvox.data.db.dao.FictionShelfDao
@@ -128,6 +129,8 @@ object DataModule {
     // Issue #999 — highlights + notes. Consumed by AnnotationsSyncer,
     // ExportAnnotationsUseCase, and AnnotationRepository.
     @Provides fun annotationDao(db: StoryvoxDatabase): AnnotationDao = db.annotationDao()
+    // Issue #1283 — per-character voice assignment map.
+    @Provides fun characterVoiceDao(db: StoryvoxDatabase): CharacterVoiceDao = db.characterVoiceDao()
     // Issue #1235 — read-only aggregate DAO for the listening-stats dashboard.
     @Provides fun listeningStatsDao(db: StoryvoxDatabase): ListeningStatsDao = db.listeningStatsDao()
 

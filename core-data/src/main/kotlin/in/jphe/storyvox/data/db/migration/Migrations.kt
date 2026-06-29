@@ -494,6 +494,30 @@ val MIGRATION_15_16: Migration = object : Migration(15, 16) {
     }
 }
 
+/**
+ * v17 — issue #1283: per-character voice assignment. Adds the
+ * `character_voice` junction table (one row per `(fictionId, characterName)`
+ * → `voiceId`). Purely additive new table; no existing table or row is
+ * touched. FK CASCADE to `fiction` so purging a book drops its mappings.
+ *
+ * DDL must match Room's generated schema for [CharacterVoice] exactly
+ * (column order, the composite PRIMARY KEY, and the FK clause) or Room's
+ * startup identity-hash check rejects the migration.
+ */
+val MIGRATION_16_17: Migration = object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `character_voice` (" +
+                "`fictionId` TEXT NOT NULL, " +
+                "`characterName` TEXT NOT NULL, " +
+                "`voiceId` TEXT NOT NULL, " +
+                "PRIMARY KEY(`fictionId`, `characterName`), " +
+                "FOREIGN KEY(`fictionId`) REFERENCES `fiction`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -510,4 +534,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_13_14,
     MIGRATION_14_15,
     MIGRATION_15_16,
+    MIGRATION_16_17,
 )
