@@ -38,6 +38,13 @@ data class PlaybackState(
      * & Playback pitch slider) read this flag through PlaybackController.
      */
     val isLiveAudioChapter: Boolean = false,
+    /** Issue #1308 — teleprompter state mirrored from `TeleprompterController`
+     *  so the Wear remote can reflect it. Populated by `PhoneWearBridge` at
+     *  publish time; the controller stays the source of truth. Defaults keep
+     *  older watch builds + the non-teleprompter sync path unaffected. */
+    val teleprompterEnabled: Boolean = false,
+    val teleprompterPlaying: Boolean = false,
+    val teleprompterWpm: Int = 0,
 )
 
 @Serializable

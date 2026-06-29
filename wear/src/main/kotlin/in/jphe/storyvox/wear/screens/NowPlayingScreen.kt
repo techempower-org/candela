@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.wear.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +67,10 @@ import kotlinx.coroutines.launch
  * MessageClient. This PR is pure UI polish per the #192 spec.
  */
 @Composable
-fun NowPlayingScreen(bridge: WearPlaybackBridge) {
+fun NowPlayingScreen(
+    bridge: WearPlaybackBridge,
+    onOpenTeleprompter: () -> Unit = {},
+) {
     val state by bridge.state.collectAsStateWithLifecycle()
     val connected by bridge.connected.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -90,6 +94,7 @@ fun NowPlayingScreen(bridge: WearPlaybackBridge) {
         onSkipForward = { scope.launch { bridge.send(PhoneWearBridge.CMD_SKIP_FWD) } },
         // #1031 — tap the ring to scrub; duration comes from the synced state.
         onScrub = { fraction -> scope.launch { bridge.sendSeek(fraction, state.durationEstimateMs) } },
+        onOpenTeleprompter = onOpenTeleprompter,
     )
 }
 
@@ -105,6 +110,7 @@ internal fun NowPlayingContent(
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     onScrub: ((fraction: Float) -> Unit)? = null,
+    onOpenTeleprompter: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val isRound = configuration.isScreenRound
@@ -138,6 +144,21 @@ internal fun NowPlayingContent(
                     onPlayPause = onPlayPause,
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
+                )
+            }
+            // #1308 — entry to the teleprompter remote (a separate surface).
+            // Bottom-edge label so it doesn't crowd the transport controls;
+            // only offered when a phone is reachable.
+            if (connected) {
+                Text(
+                    text = "Teleprompter",
+                    color = BrassPrimary,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.caption2,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 2.dp)
+                        .clickable(onClick = onOpenTeleprompter),
                 )
             }
         }
