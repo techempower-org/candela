@@ -91,7 +91,9 @@ fun OssLicensesScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = spacing.xxs)
-                            .clickable { runCatching { uriHandler.openUri(sourceUrl) } }
+                            .clickable(
+                                onClickLabel = stringResource(R.string.oss_open_license_page),
+                            ) { runCatching { uriHandler.openUri(sourceUrl) } }
                             .semantics { contentDescription = sourceLabel },
                     )
                 }

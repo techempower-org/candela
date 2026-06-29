@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.text.KeyboardOptions
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
@@ -162,10 +164,9 @@ private fun ComposePhase(
     onCreate: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Text("Make your own audiobook", style = MaterialTheme.typography.titleLarge)
+    Text(stringResource(R.string.create_audiobook_heading), style = MaterialTheme.typography.titleLarge)
     Text(
-        "Paste or type your text, pick a voice, and Candela narrates it into a " +
-            "chaptered audiobook you can keep and share — all offline, no account.",
+        stringResource(R.string.create_audiobook_intro),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -173,7 +174,7 @@ private fun ComposePhase(
     OutlinedTextField(
         value = title,
         onValueChange = onTitle,
-        label = { Text("Title") },
+        label = { Text(stringResource(R.string.create_audiobook_field_title)) },
         singleLine = true,
         enabled = !isStarting,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
@@ -182,7 +183,7 @@ private fun ComposePhase(
     OutlinedTextField(
         value = author,
         onValueChange = onAuthor,
-        label = { Text("Author (optional)") },
+        label = { Text(stringResource(R.string.create_audiobook_field_author)) },
         singleLine = true,
         enabled = !isStarting,
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
@@ -191,8 +192,8 @@ private fun ComposePhase(
     OutlinedTextField(
         value = text,
         onValueChange = onText,
-        label = { Text("Your text") },
-        placeholder = { Text("Paste a chapter, an article, a story…") },
+        label = { Text(stringResource(R.string.create_audiobook_field_text)) },
+        placeholder = { Text(stringResource(R.string.create_audiobook_text_placeholder)) },
         enabled = !isStarting,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
         modifier = Modifier
@@ -204,7 +205,7 @@ private fun ComposePhase(
         horizontalArrangement = Arrangement.End,
     ) {
         BrassButton(
-            label = "Paste from clipboard",
+            label = stringResource(R.string.create_audiobook_paste),
             onClick = onPaste,
             variant = BrassButtonVariant.Text,
             enabled = !isStarting,
@@ -212,7 +213,7 @@ private fun ComposePhase(
     }
 
     if (voices.isNotEmpty()) {
-        Text("Voice", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.create_audiobook_voice), style = MaterialTheme.typography.labelLarge)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
             items(voices, key = { it.id }) { v ->
                 AssistChip(
@@ -296,7 +297,7 @@ private fun DonePhase(
     val spacing = LocalSpacing.current
     // #1160: announce arrival at the Done phase (no tap moves focus here).
     Text(
-        "Your audiobook is ready",
+        stringResource(R.string.audiobook_ready),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
