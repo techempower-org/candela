@@ -15,23 +15,46 @@ import java.io.StringReader
  * body) — the same (title, htmlBody, plainBody) shape the rest of the source
  * layer consumes.
  *
- * Scope: each top-level `<level1>` / `<level>` becomes one chapter; its first
- * heading (`<h1>`..`<h6>` / `<hd>`) is the title and the remaining block text
- * (`<p>` + sub-headings) is the body. Book title/author come from the DTBook
- * `<head>` `dc:Title` / `dc:Creator` meta. Uses only Android's bundled
- * `XmlPullParser` (no third-party XML dep), mirroring
- * [`EpubParser`][in.jphe.storyvox.source.epub.parse.EpubParser]'s posture.
+ * ## Text capture model
  *
- * Deliberately NOT handled in this scaffold (follow-ups): DAISY 2.02
- * `ncc.html` navigation + its separate content docs, the zip package/manifest
- * walk, MathML/tables, and — critically — **Protected DAISY (PDTB)
- * decryption**, which Bookshare copyrighted downloads require and which is
- * gated on the partner relationship (see the #1002 research comment).
+ * Each top-level `<level1>` / `<level>` becomes one chapter; its first heading
+ * (`<h1>`..`<h6>` / `<hd>`) is the title. For the body we **capture all text
+ * inside the chapter** and split it into paragraphs at known **block-level**
+ * boundaries ([BLOCK_TAGS] — `p`, list items, blockquotes, verse lines, notes,
+ * table cells, …). Anything not in that set is treated as *inline*, so its text
+ * flows into the surrounding paragraph — which means an unrecognised element
+ * never silently drops content (worst case two paragraphs merge). Page-turn and
+ * note-reference markers ([SKIP_TEXT_TAGS]) are dropped so they don't interrupt
+ * narration. Uses only Android's bundled `XmlPullParser` (no third-party XML
+ * dep), mirroring [`EpubParser`][in.jphe.storyvox.source.epub.parse.EpubParser].
+ *
+ * Deliberately NOT handled in this scaffold (tracked as #1293 / partnership):
+ * DAISY 2.02 `ncc.html` navigation + its separate content docs, the zip
+ * package/manifest walk, MathML/tables-as-structure, and **Protected DAISY
+ * (PDTB) decryption** (Bookshare copyrighted downloads — gated on the #1002
+ * partnership).
  */
 object DaisyParser {
 
     private val HEADING_TAGS = setOf("h1", "h2", "h3", "h4", "h5", "h6", "hd")
     private val CHAPTER_TAGS = setOf("level1", "level")
+
+    /**
+     * Block-level elements that delimit a paragraph. Containers (list, table,
+     * linegroup, …) are included too — flushing an already-empty buffer is a
+     * no-op, so listing them is harmless and future-proofs odd nestings.
+     * Anything NOT here is treated as inline (its text flows into the current
+     * paragraph), so DTBook inline markup like `<sent>` / `<w>` / `<em>` keeps
+     * a paragraph intact instead of shattering it.
+     */
+    private val BLOCK_TAGS = setOf(
+        "p", "list", "li", "dl", "dt", "dd", "blockquote", "note", "sidebar",
+        "prodnote", "table", "tr", "td", "th", "caption", "linegroup", "line",
+        "poem", "byline", "dateline", "epigraph", "author", "div", "bridgehead",
+    ) + HEADING_TAGS
+
+    /** Elements whose text is structural, not narratable (page-turn + note markers). */
+    private val SKIP_TEXT_TAGS = setOf("pagenum", "noteref", "linenum")
 
     /** Parse a DAISY 3 DTBook XML document into a [DaisyBook]. */
     fun parseDtbook(xml: String): DaisyBook {
@@ -43,25 +66,37 @@ object DaisyParser {
             var bookAuthor: String? = null
             val chapters = mutableListOf<DaisyChapter>()
 
-            // Per-chapter accumulation.
             var chapterDepth = 0            // >0 while inside a top-level section
             var chapterId: String? = null
             var chapterTitle: String? = null
             var titleTaken = false
-            var titleBuf: StringBuilder? = null   // capturing the chapter's first heading
-            var blockBuf: StringBuilder? = null   // capturing a <p> / sub-heading block
+            var capturingTitle = false
+            val titleBuf = StringBuilder()
+            val paraBuf = StringBuilder()
             val htmlParas = mutableListOf<String>()
             val plainParas = mutableListOf<String>()
+            var skipDepth = 0               // >0 while inside a non-narratable marker
             var chapterIndex = 0
+
+            fun flushPara() {
+                val block = paraBuf.toString().collapseWhitespace()
+                if (block.isNotEmpty()) {
+                    htmlParas.add("<p>${block.escapeHtml()}</p>")
+                    plainParas.add(block)
+                }
+                paraBuf.setLength(0)
+            }
 
             fun resetChapter() {
                 chapterId = null
                 chapterTitle = null
                 titleTaken = false
-                titleBuf = null
-                blockBuf = null
+                capturingTitle = false
+                titleBuf.setLength(0)
+                paraBuf.setLength(0)
                 htmlParas.clear()
                 plainParas.clear()
+                skipDepth = 0
             }
 
             var event = parser.eventType
@@ -85,38 +120,38 @@ object DaisyParser {
                                 }
                                 chapterDepth++
                             }
-                            chapterDepth > 0 && name in HEADING_TAGS && !titleTaken ->
-                                titleBuf = StringBuilder()
-                            chapterDepth > 0 && (name == "p" || (name in HEADING_TAGS && titleTaken)) ->
-                                blockBuf = StringBuilder()
+                            chapterDepth > 0 && name in SKIP_TEXT_TAGS -> skipDepth++
+                            chapterDepth > 0 && name in HEADING_TAGS && !titleTaken -> {
+                                flushPara()                 // close any pre-heading prose
+                                capturingTitle = true
+                                titleBuf.setLength(0)
+                            }
+                            chapterDepth > 0 && name in BLOCK_TAGS -> flushPara()
                         }
                     }
 
                     XmlPullParser.TEXT -> {
-                        val text = parser.text ?: ""
-                        titleBuf?.append(text)
-                        blockBuf?.append(text)
+                        if (chapterDepth > 0 && skipDepth == 0) {
+                            val text = parser.text ?: ""
+                            if (capturingTitle) titleBuf.append(text) else paraBuf.append(text)
+                        }
                     }
 
                     XmlPullParser.END_TAG -> {
                         val name = parser.name?.lowercase()
                         when {
-                            titleBuf != null && name in HEADING_TAGS && !titleTaken -> {
-                                chapterTitle = titleBuf!!.toString().collapseWhitespace()
-                                titleBuf = null
+                            chapterDepth > 0 && name in SKIP_TEXT_TAGS && skipDepth > 0 -> skipDepth--
+                            capturingTitle && name in HEADING_TAGS -> {
+                                chapterTitle = titleBuf.toString().collapseWhitespace()
+                                capturingTitle = false
                                 titleTaken = true
+                                titleBuf.setLength(0)
                             }
-                            blockBuf != null && (name == "p" || name in HEADING_TAGS) -> {
-                                val block = blockBuf!!.toString().collapseWhitespace()
-                                if (block.isNotEmpty()) {
-                                    htmlParas.add("<p>${block.escapeHtml()}</p>")
-                                    plainParas.add(block)
-                                }
-                                blockBuf = null
-                            }
+                            chapterDepth > 0 && name in BLOCK_TAGS -> flushPara()
                             name in CHAPTER_TAGS && chapterDepth > 0 -> {
                                 chapterDepth--
                                 if (chapterDepth == 0) {
+                                    flushPara()             // final paragraph
                                     chapterIndex++
                                     val title = chapterTitle?.takeIf { it.isNotEmpty() }
                                         ?: "Section $chapterIndex"

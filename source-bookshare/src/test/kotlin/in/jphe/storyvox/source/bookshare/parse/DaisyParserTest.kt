@@ -124,4 +124,53 @@ class DaisyParserTest {
         assertEquals("5 < 6 & 7 > 6", ch.plainBody)
         assertTrue(ch.htmlBody.contains("5 &lt; 6 &amp; 7 &gt; 6"))
     }
+
+    @Test
+    fun `captures list, blockquote, and verse line text — not just p`() {
+        // Real DTBook books put narratable prose in list items, blockquotes,
+        // and verse lines, not only <p>. None of it may be dropped.
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <dtbook version="2005-3">
+              <book><bodymatter>
+                <level1 id="x">
+                  <h1>Mixed</h1>
+                  <p>Opening.</p>
+                  <list>
+                    <li>First item</li>
+                    <li>Second item</li>
+                  </list>
+                  <blockquote><p>A quoted line.</p></blockquote>
+                  <linegroup>
+                    <line>Verse one</line>
+                    <line>Verse two</line>
+                  </linegroup>
+                </level1>
+              </bodymatter></book>
+            </dtbook>
+        """.trimIndent()
+        val ch = DaisyParser.parseDtbook(xml).chapters.single()
+        assertEquals("Mixed", ch.title)
+        listOf("Opening.", "First item", "Second item", "A quoted line.", "Verse one", "Verse two")
+            .forEach { assertTrue("missing \"$it\" in: ${ch.plainBody}", ch.plainBody.contains(it)) }
+    }
+
+    @Test
+    fun `drops page numbers and note references from narrated text`() {
+        // pagenum + noteref are structural markers — narrating "42" / "1"
+        // mid-sentence would be wrong.
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <dtbook version="2005-3">
+              <book><bodymatter>
+                <level1 id="x">
+                  <h1>Title</h1>
+                  <p>Before<pagenum>42</pagenum> after<noteref idref="n1">1</noteref>.</p>
+                </level1>
+              </bodymatter></book>
+            </dtbook>
+        """.trimIndent()
+        val ch = DaisyParser.parseDtbook(xml).chapters.single()
+        assertEquals("Before after.", ch.plainBody)
+    }
 }
