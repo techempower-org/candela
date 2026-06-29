@@ -341,6 +341,35 @@ class VoiceManager @Inject constructor(
         return SupertonicEngine.MODEL_FILES.all { File(dir, it).exists() }
     }
 
+    /**
+     * Issue #1342 — true when every on-disk model file [voice]'s engine family
+     * needs is actually present. The playback engine MUST gate VoxSherpa's
+     * `loadModel` on this: the native loader (`OfflineTts.newFromFile` and its
+     * Kokoro/Kitten/Supertonic siblings) **SIGSEGVs on a missing/partial model
+     * file** rather than returning an error, so a voice whose download was
+     * interrupted — or whose files were deleted after selection — hard-crashes
+     * the app at play time. (#1342 was reported as "playing an imported EPUB
+     * crashed", but the EPUB is incidental: any text fiction loads the active
+     * voice, and the crash is a native SIGSEGV in `OfflineTts.newFromFile`.)
+     *
+     * Deliberately a *file* check, distinct from the pref-tracked installed set
+     * ([UiVoiceInfo.isInstalled] / [installedVoices]): a Piper voice stays in
+     * `INSTALLED_IDS` even after its files are removed, so the pref alone is
+     * unsafe to hand to the native loader. Azure / System TTS have no on-disk
+     * sherpa model (cloud / framework synthesis) and never reach the crashing
+     * JNI path, so they're trivially present.
+     */
+    fun modelFilesPresent(voice: UiVoiceInfo): Boolean = when (voice.engineType) {
+        is EngineType.Piper -> {
+            val dir = voiceDirFor(voice.id)
+            File(dir, "model.onnx").exists() && File(dir, "tokens.txt").exists()
+        }
+        is EngineType.Kokoro -> isKokoroSharedModelInstalled()
+        is EngineType.Kitten -> isKittenSharedModelInstalled()
+        is EngineType.Supertonic -> isSupertonicSharedModelInstalled()
+        is EngineType.Azure, is EngineType.SystemTts -> true
+    }
+
     sealed interface DownloadProgress {
         data object Resolving : DownloadProgress
         data class Downloading(val bytesRead: Long, val totalBytes: Long) : DownloadProgress
