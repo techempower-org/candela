@@ -397,6 +397,21 @@ class LibraryViewModel @Inject constructor(
     fun openInboxEvent(event: InboxEvent) {
         viewModelScope.launch {
             inboxRepo.markRead(event.id)
+            // Issue #1343 — a "new chapter" inbox event points at a chapter
+            // the user has never opened, so the global PlaybackController is
+            // NOT holding it. The reader is a passive view of the controller:
+            // navigating to /reader/{fid}/{cid} without first loading leaves
+            // it stuck on the "loading chapter" prompt forever (then the 30s
+            // timeout). FictionDetail's Play button only works because it
+            // calls startListening BEFORE navigating (FictionDetailViewModel),
+            // and `startListening` is what queues the chapter-body download +
+            // loads it into the controller. Mirror that here so the reader's
+            // loading card resolves once the body arrives.
+            val fictionId = event.fictionId
+            val chapterId = event.chapterId
+            if (fictionId != null && chapterId != null) {
+                playback.startListening(fictionId = fictionId, chapterId = chapterId)
+            }
             val link = event.deepLinkUri ?: return@launch
             _events.send(LibraryUiEvent.OpenInboxLink(link))
         }
