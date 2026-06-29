@@ -87,6 +87,12 @@ fun HybridReaderScreen(
      *  previews / tests; production callsites pass
      *  `navController.navigate(StoryvoxRoutes.fictionDetail(fId))`. */
     onOpenLibrary: (fictionId: String) -> Unit = {},
+    /** Issue #1367 — open Recording mode (camera behind the teleprompter
+     *  script) from the teleprompter transport's Record button. Wired by
+     *  [`in`.jphe.storyvox.navigation.StoryvoxNavHost] to
+     *  `navController.navigate(StoryvoxRoutes.RECORDING)`. Default no-op for
+     *  previews / tests. */
+    onOpenRecording: () -> Unit = {},
     viewModel: ReaderViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -439,6 +445,9 @@ fun HybridReaderScreen(
                 onStartVoicePaced = viewModel::startVoicePaced,
                 onStopVoicePaced = viewModel::stopVoicePaced,
                 onPrepareVoicePaced = viewModel::prepareVoicePaced,
+                // Issue #1367 — Record button in the teleprompter transport
+                // opens Recording mode (camera behind the scrolling script).
+                onRecord = onOpenRecording,
             )
         },
     )

@@ -47,6 +47,7 @@ import `in`.jphe.storyvox.feature.library.LibraryScreen
 import `in`.jphe.storyvox.feature.reader.HybridReaderScreen
 import `in`.jphe.storyvox.feature.reader.NowPlayingDock
 import `in`.jphe.storyvox.feature.reader.NowPlayingDockViewModel
+import `in`.jphe.storyvox.feature.reader.recording.RecordingScreen
 import `in`.jphe.storyvox.feature.settings.AboutSettingsScreen
 import `in`.jphe.storyvox.feature.settings.OssLicensesScreen
 import `in`.jphe.storyvox.feature.settings.AccessibilitySettingsScreen
@@ -95,6 +96,13 @@ object StoryvoxRoutes {
     const val FICTION_DETAIL = "fiction/{fictionId}"
     const val READER = "reader/{fictionId}/{chapterId}"
     const val AUDIOBOOK = "audiobook/{fictionId}/{chapterId}"
+    /** Issue #1367 — Recording mode. Films the front camera behind the
+     *  semi-transparent teleprompter script (the chapter loaded in the
+     *  reader) for YouTube Shorts / Reels / TikTok. Reached from the Record
+     *  button in the reader's teleprompter transport; no args — the script,
+     *  title, and pace are read from the shared playback / teleprompter
+     *  singletons inside [RecordingViewModel]. */
+    const val RECORDING = "recording"
     /** Issue #440 — Settings hub (section index). The gear-icon
      *  destination as of v0.5.38; previously dumped users into the
      *  flat-scroll [SETTINGS] page with no top-of-page map. Each row
@@ -743,6 +751,9 @@ private fun StoryvoxNavHostContent(
                     onOpenLibrary = { fId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fId))
                     },
+                    // Issue #1367 — Record button in the teleprompter transport
+                    // opens Recording mode (camera behind the scrolling script).
+                    onOpenRecording = { navController.navigate(StoryvoxRoutes.RECORDING) },
                 )
             }
             composable(
@@ -980,6 +991,9 @@ private fun StoryvoxNavHostContent(
                     onOpenLibrary = { fId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fId))
                     },
+                    // Issue #1367 — Record button in the teleprompter transport
+                    // opens Recording mode (camera behind the scrolling script).
+                    onOpenRecording = { navController.navigate(StoryvoxRoutes.RECORDING) },
                 )
             }
 
@@ -1027,7 +1041,25 @@ private fun StoryvoxNavHostContent(
                     onOpenLibrary = { fId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fId))
                     },
+                    // Issue #1367 — Record button in the teleprompter transport
+                    // opens Recording mode (camera behind the scrolling script).
+                    onOpenRecording = { navController.navigate(StoryvoxRoutes.RECORDING) },
                 )
+            }
+
+            // Issue #1367 — Recording mode. Standalone full-screen camera +
+            // teleprompter surface; a drill-down (push) from the reader's
+            // teleprompter Record button. No args — RecordingViewModel reads
+            // the script / title / pace from the shared playback +
+            // teleprompter singletons.
+            composable(
+                StoryvoxRoutes.RECORDING,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                RecordingScreen(onBack = { navController.popBackStack() })
             }
 
             composable(

@@ -40,13 +40,14 @@
         android:name="android.hardware.camera.autofocus"
         android:required="false" />
 
-    <!-- Issue #1368 — voice-paced teleprompter. RECORD_AUDIO is requested at
-         runtime when the reader picks the Voice follow mode, with a rationale
-         before the system prompt; a denied mic falls back to the manual-WPM
-         teleprompter (no dead-end). The microphone feature is OPTIONAL so a
-         device without a mic still installs and uses the other follow modes —
-         same required="false" posture as the camera above. -->
+    <!-- Issue #1368 — voice-paced teleprompter + Issue #1367 — Recording mode.
+         RECORD_AUDIO is requested at runtime for both voice-paced scroll (mic STT)
+         and recording mode (camera audio capture). WRITE_EXTERNAL_STORAGE is
+         scoped to API ≤28 for CameraX MediaStore output on legacy devices. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="false" />
