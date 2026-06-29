@@ -960,6 +960,14 @@ class EnginePlayer @AssistedInject constructor(
      * text, no Kokoro voice for that language — collapses to
      * [primarySpeakerId], which is #1233's graceful fallback.
      *
+     * Issue #1263 — the Kokoro handle now calls this **unconditionally**
+     * before every synth (not only when auto-detect is on) to re-assert the
+     * active speaker against a background [`in`.jphe.storyvox.playback.cache.ChapterRenderJob]
+     * mutating the shared `KokoroEngine` singleton. That makes the
+     * "auto-detect off ⇒ return [primarySpeakerId]" guard load-bearing, not a
+     * mere optimization: it must keep returning the primary speaker when the
+     * feature is off, or the leak-guard re-assertion would itself mis-route.
+     *
      * Called on the producer thread inside the engine mutex (see
      * [activeVoiceEngineHandle]): pure reads plus a deterministic router,
      * so it is cheap and thread-safe there. Determinism matters — the PCM
@@ -3694,20 +3702,30 @@ class EnginePlayer @AssistedInject constructor(
                     AndroidProcess.setThreadPriority(producerPriority())
                     return when (engineType) {
                         is EngineType.Kokoro -> {
-                            // Issue #1233 — per-sentence language routing.
-                            // No-op unless the listener enabled auto-detect.
-                            // setActiveSpeakerId is reload-free across Kokoro's
-                            // one shared model, and this runs inside the
-                            // producer's engineMutex lock — the sole writer of
-                            // the active speaker on the serial path (parallel
-                            // secondaries are forced off when routing is on; see
-                            // effectiveSecondaryHandles), so there's no speaker-id
-                            // race against a concurrent synth.
-                            if (cachedAutoLanguageDetection) {
-                                KokoroEngine.getInstance().setActiveSpeakerId(
-                                    routeKokoroSpeaker(text, engineType.speakerId),
-                                )
-                            }
+                            // Issue #1263 — KokoroEngine is a process-wide
+                            // singleton, so a background ChapterRenderJob
+                            // (prerender) that calls setActiveSpeakerId on it for
+                            // a different voice (ChapterRenderJob.loadModel) can
+                            // leak that speaker into foreground playback between
+                            // our sentences. So re-assert OUR speaker before
+                            // EVERY synth, unconditionally — not only when
+                            // auto-language routing is on (#1233).
+                            //
+                            // routeKokoroSpeaker returns the primary speaker
+                            // (engineType.speakerId) when auto-detect is off, so
+                            // this one call serves both the plain path and the
+                            // per-sentence language-routing path. The set + the
+                            // generate below are atomic under the producer's
+                            // engineMutex.withLock — both on the serial path and
+                            // on the useEngineMutex=true primary parallel worker —
+                            // and ChapterRenderJob serializes on the same
+                            // engineMutex, so no background swap can land between
+                            // them. setActiveSpeakerId is a reload-free index flip
+                            // across Kokoro's one shared model, so re-asserting
+                            // per sentence is cheap.
+                            KokoroEngine.getInstance().setActiveSpeakerId(
+                                routeKokoroSpeaker(text, engineType.speakerId),
+                            )
                             KokoroEngine.getInstance().generateAudioPCM(text, speed, pitch)
                         }
                         // Issue #119 — Kitten dispatch.
