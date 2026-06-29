@@ -9,6 +9,24 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.5.0] -- 2026-06-29
+
+**Teleprompter studio + source discovery.** Recording mode, voice-paced scroll, AI script writer, script manager, source catalog, onboarding source picker, voice engine plugin architecture, and KSP-generated plugin routing.
+
+### Added
+
+- Recording mode: full-screen front-camera preview behind the semi-transparent teleprompter with countdown, live timer, opacity slider, camera flip, mirror mode, speaker colour-coding, and eye-line chevrons. Saves 9:16 MP4 to gallery. (#1367)
+- Voice-paced teleprompter: mic-driven scroll via sherpa-onnx streaming ASR — speak and the text follows. Three-way Auto/Practice/Voice mode selector. Falls back to auto-scroll when mic is denied or model unavailable. (#1368)
+- AI script writer: generate teleprompter scripts from chapter content via LLM, with TechEmpower Show format support (speaker labels, production cues, section banners). (#1366)
+- Script manager: save, edit, organize, duplicate, and delete teleprompter scripts. Room DB v18 entity with duration/word-count estimation and show-format parsing. (#1369)
+- Source catalog browser: full-screen shelf-style card grid of all 25 sources, grouped by category, searchable, with inline enable/disable switches. (#1365)
+- Onboarding source picker: new step between voice picker and first fiction, registry-driven card list grouped into 5 friendly buckets. (#1370)
+
+### Changed
+
+- Voice engine plugin interface: extracted `VoiceEnginePlugin` with 6 engine implementations (Piper, Kokoro, Kitten, Supertonic, Azure, SystemTts), `VoiceEngineRegistry` via Hilt `@IntoMap`, migrated AudiobookSynthesizer and ChapterRenderJob. (#1372)
+- KSP source plugin processor now generates both `@IntoSet` descriptor bindings and `@IntoMap` routing bindings from a single `@SourcePlugin` annotation. (#1371)
+
 ## [1.4.6] -- 2026-06-29
 
 **Play Store readiness.** Warm-up progress bar fix, deprecated API cleanup, and listing copy finalized for first Play Store submission.
