@@ -63,13 +63,28 @@ class ForcedAlignerTest {
 
     @Test
     fun `re-syncs to a far-ahead word after a run of misses`() {
-        val a = aligner()
-        a.onWord("the") // cursor 0
+        // Narrow window so the re-sync target is genuinely out of range
+        // (the production default ~30 would cover this short text in-window).
+        val a = ForcedAligner(text, windowAhead = 4)
+        a.onWord("the") // cursor 0; window covers tokens 0..4
         a.onWord("zzz1"); a.onWord("zzz2"); a.onWord("zzz3") // 3 misses
-        // "river" (token 11) is beyond the normal look-ahead window; the
-        // 4th miss triggers the wide re-sync sweep, which finds it.
+        // "river" (token 11) is beyond the window; the 4th miss triggers the
+        // wide re-sync sweep, which finds it.
         a.onWord("river")
         assertEquals(11, a.matchedTokenIndex)
+    }
+
+    @Test
+    fun `low-confidence words are held (cough or aside), not matched`() {
+        val a = aligner()
+        a.onWord("the"); a.onWord("quick")
+        val held = a.matchedTokenIndex
+        // The next real word arrives low-confidence (cough mid-sentence) — hold.
+        a.onWord("brown", confidence = 0.2f)
+        assertEquals(held, a.matchedTokenIndex)
+        // A subsequent confident hit advances normally (no drift was recorded).
+        a.onWord("brown", confidence = 0.95f)
+        assertEquals(2, a.matchedTokenIndex)
     }
 
     @Test

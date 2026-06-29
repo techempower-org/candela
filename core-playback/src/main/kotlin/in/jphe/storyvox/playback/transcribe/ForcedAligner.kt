@@ -23,14 +23,21 @@ package `in`.jphe.storyvox.playback.transcribe
  */
 class ForcedAligner(
     chapterText: String,
-    /** Tokens ahead of the cursor to consider — covers skipped words. */
-    private val windowAhead: Int = 8,
-    /** Tokens behind the cursor — tolerates a re-spoken / repeated word. */
-    private val windowBehind: Int = 2,
+    /** Tokens ahead of the cursor to consider — covers skipped words.
+     *  ~30 per Lucid's #1291 forced-alignment research (20–40-word window,
+     *  matching the hotword-bias span of the upcoming reference text). */
+    private val windowAhead: Int = 30,
+    /** Tokens behind the cursor — tolerates a re-spoken word / short re-read. */
+    private val windowBehind: Int = 4,
     /** Max edit-distance / max-length for a word to count as a match. */
     private val maxNormalizedDistance: Float = 0.34f,
     /** Consecutive misses before a wider re-sync sweep kicks in. */
     private val resyncAfterMisses: Int = 4,
+    /** Recognizer confidence below which a word is held, not matched (#1291,
+     *  Lucid finding #4): coughs / "umm"s / asides arrive low-confidence and
+     *  should freeze the scroll rather than advance or count as drift.
+     *  sherpa-onnx exposes per-token vocab log-probs to feed this. */
+    private val minWordConfidence: Float = 0.5f,
 ) {
     private val tokens: List<TextToken> = tokenizeWords(chapterText)
 
@@ -53,8 +60,12 @@ class ForcedAligner(
      * Feed one recognized word. Advances the cursor to the best in-window
      * match (or re-syncs / holds), and returns the resulting [positionChar].
      */
-    fun onWord(recognized: String): Int {
+    fun onWord(recognized: String, confidence: Float = 1f): Int {
         if (tokens.isEmpty()) return 0
+        // #1291 (Lucid finding #4) — hold on a low-confidence token: a cough /
+        // "umm" / off-script aside should freeze the scroll, not advance it or
+        // count toward the drift that triggers a re-sync.
+        if (confidence < minWordConfidence) return positionChar
         val w = normalize(recognized)
         if (w.length < MIN_TOKEN_LEN) return positionChar // ignore noise / "a", "I"
 
