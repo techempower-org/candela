@@ -60,6 +60,13 @@ scratch/
 # See issue #696.
 source-kvmr/
 
+# Python (scripts/wiki tooling)
+__pycache__/
+*.pyc
+
+# Profiling
+*.hprof
+
 # Misc
 *.bak
 *.swp
