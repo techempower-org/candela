@@ -92,8 +92,21 @@ interface FictionRepository {
         sourceId: String = SourceIds.ROYAL_ROAD,
     ): FictionResult<List<String>>
 
-    /** Force a detail-page refresh, upserting the cached row. */
-    suspend fun refreshDetail(id: String): FictionResult<Unit>
+    /**
+     * Force a detail-page refresh, upserting the cached row.
+     *
+     * Issue #1314 — stale-while-revalidate TTL guard. With [force] = false
+     * (the default, used by the auto first-subscription refresh in
+     * `fictionById`) the network fetch is skipped when the cached row was
+     * hydrated within the TTL window — a rapid re-open of a just-viewed
+     * fiction reads straight from Room instead of re-hitting the source.
+     * [force] = true bypasses the TTL for deliberate refreshes: the manual
+     * Retry button (`retryDetail`), the new-chapter poll worker, and the
+     * metadata back-fill worker all must fetch regardless of cache age.
+     * Placeholder rows (`metadataFetchedAt == 0`) are always stale, so the
+     * back-fill path fetches even without [force].
+     */
+    suspend fun refreshDetail(id: String, force: Boolean = false): FictionResult<Unit>
 
     /**
      * Re-fetch the user's source-side follows list and reconcile against the
@@ -296,14 +309,29 @@ class FictionRepositoryImpl @Inject constructor(
         result: FictionResult<ListPage<FictionSummary>>,
     ): FictionResult<ListPage<FictionSummary>> = cacheListing(result)
 
-    override suspend fun refreshDetail(id: String): FictionResult<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun refreshDetail(id: String, force: Boolean): FictionResult<Unit> = withContext(Dispatchers.IO) {
         // Look up the persisted row to route to the correct source. When the
         // row is absent — the EPUB/PDF import flows navigate straight to
         // FictionDetail before any row is written (#1298) — derive the source
         // from the fictionId's `<sourceId>:` prefix; bare-id sources (Royal
         // Road) fall back to the legacy default. A successful hydrate below
         // then writes the row, so subsequent loads route off the row.
-        val src = sourceFor(fictionDao.get(id)?.sourceId ?: sourceIdForFictionId(id, sources.keys))
+        val existing = fictionDao.get(id)
+        // Issue #1314 — stale-while-revalidate TTL guard. Skip the network when
+        // the caller didn't force, we have a fully-hydrated row
+        // (metadataFetchedAt > 0 excludes #981 placeholders, which must always
+        // fetch), and that hydrate is younger than the TTL. The value flow is a
+        // Room observer on the same row, so the already-cached data keeps
+        // showing; we just avoid a redundant source round-trip on a rapid
+        // re-open. `now - fetchedAt` is robust to clock skew here — a future
+        // fetchedAt yields a negative age (< TTL) and still skips, which is the
+        // safe direction (don't hammer the source).
+        if (!force && existing != null && existing.metadataFetchedAt > 0L &&
+            System.currentTimeMillis() - existing.metadataFetchedAt < METADATA_TTL_MS
+        ) {
+            return@withContext FictionResult.Success(Unit)
+        }
+        val src = sourceFor(existing?.sourceId ?: sourceIdForFictionId(id, sources.keys))
         when (val result = src.fictionDetail(id)) {
             is FictionResult.Success -> {
                 upsertDetail(result.value)
@@ -541,6 +569,16 @@ class FictionRepositoryImpl @Inject constructor(
         const val CHOOSER_THRESHOLD: Float = 0.5f
         const val DOMINANT_GAP: Float = 0.2f
         const val MAX_FOLLOWS_PAGES: Int = 200
+
+        /**
+         * Issue #1314 — stale-while-revalidate window for [refreshDetail]. A
+         * non-forced refresh of a row hydrated within this window skips the
+         * network. Five minutes covers the "rapid re-open of a just-viewed
+         * fiction" case the guard targets without letting genuinely stale
+         * metadata linger — background workers (poll / back-fill) and the
+         * manual Retry button pass `force = true` to bypass it entirely.
+         */
+        const val METADATA_TTL_MS: Long = 5 * 60 * 1000L
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────

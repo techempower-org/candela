@@ -406,7 +406,7 @@ class RealPlaybackControllerUiTest {
         ) = result
         override suspend fun genres(sourceId: String) =
             FictionResult.Success(emptyList<String>())
-        override suspend fun refreshDetail(id: String) = FictionResult.Success(Unit)
+        override suspend fun refreshDetail(id: String, force: Boolean) = FictionResult.Success(Unit)
         override suspend fun refreshRemoteFollows() = FictionResult.Success(Unit)
         override suspend fun addToLibrary(id: String, mode: DownloadMode?) = Unit
         override suspend fun removeFromLibrary(id: String) = Unit

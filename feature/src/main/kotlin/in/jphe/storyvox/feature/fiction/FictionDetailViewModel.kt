@@ -11,6 +11,7 @@ import `in`.jphe.storyvox.data.annotation.AnnotationExportResult
 import `in`.jphe.storyvox.data.annotation.ExportAnnotationsUseCase
 import `in`.jphe.storyvox.data.db.entity.Annotation
 import `in`.jphe.storyvox.data.db.entity.FictionMemoryEntry
+import `in`.jphe.storyvox.data.network.ConnectivityObserver
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
 import `in`.jphe.storyvox.data.repository.FictionMemoryRepository
 import `in`.jphe.storyvox.data.repository.pronunciation.PronunciationDictRepository
@@ -84,6 +85,13 @@ data class FictionDetailUiState(
      *  this fiction has no high-confidence counterpart. Drives the
      *  "listen/read along" row. */
     val companion: CompanionMatch? = null,
+    /** Issue #1314 — true when the device is offline AND we have a cached
+     *  [fiction] to show. Drives the subtle "Offline — showing cached data"
+     *  banner so the user knows the metadata may be stale and a background
+     *  refresh is pending. False when online, or when there's no cache yet
+     *  (that's the genuine loading/error state, surfaced via [isLoading] /
+     *  [error] instead). */
+    val isOffline: Boolean = false,
 )
 
 /**
@@ -178,6 +186,9 @@ class FictionDetailViewModel @Inject constructor(
     private val exportAnnotations: ExportAnnotationsUseCase,
     /** Issue #1208 — cross-source audio↔text companion matcher (LibriVox↔Gutenberg). */
     private val companionResolver: CompanionResolver,
+    /** Issue #1314 — live network reachability. Folded into [uiState] so the
+     *  screen can flag "showing cached data" while offline. */
+    private val connectivity: ConnectivityObserver,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -370,6 +381,13 @@ class FictionDetailViewModel @Inject constructor(
         }
             // Issue #1208 — fold in the lazily-resolved audio↔text companion.
             .combine(companion) { state, companionMatch -> state.copy(companion = companionMatch) }
+            // Issue #1314 — fold in live connectivity. Offline + a cached row
+            // present ⇒ flag "showing cached data". Offline with no cache is the
+            // real empty/error state (isLoading/error already cover it), so we
+            // gate on state.fiction != null to avoid a misleading banner there.
+            .combine(connectivity.state) { state, conn ->
+                state.copy(isOffline = !conn.isOnline && state.fiction != null)
+            }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FictionDetailUiState())
     }
 

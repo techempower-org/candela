@@ -111,7 +111,10 @@ class NewChapterPollWorker @AssistedInject constructor(
             // chapters" instead of the one chapter that actually landed.
             val priorChapterIds = chapterDao.chapterIdsForFiction(fiction.id).toSet()
 
-            when (val result = fictionRepository.refreshDetail(fiction.id)) {
+            // #1314 — force past the TTL guard: a scheduled poll must always
+            // re-fetch to detect new chapters, even if the detail page was
+            // opened (and the row hydrated) within the TTL window.
+            when (val result = fictionRepository.refreshDetail(fiction.id, force = true)) {
                 is FictionResult.Success -> {
                     // After a successful refresh, persist whatever new
                     // revision token the source has now. We re-ask

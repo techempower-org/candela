@@ -726,7 +726,9 @@ private class RealFictionRepositoryUi(
         // call refreshDetail and update the per-id error state. The
         // value flow is already a Room observer on the same row, so a
         // successful refresh will surface automatically.
-        when (val result = repo.refreshDetail(id)) {
+        // #1314 — force past the TTL guard: an explicit Retry tap must always
+        // re-hit the source, not short-circuit on a recently-cached row.
+        when (val result = repo.refreshDetail(id, force = true)) {
             is FictionResult.Success -> errorState(id).value = null
             is FictionResult.Failure -> errorState(id).value = result.message
         }

@@ -650,6 +650,77 @@ class FictionRepositoryImplTest {
         assertEquals(3, chapterDao.rows.size)
     }
 
+    // -- #1314 stale-while-revalidate TTL guard ----------------------------------
+
+    @Test fun `refreshDetail skips the source when the cached row is fresh`() = runTest {
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(detail("99"))
+        }
+        val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        // A fully-hydrated row fetched "now" is inside the TTL window.
+        fictionDao.rows["99"] = Fiction(
+            id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Cached", author = "A",
+            firstSeenAt = 0L, metadataFetchedAt = System.currentTimeMillis(),
+        )
+
+        val result = r.refreshDetail("99")
+
+        assertTrue("fresh cache → Success without a fetch", result is FictionResult.Success)
+        assertEquals("source must not be hit for a fresh row", emptyList<String>(), src.callLog)
+    }
+
+    @Test fun `refreshDetail fetches when the cached row is stale`() = runTest {
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(detail("99"))
+        }
+        val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        // Hydrated an hour ago — well past the 5-minute TTL.
+        fictionDao.rows["99"] = Fiction(
+            id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Old", author = "A",
+            firstSeenAt = 0L, metadataFetchedAt = System.currentTimeMillis() - 60 * 60 * 1000L,
+        )
+
+        r.refreshDetail("99")
+
+        assertEquals(listOf("fictionDetail(99)"), src.callLog)
+    }
+
+    @Test fun `refreshDetail force bypasses the TTL even for a fresh row`() = runTest {
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(detail("99"))
+        }
+        val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        fictionDao.rows["99"] = Fiction(
+            id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Cached", author = "A",
+            firstSeenAt = 0L, metadataFetchedAt = System.currentTimeMillis(),
+        )
+
+        r.refreshDetail("99", force = true)
+
+        assertEquals("force must hit the source despite a fresh row", listOf("fictionDetail(99)"), src.callLog)
+    }
+
+    @Test fun `refreshDetail failure leaves the cached row intact (offline path)`() = runTest {
+        // The offline guarantee: a failed background refresh never wipes the
+        // cache, so observeFiction keeps emitting the cached row and the UI
+        // shows it (with the #1314 offline banner) instead of going blank.
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.NetworkError("offline")
+        }
+        val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        val cached = Fiction(
+            id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Cached title", author = "Author",
+            firstSeenAt = 0L, metadataFetchedAt = System.currentTimeMillis() - 60 * 60 * 1000L,
+            inLibrary = true,
+        )
+        fictionDao.rows["99"] = cached
+
+        val result = r.refreshDetail("99")
+
+        assertTrue("network failure surfaces to the caller", result is FictionResult.Failure)
+        assertEquals("cached row must survive a failed refresh", cached, fictionDao.rows["99"])
+    }
+
     @Test fun `refreshDetail success clears a stale backfill failure stamp`() = runTest {
         // #981 — a placeholder row whose previous back-fill failed carries
         // a metadataBackfillFailedAt stamp. A later successful hydrate must
