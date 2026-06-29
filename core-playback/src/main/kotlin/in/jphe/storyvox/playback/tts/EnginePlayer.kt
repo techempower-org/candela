@@ -351,6 +351,51 @@ internal fun isSilentNaturalEnd(naturalEnd: Boolean, chunksEmitted: Int): Boolea
     naturalEnd && chunksEmitted == 0
 
 /**
+ * Issue #1383 — should an [VoiceManager.activeVoice] emission tear down and
+ * rebuild the playback pipeline, or is it a spurious re-emission to ignore?
+ *
+ * `activeVoice` is `combine(prefs, azureRoster, systemTtsRoster)`, so it
+ * re-emits whenever ANY input changes — not only when the user picks a new
+ * voice. On a Samsung Z Flip3 the framework `TextToSpeech` client the
+ * system-TTS roster is built from connects/disconnects in a tight loop
+ * (#1384), so `systemTtsRoster` churns and `activeVoice` re-fires the SAME
+ * active id many times a second. [EnginePlayer.observeActiveVoice] reacted to
+ * each one with `stopPlaybackPipeline()` + `loadAndPlay()`; stopPlaybackPipeline
+ * closes the in-flight [in.jphe.storyvox.playback.tts.source.EngineStreamingSource]
+ * (cancelling its producer), so a dense churn burst cancels Piper synthesis
+ * faster than it can emit a single PCM chunk and the chapter stays silent —
+ * the #1383 "synthesis cancelled immediately after cache MISS" loop.
+ *
+ * Rebuild ONLY for a genuine change of the user-selected voice:
+ *  - [newVoiceId] == null (nothing active) → never rebuild.
+ *  - [newVoiceId] == [loadedVoiceId] → the model is already loaded; we're
+ *    already playing this voice, so re-selecting it is a no-op.
+ *  - [newVoiceId] == [lastReactedVoiceId] → a same-id re-emission, i.e. roster
+ *    churn rather than a user pick. Drop it. This guard is independent of
+ *    [loadedVoiceId], which lags a full model load behind the decision and so
+ *    can't suppress churn that arrives WHILE the first load is still in
+ *    flight — the exact window the #1383 burst exploits.
+ *
+ * A real swap (different id) always passes, so the system-TTS and Piper voice
+ * changes the user actually makes are unaffected.
+ *
+ * Extracted as a top-level function so the rule can be exercised in a pure
+ * unit test (EnginePlayerVoiceChurnTest) without standing up the full
+ * EnginePlayer + Hilt + sherpa-onnx graph — same constraint that gates
+ * [shouldAutoPlayAfterAdvance] / [crossedThermalModerateBoundary].
+ */
+internal fun shouldRebuildForVoiceChange(
+    newVoiceId: String?,
+    lastReactedVoiceId: String?,
+    loadedVoiceId: String?,
+): Boolean {
+    if (newVoiceId == null) return false
+    if (newVoiceId == loadedVoiceId) return false
+    if (newVoiceId == lastReactedVoiceId) return false
+    return true
+}
+
+/**
  * Issue #1330 — the fiction id the player should expose in [PlaybackState]
  * while a [chapter] is loaded. The chapter's [PlaybackChapter.fictionId] is
  * FK-bound to a real `fiction` row, so it's the source of truth even when the
@@ -546,6 +591,16 @@ class EnginePlayer @AssistedInject constructor(
      *  paused. The flag tells [resume] to route through [loadAndPlay] for
      *  a fresh model load instead of restarting the existing pipeline. */
     private var voiceReloadPending: Boolean = false
+
+    /** Issue #1383 — id of the last [VoiceManager.activeVoice] emission
+     *  [observeActiveVoice] acted on. The churn-dedup key for
+     *  [shouldRebuildForVoiceChange]: distinct from [loadedVoiceId] (which
+     *  only updates after a full model load completes) so a burst of same-id
+     *  re-emissions arriving WHILE the first load is in flight can't each
+     *  trigger a fresh teardown+rebuild and cancel synthesis mid-MISS. Written
+     *  and read only on the single [observeActiveVoice] collector coroutine,
+     *  so no `@Volatile` is needed. */
+    private var lastReactedVoiceId: String? = null
 
     /**
      * Issue #569 — last loaded model's parallel-synth state. Combined
@@ -1156,9 +1211,12 @@ class EnginePlayer @AssistedInject constructor(
      *  - Active voice changes before any chapter is loaded → no-op; the
      *    next [loadAndPlay] reads activeVoice itself.
      *
-     *  De-dup: we track [loadedVoiceId] so re-emissions of the same id
-     *  (e.g. after [setActive] writes the same value, or first-launch
-     *  hydration) are filtered out.
+     *  De-dup: we track [loadedVoiceId] (the voice whose model is loaded) and
+     *  [lastReactedVoiceId] (the last emission we acted on) so re-emissions of
+     *  the same id are filtered out — whether they come from [setActive]
+     *  re-writing the same value, first-launch hydration, or the system-TTS
+     *  roster churning under `activeVoice`'s `combine` (#1383/#1384). See
+     *  [shouldRebuildForVoiceChange].
      */
     private fun observeActiveVoice() {
         scope.launch {
@@ -1173,8 +1231,20 @@ class EnginePlayer @AssistedInject constructor(
                     // flag so we don't force a needless model reload (a
                     // 30 s Kokoro warm-up) on the next [resume].
                     voiceReloadPending = false
+                    lastReactedVoiceId = newId
                     return@collect
                 }
+                // #1383 — `activeVoice` re-emits on every roster change, not
+                // just user voice picks; on Samsung the system-TTS roster
+                // churns (#1384) and re-fires the same id many times a second.
+                // Reacting to a same-id re-emission tears down the in-flight
+                // pipeline and cancels Piper synthesis mid-MISS, so the chapter
+                // never gets audio. Gate on a genuine change of the selected
+                // voice — see [shouldRebuildForVoiceChange].
+                if (!shouldRebuildForVoiceChange(newId, lastReactedVoiceId, loadedVoiceId)) {
+                    return@collect
+                }
+                lastReactedVoiceId = newId
                 val s = _observableState.value
                 val fictionId = s.currentFictionId
                 val chapterId = s.currentChapterId
