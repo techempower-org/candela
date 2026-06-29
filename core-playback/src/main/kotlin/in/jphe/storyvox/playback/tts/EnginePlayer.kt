@@ -3729,11 +3729,28 @@ class EnginePlayer @AssistedInject constructor(
                             KokoroEngine.getInstance().generateAudioPCM(text, speed, pitch)
                         }
                         // Issue #119 — Kitten dispatch.
-                        is EngineType.Kitten -> KittenEngine.getInstance()
-                            .generateAudioPCM(text, speed, pitch)
+                        is EngineType.Kitten -> {
+                            // Issue #1263 — KittenEngine is also a shared-model
+                            // singleton, so re-assert our speaker before every
+                            // synth for the same reason as the Kokoro branch
+                            // above (a background ChapterRenderJob can overwrite
+                            // the active speaker between our sentences). Kitten
+                            // has no language routing, so it's always the primary
+                            // speaker. Atomic with the generate under the
+                            // producer's engineMutex; cheap reload-free index flip.
+                            KittenEngine.getInstance().setActiveSpeakerId(engineType.speakerId)
+                            KittenEngine.getInstance().generateAudioPCM(text, speed, pitch)
+                        }
                         // Issue #1114 — Supertonic dispatch.
-                        is EngineType.Supertonic -> SupertonicEngine.getInstance()
-                            .generateAudioPCM(text, speed, pitch)
+                        is EngineType.Supertonic -> {
+                            // Issue #1263 — same shared-model singleton leak guard
+                            // as the Kokoro/Kitten branches above.
+                            SupertonicEngine.getInstance().setActiveSpeakerId(engineType.speakerId)
+                            SupertonicEngine.getInstance().generateAudioPCM(text, speed, pitch)
+                        }
+                        // Piper voices are per-voice models (not a shared
+                        // multi-speaker singleton), so there's no active-speaker
+                        // state to leak — no re-assertion needed here.
                         else -> VoiceEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
                     }
