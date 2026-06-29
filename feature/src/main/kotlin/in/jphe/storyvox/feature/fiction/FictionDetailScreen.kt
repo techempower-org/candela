@@ -55,18 +55,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,6 +88,7 @@ import `in`.jphe.storyvox.ui.a11y.LocalAccessibleTouchTargets
 import `in`.jphe.storyvox.ui.a11y.accessibleSize
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
+import `in`.jphe.storyvox.ui.component.TestTags
 import `in`.jphe.storyvox.ui.component.ChapterCard
 import `in`.jphe.storyvox.ui.component.ChapterCardState
 import `in`.jphe.storyvox.ui.component.MagicCircularProgress
@@ -100,7 +104,7 @@ import `in`.jphe.storyvox.ui.layout.isAtLeastTablet
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun FictionDetailScreen(
     onOpenReader: (String, String) -> Unit,
@@ -312,6 +316,9 @@ fun FictionDetailScreen(
     // copy is intentionally compact so the dual rendering reads as
     // 'context + content' not 'duplicate'.
     Scaffold(
+        // #1333 — surface descendant testTags as uiautomator resource-ids for
+        // on-device QA. Semantics-only; no layout/behavior effect.
+        modifier = Modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             // Issue #117 — overflow menu now houses the EPUB export entry.
             // Held local-to-the-bar so the menu state doesn't survive
@@ -328,7 +335,10 @@ fun FictionDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.testTag(TestTags.FictionDetailBack),
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.fiction_detail_back),
@@ -381,7 +391,10 @@ fun FictionDetailScreen(
                                 Text(stringResource(R.string.fiction_building_epub), style = MaterialTheme.typography.labelSmall)
                             }
                         } else {
-                            IconButton(onClick = { menuOpen = true }) {
+                            IconButton(
+                                onClick = { menuOpen = true },
+                                modifier = Modifier.testTag(TestTags.FictionDetailMenu),
+                            ) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.fiction_detail_more))
                             }
                             DropdownMenu(
