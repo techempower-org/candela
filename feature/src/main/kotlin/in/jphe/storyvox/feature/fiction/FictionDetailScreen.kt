@@ -77,6 +77,7 @@ import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiChapter
 import `in`.jphe.storyvox.feature.api.UiFiction
 import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
+import `in`.jphe.storyvox.feature.components.OfflineBanner
 import `in`.jphe.storyvox.source.epub.writer.EpubExportResult
 import `in`.jphe.storyvox.ui.a11y.LocalAccessibleTouchTargets
 import `in`.jphe.storyvox.ui.a11y.accessibleSize
@@ -462,7 +463,13 @@ fun FictionDetailScreen(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState()),
                 ) {
-                    if (state.error != null) {
+                    // #1314 — offline-first: when offline with cached data,
+                    // show the friendly "showing cached content" banner instead
+                    // of the raw refresh error (the error is just the offline
+                    // network failure; the offline banner explains it better).
+                    if (state.isOffline) {
+                        OfflineBanner()
+                    } else if (state.error != null) {
                         ErrorBlock(
                             title = "Couldn't refresh",
                             message = friendlyErrorMessage(state.error),
@@ -605,7 +612,7 @@ fun FictionDetailScreen(
             // Notebook, [search?]. Notebook is rendered as a LazyColumn
             // item even when empty (it early-returns inside, but the item
             // slot is still consumed).
-            val narrowHeaderCount = (if (state.error != null) 1 else 0) +
+            val narrowHeaderCount = (if (state.isOffline || state.error != null) 1 else 0) +
                 1 + // Hero
                 1 + // ActionRow
                 1 + // Synopsis
@@ -616,7 +623,10 @@ fun FictionDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = spacing.md),
             ) {
-                if (state.error != null) {
+                // #1314 — offline-first banner (see wide-layout note above).
+                if (state.isOffline) {
+                    item { OfflineBanner() }
+                } else if (state.error != null) {
                     item {
                         ErrorBlock(
                             title = "Couldn't refresh",

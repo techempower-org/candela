@@ -144,7 +144,11 @@ class MetadataBackfillWorker @AssistedInject constructor(
             // refreshDetail routes by the (now-repaired) row sourceId and,
             // on success, upserts real metadata + stamps metadataFetchedAt
             // + clears the failure flag.
-            fictionRepository.refreshDetail(id)
+            // #1314 — force past the TTL guard: back-fill is a deliberate
+            // hydration pass and must fetch. (Placeholders carry
+            // metadataFetchedAt == 0 so the TTL wouldn't skip them anyway;
+            // force is belt-and-suspenders + self-documenting.)
+            fictionRepository.refreshDetail(id, force = true)
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (t: Throwable) {
