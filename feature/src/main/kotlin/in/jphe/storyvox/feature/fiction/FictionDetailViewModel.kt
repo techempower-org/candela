@@ -319,7 +319,7 @@ class FictionDetailViewModel @Inject constructor(
                 // OR the refresh has failed — otherwise a Cloudflare/network
                 // error leaves the user on a permanent spinner with no signal.
                 isLoading = fiction == null && error == null,
-                error = error,
+                error = error?.takeIf { fiction == null },
                 isExportingEpub = exporting,
             )
         }
