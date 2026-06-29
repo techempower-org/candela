@@ -10,6 +10,7 @@ import com.google.android.gms.wearable.Wearable
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
 import `in`.jphe.storyvox.playback.wear.SeekPayload
+import `in`.jphe.storyvox.playback.wear.TeleprompterWpmPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -119,6 +120,24 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
         val positionMs = SeekPayload.fromFraction(fraction, durationMs)
         return dispatch(PhoneWearBridge.CMD_SEEK, SeekPayload.encode(positionMs))
     }
+
+    /**
+     * Issue #1308 — teleprompter remote. Three wrist controls mirroring the
+     * phone's `TeleprompterController`: enable/disable the mode, run/pause the
+     * scroll, and set an absolute WPM (the watch computes the new value via
+     * [TeleprompterWpmPayload.step] from the synced current, then sends it —
+     * same absolute-value contract as [sendSeek]). All share [dispatch], so a
+     * tap while disconnected flips [connected] and surfaces the same
+     * "Phone not connected" hint as the transport controls.
+     */
+    suspend fun toggleTeleprompter(): SendResult =
+        send(PhoneWearBridge.CMD_TELEPROMPTER_TOGGLE)
+
+    suspend fun toggleTeleprompterScroll(): SendResult =
+        send(PhoneWearBridge.CMD_TELEPROMPTER_PLAY_PAUSE)
+
+    suspend fun sendTeleprompterWpm(wpm: Int): SendResult =
+        dispatch(PhoneWearBridge.CMD_TELEPROMPTER_WPM, TeleprompterWpmPayload.encode(wpm))
 
     /**
      * Single send path shared by every command. A successful send is the
