@@ -16,17 +16,27 @@ import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 
 /**
- * Plugin-seam Phase 1 (#384) — KSP SymbolProcessor that emits one
- * Hilt `@Module @Provides @IntoSet` factory per `@SourcePlugin`-
- * annotated class.
+ * Plugin-seam (#384, consolidated in #1371) — KSP SymbolProcessor that
+ * emits the Hilt bindings a `@SourcePlugin`-annotated `FictionSource`
+ * needs, from the single annotation.
  *
  * For each annotated `FictionSource` implementation, the processor
- * generates a Kotlin file in
- * `in.jphe.storyvox.plugin.generated.<module-mangled-id>` that
- * contributes a `SourcePluginDescriptor` into the multibinding set
- * the `SourcePluginRegistry` consumes. The generated file is
- * `installed in SingletonComponent`, matching the descriptor's
- * singleton scope.
+ * generates ONE Kotlin file in
+ * `in.jphe.storyvox.plugin.generated.<module-mangled-id>` containing
+ * TWO `@Module`s installed in `SingletonComponent`:
+ *
+ *  1. `<Source>_SourcePluginModule` (`object`) — a
+ *     `@Provides @IntoSet SourcePluginDescriptor` factory that
+ *     contributes the descriptor the `SourcePluginRegistry` consumes
+ *     (registry / Browse chip row / Settings auto-section).
+ *  2. `<Source>_SourceRoutingModule` (`abstract class`, #1371) — a
+ *     `@Binds @IntoMap @StringKey(id) FictionSource` contribution into
+ *     the repository's `Map<String, FictionSource>` routing table.
+ *
+ * Before #1371 only (1) was generated and every source hand-wrote (2);
+ * now both come from the annotation. Hand-written `@IntoMap` bindings
+ * survive only for id *aliases* and *non-`FictionSource`* types
+ * (`AuthSource`, `SessionHydrator`) the annotation does not model.
  *
  * ## Why per-annotation file generation
  *
@@ -53,18 +63,27 @@ import java.nio.charset.StandardCharsets
  *     @dagger.Provides
  *     @dagger.multibindings.IntoSet
  *     @javax.inject.Singleton
- *     fun provideKvmrSourceDescriptor(
+ *     fun provideDescriptor(
  *         source: `in`.jphe.storyvox.source.kvmr.KvmrSource,
  *     ): in.jphe.storyvox.data.source.plugin.SourcePluginDescriptor =
  *         in.jphe.storyvox.data.source.plugin.SourcePluginDescriptor(
  *             id = "kvmr",
  *             displayName = "KVMR",
- *             defaultEnabled = true,
- *             category = in.jphe.storyvox.data.source.plugin.SourceCategory.AudioStream,
- *             supportsFollow = false,
- *             supportsSearch = true,
+ *             /* …remaining fields… */
  *             source = source,
  *         )
+ * }
+ *
+ * @dagger.Module
+ * @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+ * internal abstract class KvmrSource_SourceRoutingModule {
+ *     @dagger.Binds
+ *     @javax.inject.Singleton
+ *     @dagger.multibindings.IntoMap
+ *     @dagger.multibindings.StringKey("kvmr")
+ *     abstract fun bindFictionSourceIntoMap(
+ *         source: `in`.jphe.storyvox.source.kvmr.KvmrSource,
+ *     ): `in`.jphe.storyvox.data.source.FictionSource
  * }
  * ```
  *
@@ -122,6 +141,14 @@ class SourcePluginProcessor(
         val supportsSearch = (args["supportsSearch"] as? Boolean) ?: false
         val description = (args["description"] as? String) ?: ""
         val sourceUrl = (args["sourceUrl"] as? String) ?: ""
+        // #1371 — optional Browse-UI metadata moved onto the annotation so
+        // the registry carries it and `BrowseSourceUi` can read it instead
+        // of a per-source `when`-branch. Empty string = fall back to the
+        // existing branch (backward compatible; unset on most backends).
+        val chipLabel = (args["chipLabel"] as? String) ?: ""
+        val searchHint = (args["searchHint"] as? String) ?: ""
+        val iconName = (args["iconName"] as? String) ?: ""
+        val generateRouting = (args["generateRouting"] as? Boolean) ?: false
         // `category` comes through as a KSType pointing at the enum entry — or,
         // when defaulted, as a default-value sentinel resolvable via the same
         // mechanism. Either way, we want the qualified name of the enum entry.
@@ -137,6 +164,10 @@ class SourcePluginProcessor(
         }
 
         val moduleSimpleName = "${targetSimple}_SourcePluginModule"
+        // #1371 — second @Module emitted into the same file: the @Binds
+        // @IntoMap routing contribution. Distinct name so Hilt's
+        // by-FQN aggregation doesn't collide with the descriptor module.
+        val routingModuleSimpleName = "${targetSimple}_SourceRoutingModule"
         val generatedFqn = "$GENERATED_PACKAGE_RAW.$moduleSimpleName"
 
         val containingFile = target.containingFile
@@ -156,6 +187,7 @@ class SourcePluginProcessor(
                 writer.write(
                     buildFileContent(
                         moduleSimpleName = moduleSimpleName,
+                        routingModuleSimpleName = routingModuleSimpleName,
                         targetFqn = targetFqn,
                         id = id,
                         displayName = displayName,
@@ -165,6 +197,10 @@ class SourcePluginProcessor(
                         supportsSearch = supportsSearch,
                         description = description,
                         sourceUrl = sourceUrl,
+                        chipLabel = chipLabel,
+                        searchHint = searchHint,
+                        iconName = iconName,
+                        generateRouting = generateRouting,
                     ),
                 )
             }
@@ -178,6 +214,7 @@ class SourcePluginProcessor(
 
     private fun buildFileContent(
         moduleSimpleName: String,
+        routingModuleSimpleName: String,
         targetFqn: String,
         id: String,
         displayName: String,
@@ -187,17 +224,26 @@ class SourcePluginProcessor(
         supportsSearch: Boolean,
         description: String,
         sourceUrl: String,
+        chipLabel: String,
+        searchHint: String,
+        iconName: String,
+        generateRouting: Boolean,
     ): String {
-        val escapedId = id.replace("\\", "\\\\").replace("\"", "\\\"")
-        val escapedDisplayName = displayName.replace("\\", "\\\\").replace("\"", "\\\"")
-        val escapedDescription = description.replace("\\", "\\\\").replace("\"", "\\\"")
-        val escapedSourceUrl = sourceUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+        fun esc(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
+        val escapedId = esc(id)
+        val escapedDisplayName = esc(displayName)
+        val escapedDescription = esc(description)
+        val escapedSourceUrl = esc(sourceUrl)
+        val escapedChipLabel = esc(chipLabel)
+        val escapedSearchHint = esc(searchHint)
+        val escapedIconName = esc(iconName)
         return buildString {
             appendLine("// Generated by :core-plugin-ksp from @SourcePlugin($escapedId) — DO NOT EDIT.")
             appendLine("@file:Suppress(\"RedundantVisibilityModifier\", \"unused\")")
             appendLine()
             appendLine("package $GENERATED_PACKAGE_KOTLIN")
             appendLine()
+            // Module 1 — the registry / UI descriptor (@IntoSet).
             appendLine("@dagger.Module")
             appendLine("@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)")
             appendLine("internal object $moduleSimpleName {")
@@ -216,9 +262,32 @@ class SourcePluginProcessor(
             appendLine("            supportsSearch = $supportsSearch,")
             appendLine("            description = \"$escapedDescription\",")
             appendLine("            sourceUrl = \"$escapedSourceUrl\",")
+            appendLine("            chipLabel = \"$escapedChipLabel\",")
+            appendLine("            searchHint = \"$escapedSearchHint\",")
+            appendLine("            iconName = \"$escapedIconName\",")
             appendLine("            source = source,")
             appendLine("        )")
             appendLine("}")
+            if (generateRouting) {
+                appendLine()
+                // Module 2 (#1371) — the repository routing contribution
+                // (@Binds @IntoMap @StringKey). Replaces the hand-written
+                // `@Binds @IntoMap @StringKey(SourceIds.X) fun ...: FictionSource`
+                // module that every source used to carry. Opt-in via
+                // `generateRouting = true` — sources with existing hand-written
+                // bindings must remove them first to avoid Dagger/MapKeys duplicates.
+                appendLine("@dagger.Module")
+                appendLine("@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)")
+                appendLine("internal abstract class $routingModuleSimpleName {")
+                appendLine("    @dagger.Binds")
+                appendLine("    @javax.inject.Singleton")
+                appendLine("    @dagger.multibindings.IntoMap")
+                appendLine("    @dagger.multibindings.StringKey(\"$escapedId\")")
+                appendLine("    abstract fun bindFictionSourceIntoMap(")
+                appendLine("        source: $targetFqn,")
+                appendLine("    ): $FICTION_SOURCE_FQN")
+                appendLine("}")
+            }
         }
     }
 
@@ -256,6 +325,9 @@ class SourcePluginProcessor(
         const val GENERATED_PACKAGE_KOTLIN = "`in`.jphe.storyvox.plugin.generated"
         const val DESCRIPTOR_FQN = "`in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor"
         const val DEFAULT_CATEGORY_FQN = "`in`.jphe.storyvox.data.source.plugin.SourceCategory.Text"
+        // #1371 — return type of the generated @Binds @IntoMap routing
+        // contribution. Escaped `in` segment, same as the descriptor FQN.
+        const val FICTION_SOURCE_FQN = "`in`.jphe.storyvox.data.source.FictionSource"
     }
 }
 
