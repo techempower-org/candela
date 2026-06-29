@@ -521,13 +521,25 @@ class DefaultPlaybackController @Inject constructor(
                 watchdogJob = scope.launch {
                     kotlinx.coroutines.delay(threshold)
                     val nowState = p.observableState.value
-                    // Only fire if we're STILL buffering AND still on
-                    // the same chapter id (i.e. nothing else has
-                    // happened — no advance, no pause, no error).
+                    // Snapshot the in-flight latch once: it both gates the
+                    // #1262 warm-up check and (when we do fire) chooses the
+                    // recovery direction. Reading it twice could tear across
+                    // a concurrent advanceChapter entry/exit.
+                    val inFlightDir = p.inFlightAdvanceDirection
+                    // Fire only for a genuinely stuck state. The base gate
+                    // (still buffering, same chapter, no error) PLUS the
+                    // #1262 refusal to skip a chapter that is merely warming
+                    // up its first synth chunk (no sentence emitted yet AND
+                    // no advance in flight) live in the pure resolver
+                    // [shouldWatchdogFireFallbackAdvance].
                     if (
-                        nowState.isBuffering &&
-                        nowState.currentChapterId == armedFor &&
-                        nowState.error == null
+                        shouldWatchdogFireFallbackAdvance(
+                            isBuffering = nowState.isBuffering,
+                            currentChapterIdMatchesArmed = nowState.currentChapterId == armedFor,
+                            hasError = nowState.error != null,
+                            noActiveSentenceRange = nowState.currentSentenceRange == null,
+                            inFlightAdvanceDirection = inFlightDir,
+                        )
                     ) {
                         // Issue #726 — mirror the in-flight direction
                         // instead of hardcoding +1. Pre-fix a slow
@@ -539,14 +551,12 @@ class DefaultPlaybackController @Inject constructor(
                         // semantics (mirror when set, fall back to +1
                         // for the original #553 case where the engine
                         // is stuck without an active advance call).
-                        val watchdogDir = watchdogRecoveryDirection(
-                            p.inFlightAdvanceDirection,
-                        )
+                        val watchdogDir = watchdogRecoveryDirection(inFlightDir)
                         android.util.Log.w(
                             "PlaybackController",
                             "#553/#726 watchdog: isBuffering stuck on $armedFor for " +
                                 "${threshold}ms; firing fallback advance " +
-                                "direction=$watchdogDir (in-flight=${p.inFlightAdvanceDirection})",
+                                "direction=$watchdogDir (in-flight=$inFlightDir)",
                         )
                         // #553 follow-up — Media3's Player object is
                         // thread-confined to the application's Main
@@ -589,6 +599,26 @@ class DefaultPlaybackController @Inject constructor(
                                 )
                             }
                         }
+                    } else if (
+                        nowState.isBuffering &&
+                        nowState.currentChapterId == armedFor &&
+                        nowState.error == null
+                    ) {
+                        // Issue #1262 — base gate held (still buffering on
+                        // the armed chapter, no surfaced error) but the
+                        // fallback advance was suppressed: the chapter is
+                        // loaded and its first synth chunk hasn't landed yet
+                        // (no sentence emitted) with no advance in flight —
+                        // i.e. it's warming up, not stuck. Skipping a chapter
+                        // mid-first-chunk is never valid recovery. Log so a
+                        // future recurrence stays observable in logcat
+                        // (adb run-as is gone post-isDebuggable=false).
+                        android.util.Log.i(
+                            "PlaybackController",
+                            "#1262 watchdog: $armedFor still warming up first chunk " +
+                                "(no sentence emitted, in-flight=$inFlightDir) after " +
+                                "${threshold}ms — NOT skipping; awaiting synth",
+                        )
                     }
                 }
             }
@@ -960,6 +990,69 @@ class DefaultPlaybackController @Inject constructor(
             inFlightDirection > 0 -> 1
             inFlightDirection < 0 -> -1
             else -> 1
+        }
+
+        /**
+         * Issue #1262 — should the buffering-stuck watchdog actually fire
+         * its fallback advance, given the [PlaybackState] sampled at fire
+         * time (after the threshold delay) plus the engine's in-flight
+         * advance latch?
+         *
+         * The base gate is unchanged from the pre-#1262 fire condition:
+         * only act if we are STILL buffering, STILL on the chapter the
+         * timer was armed for, and there is no surfaced error.
+         *
+         * The #1262 addition refuses to fire for ONE specific state — the
+         * post-load first-chunk synthesis warm-up of a freshly-loaded
+         * chapter:
+         *
+         *  - [noActiveSentenceRange] `== true`  — no sentence has emitted
+         *    yet (the pipeline hasn't produced its first PCM chunk), AND
+         *  - [inFlightAdvanceDirection] `== 0`  — NO advance is in flight.
+         *    `advanceChapter` sets the latch on entry and clears it in its
+         *    `finally`, so a zero latch means `advanceChapter` already
+         *    returned and [EnginePlayer.loadAndPlay] HAS started the new
+         *    chapter's pipeline. The chapter is loaded and synthesizing.
+         *
+         * That combination is a chapter warming up, not a stuck
+         * transition. On a phone the first Piper/Kokoro chunk of a
+         * cache-MISS chapter routinely takes several seconds; the
+         * consumer's pre-buffer/underrun gate flips `isBuffering = true`
+         * with `currentSentenceRange == null` during that window, which the
+         * pre-#1262 watchdog misread as a stuck 1.5 s "transition" and
+         * "recovered" by advancing PAST the chapter — silently skipping it.
+         * That is the #1262 symptom: a chapter whose PCM prerender never
+         * finalized (the "hourglass" partial cache) is ALWAYS a MISS, so
+         * its warm-up always overran 1.5 s and it was always skipped on
+         * auto-advance, yet played fine on a manual tap whose warm-up
+         * happened to beat the timer. Skipping a chapter whose engine is
+         * mid-first-chunk is never valid recovery — the next chapter uses
+         * the same engine and is just as slow.
+         *
+         * Both genuinely-stuck states still fire:
+         *  - Next chapter's body never loads → an advance is parked on the
+         *    body-wait, so [inFlightAdvanceDirection] `!= 0` (and the wait
+         *    is independently bounded by
+         *    [EnginePlayer.CHAPTER_BODY_WAIT_TIMEOUT_MS]).
+         *  - Natural end never fired END_PILL (the original #553 case) → a
+         *    sentence WAS emitted, so [noActiveSentenceRange] `== false`.
+         *
+         * Trade-off: a chapter whose engine truly hangs on its first chunk
+         * (the chunk never arrives) is no longer auto-skipped. That is
+         * rare, is not helped by skipping to the same-engine next chapter,
+         * and leaves the user a visible spinner to act on — strictly better
+         * than silently losing a perfectly playable chapter on every pass.
+         */
+        fun shouldWatchdogFireFallbackAdvance(
+            isBuffering: Boolean,
+            currentChapterIdMatchesArmed: Boolean,
+            hasError: Boolean,
+            noActiveSentenceRange: Boolean,
+            inFlightAdvanceDirection: Int,
+        ): Boolean {
+            if (!isBuffering || !currentChapterIdMatchesArmed || hasError) return false
+            val firstChunkWarmUp = noActiveSentenceRange && inFlightAdvanceDirection == 0
+            return !firstChunkWarmUp
         }
 
         /**
