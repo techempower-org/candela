@@ -9,6 +9,18 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.2] -- 2026-06-29
+
+**Play Store readiness.** Fixes a fiction-not-found error on deep-linked books and wires testTag automation for on-device QA.
+
+### Fixed
+
+- Use the chapter's FK-bound fiction ID in `PlaybackState` instead of the caller's request — prevents a non-canonical ID (URL slug) from leaking into `currentFictionId` and causing a "Fiction not found" error when opening the chapter list. (#1330 / #1336 / #1339)
+
+### Changed
+
+- Wire `testTag()` modifiers to browse source chips, result cards, and fiction detail nav buttons so uiautomator-based on-device QA can target specific UI elements. (#1333 / #1337)
+
 ## [1.4.1] -- 2026-06-29
 
 **Wear teleprompter wiring.** Integrates the Wear OS teleprompter remote protocol that shipped as a standalone module in v1.4.0 into the main navigation and controller graph.
