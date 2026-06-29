@@ -9,9 +9,19 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.6] -- 2026-06-29
+
+**Play Store readiness.** Warm-up progress bar fix, deprecated API cleanup, and listing copy finalized for first Play Store submission.
+
+### Fixed
+
+- Warm-up progress bar in the reader now only appears during the warming state, and uses the non-deprecated `LinearProgressIndicator` lambda overload. (#1319 / #1353 / #1358)
+- Sign-out ≠ deletion: corrected false claim in 5 docs that sign-out deletes cloud data — it only revokes the token. Cloud deletion requires the "Delete cloud data" action. (#1361)
+
 ### Changed
 
-- Warm-up status now prefers the engine's own render-ready message and progress (folded into `UiPlaybackState`) over the reader's derived "Warming…" label, with a determinate warm-up bar wired but kept hidden until an engine self-reports progress. Resolves the `#1319` TODO. (#1319 / #1353)
+- Play Store listing copy finalized: title, descriptions, and release notes all under character limits, rebranded from storyvox to Candela, live and canonical copies in sync. (#1359 / #1362 / #1364)
+- Backend source test sweep: 12/15 sources verified on Z Flip3, all 3 playback pipelines proven. (#1361)
 
 ## [1.4.5] -- 2026-06-29
 
