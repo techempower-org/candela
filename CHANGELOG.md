@@ -9,6 +9,22 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.5] -- 2026-06-29
+
+**Six bug fixes + secrets audit.** Inbox and history taps load correctly, RR follow works when signed in, lock screen skip wired to chapter advance, voice model crash replaced with graceful recovery, CI hardened for all runners.
+
+### Fixed
+
+- Inbox "new chapter" tap no longer hangs on "loading chapter" — now calls `startListening` before navigating, mirroring the proven FictionDetail path. (#1343 / #1345)
+- History entry tap no longer hangs on "loading chapter" — same root cause and fix pattern as inbox, with `autoPlay = false` to preserve browse intent. (#1350 / #1351)
+- RR follow works when signed in — harvest CSRF token from `/fictions/search` (reliable server-rendered form) instead of the fiction page (AJAX-driven, no hidden input). Splits the old single error into three honest outcomes. (#1331 / #1346)
+- Lock screen / notification pill skip buttons wired to chapter advance via `handleSeek` override in EnginePlayer. (#1341 / #1348)
+- Voice model crash (native SIGSEGV) replaced with graceful "re-download or pick another voice" error — `VoiceManager.modelFilesPresent()` guards the JNI load path. (#1342 / #1349)
+
+### Changed
+
+- CI `local.properties` materialization uses rebranded `candela` path + Actions secret fallback + `::warning::` on sync-disabled tag builds. Defense-in-depth `.gitignore` entries for `.env` and service-account JSON. (#1347)
+
 ## [1.4.4] -- 2026-06-29
 
 **Cloud sync fix (for real).** v1.4.3 provisioned `local.properties` on runners but the workflow still copied from the pre-rebrand `storyvox` path — which only existed on katana. Builds scheduled on familiar or ubox0 silently fell back to the `PLACEHOLDER` app ID.
