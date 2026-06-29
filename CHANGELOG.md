@@ -9,6 +9,44 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.3.0] -- 2026-06-28
+
+**Reader intelligence.** Listening stats, a tap-to-define dictionary, automatic language detection, in-app file import, in-book search, per-fiction speed, AI catalog search, and shareable quotes.
+
+### Added
+
+- **Listening statistics dashboard.** A new stats screen tracks your reading streak, total listening time, and chapters completed. (#1235 / #1261)
+- **Tap-to-define dictionary.** Long-press a word in the reader to look up its definition via Wiktionary without leaving the page. (#1230 / #1260)
+- **Automatic language detection.** Candela detects the language of the text and switches to a matching TTS voice automatically. (#1233 / #1259)
+- **In-app file import.** Open With / Share an EPUB, PDF, or TXT file into Candela to import it as a single-file fiction. (#1228 / #1258)
+- **In-book text search.** Search across every chapter of a fiction from inside the reader and jump straight to a match. (#1229 / #1257)
+- **Per-fiction playback speed.** Each fiction remembers its own playback speed and auto-restores it when you return. (#1231 / #1256)
+- **AI catalog search.** The AI chat agent can now search the source catalog directly, finding fictions across your sources on your behalf. (#1227 / #1255)
+- **Share quotes.** Select a passage in the reader to copy it or send it through the system share sheet, complete with title and author attribution. (#1234 / #1254)
+
+### Fixed
+
+- **Voice leak on shared-model engines.** Kokoro, Kitten, and Supertonic share a single ONNX session, so the active speaker ID is now re-asserted unconditionally before every synth — otherwise a chapter could render in the previously-selected voice. (#1263 / #1267)
+- **Chapter skip during warm-up.** The playback watchdog no longer treats a chapter that is still warming up from a cache miss as stuck, so auto-advance stops skipping past chapters that just needed a moment to load. (#1262 / #1279)
+- **Debug logging stripped from release builds.** R8 `assumenosideeffects` now removes debug log calls from the release APK, keeping log output out of shipped builds. (#1276 / #1277)
+- **Supertonic audiobook export.** Supertonic voices are now allowed in audiobook export instead of being rejected by the voice filter. (#1270 / #1280)
+- **Import error surfacing.** Open With / Share imports that fail now show the actual error message instead of failing silently. (#1266)
+- **Do Not Disturb controller sync.** `DndController` state is now synchronized and its system calls guarded, preventing stale DND state and crashes. (#1218 / #1249)
+- **Sign-out cancellation.** Sign-out is wrapped in `NonCancellable`, so an interrupted sign-out can't leave the app half-signed-out. (#1217 / #1245)
+- **Rebrand User-Agent strings.** Replaced the last stale `storyvox` User-Agent strings with the `Candela` identity. (#1216 / #1247)
+- **AO3 rate-limiter clock.** The Archive of Our Own politeness gate now uses a monotonic clock, so wall-clock adjustments can't disrupt its 1 req/sec pacing. (#1219 / #1242)
+- **Text clipping and voice avatars.** Clipping text now shows an ellipsis, and voice avatar monograms are theme-aware. (#1240)
+
+### Changed
+
+- **targetSdk 36 (Android 16 Baklava).** Bumped `targetSdk` from 35 to 36. (#1273)
+- **Privacy disclosures.** Privacy docs now disclose camera/OCR usage, drop the stale 988/911 references, and fix the permissions table. (#1269 / #1274)
+- **Login-gated search for AO3 and Royal Road.** Search on these sources now requires login to avoid anonymous rate limits. (#1243 / #1253)
+- **Purge separated from sign-out.** Purging your remote (cloud-sync) data is now a distinct action from signing out, so signing out no longer forces deletion of your synced library. (#1248 / #1252)
+- **Chapter preview off the main thread.** The chapter-preview text transform moved off the Main thread, removing a source of scroll jank in long chapter lists. (#1220 / #1246)
+- **Test-compile CI job.** A new CI job compiles tests to catch DAO interface drift before it reaches `:app`. (#1211 / #1251)
+- **Bot-review cleanups.** Advisory cleanups from automated reviewers, plus removal of stale Supertonic TODOs, dead imports, and an obsolete accessibility comment. (#1265 / #1272, #1270 / #1278)
+
 ## [1.2.5] -- 2026-06-28
 
 Supertonic voices load without crashing.
