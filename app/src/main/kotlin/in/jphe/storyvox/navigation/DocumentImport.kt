@@ -26,6 +26,12 @@ enum class ImportKind {
      *  [DocumentImportClassifier.PDF_ENABLED]. */
     Pdf,
 
+    /** `application/vnd.oasis.opendocument.text` (or a `.odt` filename).
+     *  Issue #1310 — unzipped + ODF→text via
+     *  [in.jphe.storyvox.data.OdtTextExtractor], then imported as a
+     *  single-chapter book through the same text-import path as plaintext. */
+    Odt,
+
     /** Anything we don't advertise an intent-filter for, or a payload
      *  whose mime + extension we can't confidently bucket. The resolver
      *  declines (returns null) rather than guessing. */
@@ -69,6 +75,11 @@ object DocumentImportClassifier {
         "application/pdf",
         "application/x-pdf",
     )
+    // Issue #1310 — OpenDocument Text (.odt).
+    private val ODT_MIMES = setOf(
+        "application/vnd.oasis.opendocument.text",
+        "application/x-vnd.oasis.opendocument.text",
+    )
 
     /**
      * Classify a document by its [mimeType] (as reported on the intent's
@@ -88,6 +99,7 @@ object DocumentImportClassifier {
         when {
             mime in EPUB_MIMES -> return ImportKind.Epub
             mime in PDF_MIMES -> return pdfOrUnsupported()
+            mime in ODT_MIMES -> return ImportKind.Odt
             mime == "text/plain" -> return ImportKind.Text
         }
 
@@ -96,6 +108,7 @@ object DocumentImportClassifier {
         when (ext) {
             "epub" -> return ImportKind.Epub
             "pdf" -> return pdfOrUnsupported()
+            "odt" -> return ImportKind.Odt
             "txt", "text", "md", "markdown" -> return ImportKind.Text
         }
 
