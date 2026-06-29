@@ -1,5 +1,10 @@
 package `in`.jphe.storyvox.feature.reader
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -28,6 +33,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
@@ -43,6 +49,7 @@ import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -94,6 +101,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.playback.transcribe.ScrollMetrics
+import `in`.jphe.storyvox.playback.transcribe.VoicePacedScroller
 import `in`.jphe.storyvox.feature.api.HighlightMode
 import `in`.jphe.storyvox.feature.api.UiPlaybackState
 import androidx.compose.runtime.withFrameNanos
@@ -196,7 +205,7 @@ internal const val TELEPROMPTER_WPM_STEP = 10
  *    to voice the character ("pause-for-me"), tap to continue. Honor-system
  *    (no mic) for v1.
  */
-enum class TeleprompterMode { AutoScroll, Practice }
+enum class TeleprompterMode { AutoScroll, Practice, VoicePaced }
 
 /** Whitespace-delimited word count; the teleprompter's pace is per-word. */
 internal fun countWords(text: String): Int =
@@ -336,6 +345,20 @@ fun ReaderTextView(
      *  Settings → AI for the unconfigured-provider path); the no-op default
      *  keeps preview / test / audiobook callsites unchanged. */
     onWriteScript: () -> Unit = {},
+    /** Issue #1368 — voice-paced teleprompter. [voicePacedModelReady] gates the
+     *  Voice mode (false → offer the one-tap model download via
+     *  [onPrepareVoicePaced]); [voicePacedPreparing] is true while that download
+     *  runs. [voicePacedPositionChar] is the live char offset of where the
+     *  speaker is (from [ReaderViewModel] → VoicePacedScrollController); this
+     *  composable maps it to a scroll position. [onStartVoicePaced] /
+     *  [onStopVoicePaced] bracket the mic session. Defaults keep older callsites
+     *  (audiobook view, previews, tests) on the manual teleprompter unchanged. */
+    voicePacedModelReady: Boolean = false,
+    voicePacedPreparing: Boolean = false,
+    voicePacedPositionChar: Int = 0,
+    onStartVoicePaced: (String) -> Unit = {},
+    onStopVoicePaced: () -> Unit = {},
+    onPrepareVoicePaced: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -407,6 +430,68 @@ fun ReaderTextView(
     // a just-handled line can't re-trigger during the post-seek playhead lag.
     var practiceResumeFrom by remember { mutableIntStateOf(0) }
     val segments = remember(chapterText) { segmentDialogue(chapterText) }
+
+    // Issue #1368 — voice-paced follow. Mic permission is resolved here (mirrors
+    // the OCR camera flow, #995) so the Voice chip can request it on demand; a
+    // denial drops back to auto-scroll rather than stranding the user. The
+    // `voiceScroller` is the pure pacing engine (#1291) that turns the speaker's
+    // recognized char offset into a smooth scroll target.
+    val context = LocalContext.current
+    var hasMicPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        hasMicPermission = granted
+        if (!granted && teleprompterMode == TeleprompterMode.VoicePaced) {
+            teleprompterMode = TeleprompterMode.AutoScroll
+        }
+    }
+    val voiceScroller = remember { VoicePacedScroller() }
+    // The mic session is live only when Voice mode is selected, the teleprompter
+    // chrome is up, the model is downloaded, and RECORD_AUDIO is granted.
+    val voicePacedActive = teleprompterEnabled &&
+        teleprompterMode == TeleprompterMode.VoicePaced &&
+        voicePacedModelReady &&
+        hasMicPermission
+
+    // Bracket the mic session with the active window: start capture on entry,
+    // stop + release on exit (mode change, model/permission loss, or leaving the
+    // reader). Re-keyed on chapterText so a book switch realigns to the new text.
+    if (voicePacedActive) {
+        DisposableEffect(chapterText) {
+            voiceScroller.reset()
+            onStartVoicePaced(chapterText)
+            onDispose { onStopVoicePaced() }
+        }
+    }
+
+    // Issue #1368 — drive the scroll from the speaker's position. Each new char
+    // offset maps (via the pure VoicePacedScroller's pace + latency look-ahead)
+    // to a target the body animates toward; a manual drag preempts a frame and
+    // the next recognized word resumes the follow — same "peek then carry on" as
+    // the auto-scroll mode.
+    LaunchedEffect(voicePacedPositionChar, voicePacedActive, viewportHeightPx, chapterText) {
+        if (!voicePacedActive) return@LaunchedEffect
+        if (chapterText.isEmpty() || viewportHeightPx <= 0f || scroll.maxValue <= 0) return@LaunchedEffect
+        val metrics = ScrollMetrics(
+            totalChars = chapterText.length,
+            // Feed content height as maxScroll + viewport so the scroller's
+            // internal clamp lands in the reader's real [0, maxValue] range.
+            contentHeightPx = scroll.maxValue + viewportHeightPx,
+            viewportHeightPx = viewportHeightPx,
+        )
+        val target = voiceScroller.onPosition(voicePacedPositionChar, System.currentTimeMillis(), metrics)
+        try {
+            scroll.animateScrollTo(target.targetScrollPx.roundToInt())
+        } catch (e: CancellationException) {
+            if (!isActive) throw e // teardown — propagate; else a drag preempted, resume next word
+        }
+    }
 
     // Auto-scroll target: when sentence range or layout changes, settle the highlighted
     // line at 40% from the top of the viewport — unless we're inside the manual-scroll
@@ -1075,6 +1160,17 @@ fun ReaderTextView(
                             onSetTeleprompterPlaying(false) // stop the silent auto-scroll
                             practiceTurn = null
                             if (state.isPlaying) onPlayPause() // pause TTS across a swap
+                            // #1368 — Voice mode needs a downloaded model + mic
+                            // grant; entering it kicks whichever is missing. The
+                            // transport shows the preparing / allow-mic state
+                            // until both land, then capture starts (voicePacedActive).
+                            if (picked == TeleprompterMode.VoicePaced) {
+                                when {
+                                    !voicePacedModelReady -> onPrepareVoicePaced()
+                                    !hasMicPermission ->
+                                        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            }
                         }
                     },
                 )
@@ -1128,6 +1224,14 @@ fun ReaderTextView(
                             if (state.isPlaying) onPlayPause() // stop TTS on exit
                             onSetTeleprompterEnabled(false)
                         },
+                    )
+                    TeleprompterMode.VoicePaced -> VoicePacedTransport(
+                        modelReady = voicePacedModelReady,
+                        preparing = voicePacedPreparing,
+                        hasMicPermission = hasMicPermission,
+                        onGrantMic = { micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                        onPrepareModel = onPrepareVoicePaced,
+                        onExit = { onSetTeleprompterEnabled(false) },
                     )
                 }
             }
@@ -1323,9 +1427,10 @@ private fun TeleprompterTransport(
 }
 
 /**
- * Issue #1287 — teleprompter mode selector (Auto-scroll / Practice). Two
- * chips above the mode-specific transport; selecting Practice swaps to the
- * TTS-paced "pause-for-me" flow.
+ * Issue #1287/#1368 — teleprompter mode selector (Auto-scroll / Practice /
+ * Voice). Chips above the mode-specific transport: Auto-scroll paces by WPM,
+ * Practice is the TTS "pause-for-me" flow, and Voice (#1368) follows the
+ * reader's own speech via on-device STT.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1356,6 +1461,98 @@ private fun TeleprompterModeChips(
                 onClick = { onSelect(TeleprompterMode.Practice) },
                 label = { Text(stringResource(R.string.reader_practice)) },
             )
+            FilterChip(
+                selected = mode == TeleprompterMode.VoicePaced,
+                onClick = { onSelect(TeleprompterMode.VoicePaced) },
+                label = { Text(stringResource(R.string.reader_voice_paced)) },
+            )
+        }
+    }
+}
+
+/**
+ * Issue #1368 — voice-paced transport. Pure presentational; the host
+ * ([ReaderTextView]) owns the gating state and the capture session. Renders
+ * the state the user needs to act on:
+ *
+ * - model not yet downloaded → a progress spinner ([preparing]) or a
+ *   download/retry button ([onPrepareModel]);
+ * - model ready but mic not granted → an "Allow microphone" button
+ *   ([onGrantMic]);
+ * - both satisfied → a live "Listening" indicator (the capture session is
+ *   running and the body scrolls to the speaker's voice).
+ *
+ * An Exit on the left mirrors the other transports' resting place.
+ */
+@Composable
+private fun VoicePacedTransport(
+    modelReady: Boolean,
+    preparing: Boolean,
+    hasMicPermission: Boolean,
+    onGrantMic: () -> Unit,
+    onPrepareModel: () -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 4.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            IconButton(
+                onClick = onExit,
+                modifier = Modifier.semantics { contentDescription = "Exit teleprompter" },
+            ) {
+                Icon(imageVector = Icons.Filled.Close, contentDescription = null)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            when {
+                !modelReady && preparing -> {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                    Text(
+                        text = stringResource(R.string.reader_voice_paced_preparing),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                !modelReady -> TextButton(onClick = onPrepareModel) {
+                    Text(stringResource(R.string.reader_voice_paced_download))
+                }
+                !hasMicPermission -> TextButton(onClick = onGrantMic) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.size(spacing.xs))
+                    Text(stringResource(R.string.reader_voice_paced_grant_mic))
+                }
+                else -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.reader_voice_paced_listening),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }

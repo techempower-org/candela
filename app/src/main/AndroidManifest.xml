@@ -40,6 +40,17 @@
         android:name="android.hardware.camera.autofocus"
         android:required="false" />
 
+    <!-- Issue #1368 — voice-paced teleprompter. RECORD_AUDIO is requested at
+         runtime when the reader picks the Voice follow mode, with a rationale
+         before the system prompt; a denied mic falls back to the manual-WPM
+         teleprompter (no dead-end). The microphone feature is OPTIONAL so a
+         device without a mic still installs and uses the other follow modes —
+         same required="false" posture as the camera above. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
     <!-- Issue #546 / #775 — telephony is OPTIONAL. The TechEmpower
          "Call 211" card (and the matching top-app-bar phone icon)
          dials only on devices with telephony hardware (phones, not

@@ -155,6 +155,12 @@
     <string name="reader_practice_continue">Continue</string>
     <string name="reader_practice_narrating">Reading narration…</string>
     <string name="reader_practice_tap_play">Practice — tap play to begin</string>
+    <!-- Reader / voice-paced follow mode (#1368) -->
+    <string name="reader_voice_paced">Voice</string>
+    <string name="reader_voice_paced_listening">Listening — read aloud</string>
+    <string name="reader_voice_paced_grant_mic">Allow microphone</string>
+    <string name="reader_voice_paced_preparing">Preparing voice model…</string>
+    <string name="reader_voice_paced_download">Download voice model</string>
     <!-- Reader / tap-to-define dictionary (#1230) -->
     <string name="reader_define_loading">Looking up \"%1$s\"…</string>
     <string name="reader_define_empty">No dictionary entry for \"%1$s\".</string>
