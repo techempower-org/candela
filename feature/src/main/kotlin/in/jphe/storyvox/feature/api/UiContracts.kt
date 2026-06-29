@@ -457,6 +457,22 @@ data class UiPlaybackState(
      * the slider when this flag is true.
      */
     val isLiveAudioChapter: Boolean = false,
+    /**
+     * Issue #1319 — render-ready warmup message forwarded from the upstream
+     * [`in`.jphe.storyvox.playback.EngineState.Warming] ("Warming Brian…").
+     * Null when the engine isn't warming or reports no message;
+     * [`in`.jphe.storyvox.feature.reader.playerStatusSubtitle] prefers this
+     * over the voiceLabel-derived `warmingMessageForVoice` fallback so the
+     * engine stays the single source of truth for the copy.
+     */
+    val warmingMessage: String? = null,
+    /**
+     * Issue #1319 — 0..1 warmup progress from
+     * [`in`.jphe.storyvox.playback.EngineState.Warming.progress] when the
+     * engine can self-report (the in-process sherpa-onnx path cannot, so it
+     * stays null there). Non-null drives the thin warmup progress bar.
+     */
+    val warmingProgress: Float? = null,
 )
 
 /** Mirrors core-playback's SleepTimerMode without leaking the playback module to feature. */

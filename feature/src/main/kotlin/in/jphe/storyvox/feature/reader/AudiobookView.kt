@@ -65,6 +65,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -827,10 +828,24 @@ fun AudiobookView(
                     warmingUp = warmingUp,
                     buffering = state.isBuffering,
                     voiceLabel = state.voiceLabel,
+                    // Issue #1319 — engine's render-ready warmup copy (preferred).
+                    warmingMessage = state.warmingMessage,
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (showSpinner) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Issue #1319 — thin determinate warmup bar, shown only when the
+            // engine self-reports 0..1 progress via EngineState.Warming.progress.
+            // The in-process sherpa-onnx path can't self-report (stays null), so
+            // this is hidden there; it's ready for an engine that can.
+            state.warmingProgress?.let { p ->
+                LinearProgressIndicator(
+                    progress = { p.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp),
+                )
+            }
             // Issue #278 / #945 — soft slow hint moved into the
             // in-cover loading-prompts overlay above. The 10 s wall
             // copy ("Still working…") now renders inside the cover
@@ -2089,9 +2104,12 @@ internal fun playerStatusSubtitle(
     warmingUp: Boolean,
     buffering: Boolean,
     voiceLabel: String,
+    warmingMessage: String? = null,
 ): String = when {
     chapterTitle.isBlank() -> "Loading voice + chapter text"
-    warmingUp -> "$chapterTitle · ${warmingMessageForVoice(voiceLabel)}"
+    // Issue #1319 — prefer the engine's upstream EngineState.Warming.message
+    // when present; fall back to the voiceLabel-derived copy otherwise.
+    warmingUp -> "$chapterTitle · ${warmingMessage?.takeIf { it.isNotBlank() } ?: warmingMessageForVoice(voiceLabel)}"
     buffering -> "$chapterTitle · Buffering…"
     else -> chapterTitle
 }

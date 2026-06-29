@@ -77,6 +77,40 @@ class AudiobookViewTextTest {
         )
     }
 
+    /**
+     * Issue #1319 — when the engine publishes a render-ready
+     * [`in`.jphe.storyvox.playback.EngineState.Warming] message, the subtitle
+     * prefers it over the voiceLabel-derived fallback. The voiceLabel here is
+     * Brian but the upstream says "Aurelia", so the upstream must win.
+     */
+    @Test
+    fun `warming prefers the upstream engine message over the derived label`() {
+        assertEquals(
+            "Chapter 4 · Warming Aurelia…",
+            playerStatusSubtitle(
+                chapterTitle = "Chapter 4",
+                warmingUp = true,
+                buffering = false,
+                voiceLabel = "azure:en-US-BrianNeural",
+                warmingMessage = "Warming Aurelia…",
+            ),
+        )
+    }
+
+    @Test
+    fun `warming falls back to derived label when upstream message is blank`() {
+        assertEquals(
+            "Chapter 4 · Warming Brian…",
+            playerStatusSubtitle(
+                chapterTitle = "Chapter 4",
+                warmingUp = true,
+                buffering = false,
+                voiceLabel = "azure:en-US-BrianNeural",
+                warmingMessage = "   ",
+            ),
+        )
+    }
+
     @Test
     fun `warming with Azure Ava strips Multilingual suffix`() {
         assertEquals(
