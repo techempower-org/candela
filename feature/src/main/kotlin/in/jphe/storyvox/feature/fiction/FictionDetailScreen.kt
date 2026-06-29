@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.feature.fiction
 
+import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -72,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.annotation.AnnotationExportFormatter
+import `in`.jphe.storyvox.data.share.FictionShareLink
 import `in`.jphe.storyvox.data.source.companion.CompanionMatch
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiChapter
@@ -400,6 +402,18 @@ fun FictionDetailScreen(
                                     onClick = {
                                         menuOpen = false
                                         viewModel.exportToAudiobook()
+                                    },
+                                )
+                                // Issue #1313 — share a deep link to this
+                                // fiction (candela://fiction/<id>); the
+                                // recipient's app opens straight to detail.
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.fiction_share_link)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        state.fiction?.let { f ->
+                                            shareFictionLink(context, f.id, f.title)
+                                        }
                                     },
                                 )
                                 // PR-H (#86) — destructive cache wipe for
@@ -845,6 +859,21 @@ fun FictionDetailScreen(
         },
         onDismiss = { viewModel.clearAudiobookExport() },
     )
+}
+
+/**
+ * Issue #1313 — share a deep link to a fiction via the system share sheet.
+ * The link ([FictionShareLink.build]) is `candela://fiction/<id>`, which a
+ * receiving Candela install opens straight to this fiction's detail screen
+ * (DeepLinkResolver → FictionRepository routes the id by its source prefix).
+ */
+private fun shareFictionLink(context: Context, fictionId: String, title: String) {
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, FictionShareLink.build(fictionId))
+        putExtra(Intent.EXTRA_SUBJECT, title)
+    }
+    context.startActivity(Intent.createChooser(send, null))
 }
 
 /**

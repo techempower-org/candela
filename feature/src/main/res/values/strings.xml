@@ -401,6 +401,8 @@
     <string name="fiction_export_epub">Export as EPUB…</string>
     <!-- Issue #1003 — turn this fiction into a chaptered .m4b audiobook. -->
     <string name="fiction_export_audiobook">Export as audiobook…</string>
+    <!-- #1313 — share a deep link (candela://fiction/<id>) to this fiction -->
+    <string name="fiction_share_link">Share link</string>
     <string name="fiction_clear_cache">Clear fiction cache…</string>
     <!-- Issue #999 — highlights + notes list + export. -->
     <string name="fiction_highlights_title">Highlights &amp; notes</string>

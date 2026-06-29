@@ -92,6 +92,21 @@
             </intent-filter>
 
             <!--
+                Issue #1313 — fiction share deep link. A shared
+                `candela://fiction/<url-encoded fictionId>` link opens the
+                app straight to that fiction's detail. DeepLinkResolver
+                parses it off the intent's dataString (FictionShareLink); the
+                fictionId carries its own source prefix, so FictionRepository
+                routes it to the right backend on open (#1298).
+            -->
+            <intent-filter android:label="@string/open_with_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="candela" android:host="fiction" />
+            </intent-filter>
+
+            <!--
                 Issue #472 — Magic-link audiobook. Accept ACTION_SEND
                 with text/plain so the user can share any URL from any
                 app (browser, RSS reader, podcast app, social-media
