@@ -1083,4 +1083,58 @@
     <string name="stats_empty_title">No listening yet</string>
     <string name="stats_empty_body">Finish a chapter and your reading stats will appear here.</string>
     <string name="stats_estimate_note">Time figures are estimates based on the length of the chapters you\'ve finished — Candela doesn\'t track exact playback time yet.</string>
+
+    <!-- Issue #1268 — extract hardcoded UI strings for localization / a11y.
+         Shared audiobook-export copy (used by both CreateAudiobookSheet and
+         FictionDetailScreen's export overlay). -->
+    <string name="audiobook_creating">Creating your audiobook…</string>
+    <string name="audiobook_creating_body">Narrating chapters offline. This keeps going in the background.</string>
+    <string name="audiobook_ready">Your audiobook is ready</string>
+    <string name="audiobook_failed">Couldn\'t create the audiobook</string>
+    <string name="audiobook_save">Save…</string>
+    <string name="audiobook_share">Share</string>
+
+    <!-- #1268 — Create-audiobook sheet (library) -->
+    <string name="create_audiobook_heading">Make your own audiobook</string>
+    <string name="create_audiobook_intro">Paste or type your text, pick a voice, and Candela narrates it into a chaptered audiobook you can keep and share — all offline, no account.</string>
+    <string name="create_audiobook_field_title">Title</string>
+    <string name="create_audiobook_field_author">Author (optional)</string>
+    <string name="create_audiobook_field_text">Your text</string>
+    <string name="create_audiobook_text_placeholder">Paste a chapter, an article, a story…</string>
+    <string name="create_audiobook_paste">Paste from clipboard</string>
+    <string name="create_audiobook_voice">Voice</string>
+
+    <!-- #1268 — Plugin manager -->
+    <string name="plugin_manager_title">Plugins</string>
+    <string name="plugin_manager_back">Back</string>
+    <string name="plugin_manager_search">Search plugins</string>
+    <string name="plugin_manager_filter_on">On</string>
+    <string name="plugin_manager_filter_off">Off</string>
+    <string name="plugin_manager_filter_all">All</string>
+    <string name="plugin_manager_section_fiction">Fiction sources</string>
+    <string name="plugin_manager_section_audio">Audio streams</string>
+    <string name="plugin_manager_section_voice">Voice bundles</string>
+    <string name="plugin_manager_capabilities">Capabilities</string>
+    <string name="plugin_manager_configure">Configure →</string>
+    <!-- %1$s = source/plugin display name -->
+    <string name="plugin_manager_configure_named">Configure %1$s →</string>
+    <string name="plugin_manager_manage_voices">Manage voices →</string>
+
+    <!-- #1268 — Pronunciation dictionary -->
+    <string name="pronunciation_title">Pronunciation</string>
+    <string name="pronunciation_back">Back</string>
+    <string name="pronunciation_dialog_add">Add entry</string>
+    <string name="pronunciation_dialog_edit">Edit entry</string>
+    <string name="pronunciation_field_pattern">Pattern (the word as written)</string>
+    <string name="pronunciation_field_replacement">Replacement (how to say it)</string>
+    <string name="pronunciation_match_label">Match: </string>
+
+    <!-- #1268 — Fiction detail -->
+    <string name="fiction_detail_back">Back</string>
+    <string name="fiction_detail_more">More</string>
+    <string name="fiction_detail_building_epub_cd">Loading: Building .epub</string>
+
+    <!-- #1268 — onClickLabel: the dependency-name link opens its license page
+         in a browser; the visible text is just the name, so describe the action. -->
+    <string name="oss_open_license_page">Open license page in browser</string>
 </resources>

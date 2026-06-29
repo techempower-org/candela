@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.playback.voice.VoiceEngineFamily
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
 import `in`.jphe.storyvox.ui.component.fictionMonogram
@@ -116,7 +118,7 @@ fun PluginManagerScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Plugins",
+                        stringResource(R.string.plugin_manager_title),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 },
@@ -124,7 +126,7 @@ fun PluginManagerScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.plugin_manager_back),
                         )
                     }
                 },
@@ -143,7 +145,7 @@ fun PluginManagerScreen(
                 OutlinedTextField(
                     value = state.searchQuery,
                     onValueChange = viewModel::setSearchQuery,
-                    label = { Text("Search plugins") },
+                    label = { Text(stringResource(R.string.plugin_manager_search)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -156,17 +158,17 @@ fun PluginManagerScreen(
                     FilterChip(
                         selected = state.filterChip == PluginFilterChip.On,
                         onClick = { viewModel.setFilterChip(PluginFilterChip.On) },
-                        label = { Text("On") },
+                        label = { Text(stringResource(R.string.plugin_manager_filter_on)) },
                     )
                     FilterChip(
                         selected = state.filterChip == PluginFilterChip.Off,
                         onClick = { viewModel.setFilterChip(PluginFilterChip.Off) },
-                        label = { Text("Off") },
+                        label = { Text(stringResource(R.string.plugin_manager_filter_off)) },
                     )
                     FilterChip(
                         selected = state.filterChip == PluginFilterChip.All,
                         onClick = { viewModel.setFilterChip(PluginFilterChip.All) },
-                        label = { Text("All") },
+                        label = { Text(stringResource(R.string.plugin_manager_filter_all)) },
                     )
                 }
             }
@@ -174,7 +176,7 @@ fun PluginManagerScreen(
             // Fiction sources section
             item("fiction-header") {
                 CategoryHeader(
-                    title = "Fiction sources",
+                    title = stringResource(R.string.plugin_manager_section_fiction),
                     count = fictionVisible.size,
                 )
             }
@@ -189,7 +191,7 @@ fun PluginManagerScreen(
             // Audio streams section
             item("audio-header") {
                 CategoryHeader(
-                    title = "Audio streams",
+                    title = stringResource(R.string.plugin_manager_section_audio),
                     count = audioVisible.size,
                 )
             }
@@ -207,7 +209,7 @@ fun PluginManagerScreen(
             // same brass-edged shape as the fiction cards.
             item("voice-header") {
                 CategoryHeader(
-                    title = "Voice bundles",
+                    title = stringResource(R.string.plugin_manager_section_voice),
                     count = voiceFamiliesVisible.count { !it.descriptor.isPlaceholder },
                 )
             }
@@ -425,7 +427,7 @@ private fun PluginDetailsContent(row: PluginManagerRow) {
             )
         }
         HorizontalDivider(modifier = Modifier.padding(vertical = spacing.sm))
-        Text("Capabilities", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.plugin_manager_capabilities), style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
             CapabilityChip(if (descriptor.supportsSearch) "Search ✓" else "Search ✗")
             CapabilityChip(if (descriptor.supportsFollow) "Follow ✓" else "Follow ✗")
@@ -587,11 +589,11 @@ private fun VoiceFamilyCard(
                 )
                 if (descriptor.requiresConfiguration && !row.isConfigured) {
                     TextButton(onClick = onConfigure) {
-                        Text("Configure →", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.plugin_manager_configure), style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
                     TextButton(onClick = onManageVoices) {
-                        Text("Manage voices →", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.plugin_manager_manage_voices), style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -665,11 +667,11 @@ private fun VoiceFamilyDetailsContent(
         if (!descriptor.isPlaceholder) {
             if (descriptor.requiresConfiguration && !row.isConfigured) {
                 TextButton(onClick = onConfigure) {
-                    Text("Configure ${descriptor.displayName} →")
+                    Text(stringResource(R.string.plugin_manager_configure_named, descriptor.displayName))
                 }
             } else {
                 TextButton(onClick = onManageVoices) {
-                    Text("Manage voices →")
+                    Text(stringResource(R.string.plugin_manager_manage_voices))
                 }
             }
         }
