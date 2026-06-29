@@ -6,6 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.db.entity.Annotation
+import `in`.jphe.storyvox.data.dictionary.DictionaryRepository
+import `in`.jphe.storyvox.data.dictionary.DictionaryResult
+import `in`.jphe.storyvox.data.dictionary.WordDefinition
+import `in`.jphe.storyvox.data.dictionary.normalizeLookupWord
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
 import `in`.jphe.storyvox.data.repository.ChapterRepository
 import `in`.jphe.storyvox.data.repository.ContinueListeningEntry
@@ -210,6 +214,31 @@ private data class BookSearchResultsState(
     val truncated: Boolean = false,
 )
 
+/**
+ * Issue #1230 — observable state for the reader's tap-to-define popup.
+ * [ReaderViewModel.defineWord] drives the transition
+ * [Hidden] → [Loading] → [Loaded] / [Empty] / [Error]; [HybridReaderScreen]
+ * collects it and [ReaderTextView] renders the bottom sheet accordingly.
+ * [Empty] and [Error] both still offer the system-dictionary + Ask-AI
+ * fallbacks, so a missing word or a dropped network is never a dead end.
+ */
+sealed interface DictionaryUiState {
+    /** No lookup in flight — the sheet is closed (resting state). */
+    data object Hidden : DictionaryUiState
+
+    /** A lookup for [word] is in flight; the sheet shows a spinner. */
+    data class Loading(val word: String) : DictionaryUiState
+
+    /** [definition] resolved — the sheet renders the part-of-speech entries. */
+    data class Loaded(val definition: WordDefinition) : DictionaryUiState
+
+    /** [word] is valid but has no dictionary entry (404 / empty body). */
+    data class Empty(val word: String) : DictionaryUiState
+
+    /** The lookup failed for [word]; [message] is the reason for the Retry row. */
+    data class Error(val word: String, val message: String) : DictionaryUiState
+}
+
 @HiltViewModel
 class ReaderViewModel @Inject constructor(
     private val playback: PlaybackControllerUi,
@@ -249,6 +278,15 @@ class ReaderViewModel @Inject constructor(
      * already use — so book-search doesn't add a parallel `*Ui` port.
      */
     private val chapterRepo: ChapterRepository,
+    /**
+     * Issue #1230 — tap-to-define dictionary lookups for the reader's
+     * long-press popup. The core-data interface is bound to the okhttp-backed
+     * Wiktionary implementation in `:app`; the ViewModel only maps its
+     * [DictionaryResult] onto [DictionaryUiState]. Injected as the core-data
+     * repository directly, mirroring [annotationRepo] / [chapterRepo] — no
+     * parallel `*Ui` port.
+     */
+    private val dictionaryRepo: DictionaryRepository,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -882,6 +920,55 @@ class ReaderViewModel @Inject constructor(
     /** Issue #999 phase 2 — delete a highlight by id (the edit sheet's Delete). */
     fun deleteHighlight(id: String) {
         viewModelScope.launch { annotationRepo.delete(id) }
+    }
+
+    // ── Issue #1230 — tap-to-define dictionary ────────────────────────────
+    private val _dictionary = MutableStateFlow<DictionaryUiState>(DictionaryUiState.Hidden)
+
+    /** Tap-to-define popup state. [HybridReaderScreen] collects this and hands
+     *  it to [ReaderTextView], which renders the bottom sheet. */
+    val dictionary: StateFlow<DictionaryUiState> = _dictionary.asStateFlow()
+
+    /** The in-flight lookup, cancelled when a new word is requested or the
+     *  sheet is dismissed so a slow response can't clobber a fresh one. */
+    private var dictionaryJob: Job? = null
+
+    /**
+     * Issue #1230 — look up [rawWord] (the token under a reader long-press) and
+     * drive [dictionary] through Loading → Loaded / Empty / Error.
+     *
+     * Normalisation (strip punctuation / possessives, reject non-words) is the
+     * pure [normalizeLookupWord]; a token with no letters short-circuits to
+     * [DictionaryUiState.Empty] without a network call, so the sheet still opens
+     * with the fallbacks rather than spinning on a hopeless query. The previous
+     * lookup is cancelled so rapid long-presses don't race.
+     */
+    fun defineWord(rawWord: String) {
+        val normalized = normalizeLookupWord(rawWord)
+        if (normalized == null) {
+            dictionaryJob?.cancel()
+            _dictionary.value = DictionaryUiState.Empty(rawWord.trim())
+            return
+        }
+        dictionaryJob?.cancel()
+        _dictionary.value = DictionaryUiState.Loading(normalized)
+        dictionaryJob = viewModelScope.launch {
+            _dictionary.value = when (val result = dictionaryRepo.define(normalized)) {
+                is DictionaryResult.Success -> DictionaryUiState.Loaded(result.definition)
+                is DictionaryResult.NotFound -> DictionaryUiState.Empty(result.word)
+                is DictionaryResult.Error -> DictionaryUiState.Error(result.word, result.message)
+            }
+        }
+    }
+
+    /** Re-run the lookup for [word] (the Error row's Retry). */
+    fun retryDefine(word: String) = defineWord(word)
+
+    /** Close the tap-to-define sheet and drop any in-flight lookup. */
+    fun dismissDefinition() {
+        dictionaryJob?.cancel()
+        dictionaryJob = null
+        _dictionary.value = DictionaryUiState.Hidden
     }
 
     fun skipForward() = playback.skipForward()

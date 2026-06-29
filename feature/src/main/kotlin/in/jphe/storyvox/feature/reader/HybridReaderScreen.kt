@@ -107,6 +107,8 @@ fun HybridReaderScreen(
     val bookSearch by viewModel.bookSearch.collectAsStateWithLifecycle()
     // Issue #1234 — author for the share-quote attribution (not on playback state).
     val currentAuthor by viewModel.currentAuthor.collectAsStateWithLifecycle()
+    // Issue #1230 — tap-to-define dictionary popup state.
+    val definitionState by viewModel.dictionary.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -396,6 +398,12 @@ fun HybridReaderScreen(
                 onCreateHighlight = viewModel::createHighlight,
                 onUpdateHighlight = viewModel::updateHighlight,
                 onDeleteHighlight = viewModel::deleteHighlight,
+                // Issue #1230 — tap-to-define: long-press a word → Wiktionary
+                // lookup in a bottom sheet. State + verbs hoisted to the VM.
+                definitionState = definitionState,
+                onDefineWord = viewModel::defineWord,
+                onDismissDefinition = viewModel::dismissDefinition,
+                onRetryDefine = viewModel::retryDefine,
             )
         },
     )
