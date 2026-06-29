@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Issue #676 — implementation of [SystemTtsVoiceProvider].
@@ -29,9 +30,10 @@ import kotlinx.coroutines.withContext
  * Enumerates installed TTS engines and their voices via Android's
  * framework `TextToSpeech`. The enumeration is a two-step dance:
  *
- *  1. Construct a one-shot [TextToSpeech] tied to the OS-default engine
- *     so we can list `engines` (every installed TTS provider package
- *     on the device).
+ *  1. Construct a one-shot [TextToSpeech] pinned to a resolved *public*
+ *     engine (see [TtsEngineResolver]; never the possibly-private OS
+ *     default — #1384) so we can list `engines` (every installed TTS
+ *     provider package on the device — the list is engine-independent).
  *  2. For each engine package, construct a second one-shot
  *     [TextToSpeech] pinned to that engine, wait for onInit, then read
  *     `.voices` and shut it down. The framework's voice list is
@@ -64,6 +66,7 @@ class SystemTtsVoiceRoster @Inject constructor(
     private val state = MutableStateFlow<List<SystemTtsVoiceDescriptor>>(emptyList())
     private val refreshMutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val engineResolver = TtsEngineResolver(context)
 
     override val voices: Flow<List<SystemTtsVoiceDescriptor>> = state.asStateFlow()
         .onStart { refreshAsync() }
@@ -99,11 +102,23 @@ class SystemTtsVoiceRoster @Inject constructor(
      * others).
      */
     private suspend fun enumerate(): List<SystemTtsVoiceDescriptor> {
-        // Step 1: list installed engines via the default-engine TTS.
-        val defaultTts = bootTts(engine = null) ?: return emptyList()
-        val engineInfos = runCatching { defaultTts.engines?.toList().orEmpty() }
-            .getOrDefault(emptyList())
-        runCatching { defaultTts.shutdown() }
+        // Step 1: list installed engines. #1384 — bind an explicit
+        // public engine rather than the null/device-default target: on
+        // Samsung the default is a private engine whose failed bind
+        // spins a connect/disconnect loop that never fires onInit. The
+        // `.engines` list is engine-independent, so a public-engine
+        // instance still enumerates every installed engine for step 2.
+        val preferredEngine = engineResolver.preferredPublicEngine()
+        if (preferredEngine == null) {
+            Log.i(TAG, "No installed TTS engine packages — skipping enumeration")
+            return emptyList()
+        }
+        val defaultTts = bootTts(engine = preferredEngine) ?: return emptyList()
+        val engineInfos = try {
+            runCatching { defaultTts.engines?.toList().orEmpty() }.getOrDefault(emptyList())
+        } finally {
+            runCatching { defaultTts.shutdown() }
+        }
 
         if (engineInfos.isEmpty()) {
             Log.i(TAG, "No installed TTS engines found")
@@ -194,8 +209,15 @@ class SystemTtsVoiceRoster @Inject constructor(
             Log.w(TAG, "TextToSpeech ctor threw for engine=$engine: ${t.message}")
             return@withContext null
         }
-        val status = initDeferred.await()
+        // #1384 — bound the init await. A private or otherwise unbindable
+        // engine can leave onInit pending indefinitely while the framework
+        // spins a connect/disconnect loop; without this cap the instance is
+        // never shut down and the loop runs forever.
+        val status = withTimeoutOrNull(INIT_TIMEOUT_MS) { initDeferred.await() }
         if (status != TextToSpeech.SUCCESS) {
+            if (status == null) {
+                Log.w(TAG, "TextToSpeech init timed out after ${INIT_TIMEOUT_MS}ms engine=$engine")
+            }
             runCatching { tts.shutdown() }
             return@withContext null
         }
@@ -215,6 +237,12 @@ class SystemTtsVoiceRoster @Inject constructor(
 
     internal companion object {
         const val TAG = "SystemTtsVoiceRoster"
+
+        /** #1384 — ceiling on the per-engine onInit await. Init normally
+         *  resolves in ~50–150 ms; 8 s is generous headroom for slow
+         *  cold starts while still bounding an engine whose onInit never
+         *  fires (the Samsung private-engine loop). */
+        const val INIT_TIMEOUT_MS: Long = 8_000
 
         /**
          * #740 — second pass over the raw roster that assigns
