@@ -61,7 +61,7 @@ mechanism."
 | --- | --- | --- |
 | UGC platform? | **No, we're a reader** | The app reads content from public web or user-authenticated services. Source is the third-party service's own moderation. |
 | Scheme allowlist on magic-link | **Done in PR #587** | http/https only. No `javascript:`, no `file://`, no `content://`. Sufficient — the remaining surface ("any URL on the public web") is the same surface a web browser exposes, which Play accepts. |
-| In-app "Report content" affordance | **Add for v1.0** — Settings → About → "Report objectionable content" → mailto with a pre-filled subject including the active fiction's title + URL. Lightweight; no separate web form. | Not yet implemented in the worktree; orchestrator's call whether to wire in this PR or a follow-up. |
+| In-app "Report content" affordance | **Done** — Settings → About → "Report objectionable content" → mailto with a pre-filled subject. Lightweight; no separate web form. | Implemented in `feature/.../settings/AboutSettingsScreen.kt` (`CONTENT_REPORT_SUBJECT`). |
 | In-app block / mute | **N/A** | No social graph. |
 | Defaults that surface family-safe content | **Yes** | TechEmpower Home is the default landing surface in v0.5.51+, library defaults to TechEmpower's Notion-backed resource library — not the Royal Road browse tab. |
 
@@ -295,19 +295,17 @@ are scoped to real workloads.
 - [ ] Release keystore generated (see `release-keystore.md`)
 - [ ] AAB built with the release keystore, verified with `apksigner verify --print-certs`
 - [ ] Play App Signing enrolled (upload key cert exported & uploaded)
-- [ ] Privacy policy live at `https://candela.techempower.org/privacy/`
+- [x] Privacy policy live at `https://candela.techempower.org/privacy/` (verified resolving — HTTP 200, 2026-06-28; `/privacy-policy/` 404s — see `listing/AUDIT.md`)
 - [ ] Listing copy finalized (`play-store-listing.md`)
 - [ ] Graphics produced (icon, feature graphic, 4–8 phone, 4–8 tablet)
 - [ ] Data Safety form completed per section 4 above
 - [ ] Content rating questionnaire completed → likely 13+ with UGC advisory
-- [ ] Permissions justified per section 5
-- [ ] Foreground service types justified per section 2
-- [ ] Emergency Help disclaimer added ("US/Canada numbers; use your local
-      emergency number elsewhere") — section 3
-- [ ] Settings → About → Privacy Policy link added (links to
+- [x] Permissions justified per section 5
+- [x] Foreground service types justified per section 2
+- [x] Settings → About → Privacy Policy link added (links to
       `candela.techempower.org/privacy/`)
-- [ ] Settings → About → Report objectionable content (mailto) added —
+- [x] Settings → About → Report objectionable content (mailto) added —
       section 1
-- [ ] Settings → About → Open Source Licenses verified complete
+- [x] Settings → About → Open Source Licenses verified complete (#1142)
 - [ ] First internal-testing build uploaded and confirmed launchable on
       a clean install
