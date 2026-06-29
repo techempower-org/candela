@@ -58,7 +58,7 @@ us to delete it (see _Your rights_ below).
 ### 2.2 Fiction backends (your choice, per backend)
 
 Candela connects to the public APIs and websites of the fiction backends
-you enable. Each is opt-in via Settings → Plugins. The list, in v0.5.x:
+you enable. Each is opt-in via Settings → Plugins. The list currently includes:
 Royal Road, GitHub, RSS, Outline, Memory Palace, Project Gutenberg, AO3,
 Standard Ebooks, Wikipedia, Wikisource, Radio (Radio Browser API),
 Notion, Hacker News, arXiv, PLOS, Discord, Telegram, Palace Project, Slack,
