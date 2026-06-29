@@ -108,6 +108,11 @@ interface FictionRepository {
     suspend fun setDownloadMode(id: String, mode: DownloadMode?)
     suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?)
 
+    /** Issue #1299 — read the per-fiction narrator voice pin, or null when
+     *  unpinned. [EnginePlayer.loadAndPlay] reads this to narrate with the
+     *  book's pinned voice, falling back to the global active voice. */
+    suspend fun pinnedVoiceId(id: String): String?
+
     /**
      * Issue #1231 — per-fiction playback speed. [setPlaybackSpeed] pins (or,
      * with `null`, clears) the book's own speed; [observePlaybackSpeed] is the
@@ -395,6 +400,9 @@ class FictionRepositoryImpl @Inject constructor(
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) {
         fictionDao.setPinnedVoice(id, voiceId, locale)
     }
+
+    override suspend fun pinnedVoiceId(id: String): String? =
+        fictionDao.get(id)?.pinnedVoiceId
 
     override suspend fun setPlaybackSpeed(id: String, speed: Float?) {
         fictionDao.updatePlaybackSpeed(id, speed)

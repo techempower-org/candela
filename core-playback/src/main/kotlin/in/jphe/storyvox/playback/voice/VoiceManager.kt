@@ -254,6 +254,33 @@ class VoiceManager @Inject constructor(
     }
 
     /**
+     * Issue #1299 — roster-aware lookup of a single voice by id, mirroring
+     * [activeVoice]'s resolution: legacy-id normalization, the Azure +
+     * SystemTts rosters, and the per-engine installed checks. Returns null
+     * when the id matches no catalog/roster entry. [UiVoiceInfo.isInstalled]
+     * is computed identically to [activeVoice], so callers that require a
+     * usable voice (the per-fiction narrator pin in
+     * [in.jphe.storyvox.playback.tts.EnginePlayer.loadAndPlay]) can gate on it.
+     */
+    suspend fun voiceById(id: String): UiVoiceInfo? {
+        val normalized = normalizeId(id)
+        val prefs = store.data.first()
+        val azureRoster = azureVoiceProvider.voices.first()
+        val systemTtsRoster = systemTtsVoiceProvider.voices.first()
+        val entry = VoiceCatalog.byIdWithAzureAndSystemTts(
+            normalized, azureRoster, systemTtsRoster,
+        ) ?: return null
+        val installed = prefs[VoiceKeys.INSTALLED_IDS].orEmpty().map(::normalizeId).toSet()
+        val isInstalled = normalized in installed ||
+            (entry.engineType is EngineType.Kokoro && isKokoroSharedModelInstalled()) ||
+            (entry.engineType is EngineType.Kitten && isKittenSharedModelInstalled()) ||
+            (entry.engineType is EngineType.Supertonic && isSupertonicSharedModelInstalled()) ||
+            entry.engineType is EngineType.Azure ||
+            entry.engineType is EngineType.SystemTts
+        return entry.toUiVoiceInfo(installed = isInstalled)
+    }
+
+    /**
      * Issue #547 — sticky onboarding-dismissed flag, DataStore-backed.
      * `true` means the user has made a choice about the voice picker
      * (either picked a voice or tapped "Continue without audio"); the

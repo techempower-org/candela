@@ -488,6 +488,28 @@ class FictionRepositoryImplTest {
         chapterDao,
     )
 
+    // -- Issue #1299 — per-fiction narrator pin read --------------------------
+
+    @Test fun `pinnedVoiceId returns the stored pin`() = runTest {
+        val (r, fictionDao, _) = repo()
+        fictionDao.rows["f1"] = Fiction(
+            id = "f1", sourceId = SourceIds.ROYAL_ROAD, title = "", author = "",
+            firstSeenAt = 0L, metadataFetchedAt = 0L,
+            pinnedVoiceId = "piper_lessac_en_US_medium",
+        )
+        assertEquals("piper_lessac_en_US_medium", r.pinnedVoiceId("f1"))
+    }
+
+    @Test fun `pinnedVoiceId is null when unpinned or row absent`() = runTest {
+        val (r, fictionDao, _) = repo()
+        fictionDao.rows["f2"] = Fiction(
+            id = "f2", sourceId = SourceIds.ROYAL_ROAD, title = "", author = "",
+            firstSeenAt = 0L, metadataFetchedAt = 0L,
+        )
+        assertNull(r.pinnedVoiceId("f2"))      // row exists, no pin
+        assertNull(r.pinnedVoiceId("missing")) // no row at all
+    }
+
     // -- sourceFor() routing -----------------------------------------------------
 
     @Test fun `single bound source is used as fallback when sourceId is null`() = runTest {
