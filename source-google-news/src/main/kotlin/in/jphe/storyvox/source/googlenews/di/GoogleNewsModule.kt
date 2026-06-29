@@ -12,7 +12,7 @@ import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.googlenews.GoogleNewsSource
 import `in`.jphe.storyvox.source.googlenews.article.ArticleResolver
-import `in`.jphe.storyvox.source.googlenews.article.NoOpArticleResolver
+import `in`.jphe.storyvox.source.googlenews.article.GoogleNewsArticleResolver
 import `in`.jphe.storyvox.source.googlenews.net.GoogleNewsApi
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -62,8 +62,9 @@ internal object GoogleNewsHttpModule {
  * `Map<String, FictionSource>` (legacy routing) alongside the
  * plugin-seam descriptor KSP emits from the `@SourcePlugin` annotation —
  * both coexist, the same pattern as `:source-rss` / `:source-hackernews`.
- * Also binds the v1 no-op [ArticleResolver]; a future full-text resolver
- * swaps this single binding.
+ * Binds the #1295 [GoogleNewsArticleResolver] for full-article text (opt-in,
+ * default OFF via [GoogleNewsConfig][in.jphe.storyvox.data.repository.GoogleNewsConfig]);
+ * when disabled it returns null and the source falls back to the digest.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -77,5 +78,5 @@ internal abstract class GoogleNewsBindings {
 
     @Binds
     @Singleton
-    abstract fun bindArticleResolver(impl: NoOpArticleResolver): ArticleResolver
+    abstract fun bindArticleResolver(impl: GoogleNewsArticleResolver): ArticleResolver
 }

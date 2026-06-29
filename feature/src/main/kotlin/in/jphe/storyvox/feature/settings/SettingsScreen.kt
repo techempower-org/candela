@@ -640,6 +640,13 @@ fun SettingsScreen(
                 onApiTokenChange = viewModel::setTelegramApiToken,
                 onRefreshProbe = viewModel::refreshTelegramProbe,
             )
+            // #1295 — Google News full-article text (opt-in, default OFF).
+            SettingsSwitchRow(
+                title = stringResource(R.string.settings_google_news_full_text_title),
+                subtitle = stringResource(R.string.settings_google_news_full_text_subtitle),
+                checked = s.googleNewsFullArticleText,
+                onCheckedChange = viewModel::setGoogleNewsFullArticleText,
+            )
         }
 
         // ── Inbox notifications sub-card (#383) ────────────────────

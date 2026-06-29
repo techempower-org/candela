@@ -140,6 +140,9 @@ class SettingsViewModel @Inject constructor(
     fun setDefaultVoice(id: String?) = viewModelScope.launch { repo.setDefaultVoice(id) }
     fun setWifiOnly(enabled: Boolean) = viewModelScope.launch { repo.setDownloadOnWifiOnly(enabled) }
     fun setPollHours(h: Int) = viewModelScope.launch { repo.setPollIntervalHours(h) }
+    // #1295 — Google News full-article-text opt-in.
+    fun setGoogleNewsFullArticleText(enabled: Boolean) =
+        viewModelScope.launch { repo.setGoogleNewsFullArticleText(enabled) }
     /** Issue #109 — continuous inter-sentence pause multiplier (was a
      *  3-stop selector under #93). Repo coerces to the engine's [0..4]
      *  range; the slider in the screen passes a raw Float. */

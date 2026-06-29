@@ -27,9 +27,16 @@ kotlin {
 
 dependencies {
     implementation(project(":core-data"))
+    // #1295 — full-article text reuses Readability's fetch + boilerplate
+    // stripping rather than reimplementing extraction. One-way dep
+    // (:source-readability never references Google News) so no cycle.
+    implementation(project(":source-readability"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.okhttp)
+    // #1295 — parse the batchexecute JSON response (pure-JVM, so the
+    // decoder's parse step is unit-testable without Robolectric).
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

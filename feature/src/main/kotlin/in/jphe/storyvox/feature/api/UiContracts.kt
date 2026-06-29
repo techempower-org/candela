@@ -1361,6 +1361,12 @@ data class UiSettings(
      */
     val autoItemsPerCategory: Int = 6,
     /**
+     * Issue #1295 — opt-in for Google News full-article-text extraction.
+     * Default OFF (the publisher-URL decode is ToS-gray + fragile); when
+     * off, Google News narrates its headline + related-coverage digest.
+     */
+    val googleNewsFullArticleText: Boolean = false,
+    /**
      * Issue #993 — reading-theme (color overlay) for the chapter-reading
      * surface only, not app chrome. [ReaderTheme.Default] inherits the app
      * theme (the reader renders exactly as today). Presets cover sepia /
@@ -1877,6 +1883,11 @@ interface SettingsRepositoryUi {
      * [4, 6, 8, 12] on write. Default impl is a no-op.
      */
     suspend fun setAutoItemsPerCategory(count: Int) = Unit
+    /**
+     * Issue #1295 — toggle Google News full-article-text extraction.
+     * Default impl is a no-op (real impl persists to DataStore).
+     */
+    suspend fun setGoogleNewsFullArticleText(enabled: Boolean) = Unit
     /**
      * Issue #993 — set the reading-theme (color overlay) for the reader
      * surface. Device-local (NOT synced). Default impl is a no-op.
