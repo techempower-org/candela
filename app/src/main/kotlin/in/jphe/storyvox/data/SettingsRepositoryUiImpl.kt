@@ -887,6 +887,9 @@ private object Keys {
     val HIGHLIGHT_MODE = stringPreferencesKey("pref_highlight_mode")
     val WORD_HIGHLIGHT_ARGB = intPreferencesKey("pref_word_highlight_argb")
 
+    /** Issue #1287 — persisted teleprompter (#1239) auto-scroll pace (WPM). */
+    val TELEPROMPTER_WPM = intPreferencesKey("pref_teleprompter_wpm_v1")
+
     // ── Reader-surface typography (issue #992) ──────────────────────
     /** Reader font family — stored as the [ReaderFontFamily] enum's name.
      *  Unknown values fall back to [ReaderFontFamily.Default] on read. Synced. */
@@ -1586,6 +1589,9 @@ class SettingsRepositoryUiImpl(
                 ?.let { runCatching { HighlightMode.valueOf(it) }.getOrNull() }
                 ?: HighlightMode.Sentence,
             wordHighlightArgb = prefs[Keys.WORD_HIGHLIGHT_ARGB] ?: 0,
+            // #1287 — clamp on read so a legacy / corrupt value can't drive the
+            // teleprompter out of its supported band (defensive; writes clamp too).
+            teleprompterWpm = (prefs[Keys.TELEPROMPTER_WPM] ?: 130).coerceIn(30, 500),
             // Issue #992 — reader-surface typography. Unknown enum strings
             // fall back to Default; numeric fields are clamped by
             // ReaderTypography.clamped() via UiSettings.readerTypography so we
@@ -2691,6 +2697,13 @@ class SettingsRepositoryUiImpl(
 
     override suspend fun setWordHighlightColor(argb: Int) {
         store.edit { it[Keys.WORD_HIGHLIGHT_ARGB] = argb }
+    }
+
+    override suspend fun setTeleprompterWpm(wpm: Int) {
+        // #1287 — clamp to the teleprompter's supported band (TELEPROMPTER_MIN_WPM
+        // /MAX_WPM in ReaderView, #1239) so a bad caller can't persist an
+        // out-of-range pace the reader would have to re-clamp on read.
+        store.edit { it[Keys.TELEPROMPTER_WPM] = wpm.coerceIn(30, 500) }
     }
 
     // ── Azure Speech Services BYOK (#182, PR-3) ────────────────────

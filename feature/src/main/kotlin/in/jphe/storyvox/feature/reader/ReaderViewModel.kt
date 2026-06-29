@@ -793,6 +793,17 @@ class ReaderViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
+    /**
+     * Issue #1287 — persisted teleprompter (#1239) auto-scroll pace (WPM).
+     * [ReaderTextView] seeds its per-session pace from this when the teleprompter
+     * opens, and writes user adjustments back via [setTeleprompterWpm] so the
+     * pace is restored on the next session. Device-local pref.
+     */
+    val teleprompterWpm: StateFlow<Int> = settings.settings
+        .map { it.teleprompterWpm }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TELEPROMPTER_DEFAULT_WPM)
+
     /** Issue #278 — user-initiated retry from the timed-out error block.
      *  Re-invokes the playback `play()` path; the underlying controller
      *  will re-fetch the chapter / re-prime the voice. We also reset the
@@ -1137,6 +1148,13 @@ class ReaderViewModel @Inject constructor(
      *  re-emits and [ReaderTextView] re-renders in focus mode. */
     fun setFocusModeEnabled(enabled: Boolean) {
         viewModelScope.launch { settings.setReaderFocusModeEnabled(enabled) }
+    }
+
+    /** Issue #1287 — persist the teleprompter pace so it survives an app restart.
+     *  Fire-and-forget, same shape as [setAutoScrollEnabled]; the impl clamps to
+     *  the supported band and the [teleprompterWpm] StateFlow re-emits. */
+    fun setTeleprompterWpm(wpm: Int) {
+        viewModelScope.launch { settings.setTeleprompterWpm(wpm) }
     }
 
     // Issue #121 — in-chapter bookmark fan-out. ReaderViewModel stays

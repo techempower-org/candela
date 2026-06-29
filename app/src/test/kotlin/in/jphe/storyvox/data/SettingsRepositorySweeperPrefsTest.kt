@@ -152,6 +152,27 @@ class SettingsRepositorySweeperPrefsTest {
         assertEquals(15, repo.skipDistanceSec.first())
     }
 
+    // ---- Issue #1287 — teleprompter WPM persistence ----
+
+    @Test
+    fun `default teleprompter WPM is 130`() = runTest {
+        assertEquals(130, repo.settings.first().teleprompterWpm)
+    }
+
+    @Test
+    fun `setTeleprompterWpm round-trips through the settings flow`() = runTest {
+        repo.setTeleprompterWpm(180)
+        assertEquals(180, repo.settings.first().teleprompterWpm)
+    }
+
+    @Test
+    fun `setTeleprompterWpm clamps to the supported band`() = runTest {
+        repo.setTeleprompterWpm(5) // below TELEPROMPTER_MIN_WPM (30)
+        assertEquals(30, repo.settings.first().teleprompterWpm)
+        repo.setTeleprompterWpm(9_999) // above TELEPROMPTER_MAX_WPM (500)
+        assertEquals(500, repo.settings.first().teleprompterWpm)
+    }
+
     // ---- Issue #594 — rewind-to-start threshold ----
 
     @Test

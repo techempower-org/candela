@@ -1414,6 +1414,14 @@ data class UiSettings(
      * "customizable highlight color"). Per-device pref (NOT synced).
      */
     val wordHighlightArgb: Int = 0,
+    /**
+     * Issue #1287 — persisted teleprompter (solo-rehearsal, #1239) auto-scroll
+     * pace in words-per-minute, restored on the next teleprompter session so the
+     * MVP's transient pace survives an app restart. Default `130` matches
+     * `TELEPROMPTER_DEFAULT_WPM`; the impl clamps reads to the supported 30–500
+     * band (`TELEPROMPTER_MIN_WPM`/`MAX_WPM`). Per-device pref (NOT synced).
+     */
+    val teleprompterWpm: Int = 130,
 ) {
     /**
      * Resolved reading-surface colours for the reader (#993). Inactive when
@@ -1899,6 +1907,13 @@ interface SettingsRepositoryUi {
      * theme accent). Device-local (NOT synced). Default impl is a no-op.
      */
     suspend fun setWordHighlightColor(argb: Int) = Unit
+    /**
+     * Issue #1287 — persist the teleprompter (#1239) auto-scroll pace in WPM so
+     * it's restored next session. Clamped to the supported 30–500 band on write.
+     * Device-local (NOT synced). Default impl is a no-op so test fakes compile
+     * without overriding it.
+     */
+    suspend fun setTeleprompterWpm(wpm: Int) = Unit
     /**
      * Issue #992 — reader-surface typography setters. Each clamps into the safe
      * range from [ReaderTypography] on write. Default impls are no-ops so tests
