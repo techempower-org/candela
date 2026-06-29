@@ -10,7 +10,7 @@ import org.junit.Test
 class OdtTextExtractorTest {
 
     @Test
-    fun `paragraphs and headings become blank-line-separated blocks; spans inline`() {
+    fun `paragraphs and headings become blank-line-separated blocks, spans inline`() {
         val xml = """<?xml version="1.0" encoding="UTF-8"?>""" +
             "<office:document-content>" +
             """<office:automatic-styles><style:style style:name="P1"/></office:automatic-styles>""" +
