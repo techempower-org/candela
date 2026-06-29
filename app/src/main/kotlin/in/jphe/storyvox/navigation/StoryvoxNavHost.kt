@@ -32,6 +32,7 @@ import `in`.jphe.storyvox.R
 import `in`.jphe.storyvox.auth.AuthWebViewScreen
 import `in`.jphe.storyvox.auth.anthropic.AnthropicTeamsSignInScreen
 import `in`.jphe.storyvox.auth.github.GitHubSignInScreen
+import `in`.jphe.storyvox.data.share.FictionShareLink
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.github.auth.GitHubAuthConfig
 import `in`.jphe.storyvox.feature.browse.BrowseScreen
@@ -1542,6 +1543,15 @@ object DeepLinkResolver {
                 return StoryvoxRoutes.libraryWithShare(shared)
             }
             return null
+        }
+        // Issue #1313 — fiction share deep link: candela://fiction/<id>.
+        // Parse off the raw dataString so the share-link builder and this
+        // parser share one implementation ([FictionShareLink]) instead of
+        // re-deriving via android.net.Uri. The fictionId carries its own
+        // source prefix, so FictionRepository routes it on open.
+        if (intent.action == Intent.ACTION_VIEW) {
+            intent.dataString?.let { FictionShareLink.parse(it) }
+                ?.let { return StoryvoxRoutes.fictionDetail(it) }
         }
         // Open-with deep link from royalroad.com.
         if (intent.action != Intent.ACTION_VIEW) return null
