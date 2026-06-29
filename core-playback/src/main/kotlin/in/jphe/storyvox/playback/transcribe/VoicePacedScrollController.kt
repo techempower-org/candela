@@ -20,11 +20,13 @@ import kotlinx.coroutines.launch
  * RecognizedWordSource.words ─▶ ForcedAligner.onWord ─▶ positionChar (StateFlow)
  * ```
  *
- * [start] builds a fresh [ForcedAligner] for the chapter text and begins
- * collecting words from the injected [RecognizedWordSource] (the live
- * [MicCaptureProcessor] in production, or a fake in tests); each recognized
- * word advances the aligner and publishes the new character offset on
- * [positionChar]. [stop] cancels the collection and stops capture.
+ * [start] strips the script's non-spoken cues + banners ([ScriptCueFilter]),
+ * builds a fresh [ForcedAligner] over the spoken text, and begins collecting
+ * words from the injected [RecognizedWordSource] (the live [MicCaptureProcessor]
+ * in production, or a fake in tests); each recognized word advances the aligner.
+ * The aligner's offset (in *stripped* space) is mapped back to the **source**
+ * text so [positionChar] is an offset the reader can scroll against directly.
+ * [stop] cancels the collection and stops capture.
  *
  * ### Why this exposes a *character* offset, not a scroll pixel
  * The brief imagined a `scrollTarget` pixel flow here, but the pure
@@ -61,13 +63,18 @@ class VoicePacedScrollController @Inject constructor(
      */
     fun start(chapterText: String) {
         if (job?.isActive == true) return
-        val aligner = ForcedAligner(chapterText)
+        // Strip cues/banners so the aligner only matches spoken words, but keep
+        // the map back to source offsets — the reader scrolls against the
+        // displayed (un-stripped) chapter text.
+        val spoken = ScriptCueFilter.spokenText(chapterText)
+        val aligner = ForcedAligner(spoken.text)
         _positionChar.value = 0
         _listening.value = true
         wordSource.start()
         job = scope.launch {
             wordSource.words.collect { word ->
-                _positionChar.value = aligner.onWord(word.text, word.confidence)
+                val spokenOffset = aligner.onWord(word.text, word.confidence)
+                _positionChar.value = spoken.toSourceOffset(spokenOffset)
             }
         }
     }
