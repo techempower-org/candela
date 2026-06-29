@@ -179,6 +179,9 @@ class SettingsViewModel @Inject constructor(
     fun resetOnboarding() = viewModelScope.launch { repo.resetOnboardingV1() }
     /** Issue #85 — Voice-Determinism preset (Steady / Expressive). */
     fun setVoiceSteady(enabled: Boolean) = viewModelScope.launch { repo.setVoiceSteady(enabled) }
+    /** Issue #1233 — auto-detect language & switch voice (Kokoro). */
+    fun setAutoLanguageDetection(enabled: Boolean) =
+        viewModelScope.launch { repo.setAutoLanguageDetectionEnabled(enabled) }
     fun signIn() = viewModelScope.launch { repo.signIn() }
     fun signOut() = viewModelScope.launch { repo.signOut() }
     /** GitHub OAuth (#91) — local sign-out. Remote revoke deep-links to github.com. */

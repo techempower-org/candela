@@ -136,6 +136,17 @@ fun VoiceAndPlaybackSettingsScreen(
                     onCheckedChange = viewModel::setPitchInterpolationHighQuality,
                 )
 
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_voice_autolang_title),
+                    subtitle = if (s.autoLanguageDetectionEnabled) {
+                        stringResource(R.string.settings_voice_autolang_on)
+                    } else {
+                        stringResource(R.string.settings_voice_autolang_off)
+                    },
+                    checked = s.autoLanguageDetectionEnabled,
+                    onCheckedChange = viewModel::setAutoLanguageDetection,
+                )
+
                 SettingsLinkRow(
                     title = stringResource(R.string.settings_voice_pronunciation_title),
                     subtitle = stringResource(R.string.settings_voice_pronunciation_subtitle),

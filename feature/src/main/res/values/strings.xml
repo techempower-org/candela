@@ -757,6 +757,9 @@
     <string name="settings_voice_hq_pitch_title">High-quality pitch interpolation</string>
     <string name="settings_voice_hq_pitch_on">Smoother pitch-shifted audio. ~20%% extra CPU per chapter render.</string>
     <string name="settings_voice_hq_pitch_off">Faster pitch shifting. Some grittiness at non-neutral pitch.</string>
+    <string name="settings_voice_autolang_title">Auto-detect language</string>
+    <string name="settings_voice_autolang_on">Foreign passages switch to a matching voice. Kokoro voices only.</string>
+    <string name="settings_voice_autolang_off">Off — all text reads in your selected voice.</string>
     <string name="settings_voice_pronunciation_title">Pronunciation</string>
     <string name="settings_voice_pronunciation_subtitle">Teach the voice how to say specific names and words.</string>
     <string name="settings_voice_skip_distance_title">Skip distance</string>
