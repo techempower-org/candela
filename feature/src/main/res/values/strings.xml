@@ -227,6 +227,11 @@
     <string name="reader_voice_hide_custom_slider">Hide custom slider</string>
     <string name="reader_voice_show_custom_slider">Show custom slider</string>
     <string name="reader_voice_speed_header">Speed</string>
+    <!-- #1231 — per-fiction playback speed scope toggle in the voice quick-sheet. -->
+    <string name="reader_speed_scope_this_book">This book</string>
+    <string name="reader_speed_scope_all_books">All books</string>
+    <string name="reader_speed_scope_this_book_cd">Save speed for this book only</string>
+    <string name="reader_speed_scope_all_books_cd">Use this speed for all books</string>
     <string name="reader_voice_pitch_header">Pitch</string>
     <string name="reader_voice_sentence_silence_header">Sentence silence</string>
     <string name="reader_voice_speech_speed_cd">Speech speed</string>

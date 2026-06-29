@@ -2,8 +2,17 @@ package `in`.jphe.storyvox.di
 
 import android.app.Application
 import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
+import `in`.jphe.storyvox.data.db.entity.DownloadMode
+import `in`.jphe.storyvox.data.repository.AddByUrlResult
 import `in`.jphe.storyvox.data.repository.ChapterRepository
+import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.repository.playback.PlaybackChapter
+import `in`.jphe.storyvox.data.source.RouteMatch
+import `in`.jphe.storyvox.data.source.model.FictionDetail
+import `in`.jphe.storyvox.data.source.model.FictionResult
+import `in`.jphe.storyvox.data.source.model.FictionSummary
+import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import `in`.jphe.storyvox.feature.api.PUNCTUATION_PAUSE_DEFAULT_MULTIPLIER
@@ -62,6 +71,7 @@ class RealPlaybackControllerUiTest {
             controller = controller,
             chapters = NoOpChapters(),
             settings = settings,
+            fictionRepo = NoOpFictionRepository(),
         )
         advanceUntilIdle()
 
@@ -83,6 +93,7 @@ class RealPlaybackControllerUiTest {
             controller = controller,
             chapters = NoOpChapters(),
             settings = settings,
+            fictionRepo = NoOpFictionRepository(),
         )
         advanceUntilIdle()
 
@@ -106,6 +117,7 @@ class RealPlaybackControllerUiTest {
             controller = controller,
             chapters = NoOpChapters(),
             settings = settings,
+            fictionRepo = NoOpFictionRepository(),
         )
         advanceUntilIdle()
 
@@ -125,6 +137,7 @@ class RealPlaybackControllerUiTest {
             controller = controller,
             chapters = NoOpChapters(),
             settings = settings,
+            fictionRepo = NoOpFictionRepository(),
         )
         advanceUntilIdle()
 
@@ -368,5 +381,39 @@ class RealPlaybackControllerUiTest {
             `in`.jphe.storyvox.data.repository.CachedBodyUsage(count = 0, bytesEstimate = 0L)
         override suspend fun setChapterBookmark(chapterId: String, charOffset: Int?) = Unit
         override suspend fun chapterBookmark(chapterId: String): Int? = null
+    }
+
+    private class NoOpFictionRepository : FictionRepository {
+        override fun observeLibrary(): Flow<List<FictionSummary>> = flowOf(emptyList())
+        override fun observeFollowsRemote(): Flow<List<FictionSummary>> = flowOf(emptyList())
+        override fun observeFiction(id: String): Flow<FictionDetail?> = flowOf(null)
+        override fun observeIsInLibrary(id: String): Flow<Boolean> = flowOf(false)
+        override suspend fun browsePopular(page: Int, sourceId: String) =
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
+        override suspend fun browseLatest(page: Int, sourceId: String) =
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
+        override suspend fun browseByGenre(genre: String, page: Int, sourceId: String) =
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
+        override suspend fun search(query: SearchQuery, sourceId: String) =
+            FictionResult.Success(ListPage<FictionSummary>(emptyList(), page = 0, hasNext = false))
+        override suspend fun cacheBrowseListing(
+            result: FictionResult<ListPage<FictionSummary>>,
+        ) = result
+        override suspend fun genres(sourceId: String) =
+            FictionResult.Success(emptyList<String>())
+        override suspend fun refreshDetail(id: String) = FictionResult.Success(Unit)
+        override suspend fun refreshRemoteFollows() = FictionResult.Success(Unit)
+        override suspend fun addToLibrary(id: String, mode: DownloadMode?) = Unit
+        override suspend fun removeFromLibrary(id: String) = Unit
+        override suspend fun setDownloadMode(id: String, mode: DownloadMode?) = Unit
+        override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
+        override suspend fun setPlaybackSpeed(id: String, speed: Float?) = Unit
+        override fun observePlaybackSpeed(id: String): Flow<Float?> = flowOf(null)
+        override suspend fun setFollowedRemote(id: String, followed: Boolean) =
+            FictionResult.Success(Unit)
+        override suspend fun markAllCaughtUp(): Int = 0
+        override suspend fun addByUrl(url: String, preferredSourceId: String?) =
+            AddByUrlResult.UnrecognizedUrl
+        override fun previewUrl(url: String): List<RouteMatch> = emptyList()
     }
 }

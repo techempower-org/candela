@@ -87,6 +87,15 @@ interface FictionDao {
     @Query("UPDATE fiction SET pinnedVoiceId = :voiceId, pinnedVoiceLocale = :locale WHERE id = :id")
     suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?)
 
+    /**
+     * Issue #1231 — pin (or clear) this fiction's per-book playback speed.
+     * `null` reverts the book to the global/effective default; a non-null
+     * value is auto-restored by the playback wiring every time the book
+     * loads. See [Fiction.playbackSpeed].
+     */
+    @Query("UPDATE fiction SET playbackSpeed = :speed WHERE id = :id")
+    suspend fun updatePlaybackSpeed(id: String, speed: Float?)
+
     @Query("UPDATE fiction SET metadataFetchedAt = :now WHERE id = :id")
     suspend fun touchMetadata(id: String, now: Long)
 
@@ -223,6 +232,9 @@ interface FictionDao {
                 downloadMode = existing.downloadMode,
                 pinnedVoiceId = existing.pinnedVoiceId,
                 pinnedVoiceLocale = existing.pinnedVoiceLocale,
+                // #1231 — per-book speed is user-owned; a browse-listing
+                // upsert must not reset a pinned book back to global.
+                playbackSpeed = existing.playbackSpeed,
                 notesEverSeen = existing.notesEverSeen,
                 firstSeenAt = existing.firstSeenAt,
                 // Listing pages don't carry revision tokens — only the

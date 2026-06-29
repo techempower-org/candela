@@ -93,6 +93,8 @@ fun HybridReaderScreen(
     val recapPlayback by viewModel.recapPlayback.collectAsStateWithLifecycle()
     val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
     val chapters by viewModel.chapters.collectAsStateWithLifecycle()
+    // #1231 — whether the current book has its own pinned playback speed.
+    val speedIsPerBook by viewModel.speedIsPerBook.collectAsStateWithLifecycle()
     val autoScrollEnabled by viewModel.autoScrollEnabled.collectAsStateWithLifecycle()
     val focusModeEnabled by viewModel.focusModeEnabled.collectAsStateWithLifecycle()
     val readerColors by viewModel.readerColors.collectAsStateWithLifecycle()
@@ -278,6 +280,9 @@ fun HybridReaderScreen(
                 onPickVoice = onPickVoice,
                 onSetSpeed = viewModel::setSpeed,
                 onPersistSpeed = viewModel::persistSpeed,
+                // #1231 — per-fiction speed scope toggle.
+                perBookSpeedActive = speedIsPerBook,
+                onToggleSpeedScope = viewModel::toggleSpeedScope,
                 onSetPitch = viewModel::setPitch,
                 onPersistPitch = viewModel::persistPitch,
                 onStartSleepTimer = viewModel::startSleepTimer,

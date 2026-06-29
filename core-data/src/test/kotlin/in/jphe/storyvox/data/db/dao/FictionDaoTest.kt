@@ -235,6 +235,22 @@ class FictionDaoTest {
         assertEquals("en-US", row.pinnedVoiceLocale)
     }
 
+    // ----- #1231 per-fiction playback speed --------------------------------------
+
+    @Test
+    fun updatePlaybackSpeed_pinsAndClears() = runTest {
+        dao.upsert(fixture(id = "f1"))
+        // Default: no per-book override.
+        assertNull(dao.get("f1")!!.playbackSpeed)
+
+        dao.updatePlaybackSpeed("f1", 1.75f)
+        assertEquals(1.75f, dao.get("f1")!!.playbackSpeed!!, 0.0001f)
+
+        // null clears the override back to "inherit global".
+        dao.updatePlaybackSpeed("f1", null)
+        assertNull(dao.get("f1")!!.playbackSpeed)
+    }
+
     @Test
     fun touchMetadata_writesTimestamp() = runTest {
         dao.upsert(fixture(id = "f1").copy(metadataFetchedAt = 0L))
@@ -326,6 +342,7 @@ class FictionDaoTest {
                     downloadMode = DownloadMode.EAGER,
                     pinnedVoiceId = "tony",
                     pinnedVoiceLocale = "en-US",
+                    playbackSpeed = 1.75f,
                     notesEverSeen = true,
                     firstSeenAt = 50L,
                     lastSeenRevision = "rev-1",
@@ -347,6 +364,8 @@ class FictionDaoTest {
         assertEquals(DownloadMode.EAGER, row.downloadMode)
         assertEquals("tony", row.pinnedVoiceId)
         assertEquals("en-US", row.pinnedVoiceLocale)
+        // #1231 — per-book speed is user-owned; a listing upsert must not reset it.
+        assertEquals(1.75f, row.playbackSpeed!!, 0.0001f)
         assertTrue(row.notesEverSeen)
         // firstSeenAt is preserved (not overwritten with the listing's 999).
         assertEquals(50L, row.firstSeenAt)
