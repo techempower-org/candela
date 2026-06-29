@@ -609,6 +609,10 @@ dependencies {
     // documented under scratch/libby-hoopla-palace-scope/ but deferred
     // to their own PRs.
     implementation(project(":source-palace"))
+    // Issue #1002 — Bookshare accessible-library (DAISY) source. Guarded
+    // scaffold today (partner API key + PDTB DRM + per-user OAuth pending);
+    // ships the DAISY text parser as the non-gated groundwork.
+    implementation(project(":source-bookshare"))
     implementation(project(":source-azure"))
     implementation(project(":core-sync"))
     implementation(project(":feature"))

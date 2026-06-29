@@ -122,6 +122,14 @@ object SourceIds {
      *  texts read aloud); LibriVox↔Gutenberg text alignment is a future
      *  enhancement, not part of v1. */
     const val LIBRIVOX: String = "librivox"
+    /** Bookshare (#1002) — Benetech's accessible-book library (1M+
+     *  DAISY titles) for users with print disabilities. Functional
+     *  integration is gated on a partner `api_key`
+     *  (partner-support@bookshare.org), per-user OAuth, and Protected
+     *  DAISY (PDTB) decryption — see the #1002 research comment. The
+     *  shipped `:source-bookshare` scaffold returns `AuthRequired`
+     *  until those land; the DAISY text parser is the non-gated piece. */
+    const val BOOKSHARE: String = "bookshare"
     /** Notion (#233) — Notion databases as a fiction backend. Each
      *  database row is one fiction; each page's top-level `heading_1`
      *  boundary splits it into chapters. Requires a Notion Internal
