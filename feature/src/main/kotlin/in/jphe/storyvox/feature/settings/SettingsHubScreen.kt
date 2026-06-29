@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Speed
@@ -87,6 +88,7 @@ private fun matchesHubQuery(query: String, title: String, subtitle: String): Boo
  *  - Voice & Playback → [VoiceAndPlaybackSettingsScreen]
  *  - Voice library → [VoiceLibraryScreen][in.jphe.storyvox.feature.voicelibrary.VoiceLibraryScreen]
  *  - Reading → [ReadingSettingsScreen]
+ *  - Listening stats → [ListeningStatsScreen][in.jphe.storyvox.feature.stats.ListeningStatsScreen]
  *  - Performance → [PerformanceSettingsScreen]
  *  - AI → [AiSettingsScreen]
  *  - Accessibility → [AccessibilitySettingsScreen] (Phase 1 scaffold)
@@ -149,6 +151,12 @@ fun SettingsHubScreen(
      * [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenAdvanced: () -> Unit = {},
+    /**
+     * Issue #1235 — Listening stats dashboard. Default no-op so existing
+     * callers / smoke tests compile without wiring it; production wiring
+     * lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
+     */
+    onOpenStats: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var query by remember { mutableStateOf("") }
@@ -229,6 +237,15 @@ fun SettingsHubScreen(
                     title = stringResource(R.string.settings_hub_reading_title),
                     subtitle = stringResource(R.string.settings_hub_reading_subtitle),
                     onClick = onOpenReading,
+                )
+                // Issue #1235 — Listening stats dashboard. Sits next to
+                // Reading: both are about the user's own reading, one the
+                // knobs, the other the retrospective.
+                SettingsHubRow(
+                    icon = Icons.Outlined.Insights,
+                    title = stringResource(R.string.settings_hub_stats_title),
+                    subtitle = stringResource(R.string.settings_hub_stats_subtitle),
+                    onClick = onOpenStats,
                 )
                 // v0.5.59 (#cover-style-toggle) — Appearance. Book-
                 // cover fallback style (Monogram / Branded / Cover
@@ -410,6 +427,8 @@ val SettingsHubSections: List<SettingsHubSection> = listOf(
     SettingsHubSection("Voice & Playback", "Voice, speed, cadence, pitch."),
     SettingsHubSection("Voice library", "Browse and switch between available voices."),
     SettingsHubSection("Reading", "Theme, sleep timer."),
+    // Issue #1235 — Listening stats dashboard.
+    SettingsHubSection("Listening stats", "Time listened, streaks, books finished."),
     // v0.5.59 (#cover-style-toggle) — Appearance.
     SettingsHubSection("Appearance", "Book cover style."),
     SettingsHubSection("Performance", "Buffer, parallel synth, decoder choice."),

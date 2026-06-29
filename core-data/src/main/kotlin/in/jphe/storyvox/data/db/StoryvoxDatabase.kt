@@ -12,6 +12,7 @@ import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.FictionMemoryDao
 import `in`.jphe.storyvox.data.db.dao.FictionShelfDao
 import `in`.jphe.storyvox.data.db.dao.InboxEventDao
+import `in`.jphe.storyvox.data.db.dao.ListeningStatsDao
 import `in`.jphe.storyvox.data.db.dao.LlmMessageDao
 import `in`.jphe.storyvox.data.db.dao.LlmSessionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackDao
@@ -98,6 +99,11 @@ abstract class StoryvoxDatabase : RoomDatabase() {
     abstract fun inboxEventDao(): InboxEventDao
     abstract fun fictionMemoryDao(): FictionMemoryDao
     abstract fun annotationDao(): AnnotationDao
+
+    // Issue #1235 — read-only aggregate queries for the listening-stats
+    // dashboard. No entity of its own; aggregates chapter_history +
+    // playback_position + fiction + chapter, so no schema-version bump.
+    abstract fun listeningStatsDao(): ListeningStatsDao
 
     companion object {
         const val NAME: String = "storyvox.db"
