@@ -838,13 +838,15 @@ fun AudiobookView(
             // engine self-reports 0..1 progress via EngineState.Warming.progress.
             // The in-process sherpa-onnx path can't self-report (stays null), so
             // this is hidden there; it's ready for an engine that can.
-            state.warmingProgress?.let { p ->
-                LinearProgressIndicator(
-                    progress = { p.coerceIn(0f, 1f) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                )
+            if (warmingUp) {
+                state.warmingProgress?.let { p ->
+                    LinearProgressIndicator(
+                        progress = p.coerceIn(0f, 1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                    )
+                }
             }
             // Issue #278 / #945 — soft slow hint moved into the
             // in-cover loading-prompts overlay above. The 10 s wall
