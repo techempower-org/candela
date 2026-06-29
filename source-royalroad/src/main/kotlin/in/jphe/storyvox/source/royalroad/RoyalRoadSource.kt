@@ -30,6 +30,8 @@ import `in`.jphe.storyvox.source.royalroad.parser.BrowseParser
 import `in`.jphe.storyvox.source.royalroad.parser.ChapterParser
 import `in`.jphe.storyvox.source.royalroad.parser.FictionDetailParser
 import `in`.jphe.storyvox.source.royalroad.parser.FollowsParser
+import `in`.jphe.storyvox.source.royalroad.tagsync.RoyalRoadTagSyncEndpoints
+import `in`.jphe.storyvox.source.royalroad.tagsync.SavedTagsParser
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.seconds
@@ -274,21 +276,44 @@ class RoyalRoadSource @Inject internal constructor(
         }
 
     override suspend fun setFollowed(fictionId: String, followed: Boolean): FictionResult<Unit> {
-        // Two requests:
-        // 1. GET the fiction page to harvest a fresh __RequestVerificationToken
-        //    (RR's antiforgery cookie + token pair is per-session-per-page).
-        // 2. POST /fictions/setbookmark/{id} with type=follow&mark=True|False
-        //    and the token in the form body. Auth cookies attach automatically
-        //    from the OkHttp jar.
-        val pageHtml = when (val outcome = fetcher.fetchHtml(fictionUrl(fictionId))) {
-            is FetchOutcome.Body -> outcome.html
-            FetchOutcome.NotFound -> return FictionResult.NotFound("Fiction $fictionId not found")
+        // Reliable logged-out short-circuit: the shared auth store holds a row
+        // only after WebView sign-in, so a null row means "never signed in" —
+        // the same proactive check search() uses (#1243). Doing this first lets
+        // us tell a genuinely signed-out user apart from a token/markup glitch
+        // below, instead of conflating the two into a false "sign in" (#1331).
+        if (authDao.get(SourceIds.ROYAL_ROAD) == null) {
+            return FictionResult.AuthRequired(message = "Sign in to follow fictions")
+        }
+
+        // Harvest a fresh antiforgery token, then POST the follow toggle:
+        // 1. GET a page that *reliably* server-renders the hidden
+        //    __RequestVerificationToken input. The fiction page does NOT — RR
+        //    drives its Follow button via AJAX, so the old fiction-page harvest
+        //    came back null and wrongly told signed-in users to "sign in"
+        //    (#1331). We reuse the /fictions/search form the working tag-sync
+        //    writer harvests from (RoyalRoadTagSyncEndpoints.readUrl).
+        // 2. POST /fictions/setbookmark/{id} with type=follow&mark=True|False and
+        //    that token. The antiforgery cookie set by the GET pairs with it and
+        //    the auth cookies attach automatically from the OkHttp jar.
+        val token = when (val outcome = fetcher.fetchHtml(RoyalRoadTagSyncEndpoints.readUrl)) {
+            is FetchOutcome.Body -> when (val tags = SavedTagsParser.parse(outcome.html, outcome.finalUrl)) {
+                SavedTagsParser.Result.NotAuthenticated ->
+                    return FictionResult.AuthRequired(message = "Sign in to follow fictions")
+                is SavedTagsParser.Result.Ok -> tags.parsed.csrfToken
+                    // Authed, but the token form is gone → RR markup changed.
+                    // Not an auth failure, so don't mislead with "sign in" (#1331).
+                    ?: return FictionResult.NetworkError(
+                        message = "Couldn't get a follow token from Royal Road — try again later",
+                    )
+            }
+            FetchOutcome.NotFound -> return FictionResult.NetworkError(message = "Royal Road follow endpoint unavailable")
             is FetchOutcome.CloudflareChallenge -> return FictionResult.Cloudflare(outcome.url)
             is FetchOutcome.RateLimited -> return FictionResult.RateLimited(retryAfter = outcome.retryAfterSec.seconds)
-            is FetchOutcome.HttpError -> return FictionResult.NetworkError(message = "HTTP ${outcome.code}: ${outcome.message}")
+            is FetchOutcome.HttpError -> return when (outcome.code) {
+                401, 403 -> FictionResult.AuthRequired(message = "Sign in to follow fictions")
+                else -> FictionResult.NetworkError(message = "HTTP ${outcome.code}: ${outcome.message}")
+            }
         }
-        val token = extractCsrfToken(pageHtml)
-            ?: return FictionResult.AuthRequired(message = "Sign in to follow fictions")
 
         val body = okhttp3.FormBody.Builder()
             .add("type", "follow")
@@ -314,13 +339,6 @@ class RoyalRoadSource @Inject internal constructor(
         }.getOrElse { FictionResult.NetworkError(message = "POST failed: ${it.message}", cause = it) }
     }
 
-    /** Pulls the CSRF token from the bookmark-form hidden input on the fiction page. */
-    private fun extractCsrfToken(html: String): String? {
-        val doc = org.jsoup.Jsoup.parse(html)
-        return doc.selectFirst("input[name=__RequestVerificationToken]")
-            ?.attr("value")
-            ?.takeIf { it.isNotBlank() }
-    }
     override suspend fun genres(): FictionResult<List<String>> = FictionResult.Success(KnownTagSlugs)
 
     private suspend fun fetchBrowsePage(url: String, page: Int): FictionResult<ListPage<FictionSummary>> =
