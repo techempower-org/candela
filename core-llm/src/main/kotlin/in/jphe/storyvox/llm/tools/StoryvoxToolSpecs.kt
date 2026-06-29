@@ -32,6 +32,13 @@ object StoryvoxToolSpecs {
     const val SET_SPEED = "set_speed"
     const val OPEN_VOICE_LIBRARY = "open_voice_library"
 
+    /** Issue #1227 — catalog-discovery tools. Read-only: they give the
+     *  model eyes on the source backends so it can answer "find me a
+     *  book about…" / "what should I read next" prompts with real
+     *  titles + ids instead of hallucinated ones. */
+    const val SEARCH_SOURCES = "search_sources"
+    const val GET_BOOK_DETAILS = "get_book_details"
+
     /** Allowed values for the `shelf` parameter of [ADD_TO_SHELF]. */
     val SHELVES: List<String> = listOf("Reading", "Read", "Wishlist")
 
@@ -40,6 +47,14 @@ object StoryvoxToolSpecs {
      *  range the user sees on the playback speed slider. */
     const val SPEED_MIN: Float = 0.5f
     const val SPEED_MAX: Float = 2.5f
+
+    /** Issue #1227 — default + ceiling for [SEARCH_SOURCES]'s `limit`.
+     *  The default keeps the aggregated tool-result blob small enough
+     *  to sit comfortably in the model's context window; the ceiling
+     *  caps a greedy `limit` before we render the rows. The handler
+     *  coerces into `1..SEARCH_LIMIT_MAX`. */
+    const val SEARCH_LIMIT_DEFAULT: Int = 8
+    const val SEARCH_LIMIT_MAX: Int = 25
 
     val addToShelf: ToolSpec = ToolSpec(
         name = ADD_TO_SHELF,
@@ -132,13 +147,75 @@ object StoryvoxToolSpecs {
         parameters = emptyList(),
     )
 
-    /** Ordered list of all v1 tools. Iteration order is the order
-     *  they appear in this file. */
+    val searchSources: ToolSpec = ToolSpec(
+        name = SEARCH_SOURCES,
+        description = "Search the user's enabled content sources for " +
+            "books, stories, or articles. Use this whenever the user " +
+            "asks you to find or recommend something to read — 'find " +
+            "me a cultivation story', 'any good sci-fi on Royal Road?', " +
+            "'what should I read next?'. Returns matching titles with " +
+            "their author, source, and a stable id + source id you can " +
+            "pass to get_book_details or add_to_shelf. Results are " +
+            "aggregated across every enabled source unless you name one.",
+        parameters = listOf(
+            ToolParameter.StringParam(
+                name = "query",
+                description = "What to search for — a topic, genre, " +
+                    "title fragment, or author. Plain words work best.",
+            ),
+            ToolParameter.StringParam(
+                name = "source",
+                description = "Optional. Restrict the search to a single " +
+                    "source by its id or display name (e.g. 'royalroad' " +
+                    "or 'Royal Road'). Omit to search all enabled sources.",
+                required = false,
+            ),
+            ToolParameter.IntParam(
+                name = "limit",
+                description = "Optional. Maximum number of results to " +
+                    "return (default $SEARCH_LIMIT_DEFAULT, max " +
+                    "$SEARCH_LIMIT_MAX).",
+                required = false,
+                min = 1,
+                max = SEARCH_LIMIT_MAX,
+            ),
+        ),
+    )
+
+    val getBookDetails: ToolSpec = ToolSpec(
+        name = GET_BOOK_DETAILS,
+        description = "Fetch full metadata for one fiction by id — " +
+            "synopsis, chapter count, tags/genres, rating, word count, " +
+            "and status. Use this after search_sources when the user " +
+            "wants more detail on a specific result, or to decide " +
+            "whether to recommend a book. Pass the `source` from the " +
+            "search result so the lookup routes to the right backend.",
+        parameters = listOf(
+            ToolParameter.StringParam(
+                name = "fictionId",
+                description = "The stable id of the fiction, as returned " +
+                    "by search_sources (the `id=` field).",
+            ),
+            ToolParameter.StringParam(
+                name = "source",
+                description = "Optional but recommended. The source id " +
+                    "the fiction belongs to (the `source=` field from " +
+                    "the search result). Omit and storyvox will try the " +
+                    "enabled sources in turn.",
+                required = false,
+            ),
+        ),
+    )
+
+    /** Ordered list of all tools. Iteration order is the order they
+     *  appear in this file. */
     val ALL: List<ToolSpec> = listOf(
         addToShelf,
         queueChapter,
         markChapterRead,
         setSpeed,
         openVoiceLibrary,
+        searchSources,
+        getBookDetails,
     )
 }

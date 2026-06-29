@@ -6,9 +6,17 @@ import `in`.jphe.storyvox.data.repository.ChapterRepository
 import `in`.jphe.storyvox.data.repository.ShelfRepository
 import `in`.jphe.storyvox.data.repository.playback.PlaybackChapter
 import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
+import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
+import `in`.jphe.storyvox.data.source.model.FictionDetail
+import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionSummary
+import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.SearchQuery
+import `in`.jphe.storyvox.data.source.plugin.SourceCategory
+import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
+import `in`.jphe.storyvox.data.source.plugin.SourcePluginRegistry
 import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
@@ -135,7 +143,7 @@ class ChatToolHandlersTest {
     fun `registry exposes every catalog tool by name`() {
         val handlers = makeHandlers()
         val registry = handlers.registry()
-        assertEquals(5, registry.catalog.size)
+        assertEquals(7, registry.catalog.size)
         registry.catalog.forEach { spec ->
             assertNotNull(
                 "Registry missing handler for ${spec.name}",
@@ -144,7 +152,181 @@ class ChatToolHandlersTest {
         }
     }
 
+    // ── search_sources ─────────────────────────────────────────────
+
+    @Test
+    fun `search_sources aggregates hits across enabled sources`() = runTest {
+        val rr = FakeSearchSource(
+            "royalroad", "Royal Road",
+            searchResult = pageOf(summary("rr1", "royalroad", "Wandering Inn", "pirateaba")),
+        )
+        val ao3 = FakeSearchSource(
+            "ao3", "AO3",
+            searchResult = pageOf(summary("ao1", "ao3", "All the Young Dudes", "MsKingBean89")),
+        )
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(rr), descriptorFor(ao3)))
+
+        val result = handlers.searchSources(buildJsonObject { put("query", "magic") })
+        assertTrue("Expected Success, got $result", result is ToolResult.Success)
+        val msg = (result as ToolResult.Success).message
+        assertTrue("Should list the RR hit (was $msg)", msg.contains("Wandering Inn"))
+        assertTrue("Should list the AO3 hit (was $msg)", msg.contains("All the Young Dudes"))
+        // The id/source tail is what lets the model chain into details.
+        assertTrue("Row should carry the fiction id", msg.contains("id=rr1"))
+        assertTrue("Row should carry the source id", msg.contains("source=ao3"))
+    }
+
+    @Test
+    fun `search_sources skips a failing source and returns the rest`() = runTest {
+        val dead = FakeSearchSource(
+            "royalroad", "Royal Road",
+            searchResult = FictionResult.AuthRequired(),
+        )
+        val live = FakeSearchSource(
+            "gutenberg", "Gutenberg",
+            searchResult = pageOf(summary("g1", "gutenberg", "Frankenstein", "Mary Shelley")),
+        )
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(dead), descriptorFor(live)))
+
+        val result = handlers.searchSources(buildJsonObject { put("query", "gothic") })
+        assertTrue("Auth-gated source must not sink the search", result is ToolResult.Success)
+        assertTrue((result as ToolResult.Success).message.contains("Frankenstein"))
+    }
+
+    @Test
+    fun `search_sources throwing source is swallowed`() = runTest {
+        val boom = FakeSearchSource(
+            "boom", "Boom", searchResult = pageOf(), throwOnSearch = true,
+        )
+        val live = FakeSearchSource(
+            "gutenberg", "Gutenberg",
+            searchResult = pageOf(summary("g1", "gutenberg", "Dracula", "Bram Stoker")),
+        )
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(boom), descriptorFor(live)))
+
+        val result = handlers.searchSources(buildJsonObject { put("query", "vampire") })
+        assertTrue(result is ToolResult.Success)
+        assertTrue((result as ToolResult.Success).message.contains("Dracula"))
+    }
+
+    @Test
+    fun `search_sources narrows to the named source`() = runTest {
+        val rr = FakeSearchSource(
+            "royalroad", "Royal Road",
+            searchResult = pageOf(summary("rr1", "royalroad", "Only RR", "a")),
+        )
+        val ao3 = FakeSearchSource(
+            "ao3", "AO3",
+            searchResult = pageOf(summary("ao1", "ao3", "Only AO3", "b")),
+        )
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(rr), descriptorFor(ao3)))
+
+        // Filter by display name (case-insensitive).
+        val result = handlers.searchSources(
+            buildJsonObject { put("query", "x"); put("source", "royal road") },
+        )
+        assertTrue(result is ToolResult.Success)
+        val msg = (result as ToolResult.Success).message
+        assertTrue(msg.contains("Only RR"))
+        assertTrue("AO3 should be excluded by the filter", !msg.contains("Only AO3"))
+    }
+
+    @Test
+    fun `search_sources caps the result count at limit`() = runTest {
+        val many = (1..5).map { summary("g$it", "gutenberg", "Book $it", "auth") }
+        val src = FakeSearchSource("gutenberg", "Gutenberg", searchResult = pageOf(*many.toTypedArray()))
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(src)))
+
+        val result = handlers.searchSources(
+            buildJsonObject { put("query", "x"); put("limit", 2) },
+        )
+        assertTrue(result is ToolResult.Success)
+        val msg = (result as ToolResult.Success).message
+        assertTrue("Header should note the cap (was $msg)", msg.contains("showing 2"))
+        // Exactly two bullet rows rendered.
+        assertEquals(2, msg.lines().count { it.startsWith("•") })
+    }
+
+    @Test
+    fun `search_sources errors on a blank query`() = runTest {
+        val handlers = makeHandlers(
+            sourceRegistry = registryOf(descriptorFor(FakeSearchSource("g", "G", pageOf()))),
+        )
+        val result = handlers.searchSources(buildJsonObject { put("query", "   ") })
+        assertTrue(result is ToolResult.Error)
+    }
+
+    @Test
+    fun `search_sources errors when no searchable source is enabled`() = runTest {
+        // A registered source that doesn't advertise search is not a target.
+        val noSearch = descriptorFor(FakeSearchSource("g", "G", pageOf()), supportsSearch = false)
+        val handlers = makeHandlers(sourceRegistry = registryOf(noSearch))
+        val result = handlers.searchSources(buildJsonObject { put("query", "x") })
+        assertTrue(result is ToolResult.Error)
+    }
+
+    // ── get_book_details ───────────────────────────────────────────
+
+    @Test
+    fun `get_book_details routes to the named source and renders metadata`() = runTest {
+        val detail = FictionDetail(
+            summary = summary("g1", "gutenberg", "Moby Dick", "Herman Melville").copy(
+                description = "A whale of a tale.",
+                rating = 4.2f,
+            ),
+            chapters = listOf(chapterInfo("c1", 0), chapterInfo("c2", 1), chapterInfo("c3", 2)),
+            genres = listOf("Adventure", "Classic"),
+            wordCount = 206_052L,
+        )
+        val src = FakeSearchSource("gutenberg", "Gutenberg", pageOf(), detailResult = FictionResult.Success(detail))
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(src)))
+
+        val result = handlers.getBookDetails(
+            buildJsonObject { put("fictionId", "g1"); put("source", "gutenberg") },
+        )
+        assertTrue("Expected Success, got $result", result is ToolResult.Success)
+        val msg = (result as ToolResult.Success).message
+        assertTrue(msg.contains("Moby Dick"))
+        assertTrue("Chapter count from the live TOC", msg.contains("Chapters: 3"))
+        assertTrue(msg.contains("Adventure"))
+        assertTrue(msg.contains("A whale of a tale."))
+    }
+
+    @Test
+    fun `get_book_details errors when no enabled source can resolve the id`() = runTest {
+        val src = FakeSearchSource("gutenberg", "Gutenberg", pageOf()) // detail defaults to NotFound
+        val handlers = makeHandlers(sourceRegistry = registryOf(descriptorFor(src)))
+        val result = handlers.getBookDetails(buildJsonObject { put("fictionId", "ghost") })
+        assertTrue(result is ToolResult.Error)
+    }
+
     // ── Helpers ────────────────────────────────────────────────────
+
+    private fun summary(id: String, sourceId: String, title: String, author: String) =
+        FictionSummary(id = id, sourceId = sourceId, title = title, author = author)
+
+    private fun chapterInfo(id: String, index: Int) =
+        ChapterInfo(id = id, sourceChapterId = id, index = index, title = "Chapter ${index + 1}")
+
+    private fun pageOf(vararg items: FictionSummary): FictionResult<ListPage<FictionSummary>> =
+        FictionResult.Success(ListPage(items.toList(), page = 1, hasNext = false))
+
+    private fun descriptorFor(
+        source: FictionSource,
+        defaultEnabled: Boolean = true,
+        supportsSearch: Boolean = true,
+    ) = SourcePluginDescriptor(
+        id = source.id,
+        displayName = source.displayName,
+        defaultEnabled = defaultEnabled,
+        category = SourceCategory.Text,
+        supportsFollow = false,
+        supportsSearch = supportsSearch,
+        source = source,
+    )
+
+    private fun registryOf(vararg descriptors: SourcePluginDescriptor) =
+        SourcePluginRegistry(descriptors.toSet())
 
     private fun makeHandlers(
         shelfRepo: FakeShelfRepo = FakeShelfRepo(),
@@ -152,6 +334,7 @@ class ChatToolHandlersTest {
         fictionRepo: FakeFictionRepoT = FakeFictionRepoT(),
         playback: FakePlayback = FakePlayback(),
         settings: FakeSettings = FakeSettings(),
+        sourceRegistry: SourcePluginRegistry = SourcePluginRegistry(emptySet()),
         onOpenVoiceLibrary: () -> Unit = {},
     ): ChatToolHandlers = ChatToolHandlers(
         activeFictionId = "f1",
@@ -160,6 +343,7 @@ class ChatToolHandlersTest {
         fictionRepo = fictionRepo,
         playback = playback,
         settingsRepo = settings,
+        sourceRegistry = sourceRegistry,
         onOpenVoiceLibrary = onOpenVoiceLibrary,
     )
 }
@@ -387,4 +571,34 @@ private class FakeSettings : SettingsRepositoryUi {
     override suspend fun setAzureFallbackEnabled(enabled: Boolean) = Unit
     override suspend fun setAzureFallbackVoiceId(voiceId: String?) = Unit
     override suspend fun testAzureConnection(): AzureProbeResult = AzureProbeResult.NotConfigured
+}
+
+/**
+ * Issue #1227 — a [FictionSource] whose `search` / `fictionDetail` return
+ * canned results, with a `throwOnSearch` escape hatch for the
+ * skip-a-broken-backend path. Only the methods the catalog tools touch
+ * carry behaviour; the rest are inert stubs.
+ */
+private class FakeSearchSource(
+    override val id: String,
+    override val displayName: String,
+    private val searchResult: FictionResult<ListPage<FictionSummary>>,
+    private val detailResult: FictionResult<FictionDetail> = FictionResult.NotFound("fake"),
+    private val throwOnSearch: Boolean = false,
+) : FictionSource {
+    override suspend fun popular(page: Int) = emptyPage(page)
+    override suspend fun latestUpdates(page: Int) = emptyPage(page)
+    override suspend fun byGenre(genre: String, page: Int) = emptyPage(page)
+    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
+        if (throwOnSearch) error("boom")
+        return searchResult
+    }
+    override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> = detailResult
+    override suspend fun chapter(fictionId: String, chapterId: String): FictionResult<ChapterContent> =
+        FictionResult.NotFound("fake")
+    override suspend fun followsList(page: Int) = emptyPage(page)
+    override suspend fun setFollowed(fictionId: String, followed: Boolean) = FictionResult.Success(Unit)
+    override suspend fun genres() = FictionResult.Success(emptyList<String>())
+    private fun emptyPage(page: Int) =
+        FictionResult.Success(ListPage<FictionSummary>(items = emptyList(), page = page, hasNext = false))
 }
