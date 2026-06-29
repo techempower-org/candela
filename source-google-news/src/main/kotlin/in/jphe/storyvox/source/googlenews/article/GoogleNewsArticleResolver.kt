@@ -22,12 +22,16 @@ internal class GoogleNewsArticleResolver @Inject constructor(
     private val decoder: GoogleNewsUrlDecoder,
     private val fetcher: ReadabilityFetcher,
     private val extractor: ReadabilityExtractor,
-    private val config: GoogleNewsConfig,
+    // dagger.Lazy breaks a Dagger dependency cycle: GoogleNewsConfig is
+    // provided by SettingsRepositoryUiImpl, which transitively depends on the
+    // FictionSource map (→ GoogleNewsSource → this resolver). A direct edge
+    // closes the loop; a Lazy edge defers config construction past it.
+    private val config: dagger.Lazy<GoogleNewsConfig>,
 ) : ArticleResolver {
 
     override suspend fun resolve(item: GoogleNewsItem): String? {
         // Opt-in gate (default OFF — ToS-gray + fragile).
-        if (!config.isFullArticleTextEnabled()) return null
+        if (!config.get().isFullArticleTextEnabled()) return null
 
         val publisherUrl = decoder.decode(item.link) ?: return null
 

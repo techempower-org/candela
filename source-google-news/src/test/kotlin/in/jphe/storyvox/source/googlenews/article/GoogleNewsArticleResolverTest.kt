@@ -25,7 +25,7 @@ class GoogleNewsArticleResolverTest {
             decoder = ExplodingDecoder(),
             fetcher = ReadabilityFetcher(OkHttpClient()),
             extractor = ReadabilityExtractor(),
-            config = FakeConfig(enabled = false),
+            config = dagger.Lazy { FakeConfig(enabled = false) },
         )
         // ExplodingDecoder.decode() throws if reached — a pass proves the
         // flag short-circuits before any network work.
@@ -38,7 +38,7 @@ class GoogleNewsArticleResolverTest {
             decoder = StubDecoder(decoded = null),
             fetcher = ReadabilityFetcher(OkHttpClient()),
             extractor = ReadabilityExtractor(),
-            config = FakeConfig(enabled = true),
+            config = dagger.Lazy { FakeConfig(enabled = true) },
         )
         assertNull(resolver.resolve(item()))
     }
