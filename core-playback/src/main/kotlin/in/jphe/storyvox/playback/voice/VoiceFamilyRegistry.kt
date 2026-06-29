@@ -109,95 +109,22 @@ class VoiceFamilyRegistry @Inject constructor() {
      *  (#1236 flipped [VoiceCatalog.SUPERTONIC_ENABLED] to true), so
      *  [listOfNotNull] keeps it and a shipped build shows seven
      *  descriptors. The flag stays as the single re-gate point. */
+    // #1372 — the literals now live in [VoiceFamilyDescriptors] so the
+    // family cards and each `VoiceEnginePlugin.familyDescriptor()` share
+    // one source of truth. This list keeps the curated display order
+    // (System TTS first as the zero-download tier; then the in-process
+    // neural families; then cloud; then the placeholder) and the
+    // [VoiceCatalog.SUPERTONIC_ENABLED] gate, so the rendered output is
+    // unchanged. listOfNotNull drops Supertonic if the flag is ever
+    // flipped back, re-gating the card and the voices together.
     val descriptors: List<VoiceFamilyDescriptor> = listOfNotNull(
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.SYSTEM_TTS,
-            displayName = "System TTS",
-            description = "Uses your device's built-in voice — no download needed",
-            sourceUrl = "https://developer.android.com/reference/android/speech/tts/TextToSpeech",
-            license = "Bundled with Android — varies by engine (Google / Samsung / eSpeak / etc.)",
-            sizeHint = "0 MB — synthesis happens via Android's TextToSpeech framework",
-            defaultEnabled = true,
-            // The OS engine runs locally (no network for Google's
-            // offline voices, no network for Samsung TTS), so we
-            // classify Local. A handful of Google network-tier voices
-            // do require connectivity; future work could split tier
-            // chips per-voice — keep this Local for now so the family
-            // card reads honestly about the common case.
-            engineFamily = VoiceEngineFamily.Local,
-        ),
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.PIPER,
-            displayName = "Piper",
-            description = "Local neural voices · per-voice ONNX download",
-            sourceUrl = "https://github.com/rhasspy/piper-voices",
-            license = "MIT (sherpa-onnx) · CC-BY / CC0 voice datasets",
-            sizeHint = "~14–30 MB per voice (low / medium tier), ~120 MB high tier",
-            defaultEnabled = true,
-            engineFamily = VoiceEngineFamily.Local,
-        ),
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.KOKORO,
-            displayName = "Kokoro",
-            description = "Local multi-speaker · one shared ~330 MB model",
-            sourceUrl = "https://huggingface.co/hexgrad/Kokoro-82M",
-            license = "Apache 2.0",
-            sizeHint = "~330 MB single download, 53 speakers share the model",
-            defaultEnabled = true,
-            engineFamily = VoiceEngineFamily.Local,
-        ),
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.KITTEN,
-            displayName = "KittenTTS",
-            description = "Local lightweight · ~25 MB shared, 8 en_US speakers",
-            sourceUrl = "https://github.com/KittenML/KittenTTS",
-            license = "Apache 2.0",
-            sizeHint = "~25 MB shared model, 8 en_US speakers (Bella, Luna, Rosie, Kiki / Jasper, Bruno, Hugo, Leo)",
-            defaultEnabled = true,
-            engineFamily = VoiceEngineFamily.Local,
-        ),
-        // The Supertonic family card ships now that the engine has landed
-        // (#1236 set [VoiceCatalog.SUPERTONIC_ENABLED] = true), sharing the
-        // flag with the voices. listOfNotNull would drop this entry if the
-        // flag were ever flipped back, so one toggle re-gates both surfaces.
-        if (VoiceCatalog.SUPERTONIC_ENABLED) {
-            VoiceFamilyDescriptor(
-                id = VoiceFamilyIds.SUPERTONIC,
-                displayName = "Supertonic 3",
-                description = "Local high-quality · shared model, 10 en_US speakers",
-                sourceUrl = "https://github.com/k2-fsa/sherpa-onnx",
-                license = "Apache 2.0",
-                sizeHint = "~TBD MB shared model, 10 en_US speakers (F1–F5 / M1–M5)",
-                defaultEnabled = true,
-                engineFamily = VoiceEngineFamily.Local,
-            )
-        } else {
-            null
-        },
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.AZURE,
-            displayName = "Azure HD voices",
-            description = "Cloud · BYOK · Dragon HD + Multilingual + Neural tiers",
-            sourceUrl = "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support",
-            license = "Proprietary · billed by Azure ($30 / 1M chars)",
-            sizeHint = "0 MB local — synthesis happens server-side",
-            requiresConfiguration = true,
-            // Default OFF so a fresh install doesn't pretend to have Azure
-            // voices ready; the user opts in by configuring credentials.
-            defaultEnabled = false,
-            engineFamily = VoiceEngineFamily.Cloud,
-        ),
-        VoiceFamilyDescriptor(
-            id = VoiceFamilyIds.VOXSHERPA_UPSTREAMS,
-            displayName = "VoxSherpa upstreams",
-            description = "Placeholder for future engine-lib voice families",
-            sourceUrl = "https://github.com/techempower-org/VoxSherpa-TTS",
-            license = "—",
-            sizeHint = "—",
-            isPlaceholder = true,
-            defaultEnabled = false,
-            engineFamily = VoiceEngineFamily.Local,
-        ),
+        VoiceFamilyDescriptors.SYSTEM_TTS,
+        VoiceFamilyDescriptors.PIPER,
+        VoiceFamilyDescriptors.KOKORO,
+        VoiceFamilyDescriptors.KITTEN,
+        if (VoiceCatalog.SUPERTONIC_ENABLED) VoiceFamilyDescriptors.SUPERTONIC else null,
+        VoiceFamilyDescriptors.AZURE,
+        VoiceFamilyDescriptors.VOXSHERPA_PLACEHOLDER,
     )
 
     /** Lookup by stable family id. */

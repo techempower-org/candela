@@ -115,7 +115,11 @@ object VoiceCatalog {
         "piper_cori_en_GB_medium",
         "piper_cori_en_GB_high",
     )
-    private fun piperEntries(): List<CatalogEntry> = listOf(
+    // #1372 — `internal` (was `private`) so each in-process
+    // `VoiceEnginePlugin.catalogEntries()` can delegate here; the union
+    // across plugins reproduces [voices]. Still the single source of the
+    // static roster — [voices] composes these in display order.
+    internal fun piperEntries(): List<CatalogEntry> = listOf(
         CatalogEntry(
             id = "piper_lessac_en_US_high",
             displayName = "Lessac",
@@ -718,7 +722,7 @@ object VoiceCatalog {
      *  title as `<flag> <displayName>` and the subtitle as
      *  `<Engine> · <Tier> · <Gender>`. Language is already represented by
      *  the rendered flag, so we don't repeat it. */
-    private fun kokoroEntries(): List<CatalogEntry> {
+    internal fun kokoroEntries(): List<CatalogEntry> {
         fun kokoro(id: String, displayName: String, language: String, speakerId: Int, gender: VoiceGender): CatalogEntry =
             CatalogEntry(
                 id = id,
@@ -809,7 +813,7 @@ object VoiceCatalog {
      *  picker's group-by-engine ordering will surface Kitten beneath
      *  Piper / above Kokoro per the VoiceLibraryViewModel engine-sort
      *  rule. */
-    private fun kittenEntries(): List<CatalogEntry> {
+    internal fun kittenEntries(): List<CatalogEntry> {
         fun kitten(id: String, displayName: String, speakerId: Int, gender: VoiceGender): CatalogEntry =
             CatalogEntry(
                 id = id,
@@ -860,7 +864,7 @@ object VoiceCatalog {
      * all 10 speakers share one download, so a per-voice byte count is
      * misleading and the Voice Library suppresses the size chip when it's 0.
      */
-    private fun supertonicEntries(): List<CatalogEntry> {
+    internal fun supertonicEntries(): List<CatalogEntry> {
         fun supertonic(id: String, displayName: String, speakerId: Int, gender: VoiceGender): CatalogEntry =
             CatalogEntry(
                 id = id,
