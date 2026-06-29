@@ -8,6 +8,7 @@ import `in`.jphe.storyvox.data.db.dao.AnnotationDao
 import `in`.jphe.storyvox.data.db.dao.AuthDao
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.ChapterHistoryDao
+import `in`.jphe.storyvox.data.db.dao.CharacterVoiceDao
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.FictionMemoryDao
 import `in`.jphe.storyvox.data.db.dao.FictionShelfDao
@@ -20,6 +21,7 @@ import `in`.jphe.storyvox.data.db.entity.Annotation
 import `in`.jphe.storyvox.data.db.entity.AuthCookie
 import `in`.jphe.storyvox.data.db.entity.Chapter
 import `in`.jphe.storyvox.data.db.entity.ChapterHistory
+import `in`.jphe.storyvox.data.db.entity.CharacterVoice
 import `in`.jphe.storyvox.data.db.entity.Fiction
 import `in`.jphe.storyvox.data.db.entity.FictionMemoryEntry
 import `in`.jphe.storyvox.data.db.entity.FictionShelf
@@ -57,6 +59,9 @@ import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
         // removed book drops its highlights. Char-offset range into the
         // chapter body (same coordinate as the bookmark + sentence-highlight).
         Annotation::class,
+        // v17 (#1283 per-character voice) — per-(fiction, character) voiceId
+        // map. Additive junction table; FK CASCADE to fiction.
+        CharacterVoice::class,
     ],
     // v11 (#965 per-chapter playback position) — PlaybackPosition PK changes
     // from `fictionId` to composite `(fictionId, chapterId)` so each chapter
@@ -83,7 +88,11 @@ import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
     // v16 (#1231 per-fiction playback speed) — adds `fiction.playbackSpeed`
     // so a book can pin its own speed (auto-restored on load) independent of
     // the global default. Purely additive nullable REAL column.
-    version = 16,
+    //
+    // v17 (#1283 per-character voice) — adds the `character_voice` table
+    // (per-(fiction, character) → voiceId). Purely additive new table with a
+    // CASCADE FK to fiction. See MIGRATION_16_17.
+    version = 17,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -99,6 +108,9 @@ abstract class StoryvoxDatabase : RoomDatabase() {
     abstract fun inboxEventDao(): InboxEventDao
     abstract fun fictionMemoryDao(): FictionMemoryDao
     abstract fun annotationDao(): AnnotationDao
+
+    // Issue #1283 — per-character voice assignment map.
+    abstract fun characterVoiceDao(): CharacterVoiceDao
 
     // Issue #1235 — read-only aggregate queries for the listening-stats
     // dashboard. No entity of its own; aggregates chapter_history +
