@@ -36,17 +36,18 @@ class BrowseSourceUiTest {
             SourceIds.NOTION_TECHEMPOWER to "TechEmpower",
             SourceIds.NOTION_PAT to "Notion",
             SourceIds.HACKERNEWS to "Hacker News",
+            SourceIds.GOOGLE_NEWS to "Google News",
             SourceIds.ARXIV to "arXiv",
             SourceIds.PLOS to "PLOS",
             SourceIds.DISCORD to "Discord",
         )
 
-        // 19 = 11 catalog backends + Radio/Kvmr alias +
-        // Notion TechEmpower + Notion PAT + HN + arXiv + PLOS + Discord.
-        // Slack and Telegram intentionally fall through to the registry's
-        // displayName (chip strip uses the same string as the Settings →
-        // Plugins label).
-        assertEquals(19, expected.size)
+        // 20 = 11 catalog backends + Radio/Kvmr alias +
+        // Notion TechEmpower + Notion PAT + HN + Google News + arXiv +
+        // PLOS + Discord. Slack and Telegram intentionally fall through to
+        // the registry's displayName (chip strip uses the same string as
+        // the Settings → Plugins label).
+        assertEquals(20, expected.size)
         for ((id, label) in expected) {
             assertEquals(
                 "Unexpected chip label for $id",
@@ -171,7 +172,7 @@ class BrowseSourceUiTest {
             SourceIds.RADIO, SourceIds.KVMR,
             // Issue #770 — split NOTION into TECHEMPOWER + PAT.
             SourceIds.NOTION_TECHEMPOWER, SourceIds.NOTION_PAT,
-            SourceIds.HACKERNEWS, SourceIds.ARXIV,
+            SourceIds.HACKERNEWS, SourceIds.GOOGLE_NEWS, SourceIds.ARXIV,
             SourceIds.PLOS, SourceIds.DISCORD,
             // Issue #695 — Slack/Telegram declare supportsSearch=false;
             // the smoke loops verify their tab list still includes

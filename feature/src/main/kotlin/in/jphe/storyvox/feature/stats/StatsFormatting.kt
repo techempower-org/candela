@@ -76,6 +76,7 @@ object StatsFormatting {
         SourceIds.NOTION, SourceIds.NOTION_PAT -> "Notion"
         SourceIds.NOTION_TECHEMPOWER -> "TechEmpower"
         SourceIds.HACKERNEWS -> "Hacker News"
+        SourceIds.GOOGLE_NEWS -> "Google News"
         SourceIds.ARXIV -> "arXiv"
         SourceIds.PLOS -> "PLOS"
         SourceIds.DISCORD -> "Discord"

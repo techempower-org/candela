@@ -155,6 +155,19 @@ object SourceIds {
      *  backends and the existing picker shouldn't surface it on
      *  every fresh install. */
     const val HACKERNEWS: String = "hackernews"
+
+    /** Google News (#1238) — Google's public news RSS as a headline-feed
+     *  backend ("like the Chrome new-tab feed"). The fiction grain is the
+     *  section feed, not the article: Top stories + the 8 topic sections +
+     *  free-text search are each one fiction (`googlenews:top`,
+     *  `googlenews:topic:TECHNOLOGY`, `googlenews:search:<q>`) and each feed
+     *  item is a chapter. Self-describing ids rebuild from the id alone, so
+     *  this is NOT in [idNeedsSourceUrlToRebuild]. Full article text is out
+     *  of scope for v1 — Google obfuscates article URLs behind a
+     *  decode-gated redirect — so the chapter body is a headline +
+     *  publisher + related-coverage digest. Default ON (general-interest,
+     *  no token), mirroring Hacker News' discoverability posture. */
+    const val GOOGLE_NEWS: String = "googlenews"
     /** arXiv (#378) — open-access academic papers backend. Second non-
      *  fiction-shaped source after [WIKIPEDIA]. Each arXiv paper is one
      *  fiction; the v1 chapter shape is a single "Abstract" chapter

@@ -644,6 +644,7 @@ private fun sourceTagline(id: String): String {
         SourceIds.NOTION_TECHEMPOWER -> R.string.source_tagline_techempower
         SourceIds.NOTION_PAT -> R.string.source_tagline_notion
         SourceIds.HACKERNEWS -> R.string.source_tagline_hackernews
+        SourceIds.GOOGLE_NEWS -> R.string.source_tagline_google_news
         SourceIds.ARXIV -> R.string.source_tagline_arxiv
         SourceIds.PLOS -> R.string.source_tagline_plos
         SourceIds.DISCORD -> R.string.source_tagline_discord
@@ -681,6 +682,9 @@ private fun sourceGlyph(id: String): ImageVector = when (id) {
     SourceIds.NOTION_TECHEMPOWER -> Icons.Filled.Bolt
     SourceIds.NOTION_PAT -> Icons.Filled.Description
     SourceIds.HACKERNEWS -> Icons.Filled.Bolt
+    // #1238 — globe glyph for the world-news feed (already imported;
+    // a dedicated Newspaper glyph is a trivial follow-up tweak).
+    SourceIds.GOOGLE_NEWS -> Icons.Filled.Public
     SourceIds.ARXIV -> Icons.Filled.Science
     SourceIds.PLOS -> Icons.Filled.Science
     SourceIds.DISCORD -> Icons.Filled.Chat
