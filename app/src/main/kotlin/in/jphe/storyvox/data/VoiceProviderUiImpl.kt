@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Legacy voice surface for SettingsViewModel + the legacy VoicePickerScreen +
@@ -29,49 +30,76 @@ class VoiceProviderUiImpl @Inject constructor(
 ) : VoiceProviderUi {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val engineResolver = TtsEngineResolver(context)
 
     override val installedVoices: Flow<List<UiVoice>> = flow {
         val tts = bootTts() ?: run {
             emit(emptyList())
             return@flow
         }
-        val voices = runCatching { tts.voices?.toList().orEmpty() }.getOrDefault(emptyList())
-        val mapped = voices
-            .map {
-                UiVoice(
-                    id = it.name,
-                    label = humanize(it.name),
-                    engine = "System TTS",
-                    locale = it.locale.toLanguageTag(),
-                )
-            }
-            .sortedWith(compareBy({ it.locale }, { it.label }))
-        runCatching { tts.shutdown() }
+        // try/finally so a WhileSubscribed cancellation between boot and
+        // shutdown can't leak the instance into a reconnect loop (#1384).
+        val mapped = try {
+            val voices = runCatching { tts.voices?.toList().orEmpty() }.getOrDefault(emptyList())
+            voices
+                .map {
+                    UiVoice(
+                        id = it.name,
+                        label = humanize(it.name),
+                        engine = "System TTS",
+                        locale = it.locale.toLanguageTag(),
+                    )
+                }
+                .sortedWith(compareBy({ it.locale }, { it.label }))
+        } finally {
+            runCatching { tts.shutdown() }
+        }
         emit(mapped)
     }.shareIn(scope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     override fun previewVoice(voice: UiVoice) {
         scope.launch {
             val tts = bootTts() ?: return@launch
-            runCatching {
-                tts.voices?.firstOrNull { it.name == voice.id }?.let { tts.voice = it }
-                tts.speak(PREVIEW_TEXT, TextToSpeech.QUEUE_FLUSH, null, "preview-${voice.id}")
+            try {
+                runCatching {
+                    tts.voices?.firstOrNull { it.name == voice.id }?.let { tts.voice = it }
+                    tts.speak(PREVIEW_TEXT, TextToSpeech.QUEUE_FLUSH, null, "preview-${voice.id}")
+                }
+                // Let the utterance play, then release.
+                kotlinx.coroutines.delay(4_000L)
+            } finally {
+                runCatching { tts.shutdown() }
             }
-            // Let the utterance play, then release.
-            kotlinx.coroutines.delay(4_000L)
-            runCatching { tts.shutdown() }
         }
     }
 
-    /** Boot a one-shot Android [TextToSpeech] tied to whatever engine the OS picks. */
-    private suspend fun bootTts(): TextToSpeech? = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-        var tts: TextToSpeech? = null
-        tts = TextToSpeech(context) { status ->
-            if (cont.isCompleted) return@TextToSpeech
-            if (status == TextToSpeech.SUCCESS) cont.resume(tts) {} else {
-                runCatching { tts?.shutdown() }
-                cont.resume(null) {}
+    /**
+     * Boot a one-shot Android [TextToSpeech] bound to an explicit public
+     * engine. #1384 — a null target asks the framework to bind the device
+     * default, which on Samsung is a private engine whose refused bind
+     * spins a connect/disconnect loop that never fires onInit. The await
+     * is timeout-bounded and cancellation tears the instance down so a
+     * stuck init can't leak the instance into that loop.
+     */
+    private suspend fun bootTts(): TextToSpeech? = withTimeoutOrNull(INIT_TIMEOUT_MS) {
+        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            var tts: TextToSpeech? = null
+            val onInit = TextToSpeech.OnInitListener { status ->
+                if (cont.isCompleted) return@OnInitListener
+                if (status == TextToSpeech.SUCCESS) {
+                    cont.resume(tts) { runCatching { tts?.shutdown() } }
+                } else {
+                    runCatching { tts?.shutdown() }
+                    cont.resume(null) {}
+                }
             }
+            val engine = engineResolver.preferredPublicEngine()
+            tts = if (engine.isNullOrBlank()) {
+                TextToSpeech(context, onInit)
+            } else {
+                TextToSpeech(context, onInit, engine)
+            }
+            cont.invokeOnCancellation { runCatching { tts?.shutdown() } }
         }
     }
 
@@ -82,5 +110,9 @@ class VoiceProviderUiImpl @Inject constructor(
 
     private companion object {
         const val PREVIEW_TEXT = "The brass lantern flickers. Welcome back to the Library Nocturne."
+
+        /** #1384 — ceiling on the onInit await so a stuck engine init
+         *  can't suspend (and leak) the instance forever. */
+        const val INIT_TIMEOUT_MS: Long = 8_000
     }
 }
