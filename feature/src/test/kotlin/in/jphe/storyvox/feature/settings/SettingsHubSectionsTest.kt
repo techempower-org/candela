@@ -27,16 +27,16 @@ import org.junit.Test
 class SettingsHubSectionsTest {
 
     @Test
-    fun `hub catalog renders sixteen sections in fixed order`() {
-        // 15 named sections + 1 escape hatch ("All settings"). The
+    fun `hub catalog renders seventeen sections in fixed order`() {
+        // 16 named sections + 1 escape hatch ("All settings"). The
         // count bumped 13 → 14 in v0.5.42 (Accessibility scaffold);
         // 14 → 15 in v0.5.59 (Appearance / book cover style); 15 →
         // 16 in the v1 settings-bundle-7 (Advanced subscreen — #598
-        // Android Auto bucket size and future integration tunables).
-        // Adding a new section requires updating both this assertion
-        // AND the composable's row list — that drift is the point of
-        // pinning.
-        assertEquals(16, SettingsHubSections.size)
+        // Android Auto bucket size and future integration tunables);
+        // 16 → 17 in #1235 (Listening stats dashboard). Adding a new
+        // section requires updating both this assertion AND the
+        // composable's row list — that drift is the point of pinning.
+        assertEquals(17, SettingsHubSections.size)
     }
 
     @Test

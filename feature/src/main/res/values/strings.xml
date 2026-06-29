@@ -633,6 +633,9 @@
     <string name="settings_hub_developer_subtitle">Debug overlay, log ring, advanced toggles.</string>
     <string name="settings_hub_about_title">About</string>
     <string name="settings_hub_about_subtitle">Version, sigil, open-source notices.</string>
+    <!-- Issue #1235 — Listening stats hub row -->
+    <string name="settings_hub_stats_title">Listening stats</string>
+    <string name="settings_hub_stats_subtitle">Time listened, streaks, books finished.</string>
     <string name="settings_hub_all_settings_title">All settings</string>
     <string name="settings_hub_all_settings_subtitle">Every setting on one long page (legacy).</string>
 
@@ -1044,4 +1047,27 @@
     <string name="ocr_save_and_read">Save and read</string>
     <string name="library_scan_page_cd">Scan a printed page to read aloud</string>
 
+
+    <!-- Issue #1235 — Listening statistics dashboard -->
+    <string name="stats_title">Listening Stats</string>
+    <string name="stats_back">Back</string>
+    <string name="stats_share">Share stats</string>
+    <string name="stats_share_chooser">Share your listening stats</string>
+    <string name="stats_app_name">Candela</string>
+    <string name="stats_total_time_label">Time listened</string>
+    <!-- %1$d current streak, %2$d longest streak -->
+    <string name="stats_streak_line">🔥 %1$d-day streak · best ever %2$d</string>
+    <string name="stats_books_finished">Books finished</string>
+    <string name="stats_chapters_read">Chapters read</string>
+    <string name="stats_words_read">Words read</string>
+    <string name="stats_books_started">Books started</string>
+    <string name="stats_this_week_title">This week</string>
+    <string name="stats_today">Today</string>
+    <string name="stats_last_seven_days">Last 7 days</string>
+    <string name="stats_by_source_title">By source</string>
+    <string name="stats_time_of_day_title">Time of day</string>
+    <string name="stats_other_sources">Other</string>
+    <string name="stats_empty_title">No listening yet</string>
+    <string name="stats_empty_body">Finish a chapter and your reading stats will appear here.</string>
+    <string name="stats_estimate_note">Time figures are estimates based on the length of the chapters you\'ve finished — Candela doesn\'t track exact playback time yet.</string>
 </resources>

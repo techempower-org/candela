@@ -57,6 +57,7 @@ import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
 import `in`.jphe.storyvox.feature.settings.SettingsHubScreen
+import `in`.jphe.storyvox.feature.stats.ListeningStatsScreen
 import `in`.jphe.storyvox.feature.settings.SettingsScreen
 import `in`.jphe.storyvox.feature.settings.VoiceAndPlaybackSettingsScreen
 import `in`.jphe.storyvox.feature.settings.pronunciation.PronunciationDictScreen
@@ -89,6 +90,9 @@ object StoryvoxRoutes {
      *  [SETTINGS] page is preserved as an "All settings" escape hatch
      *  for power users who want everything on one searchable page. */
     const val SETTINGS_HUB = "settings/hub"
+
+    /** Issue #1235 — Listening stats dashboard, reached from the Settings hub. */
+    const val STATS = "stats"
     const val SETTINGS = "settings"
     const val SETTINGS_PRONUNCIATION = "settings/pronunciation"
     const val VOICE_LIBRARY = "settings/voices"
@@ -1026,7 +1030,21 @@ private fun StoryvoxNavHostContent(
                     onOpenMemoryPalace = { navController.navigate(StoryvoxRoutes.SETTINGS_MEMORY_PALACE) },
                     onOpenAbout = { navController.navigate(StoryvoxRoutes.SETTINGS_ABOUT) },
                     onOpenAdvanced = { navController.navigate(StoryvoxRoutes.SETTINGS_ADVANCED) },
+                    onOpenStats = { navController.navigate(StoryvoxRoutes.STATS) },
                 )
+            }
+
+            // Issue #1235 — Listening stats dashboard. Push enter/exit
+            // because it's a drill-down from the Settings hub, like the
+            // other dedicated subscreens.
+            composable(
+                StoryvoxRoutes.STATS,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                ListeningStatsScreen(onBack = { navController.popBackStack() })
             }
 
             composable(

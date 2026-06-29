@@ -25,6 +25,7 @@ import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.dao.FictionMemoryDao
 import `in`.jphe.storyvox.data.db.dao.FictionShelfDao
 import `in`.jphe.storyvox.data.db.dao.InboxEventDao
+import `in`.jphe.storyvox.data.db.dao.ListeningStatsDao
 import `in`.jphe.storyvox.data.db.dao.LlmMessageDao
 import `in`.jphe.storyvox.data.db.dao.LlmSessionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackDao
@@ -52,6 +53,8 @@ import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
 import `in`.jphe.storyvox.data.repository.PlaybackPositionRepositoryImpl
 import `in`.jphe.storyvox.data.repository.ShelfRepository
 import `in`.jphe.storyvox.data.repository.ShelfRepositoryImpl
+import `in`.jphe.storyvox.data.repository.stats.ListeningStatsRepository
+import `in`.jphe.storyvox.data.repository.stats.ListeningStatsRepositoryImpl
 import `in`.jphe.storyvox.data.repository.WorkManagerChapterDownloadScheduler
 import `in`.jphe.storyvox.data.work.MetadataBackfillScheduler
 import `in`.jphe.storyvox.data.work.WorkManagerMetadataBackfillScheduler
@@ -125,6 +128,8 @@ object DataModule {
     // Issue #999 — highlights + notes. Consumed by AnnotationsSyncer,
     // ExportAnnotationsUseCase, and AnnotationRepository.
     @Provides fun annotationDao(db: StoryvoxDatabase): AnnotationDao = db.annotationDao()
+    // Issue #1235 — read-only aggregate DAO for the listening-stats dashboard.
+    @Provides fun listeningStatsDao(db: StoryvoxDatabase): ListeningStatsDao = db.listeningStatsDao()
 
     /**
      * Long-lived [CoroutineScope] for singleton repositories that need to fire
@@ -298,6 +303,13 @@ abstract class RepositoryBindings {
 
     @Binds @Singleton
     abstract fun bindHistoryRepository(impl: HistoryRepositoryImpl): HistoryRepository
+
+    // Issue #1235 — listening-statistics dashboard. Read-only aggregate
+    // over chapter_history + playback_position; no recording pipeline.
+    @Binds @Singleton
+    abstract fun bindListeningStatsRepository(
+        impl: ListeningStatsRepositoryImpl,
+    ): ListeningStatsRepository
 
     @Binds @Singleton
     abstract fun bindInboxRepository(impl: InboxRepositoryImpl): InboxRepository
