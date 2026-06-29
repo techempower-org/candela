@@ -37,10 +37,24 @@ internal class TtsEngineResolver(private val context: Context) {
      *  a null target. */
     fun preferredPublicEngine(): String? = pickPreferred(installedEnginePackages())
 
+    /** #1390 — engine packages safe for per-engine probing in roster
+     *  enumeration step 2. Excludes [SAMSUNG_PRIVATE_TTS]: Samsung's
+     *  framework refuses the bind and enters a Handler-posted reconnect
+     *  loop that [TextToSpeech.shutdown] cannot stop. */
+    fun bindableEnginePackages(): List<String> =
+        installedEnginePackages().filter { it !in PRIVATE_ENGINES }
+
     internal companion object {
         /** Google's TTS — the canonical public engine and the framework's
          *  own fallback when the device default can't be bound. */
         const val GOOGLE_TTS = "com.google.android.tts"
+
+        /** Samsung's built-in TTS — marked "private" by Samsung's
+         *  modified framework. Third-party bind attempts trigger
+         *  an infinite connect/disconnect loop (#1384, #1390). */
+        private const val SAMSUNG_PRIVATE_TTS = "com.samsung.SMT"
+
+        private val PRIVATE_ENGINES = setOf(SAMSUNG_PRIVATE_TTS)
 
         /**
          * Choose which engine to bind from the installed set: Google

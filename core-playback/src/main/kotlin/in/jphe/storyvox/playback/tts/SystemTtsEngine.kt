@@ -133,25 +133,24 @@ class SystemTtsEngine(
         // the app cache.
         cleanupStaleTempFiles(context)
         val initDeferred = CompletableDeferred<Int>()
+        // #1390 — never use null target: on Samsung the device default
+        // is a private engine whose failed bind spins a reconnect loop.
+        val resolvedEngine = if (engineName.isNullOrBlank()) GOOGLE_TTS else engineName
         val instance = try {
-            if (engineName.isNullOrBlank()) {
-                TextToSpeech(context) { status -> initDeferred.complete(status) }
-            } else {
-                TextToSpeech(
-                    context,
-                    { status -> initDeferred.complete(status) },
-                    engineName,
-                )
-            }
+            TextToSpeech(
+                context,
+                { status -> initDeferred.complete(status) },
+                resolvedEngine,
+            )
         } catch (t: Throwable) {
-            Log.w(TAG, "TextToSpeech ctor threw for engine=$engineName: ${t.message}")
+            Log.w(TAG, "TextToSpeech ctor threw for engine=$resolvedEngine: ${t.message}")
             return@withContext false
         }
         tts = instance
 
         val status = initDeferred.await()
         if (status != TextToSpeech.SUCCESS) {
-            Log.w(TAG, "TextToSpeech.onInit returned non-success status=$status engine=$engineName")
+            Log.w(TAG, "TextToSpeech.onInit returned non-success status=$status engine=$resolvedEngine")
             runCatching { instance.shutdown() }
             tts = null
             return@withContext false
@@ -400,6 +399,10 @@ class SystemTtsEngine(
 
     companion object {
         private const val TAG = "SystemTtsEngine"
+
+        /** #1390 — fallback when engineName is null: Google TTS is the
+         *  canonical public engine and the framework's own fallback. */
+        private const val GOOGLE_TTS = "com.google.android.tts"
 
         /** Filename prefix for the per-utterance temp WAVs in cacheDir. */
         private const val TEMP_WAV_PREFIX = "systemtts-"
