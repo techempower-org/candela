@@ -9,6 +9,10 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+### Changed
+
+- Warm-up status now prefers the engine's own render-ready message and progress (folded into `UiPlaybackState`) over the reader's derived "Warming…" label, with a determinate warm-up bar wired but kept hidden until an engine self-reports progress. Resolves the `#1319` TODO. (#1319 / #1353)
+
 ## [1.4.5] -- 2026-06-29
 
 **Six bug fixes + secrets audit.** Inbox and history taps load correctly, RR follow works when signed in, lock screen skip wired to chapter advance, voice model crash replaced with graceful recovery, CI hardened for all runners.
@@ -52,7 +56,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ### Changed
 
-- Wire `testTag()` modifiers to browse source chips, result cards, and fiction detail nav buttons so uiautomator-based on-device QA can target specific UI elements. (#1333 / #1337)
+- Wire `testTag()` modifiers to browse source chips, result cards, and fiction detail nav buttons so uiautomator-based on-device QA can target specific UI elements. (#1333 / #1335 / #1337)
 
 ## [1.4.1] -- 2026-06-29
 
