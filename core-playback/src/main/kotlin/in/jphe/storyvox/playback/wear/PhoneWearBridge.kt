@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.SleepTimerMode
+import `in`.jphe.storyvox.playback.TeleprompterController
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.encodeToString
@@ -36,6 +38,7 @@ import kotlinx.serialization.json.Json
 class PhoneWearBridge @Inject constructor(
     @ApplicationContext private val context: Context,
     private val controller: PlaybackController,
+    private val teleprompterController: TeleprompterController,
 ) : MessageClient.OnMessageReceivedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -46,7 +49,22 @@ class PhoneWearBridge @Inject constructor(
     fun start() {
         messageClient.addListener(this)
         scope.launch {
-            controller.state.collectLatest { state -> publishState(state) }
+            // #1308 — fold the teleprompter state (separate TeleprompterController
+            // singleton, #1320) into the published PlaybackState so the watch
+            // reflects it over the existing /playback/state sync. Any teleprompter
+            // change re-publishes, same as a playback change.
+            combine(
+                controller.state,
+                teleprompterController.enabled,
+                teleprompterController.playing,
+                teleprompterController.wpm,
+            ) { state, tpEnabled, tpPlaying, tpWpm ->
+                state.copy(
+                    teleprompterEnabled = tpEnabled,
+                    teleprompterPlaying = tpPlaying,
+                    teleprompterWpm = tpWpm,
+                )
+            }.collectLatest { state -> publishState(state) }
         }
     }
 
@@ -81,6 +99,15 @@ class PhoneWearBridge @Inject constructor(
                 // (ms) in the message payload. A malformed/absent payload
                 // decodes to null and is ignored (no blind seek-to-zero).
                 CMD_SEEK -> SeekPayload.decode(event.data)?.let { controller.seekToPositionMs(it) }
+                // Issue #1308 — teleprompter remote. Toggle/play-pause flip the
+                // controller's current value; WPM carries an absolute payload
+                // (malformed → ignored, same guard as CMD_SEEK).
+                CMD_TELEPROMPTER_TOGGLE ->
+                    teleprompterController.setEnabled(!teleprompterController.enabled.value)
+                CMD_TELEPROMPTER_PLAY_PAUSE ->
+                    teleprompterController.setPlaying(!teleprompterController.playing.value)
+                CMD_TELEPROMPTER_WPM ->
+                    TeleprompterWpmPayload.decode(event.data)?.let { teleprompterController.setWpm(it) }
             }
         }
     }
