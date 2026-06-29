@@ -297,6 +297,13 @@ fun ReaderTextView(
     onDismissDefinition: () -> Unit = {},
     /** Issue #1230 — retry a failed lookup (→ [ReaderViewModel.retryDefine]). */
     onRetryDefine: (String) -> Unit = {},
+    /** Issue #1287 — persisted teleprompter (#1239) pace (WPM) to seed the
+     *  per-session pace from when the teleprompter opens. Default keeps
+     *  preview/test callsites at [TELEPROMPTER_DEFAULT_WPM]. */
+    persistedTeleprompterWpm: Int = TELEPROMPTER_DEFAULT_WPM,
+    /** Issue #1287 — persist a teleprompter pace change (→
+     *  [ReaderViewModel.setTeleprompterWpm]) so it survives a restart. No-op default. */
+    onTeleprompterWpmChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -345,7 +352,15 @@ fun ReaderTextView(
     // auto-scroll; `wpm` is the rehearsal pace.
     var teleprompterEnabled by remember { mutableStateOf(false) }
     var teleprompterPlaying by remember { mutableStateOf(false) }
-    var teleprompterWpm by remember { mutableIntStateOf(TELEPROMPTER_DEFAULT_WPM) }
+    // Issue #1287 — the pace is now persisted (#1239 shipped it transient). Seed
+    // the session value from the saved pref, and re-seed each time the
+    // teleprompter opens so a restart restores the last pace (the persisted Flow
+    // has loaded by the time the user taps the teleprompter button). Within a
+    // session the local value leads; adjustments write through below.
+    var teleprompterWpm by remember { mutableIntStateOf(persistedTeleprompterWpm) }
+    LaunchedEffect(teleprompterEnabled) {
+        if (teleprompterEnabled) teleprompterWpm = persistedTeleprompterWpm
+    }
     val totalWords = remember(chapterText) { countWords(chapterText) }
     // True once the body has scrolled to the very end — the teleprompter's
     // Play then replays from the top (see the transport's onPlayPause).
@@ -987,7 +1002,11 @@ fun ReaderTextView(
                         teleprompterPlaying = !teleprompterPlaying
                     }
                 },
-                onWpmDelta = { steps -> teleprompterWpm = adjustTeleprompterWpm(teleprompterWpm, steps) },
+                onWpmDelta = { steps ->
+                    teleprompterWpm = adjustTeleprompterWpm(teleprompterWpm, steps)
+                    // #1287 — write the new pace through so it survives a restart.
+                    onTeleprompterWpmChange(teleprompterWpm)
+                },
                 onExit = {
                     teleprompterPlaying = false
                     teleprompterEnabled = false

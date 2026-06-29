@@ -109,6 +109,8 @@ fun HybridReaderScreen(
     val currentAuthor by viewModel.currentAuthor.collectAsStateWithLifecycle()
     // Issue #1230 — tap-to-define dictionary popup state.
     val definitionState by viewModel.dictionary.collectAsStateWithLifecycle()
+    // Issue #1287 — persisted teleprompter pace (WPM).
+    val teleprompterWpm by viewModel.teleprompterWpm.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -404,6 +406,10 @@ fun HybridReaderScreen(
                 onDefineWord = viewModel::defineWord,
                 onDismissDefinition = viewModel::dismissDefinition,
                 onRetryDefine = viewModel::retryDefine,
+                // Issue #1287 — seed the teleprompter pace from the persisted
+                // pref and write changes back so it survives a restart.
+                persistedTeleprompterWpm = teleprompterWpm,
+                onTeleprompterWpmChange = viewModel::setTeleprompterWpm,
             )
         },
     )
