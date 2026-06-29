@@ -138,8 +138,8 @@ object EngineSampleRateCache {
     }
 
     /** Issue #1114 — Lock-free reader for Supertonic 3. See [piperRate] kdoc.
-     *  TODO(#1114): readSupertonicFromEngine() returns the default until
-     *  VoxSherpa ships a SupertonicEngine wrapper. */
+     *  Reads the real rate from the loaded SupertonicEngine; the default is
+     *  only the not-yet-loaded fallback. */
     fun supertonicRate(): Int {
         val cached = supertonicCached
         if (cached > 0) return cached

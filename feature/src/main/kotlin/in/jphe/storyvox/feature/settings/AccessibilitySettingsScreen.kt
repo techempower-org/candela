@@ -252,11 +252,11 @@ fun AccessibilitySettingsScreen(
                 )
             }
 
-            // 8. About this subscreen — non-clickable info row at the
-            //    bottom. The "Learn more" link is wired to a TODO since
-            //    `docs/accessibility.md` lands with the Phase 2 outreach
-            //    + documentation pass; until then the row reads as
-            //    static help copy.
+            // 8. About this subscreen — an info row plus a "Learn more"
+            //    link wired to the hosted accessibility doc (the
+            //    SettingsLinkRow below). This was once a static TODO awaiting
+            //    `docs/accessibility.md`; that doc has since landed and the
+            //    link is live (#487).
             SettingsGroupCard {
                 SettingsRow(
                     title = stringResource(R.string.settings_accessibility_about_title),

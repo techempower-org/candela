@@ -105,10 +105,10 @@ class VoiceFamilyRegistry @Inject constructor() {
      *  in-process neural families (Piper / Kokoro / Kitten); then
      *  cloud (Azure); then placeholders.
      *
-     *  Supertonic would sit after Kitten but is gated OUT until #1191
-     *  lands the engine (#1202) — [listOfNotNull] drops it while
-     *  [VoiceCatalog.SUPERTONIC_ENABLED] is false, so a shipped build
-     *  shows six descriptors, not seven. */
+     *  Supertonic sits after Kitten now that the engine has shipped
+     *  (#1236 flipped [VoiceCatalog.SUPERTONIC_ENABLED] to true), so
+     *  [listOfNotNull] keeps it and a shipped build shows seven
+     *  descriptors. The flag stays as the single re-gate point. */
     val descriptors: List<VoiceFamilyDescriptor> = listOfNotNull(
         VoiceFamilyDescriptor(
             id = VoiceFamilyIds.SYSTEM_TTS,
@@ -156,10 +156,10 @@ class VoiceFamilyRegistry @Inject constructor() {
             defaultEnabled = true,
             engineFamily = VoiceEngineFamily.Local,
         ),
-        // #1202 — the Supertonic family card is gated until #1191 lands the
-        // engine, sharing [VoiceCatalog.SUPERTONIC_ENABLED] with the voices.
-        // listOfNotNull drops this entry while gated so a shipped build does
-        // not surface an empty "coming" Supertonic family card.
+        // The Supertonic family card ships now that the engine has landed
+        // (#1236 set [VoiceCatalog.SUPERTONIC_ENABLED] = true), sharing the
+        // flag with the voices. listOfNotNull would drop this entry if the
+        // flag were ever flipped back, so one toggle re-gates both surfaces.
         if (VoiceCatalog.SUPERTONIC_ENABLED) {
             VoiceFamilyDescriptor(
                 id = VoiceFamilyIds.SUPERTONIC,

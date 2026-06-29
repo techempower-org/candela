@@ -61,7 +61,6 @@ import `in`.jphe.storyvox.playback.lang.LanguageVoiceRouter
 import `in`.jphe.storyvox.playback.lang.TextClassifierLanguageDetector
 import `in`.jphe.storyvox.playback.tts.source.CacheFileSource
 import `in`.jphe.storyvox.playback.tts.source.EngineStreamingSource
-import `in`.jphe.storyvox.playback.tts.source.PcmChunk
 import `in`.jphe.storyvox.playback.tts.source.PcmSource
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
