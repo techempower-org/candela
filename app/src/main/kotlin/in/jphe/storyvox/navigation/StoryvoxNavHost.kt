@@ -36,6 +36,7 @@ import `in`.jphe.storyvox.data.share.FictionShareLink
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.github.auth.GitHubAuthConfig
 import `in`.jphe.storyvox.feature.browse.BrowseScreen
+import `in`.jphe.storyvox.feature.browse.catalog.SourceCatalogScreen
 import `in`.jphe.storyvox.feature.chat.ChatScreen
 import `in`.jphe.storyvox.feature.debug.DebugScreen
 import `in`.jphe.storyvox.feature.engine.VoicePickerGate
@@ -77,6 +78,16 @@ object StoryvoxRoutes {
     const val LIBRARY = "library"
     const val FOLLOWS = "follows"
     const val BROWSE = "browse"
+    /** #1365 — Source Catalog ("Source Library"): a full-screen,
+     *  shelf-style browser for all registered backends. Pushed from the
+     *  "Browse all sources" entry below the Browse carousel; returns the
+     *  chosen source id to Browse via the saved-state-handle result. */
+    const val SOURCE_CATALOG = "sources"
+    /** #1365 — saved-state-handle key the Source Catalog writes the
+     *  chosen source id under, on the Browse back-stack entry, before
+     *  popping. Browse observes it and selects that source. A one-shot
+     *  result: Browse clears it to null after applying. */
+    const val SOURCE_CATALOG_RESULT = "catalog_selected_source"
     /** Issue #995 — OCR scan-to-read capture surface. Reached from the
      *  Library add-flow ("Scan a page"); CameraX / gallery capture →
      *  on-device ML Kit OCR → a fiction the reader narrates. */
@@ -842,7 +853,13 @@ private fun StoryvoxNavHostContent(
                 exitTransition = homeExit,
                 popEnterTransition = homeEnter,
                 popExitTransition = homeExit,
-            ) {
+            ) { browseEntry ->
+                // #1365 — observe the one-shot source id the Source Catalog
+                // writes onto this entry before popping. Applied + cleared
+                // inside BrowseScreen so it never replays.
+                val pendingSource by browseEntry.savedStateHandle
+                    .getStateFlow<String?>(StoryvoxRoutes.SOURCE_CATALOG_RESULT, null)
+                    .collectAsStateWithLifecycle()
                 BrowseScreen(
                     onOpenFiction = { id -> navController.navigate(StoryvoxRoutes.fictionDetail(id)) },
                     // #241 / #211 — RR sign-in CTA shared between Browse
@@ -851,6 +868,36 @@ private fun StoryvoxNavHostContent(
                     onOpenRoyalRoadSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
                     // #426 PR2 — AO3 sign-in CTA on the Browse → AO3 chip.
                     onOpenAo3SignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.AO3)) },
+                    // #1365 — Source Catalog entry + result round-trip.
+                    onOpenSourceCatalog = { navController.navigate(StoryvoxRoutes.SOURCE_CATALOG) },
+                    pendingSourceSelection = pendingSource,
+                    onSourceSelectionConsumed = {
+                        // Explicit type param: a bare `= null` can't infer T
+                        // on SavedStateHandle.set. Writing null re-emits null
+                        // through the getStateFlow so the one-shot clears.
+                        browseEntry.savedStateHandle.set<String?>(StoryvoxRoutes.SOURCE_CATALOG_RESULT, null)
+                    },
+                )
+            }
+
+            // #1365 — Source Catalog ("Source Library"). Pushed from
+            // Browse; returns the chosen source id to the Browse entry via
+            // its saved-state-handle, then pops back so Browse lands on it.
+            composable(
+                StoryvoxRoutes.SOURCE_CATALOG,
+                enterTransition = homeEnter,
+                exitTransition = homeExit,
+                popEnterTransition = homeEnter,
+                popExitTransition = homeExit,
+            ) {
+                SourceCatalogScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onSelectSource = { id ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set(StoryvoxRoutes.SOURCE_CATALOG_RESULT, id)
+                        navController.popBackStack()
+                    },
                 )
             }
 

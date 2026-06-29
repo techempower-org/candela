@@ -65,6 +65,18 @@ object TestTags {
      */
     fun browseResultCard(fictionId: String): String = "browse-result-$fictionId"
 
+    // ── Source Catalog (#1365) ────────────────────────────────────────────
+    /** The Browse → "Source Library" catalog list. */
+    const val SourceCatalogList = "source-catalog-list"
+
+    /** The entry-point affordance below the Browse carousel that opens the
+     *  Source Catalog. */
+    const val SourceCatalogEntry = "source-catalog-entry"
+
+    /** Per-source card in the catalog, keyed by source id, e.g.
+     *  `SourceIds.ARXIV` → `"source-catalog-card-arxiv"`. */
+    fun sourceCatalogCard(sourceId: String): String = "source-catalog-card-$sourceId"
+
     // ── Reader ───────────────────────────────────────────────────────────
     const val ReaderBody = "reader-body"
     const val ReaderPlay = "reader-play"

@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.feature.browse
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,9 +21,12 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material3.AssistChip
@@ -41,6 +45,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -58,6 +63,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.testTag
@@ -148,6 +154,20 @@ fun BrowseScreen(
      *  the only call site that needs the real route is the
      *  StoryvoxNavHost Library branch. */
     onOpenAo3SignIn: () -> Unit = {},
+    /** #1365 — opens the Source Catalog ("Source Library"), the
+     *  full-screen shelf-style browser for all registered backends.
+     *  Reached from the entry-point card below the source carousel.
+     *  Defaults to a no-op so pre-#1365 callers don't need to thread it. */
+    onOpenSourceCatalog: () -> Unit = {},
+    /** #1365 — a source id handed back from the Source Catalog (via the
+     *  host's saved-state-handle result). When non-null, the screen
+     *  selects that source on the live [BrowseViewModel] and calls
+     *  [onSourceSelectionConsumed] so the one-shot result isn't replayed
+     *  on the next recomposition. */
+    pendingSourceSelection: String? = null,
+    /** #1365 — clears the [pendingSourceSelection] result after it's been
+     *  applied. */
+    onSourceSelectionConsumed: () -> Unit = {},
     /**
      * Restructure (v0.5.40) — when true, BrowseScreen renders without
      * its own Scaffold + TopAppBar. The Library tab's TopAppBar serves
@@ -160,6 +180,17 @@ fun BrowseScreen(
     embedded: Boolean = false,
     viewModel: BrowseViewModel = hiltViewModel(),
 ) {
+    // #1365 — apply a source chosen from the Source Catalog. Keyed on the
+    // pending id so it fires once per distinct selection; selectSource is
+    // a no-op when the id is already current, and the catalog has already
+    // enabled a disabled source so BrowseViewModel's enabled-set guard
+    // won't bounce it.
+    LaunchedEffect(pendingSourceSelection) {
+        pendingSourceSelection?.let { id ->
+            viewModel.selectSource(id)
+            onSourceSelectionConsumed()
+        }
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // #776 — pull-to-refresh state lives off the ViewModel so the
     // M3 spinner overlay's `isRefreshing` flag survives recomposition
@@ -242,6 +273,17 @@ fun BrowseScreen(
             onReorder = viewModel::reorderSources,
             // UI-test selector for the source picker row.
             modifier = Modifier.fillMaxWidth().testTag(TestTags.BrowseSourceList),
+        )
+
+        // #1365 — entry point to the Source Catalog. The carousel can
+        // only show a handful of cards at once; this invites the user
+        // into the full shelf-style browser for all sources. Placed
+        // directly under the carousel so it reads as "…and the rest".
+        BrowseAllSourcesEntry(
+            onClick = onOpenSourceCatalog,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.md, vertical = spacing.xs),
         )
 
         // Issue #695 — read the active source's `supportsSearch`
@@ -766,6 +808,72 @@ private fun FilterButton(activeCount: Int, onClick: () -> Unit) {
     } else {
         IconButton(onClick = onClick, modifier = Modifier.testTag(TestTags.BrowseFilter)) {
             Icon(Icons.Outlined.FilterAlt, contentDescription = filterCd)
+        }
+    }
+}
+
+/**
+ * #1365 — entry point to the Source Catalog, rendered as a slim
+ * brass-edged row directly beneath the source carousel. A grid glyph +
+ * "Browse all sources" copy + a trailing chevron read as "there's more
+ * here than the carousel shows". Tapping opens the full shelf-style
+ * [SourceCatalogScreen][`in`.jphe.storyvox.feature.browse.catalog.SourceCatalogScreen].
+ *
+ * Lives in the Browse header (composed in every content state) so the
+ * affordance is present on the standalone Browse tab AND the embedded
+ * Library → Browse sub-tab, where Browse owns no top bar of its own.
+ */
+@Composable
+private fun BrowseAllSourcesEntry(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    Surface(
+        modifier = modifier
+            .testTag(TestTags.SourceCatalogEntry)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Browse all sources",
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.GridView,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Browse all sources",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Explore the full Source Library",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
