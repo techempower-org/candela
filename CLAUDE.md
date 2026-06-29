@@ -11,7 +11,13 @@ Android app that turns text from 20+ sources into narrated audiobooks via TTS. K
 ./gradlew testDebugUnitTest           # all tests
 ```
 
-CI runs on self-hosted runner (katana). Tags trigger release APK build + GitHub release.
+CI runs on self-hosted runners (katana + familiar). Tags trigger release APK build + GitHub release.
+
+**CI runner — familiar**: familiar sleeps when idle. If a CI run stays queued >60s, wake it:
+```bash
+realm wol wake familiar
+```
+Wait ~60s for boot, then CI picks up automatically. Never compile locally on katana — push and let CI be the compile gate.
 
 ## Module layout
 
