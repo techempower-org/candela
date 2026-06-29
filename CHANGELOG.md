@@ -21,10 +21,11 @@ Entries before v0.5.12 are reconstructed from the git log — see
 - **Google News source.** Read the news as a narrated feed — a browsable headline list, plus an opt-in mode that fetches and reads the full publisher article instead of just the headline. (#1238 / #1294, #1295 / #1309)
 - **Browsable radio directory.** Discover internet radio beyond the curated stations — sort the directory by most popular, most voted, or recently updated. (#1282 / #1316)
 - **LibriVox read-along.** Pair a LibriVox audiobook with its matching Project Gutenberg text and follow along, split section by section. (#1208 / #1300, #1224 / #1289)
-- **Bookshare DAISY import.** Import DAISY 2.02 talking books from Bookshare. (#1002 / #1290, #1293 / #1303)
+- **Bookshare.** Search and browse Bookshare by category, and import DAISY 2.02 talking books. (#1002 / #1290, #1293 / #1303, #1325)
 - **ODT file import.** Open With / Share an OpenDocument Text (.odt) file into Candela, or import one in-app, as a single-file fiction. (#1310 / #1318)
 - **Per-book narrator voice.** Pin a specific narrator voice to an individual fiction, so each book keeps its own voice. (#1299 / #1317)
 - **Share a fiction by link.** A share button on the fiction detail screen produces a `candela://fiction/<id>` deep link; opening it jumps straight to that book. (#1313 / #1321)
+- **Offline fiction detail.** The fiction detail screen now shows cached content behind a "showing cached" banner when you're offline, and a freshness (TTL) guard skips needless re-fetches. (#1314 / #1326)
 - **Character voices (foundation).** Groundwork for distinct per-character narration — speaker attribution, persistence, and resolution — ahead of the full feature. (#1283 / #1297)
 - **Live radio captions (foundation).** Speech-to-text groundwork toward live read-along captions for radio streams. (#1223 / #1284)
 
