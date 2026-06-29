@@ -119,6 +119,11 @@ fun HybridReaderScreen(
     // transport's "Write a script" button. Hosted here (not in ReaderTextView)
     // so it can reach the Settings → AI nav for the unconfigured-provider path.
     var scriptSheetOpen by remember { mutableStateOf(false) }
+    // Issue #1368 — voice-paced follow: model readiness, the one-time download
+    // spinner, and the speaker's live char offset that drives the scroll.
+    val voicePacedModelReady by viewModel.voicePacedModelReady.collectAsStateWithLifecycle()
+    val voicePacedPreparing by viewModel.voicePacedPreparing.collectAsStateWithLifecycle()
+    val voicePacedPositionChar by viewModel.voicePacedPositionChar.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -426,6 +431,14 @@ fun HybridReaderScreen(
                 onResetTeleprompter = viewModel::resetTeleprompter,
                 // Issue #1366 — open the AI script-writer sheet (hosted below).
                 onWriteScript = { scriptSheetOpen = true },
+                // Issue #1368 — voice-paced follow: hands-free scroll driven by
+                // the reader's own speech via on-device STT.
+                voicePacedModelReady = voicePacedModelReady,
+                voicePacedPreparing = voicePacedPreparing,
+                voicePacedPositionChar = voicePacedPositionChar,
+                onStartVoicePaced = viewModel::startVoicePaced,
+                onStopVoicePaced = viewModel::stopVoicePaced,
+                onPrepareVoicePaced = viewModel::prepareVoicePaced,
             )
         },
     )

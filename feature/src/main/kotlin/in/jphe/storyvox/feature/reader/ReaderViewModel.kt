@@ -28,6 +28,8 @@ import `in`.jphe.storyvox.feature.api.UiSleepTimerMode
 import `in`.jphe.storyvox.ui.theme.ReaderColors
 import `in`.jphe.storyvox.playback.PlaybackUiEvent
 import `in`.jphe.storyvox.playback.TeleprompterController
+import `in`.jphe.storyvox.playback.transcribe.AsrModelProvider
+import `in`.jphe.storyvox.playback.transcribe.VoicePacedScrollController
 import `in`.jphe.storyvox.llm.LlmError
 import `in`.jphe.storyvox.llm.feature.ChapterRecap
 import `in`.jphe.storyvox.ui.component.ReaderView
@@ -295,6 +297,15 @@ class ReaderViewModel @Inject constructor(
      * truth. Mode + practice-flow state intentionally stay local to the reader.
      */
     private val teleprompter: TeleprompterController,
+    /**
+     * Issue #1368 — voice-paced teleprompter. [voicePaced] bridges the live
+     * mic→STT word stream into the forced aligner and publishes the speaker's
+     * char offset; [asrModel] owns the downloadable on-device STT model. Both
+     * are @Singletons in core-playback (the reader is surface-agnostic about
+     * the recognizer); the reader maps the offset to a scroll position.
+     */
+    private val voicePaced: VoicePacedScrollController,
+    private val asrModel: AsrModelProvider,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -814,6 +825,18 @@ class ReaderViewModel @Inject constructor(
      *  [setTeleprompterEnabled] / [setTeleprompterWpm] (#1287/#1304). */
     val teleprompterWpm: StateFlow<Int> = teleprompter.wpm
 
+    // Issue #1368 — voice-paced teleprompter. The reader maps
+    // [voicePacedPositionChar] (the speaker's live position, from the forced
+    // aligner) to a scroll target; [voicePacedModelReady] gates the Voice mode
+    // and [voicePacedPreparing] reflects the one-time model download.
+    val voicePacedPositionChar: StateFlow<Int> = voicePaced.positionChar
+
+    private val _voicePacedModelReady = MutableStateFlow(asrModel.isReady())
+    val voicePacedModelReady: StateFlow<Boolean> = _voicePacedModelReady.asStateFlow()
+
+    private val _voicePacedPreparing = MutableStateFlow(false)
+    val voicePacedPreparing: StateFlow<Boolean> = _voicePacedPreparing.asStateFlow()
+
     /** Issue #278 — user-initiated retry from the timed-out error block.
      *  Re-invokes the playback `play()` path; the underlying controller
      *  will re-fetch the chapter / re-prime the voice. We also reset the
@@ -1194,6 +1217,41 @@ class ReaderViewModel @Inject constructor(
     fun resetTeleprompter() {
         teleprompter.setEnabled(false)
         teleprompter.setPlaying(false)
+        voicePaced.stop() // #1368 — never leave the mic capturing after the reader closes
+    }
+
+    // ── Voice-paced teleprompter (issue #1368) ─────────────────────────
+
+    /** Begin a voice-paced session over [chapterText]: the controller starts
+     *  mic capture + STT and streams the speaker's position to
+     *  [voicePacedPositionChar]. The reader brackets this with the active
+     *  window (model + permission satisfied). */
+    fun startVoicePaced(chapterText: String) = voicePaced.start(chapterText)
+
+    /** End the voice-paced session and release the recognizer. Idempotent. */
+    fun stopVoicePaced() = voicePaced.stop()
+
+    /** Kick the one-time on-device STT model download, flipping
+     *  [voicePacedModelReady] when it lands. Idempotent — ignored while a
+     *  download is in flight or the model is already present. A failed
+     *  download just clears the spinner; the user can retry. */
+    fun prepareVoicePaced() {
+        if (_voicePacedPreparing.value || _voicePacedModelReady.value) return
+        _voicePacedPreparing.value = true
+        viewModelScope.launch {
+            asrModel.download().collect { progress ->
+                when (progress) {
+                    is AsrModelProvider.DownloadProgress.Done -> {
+                        _voicePacedModelReady.value = asrModel.isReady()
+                        _voicePacedPreparing.value = false
+                    }
+                    is AsrModelProvider.DownloadProgress.Failed -> {
+                        _voicePacedPreparing.value = false
+                    }
+                    else -> Unit // Resolving / Downloading — keep the spinner up
+                }
+            }
+        }
     }
 
     // Issue #121 — in-chapter bookmark fan-out. ReaderViewModel stays

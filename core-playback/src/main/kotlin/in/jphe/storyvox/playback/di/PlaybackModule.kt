@@ -14,6 +14,8 @@ import `in`.jphe.storyvox.playback.TtsVolumeRamp
 import `in`.jphe.storyvox.playback.VolumeRamp
 import `in`.jphe.storyvox.playback.cache.PcmRenderScheduler
 import `in`.jphe.storyvox.playback.cache.WorkManagerPcmRenderScheduler
+import `in`.jphe.storyvox.playback.transcribe.MicCaptureProcessor
+import `in`.jphe.storyvox.playback.transcribe.RecognizedWordSource
 import javax.inject.Singleton
 
 @Module
@@ -39,6 +41,18 @@ abstract class PlaybackModule {
     abstract fun bindPcmRenderScheduler(
         impl: WorkManagerPcmRenderScheduler,
     ): PcmRenderScheduler
+
+    /**
+     * Issue #1368 — the live mic→ASR word source for the voice-paced
+     * teleprompter. Replaces the [RecognizedWordSource.NoOp] seam default with
+     * the real [MicCaptureProcessor]; it self-gates on RECORD_AUDIO + the
+     * downloaded model, so binding it is safe even before either is present.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindRecognizedWordSource(
+        impl: MicCaptureProcessor,
+    ): RecognizedWordSource
 
     companion object {
         @Provides
