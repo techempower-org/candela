@@ -176,6 +176,14 @@
   .note .t{ font-family:var(--sans); font-size:11px; letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:3px; color:var(--brass) }
   .note.danger .t{ color:#f0a99c } .note.safe .t{ color:#bfe6a8 }
 
+  /* feature map grid */
+  .fmap{ display:grid; grid-template-columns:repeat(auto-fit,minmax(236px,1fr)); gap:12px; margin:12px 0 4px }
+  .fcard{ border:1px solid var(--line-soft); border-radius:12px; background:rgba(255,224,160,.035); padding:13px 15px }
+  .fcard h5{ margin:0 0 5px; font-family:var(--sans); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--brass); display:flex; align-items:baseline; gap:8px }
+  .fcard h5 .g{ font-size:13px }
+  .fcard p{ margin:0; font-size:13.5px; color:var(--parch); line-height:1.5 }
+  .fcard p b{ color:var(--cream); font-weight:600 }
+
   footer{ text-align:center; margin-top:50px; padding-top:26px; border-top:1px solid var(--line-soft); color:var(--muted); font-size:14px }
   footer .links{ font-family:var(--sans); font-size:12.5px; margin-top:10px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap }
   .end-candle{ font-size:22px; color:var(--flame); filter:drop-shadow(0 0 8px rgba(244,183,64,.7)) }
@@ -260,7 +268,20 @@
       <span class="secprog" data-secprog></span>
     </div>
     <div class="body">
-      <p class="intro">All graphics live in <code>docs/play-store/v1.0/</code>; the copy below is the source of truth in <code>docs/play-store/listing/</code>.</p>
+      <p class="intro">All graphics live in <code>docs/play-store/v1.0/</code>; the copy below is the source of truth in <code>docs/play-store/listing/</code> — kept in lock-step with this guide.</p>
+      <p class="intro" style="margin:14px 0 2px"><b style="color:var(--brass-bright)">Candela at a glance</b> — make sure the listing, screenshots, and Data Safety answers cover all of it; nothing shipped should be missing from the store.</p>
+      <div class="fmap">
+        <div class="fcard"><h5><span class="g">📚</span>Sources · 25</h5><p><b>Public-domain &amp; web:</b> Gutenberg, Standard Ebooks, LibriVox, Wikipedia, Wikisource, arXiv, PLOS, Hacker News, Google News, Bookshare, Palace Project libraries. <b>Community fiction:</b> Royal Road, AO3. <b>Your own data:</b> Notion, Outline, Memory Palace, Discord, Slack, Matrix, Telegram, RSS, radio (30k+), and a magic-link reader for any URL.</p></div>
+        <div class="fcard"><h5><span class="g">🎙</span>Voices · 4 on-device families</h5><p><b>Piper</b> (45 EN, US/UK), <b>Kokoro</b> (53 voices · 9 languages), <b>KittenTTS</b> (~25 MB, low-end), <b>Supertonic</b> (10 HD EN). Plus your device's <b>System TTS</b> (zero download) and optional BYOK <b>Azure</b> cloud. Per-book narrator; live speed, pitch &amp; pauses.</p></div>
+        <div class="fcard"><h5><span class="g">📖</span>Reader</h5><p>Synced sentence highlighting, auto-scroll <b>teleprompter</b> &amp; rehearsal mode, in-book search, tap-to-define dictionary, per-book speed, bookmarks, fonts &amp; color themes.</p></div>
+        <div class="fcard"><h5><span class="g">🗂</span>Library</h5><p>Follows &amp; new-chapter <b>inbox</b>, history, collections, highlights + notes, pronunciation dictionary, listening <b>stats</b> &amp; streaks.</p></div>
+        <div class="fcard"><h5><span class="g">📥</span>Import</h5><p>EPUB, PDF, ODT, TXT, RSS, and camera <b>OCR</b> (on-device ML Kit). Share any link to read it aloud.</p></div>
+        <div class="fcard"><h5><span class="g">📤</span>Export</h5><p>Make-your-own <b>audiobook</b> (chaptered M4B) and <b>EPUB 3.0</b>.</p></div>
+        <div class="fcard"><h5><span class="g">🤖</span>AI · BYOK</h5><p>Chat about a book &amp; chapter recaps. Your own key — <b>Anthropic, OpenAI</b>, or a local <b>Ollama</b> server. No app-run proxy.</p></div>
+        <div class="fcard"><h5><span class="g">🚗</span>On the go</h5><p><b>Android Auto</b> (voice search), lock-screen &amp; Bluetooth controls, home-screen widget, sleep timer, <b>Wear OS</b> companion + teleprompter remote.</p></div>
+        <div class="fcard"><h5><span class="g">♿</span>Accessibility</h5><p>TalkBack-aware, WCAG AA contrast, <b>OpenDyslexic</b> &amp; Atkinson fonts, adjustable scale, reduced-motion, dark/light.</p></div>
+        <div class="fcard"><h5><span class="g">🔒</span>Privacy</h5><p>No ads, no analytics, no account required. Optional <b>end-to-end-encrypted</b> sync. Every cloud feature is bring-your-own-key.</p></div>
+      </div>
       <ul class="checks">
         <li><input type="checkbox" id="c2a"><label for="c2a"><span class="what">App icon — <code>icon-512.png</code></span></label></li>
         <li><input type="checkbox" id="c2b"><label for="c2b"><span class="what">Feature graphic — <code>feature-1024x500.png</code></span></label></li>
@@ -283,32 +304,34 @@
         <h4>Full description <span class="ct" id="ct-full"></span><button class="copy" data-copy="cp-full" type="button">Copy</button></h4>
         <div class="txt body" id="cp-full">Candela is TechEmpower's free, accessible resource app — read aloud.
 
-Browse free tech guides, find local help by dialing 211 or 988, reach a peer-support Discord in one tap, and read or listen to all of it through a high-quality neural text-to-speech engine that runs entirely on your device. No subscription. No ads. No tracking. No account required.
+Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and read or listen to all of it through high-quality neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
 
-Under the hood, Candela is a serious audiobook player for any text you can reach — twenty-five fiction and reference sources are wired in, side by side. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, and PLOS. Open EPUB and PDF files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio with search across 30,000+ stations. Share any web link into Candela and a magic-link reader pulls the readable text and queues it for narration.
+Under the hood, Candela is a serious audiobook player for any text you can reach — twenty-five fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio with search across 30,000+ stations. Share any web link into Candela and a magic-link reader pulls the readable text and queues it for narration.
 
-Three on-device neural voice families ship: Piper (compact, dozens of languages), Kokoro (multi-speaker, warm narration), and KittenTTS (the lightest tier, built for slower phones). Voices download once, then work fully offline. Bring your own Microsoft Azure key for optional cloud-grade voices — Candela takes no cut, and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
+Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 English voices in US and UK accents), Kokoro (53 warm multi-speaker voices across nine languages, from Spanish and French to Hindi, Japanese, and Chinese), KittenTTS (the lightest tier, about 25 MB, for slower phones), and Supertonic (ten expressive, high-quality English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
 
-The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along. Swipe to a clean cover-and-scrubber audiobook view. Ask the built-in AI assistant about any book (bring your own Anthropic, OpenAI, or Google key). Listen on Android Auto, from the lock screen, or a home-screen widget, with a sleep timer and gapless chapter auto-advance. A Wear OS companion puts playback on your wrist.
+The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, or local Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
 
-Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, adjustable font scale, and reduced-motion options throughout.
+Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, and voice settings across devices — encrypted in transit, never sold. Or stay fully offline; your call.
+Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Sign out and your cloud copy is deleted. Or stay fully offline; your call.
 
 FEATURES
 • 25 fiction &amp; reference sources — enable only the ones you want
-• 3 on-device neural voice families (Piper, Kokoro, KittenTTS)
+• 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
 • Optional bring-your-own-key cloud voices (Microsoft Azure)
-• Hybrid reader with synced brass sentence highlighting
-• Per-book AI chat (bring your own key — Anthropic, OpenAI, Google)
+• Hybrid reader with synced brass highlighting + an auto-scrolling teleprompter
+• Tap-to-define dictionary, in-book search, and listening stats
+• Per-book AI chat &amp; chapter recaps (bring your own key — Anthropic, OpenAI, Ollama)
 • Android Auto, lock-screen controls, sleep timer, home-screen widget
+• Make-your-own-audiobook (M4B) and EPUB export
 • Gapless chapter auto-advance with smart prerendering
-• Optional cross-device sync — or fully offline
-• Wear OS companion
-• Dark and light themes; TalkBack-friendly; WCAG AA contrast
+• Optional end-to-end-encrypted cross-device sync — or fully offline
+• Wear OS companion (playback + teleprompter remote)
+• Dark &amp; light themes; OpenDyslexic &amp; Atkinson fonts; TalkBack-friendly; WCAG AA contrast
 • Free, GPL-3.0, ad-free, no tracking, no account required
 
-Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools, training, and software. Open source on GitHub.</div>
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools and software. Open source on GitHub.</div>
       </div>
       <div class="note"><span class="t">Release notes</span>Keep them user-facing, ≤ <b>500 chars</b>, 3–5 bullets led by the CHANGELOG tagline — never PR numbers or module names. The <b>first</b> production release should say “First public release” + a 4–5 bullet feature summary. Live file: <code>app/src/main/play/release-notes/en-US/default.txt</code>.</div>
     </div>
@@ -344,24 +367,40 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
       <span class="secprog" data-secprog></span>
     </div>
     <div class="body">
-      <p class="intro">The honest story: Candela collects nothing unless you turn on <b>optional sync</b>. Camera (OCR) and channel sign-ins stay on-device / user-initiated, so they count as <span class="no">No</span> for collection.</p>
+      <p class="intro">The honest story: with sync <b>off</b> — the default — Candela collects <span class="no">nothing</span>. A build-wide grep finds <b>zero</b> analytics, ads, or crash-reporting SDKs (the only third-party libraries are on-device ML Kit for OCR and the Compose fonts provider). Turn on optional sync and it stores your library and reading data on InstantDB; any saved API keys ride along <b>end-to-end encrypted</b> behind a passphrase only you hold.</p>
       <div class="tablewrap"><table>
         <tr><th>Data type</th><th>Collected?</th><th>Notes</th></tr>
-        <tr><td>Email address</td><td class="yes">Yes — sync only</td><td>HTTPS to InstantDB; not required; deletable by signing out. Account / sync lookup key.</td></tr>
-        <tr><td>User ID</td><td class="yes">Yes — sync only</td><td>InstantDB record ID, internal — not exposed to other users.</td></tr>
-        <tr><td>Library state <span class="why plain">(fiction IDs, positions, voice prefs)</span></td><td class="yes">Yes — sync only</td><td>App functionality (sync); encrypted in transit; deletable.</td></tr>
-        <tr><td>Photos / audio</td><td class="no">No</td><td>Camera is used <i>on-device</i> for OCR scan-to-read; images + text never leave the device. No microphone.</td></tr>
-        <tr><td>Files / docs</td><td class="no">No</td><td>EPUB import reads via SAF; nothing is sent anywhere.</td></tr>
-        <tr><td>Messages</td><td class="no">No</td><td>Discord/Slack/Matrix/Telegram are read via the user's own credentials directly to those services.</td></tr>
-        <tr><td>Location · Contacts · App activity · Crash/diagnostics · Device IDs · Financial · Health</td><td class="no">No</td><td>Never requested. No analytics, no crash reporter, no advertising ID, no payments.</td></tr>
+        <tr><td>Email address</td><td class="yes">Yes — sync only</td><td>Magic-code sign-in; HTTPS to InstantDB. Not required; sign-out deletes the cloud copy.</td></tr>
+        <tr><td>User ID</td><td class="yes">Yes — sync only</td><td>InstantDB record ID, internal — never exposed to other users.</td></tr>
+        <tr><td>App activity <span class="why plain">(library, reading positions, follows, bookmarks, highlights &amp; notes, pronunciation dictionary, settings)</span></td><td class="yes">Yes — sync only</td><td>The sync payload — JSON over HTTPS. Deletable; sign-out purges it.</td></tr>
+        <tr><td>API keys &amp; tokens <span class="why plain">(Azure / LLM / source logins)</span></td><td class="yes">Sync only · <b>E2E&nbsp;encrypted</b></td><td>AES-256-GCM, PBKDF2 600k, passphrase-derived — InstantDB never sees plaintext. Stored locally in Tink-encrypted prefs; excluded from device backup.</td></tr>
+        <tr><td>Photos / Camera (OCR)</td><td class="no">No</td><td>ML Kit runs <i>on-device</i>; images + recognized text never leave the phone. No microphone.</td></tr>
+        <tr><td>Files &amp; docs <span class="why plain">(EPUB / PDF / ODT)</span></td><td class="no">No</td><td>Read via the Storage Access Framework; never uploaded.</td></tr>
+        <tr><td>Messages</td><td class="no">No</td><td>Discord/Slack/Matrix/Telegram are read with the user's own credentials, directly to those services.</td></tr>
+        <tr><td>AI chat text</td><td class="no">No <span class="why plain">(by the app)</span></td><td>Sent only to the user's own LLM provider via their own key — BYOK, user-initiated.</td></tr>
+        <tr><td>Location · Contacts · Financial · Health · Device IDs · Ad ID · Crash logs</td><td class="no">No</td><td>Never requested. No analytics, no crash reporter, no ads.</td></tr>
       </table></div>
+
+      <p class="intro" style="margin-top:18px">Permissions — every one maps to a visible feature; none is “just in case”:</p>
+      <div class="tablewrap"><table>
+        <tr><th>Permission</th><th>Why</th></tr>
+        <tr><td><code>INTERNET</code> · <code>ACCESS_NETWORK_STATE</code></td><td>Fetch content, download voices, optional sync, BYOK cloud calls; offline detection.</td></tr>
+        <tr><td><code>WAKE_LOCK</code></td><td>Keep synthesis + playback alive with the screen off.</td></tr>
+        <tr><td><code>FOREGROUND_SERVICE</code> <span class="why plain">+ MEDIA_PLAYBACK + DATA_SYNC</span></td><td>Playback session; chapter pre-render &amp; sync workers — user-visible &amp; stoppable.</td></tr>
+        <tr><td><code>POST_NOTIFICATIONS</code></td><td>Transport controls in the notification &amp; on the lock screen.</td></tr>
+        <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>Home-screen widget redraws after a reboot.</td></tr>
+        <tr><td><code>ACCESS_NOTIFICATION_POLICY</code></td><td>Sleep timer can auto-toggle Do Not Disturb.</td></tr>
+        <tr><td><code>CAMERA</code> <span class="pill manual">optional</span></td><td>OCR scan-to-read; on-device; gallery-pick fallback if denied.</td></tr>
+        <tr><td><i>no storage permission</i></td><td>EPUB/PDF use SAF. No <code>CALL_PHONE</code>, location, microphone, contacts, or ad ID.</td></tr>
+      </table></div>
+
       <ul class="checks">
-        <li><input type="checkbox" id="c4a"><label for="c4a"><span class="what">“Data shared” → email + library state with InstantDB (sync only)</span>
-          <span class="why">Third-party sign-ins &amp; BYOK keys are user-initiated transmissions, <b>not</b> sharing under Play's definition.</span></label></li>
-        <li><input type="checkbox" id="c4b"><label for="c4b"><span class="what">Security: encrypted in transit = Yes; deletion = Yes</span>
-          <span class="why">All HTTPS (enforced by <code>network_security_config.xml</code>); sign-out deletes the record, uninstall deletes on-device data.</span></label></li>
+        <li><input type="checkbox" id="c4a"><label for="c4a"><span class="what">“Data collected” → email, user ID &amp; app activity, <b>sync only</b>; “Data shared” → <b>None</b></span>
+          <span class="why">InstantDB is a data <i>processor</i>; BYOK keys &amp; channel sign-ins are user-initiated, not sharing. <i>(If you'd rather treat InstantDB as a third party, declare email + app activity as shared.)</i></span></label></li>
+        <li><input type="checkbox" id="c4b"><label for="c4b"><span class="what">Security: encrypted in transit = <b>Yes</b>; secrets end-to-end encrypted; deletion = <b>Yes</b></span>
+          <span class="why">All HTTPS (<code>network_security_config.xml</code>); API keys AES-256-GCM behind a passphrase; sign-out purges the cloud copy, uninstall clears local data.</span></label></li>
         <li><input type="checkbox" id="c4c"><label for="c4c"><span class="what">Independent security review = No · Families policy = No</span>
-          <span class="why">13+ app with a UGC advisory; not a Families title.</span></label></li>
+          <span class="why">13+ app with a UGC advisory (see <a href="#s5">V</a>); not a Families title.</span></label></li>
       </ul>
     </div>
   </section>
@@ -374,12 +413,14 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
       <span class="secprog" data-secprog></span>
     </div>
     <div class="body">
+      <p class="intro">Target <b>Teen (13+)</b> with a user-generated-content advisory. Candela isn't a UGC <i>platform</i> — no feed, no posting, no social graph — but it surfaces content from sources it doesn't moderate.</p>
       <ul class="checks">
         <li><input type="checkbox" id="c5a"><label for="c5a"><span class="what">Complete the IARC questionnaire → target <b>Teen (13+)</b></span></label></li>
-        <li><input type="checkbox" id="c5b"><label for="c5b"><span class="what">Declare the UGC advisory</span>
-          <span class="why">The app surfaces user-supplied URLs &amp; community sources, so a user-generated-content advisory applies.</span></label></li>
-        <li><input type="checkbox" id="c5c"><label for="c5c"><span class="what">Target audience 13+ matches the rating</span>
-          <span class="why">In-app “Report objectionable content” (mailto) is wired at Settings → About.</span></label></li>
+        <li><input type="checkbox" id="c5b"><label for="c5b"><span class="what">Declare the user-generated-content advisory</span>
+          <span class="why"><b>Royal Road</b> &amp; <b>Archive of Our Own</b> carry community-written fiction that can include mature or explicit content (user-tagged, not enforced); <b>Discord / Slack / Matrix / Telegram</b> surface channel messages; the magic-link reader can open any public web page. The default landing surface (TechEmpower Home + library) is family-safe.</span></label></li>
+        <li><input type="checkbox" id="c5c"><label for="c5c"><span class="what">Confirm the moderation affordances reviewers look for</span>
+          <span class="why">In-app “Report objectionable content” (mailto) at Settings → About; the magic-link reader is <code>http/https</code>-only (no <code>file://</code> / <code>javascript:</code>). No social graph, so no block/mute is needed.</span></label></li>
+        <li><input type="checkbox" id="c5d"><label for="c5d"><span class="what">Target audience 13+, not child-directed — matches §I</span></label></li>
       </ul>
     </div>
   </section>
