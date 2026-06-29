@@ -397,7 +397,37 @@ class LibraryViewModel @Inject constructor(
     fun openInboxEvent(event: InboxEvent) {
         viewModelScope.launch {
             inboxRepo.markRead(event.id)
+            // Resolve the landing page FIRST: an event with no deepLinkUri is a
+            // pure "mark read" acknowledgement (no nav) — preloading playback
+            // before this guard would turn that into a stray playback side
+            // effect for an event that never navigates (CodeRabbit, #1345).
             val link = event.deepLinkUri ?: return@launch
+            // Issue #1343 — preload the chapter into the global
+            // PlaybackController BEFORE navigating. The reader is a passive
+            // view of the controller: navigating to /reader/{fid}/{cid}
+            // without first loading leaves it stuck on the "loading chapter"
+            // prompt forever (then the 30s timeout). FictionDetail's Play
+            // works only because it calls startListening before navigating;
+            // startListening is what queues the chapter-body download + loads
+            // the controller, so the reader's loading card resolves once the
+            // body arrives.
+            //
+            // autoPlay = false: an inbox tap is a browse/navigate action, not
+            // a "play" action — load the chapter and open the reader, but let
+            // the user press play if they want audio (matches the history-row
+            // intent). runCatching so a startForegroundService hiccup can't
+            // swallow the navigation below.
+            val fictionId = event.fictionId
+            val chapterId = event.chapterId
+            if (fictionId != null && chapterId != null) {
+                runCatching {
+                    playback.startListening(
+                        fictionId = fictionId,
+                        chapterId = chapterId,
+                        autoPlay = false,
+                    )
+                }
+            }
             _events.send(LibraryUiEvent.OpenInboxLink(link))
         }
     }
