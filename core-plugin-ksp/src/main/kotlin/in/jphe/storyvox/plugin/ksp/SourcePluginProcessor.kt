@@ -148,6 +148,7 @@ class SourcePluginProcessor(
         val chipLabel = (args["chipLabel"] as? String) ?: ""
         val searchHint = (args["searchHint"] as? String) ?: ""
         val iconName = (args["iconName"] as? String) ?: ""
+        val generateRouting = (args["generateRouting"] as? Boolean) ?: false
         // `category` comes through as a KSType pointing at the enum entry — or,
         // when defaulted, as a default-value sentinel resolvable via the same
         // mechanism. Either way, we want the qualified name of the enum entry.
@@ -199,6 +200,7 @@ class SourcePluginProcessor(
                         chipLabel = chipLabel,
                         searchHint = searchHint,
                         iconName = iconName,
+                        generateRouting = generateRouting,
                     ),
                 )
             }
@@ -225,6 +227,7 @@ class SourcePluginProcessor(
         chipLabel: String,
         searchHint: String,
         iconName: String,
+        generateRouting: Boolean,
     ): String {
         fun esc(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
         val escapedId = esc(id)
@@ -265,26 +268,26 @@ class SourcePluginProcessor(
             appendLine("            source = source,")
             appendLine("        )")
             appendLine("}")
-            appendLine()
-            // Module 2 (#1371) — the repository routing contribution
-            // (@Binds @IntoMap @StringKey). Replaces the hand-written
-            // `@Binds @IntoMap @StringKey(SourceIds.X) fun ...: FictionSource`
-            // module that every source used to carry. A separate
-            // `abstract class` because @Binds cannot live in the
-            // descriptor's `object` module. The string key is the
-            // resolved annotation `id`, identical to the SourceIds
-            // constant the hand-written binding used.
-            appendLine("@dagger.Module")
-            appendLine("@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)")
-            appendLine("internal abstract class $routingModuleSimpleName {")
-            appendLine("    @dagger.Binds")
-            appendLine("    @javax.inject.Singleton")
-            appendLine("    @dagger.multibindings.IntoMap")
-            appendLine("    @dagger.multibindings.StringKey(\"$escapedId\")")
-            appendLine("    abstract fun bindFictionSourceIntoMap(")
-            appendLine("        source: $targetFqn,")
-            appendLine("    ): $FICTION_SOURCE_FQN")
-            appendLine("}")
+            if (generateRouting) {
+                appendLine()
+                // Module 2 (#1371) — the repository routing contribution
+                // (@Binds @IntoMap @StringKey). Replaces the hand-written
+                // `@Binds @IntoMap @StringKey(SourceIds.X) fun ...: FictionSource`
+                // module that every source used to carry. Opt-in via
+                // `generateRouting = true` — sources with existing hand-written
+                // bindings must remove them first to avoid Dagger/MapKeys duplicates.
+                appendLine("@dagger.Module")
+                appendLine("@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)")
+                appendLine("internal abstract class $routingModuleSimpleName {")
+                appendLine("    @dagger.Binds")
+                appendLine("    @javax.inject.Singleton")
+                appendLine("    @dagger.multibindings.IntoMap")
+                appendLine("    @dagger.multibindings.StringKey(\"$escapedId\")")
+                appendLine("    abstract fun bindFictionSourceIntoMap(")
+                appendLine("        source: $targetFqn,")
+                appendLine("    ): $FICTION_SOURCE_FQN")
+                appendLine("}")
+            }
         }
     }
 

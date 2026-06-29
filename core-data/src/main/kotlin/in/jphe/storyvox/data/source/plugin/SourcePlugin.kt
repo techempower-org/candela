@@ -96,6 +96,7 @@ annotation class SourcePlugin(
     val chipLabel: String = "",
     val searchHint: String = "",
     val iconName: String = "",
+    val generateRouting: Boolean = false,
 )
 
 /**
