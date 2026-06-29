@@ -80,6 +80,8 @@ include(":source-radio")
 include(":source-librivox")
 include(":source-notion")
 include(":source-hackernews")
+// #1238 — Google News headline feed (Top stories + topic sections + search).
+include(":source-google-news")
 include(":source-arxiv")
 include(":source-plos")
 include(":source-discord")
@@ -113,6 +115,10 @@ include(":source-readability")
 // see scratch/libby-hoopla-palace-scope/lcp-drm-scope.md). Libby +
 // Hoopla follow-ups defer to their own PRs (see sibling scope notes).
 include(":source-palace")
+// Issue #1002 — Bookshare / accessible-library (DAISY) source. Ships a
+// DAISY text parser + a guarded FictionSource scaffold; functional
+// integration is partnership/DRM-gated (see the #1002 research comment).
+include(":source-bookshare")
 include(":core-sync")
 include(":feature")
 // Issue #409 — Baseline Profile producer module. Pure test APK

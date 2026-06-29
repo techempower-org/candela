@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <generator>NFE/5.0</generator>
+    <title>Top stories - Google News</title>
+    <link>https://news.google.com/?hl=en-US&amp;gl=US&amp;ceid=US:en</link>
+    <language>en-US</language>
+    <description>Google News</description>
+    <item>
+      <title>Escalating tensions threaten interim peace deal - The Guardian</title>
+      <link>https://news.google.com/rss/articles/CBMiqAFExample1?oc=5</link>
+      <guid isPermaLink="false">CBMiqAFExample1</guid>
+      <pubDate>Mon, 29 Jun 2026 00:35:00 GMT</pubDate>
+      <description>&lt;ol&gt;&lt;li&gt;&lt;a href="https://news.google.com/rss/articles/CBMiqAFExample1?oc=5" target="_blank"&gt;Escalating tensions threaten interim peace deal&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;The Guardian&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;a href="https://news.google.com/rss/articles/CBMiOther2?oc=5" target="_blank"&gt;Diplomats meet as deadline nears&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Reuters&lt;/font&gt;&lt;/li&gt;&lt;/ol&gt;</description>
+      <source url="https://www.theguardian.com">The Guardian</source>
+    </item>
+    <item>
+      <title>Market rallies on rate-cut hopes - Bloomberg</title>
+      <link>https://news.google.com/rss/articles/CBMiBBBExample2?oc=5</link>
+      <guid isPermaLink="false">CBMiBBBExample2</guid>
+      <pubDate>Mon, 29 Jun 2026 01:10:00 GMT</pubDate>
+      <description>&lt;ol&gt;&lt;li&gt;&lt;a href="https://news.google.com/rss/articles/CBMiBBBExample2?oc=5" target="_blank"&gt;Market rallies on rate-cut hopes&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Bloomberg&lt;/font&gt;&lt;/li&gt;&lt;/ol&gt;</description>
+    </item>
+  </channel>
+</rss>

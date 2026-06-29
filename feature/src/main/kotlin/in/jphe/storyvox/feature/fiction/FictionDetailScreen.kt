@@ -324,7 +324,7 @@ fun FictionDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.fiction_detail_back),
                         )
                     }
                 },
@@ -346,11 +346,13 @@ fun FictionDetailScreen(
                             // the text changes. Without this the spinner
                             // is silent — user can't tell the long
                             // export is actually running.
+                            val buildingEpubCd =
+                                stringResource(R.string.fiction_detail_building_epub_cd)
                             Row(
                                 modifier = Modifier
                                     .padding(end = 12.dp)
                                     .semantics(mergeDescendants = true) {
-                                        contentDescription = "Loading: Building .epub"
+                                        contentDescription = buildingEpubCd
                                         liveRegion = LiveRegionMode.Polite
                                     },
                                 verticalAlignment = Alignment.CenterVertically,
@@ -373,7 +375,7 @@ fun FictionDetailScreen(
                             }
                         } else {
                             IconButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                                Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.fiction_detail_more))
                             }
                             DropdownMenu(
                                 expanded = menuOpen,
@@ -862,9 +864,9 @@ private fun AudiobookExportSheet(
         ) {
             when (status) {
                 is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Running -> {
-                    Text("Creating your audiobook…", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.audiobook_creating), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Narrating chapters offline. This keeps going in the background.",
+                        stringResource(R.string.audiobook_creating_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -884,7 +886,7 @@ private fun AudiobookExportSheet(
                     }
                 }
                 is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Succeeded -> {
-                    Text("Your audiobook is ready", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.audiobook_ready), style = MaterialTheme.typography.titleMedium)
                     Text(
                         "${status.fileName} · ${status.chapterCount} " +
                             "chapter${if (status.chapterCount == 1) "" else "s"}",
@@ -903,13 +905,13 @@ private fun AudiobookExportSheet(
                         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                     ) {
                         BrassButton(
-                            label = "Save…",
+                            label = stringResource(R.string.audiobook_save),
                             onClick = { onSaveAs(status) },
                             variant = BrassButtonVariant.Secondary,
                             modifier = Modifier.weight(1f),
                         )
                         BrassButton(
-                            label = "Share",
+                            label = stringResource(R.string.audiobook_share),
                             onClick = { onShare(status) },
                             variant = BrassButtonVariant.Primary,
                             modifier = Modifier.weight(1f),
@@ -917,7 +919,7 @@ private fun AudiobookExportSheet(
                     }
                 }
                 is `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus.Failed -> {
-                    Text("Couldn't create the audiobook", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.audiobook_failed), style = MaterialTheme.typography.titleMedium)
                     Text(
                         status.message,
                         style = MaterialTheme.typography.bodySmall,

@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.repository.pronunciation.MatchType
 import `in`.jphe.storyvox.data.repository.pronunciation.PronunciationEntry
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
@@ -76,7 +78,7 @@ fun PronunciationDictScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pronunciation") },
+                title = { Text(stringResource(R.string.pronunciation_title)) },
                 // Issues #275 + #276 — standardize the back affordance
                 // across all settings sub-screens to the TopAppBar arrow
                 // (matching Sessions). The old inline 'Back' BrassButton
@@ -85,7 +87,7 @@ fun PronunciationDictScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.pronunciation_back),
                         )
                     }
                 },
@@ -224,13 +226,18 @@ private fun EntryEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "Add entry" else "Edit entry") },
+        title = {
+            Text(
+                if (initial == null) stringResource(R.string.pronunciation_dialog_add)
+                else stringResource(R.string.pronunciation_dialog_edit),
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = pattern,
                     onValueChange = { pattern = it },
-                    label = { Text("Pattern (the word as written)") },
+                    label = { Text(stringResource(R.string.pronunciation_field_pattern)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(
@@ -243,7 +250,7 @@ private fun EntryEditorDialog(
                 OutlinedTextField(
                     value = replacement,
                     onValueChange = { replacement = it },
-                    label = { Text("Replacement (how to say it)") },
+                    label = { Text(stringResource(R.string.pronunciation_field_replacement)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(
@@ -258,7 +265,7 @@ private fun EntryEditorDialog(
                 // REGEX (power users); the other 5 NVDA modes land in
                 // phase 2.
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Match: ", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.pronunciation_match_label), style = MaterialTheme.typography.bodyMedium)
                     MatchType.entries.forEach { mt ->
                         val variant = if (matchType == mt) BrassButtonVariant.Primary else BrassButtonVariant.Secondary
                         BrassButton(

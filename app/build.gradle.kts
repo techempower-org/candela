@@ -583,6 +583,8 @@ dependencies {
     implementation(project(":source-librivox"))
     implementation(project(":source-notion"))
     implementation(project(":source-hackernews"))
+    // #1238 — Google News headline feed.
+    implementation(project(":source-google-news"))
     implementation(project(":source-arxiv"))
     implementation(project(":source-plos"))
     implementation(project(":source-discord"))
@@ -609,6 +611,10 @@ dependencies {
     // documented under scratch/libby-hoopla-palace-scope/ but deferred
     // to their own PRs.
     implementation(project(":source-palace"))
+    // Issue #1002 — Bookshare accessible-library (DAISY) source. Guarded
+    // scaffold today (partner API key + PDTB DRM + per-user OAuth pending);
+    // ships the DAISY text parser as the non-gated groundwork.
+    implementation(project(":source-bookshare"))
     implementation(project(":source-azure"))
     implementation(project(":core-sync"))
     implementation(project(":feature"))
