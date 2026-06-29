@@ -51,6 +51,20 @@ object TestTags {
     const val BrowseResults = "browse-results"
     const val BrowseFilter = "browse-filter"
 
+    /**
+     * Per-source chip in the Browse carousel, e.g. `SourceIds.RADIO` →
+     * `"browse-source-radio"`. Lets an on-device flow (uiautomator/Maestro)
+     * select a specific source by id rather than by carousel position or
+     * visible label. (#1333)
+     */
+    fun browseSourceChip(sourceId: String): String = "browse-source-$sourceId"
+
+    /**
+     * Per-result card in the Browse grid, keyed by fiction id, e.g.
+     * `"browse-result-rr:12345"`. Lets a flow open a specific result. (#1333)
+     */
+    fun browseResultCard(fictionId: String): String = "browse-result-$fictionId"
+
     // ── Reader ───────────────────────────────────────────────────────────
     const val ReaderBody = "reader-body"
     const val ReaderPlay = "reader-play"
@@ -86,6 +100,15 @@ object TestTags {
     const val HighlightShare = "highlight-share"
     const val HighlightShareSend = "highlight-share-send"
     const val HighlightShareCopy = "highlight-share-copy"
+
+    // ── Fiction detail (#1333) ───────────────────────────────────────────
+    // Action surface on the FictionDetail screen, so on-device QA can drive
+    // add-to-library / resume / open without depending on visible copy.
+    const val FictionDetailBack = "fiction-detail-back"
+    const val FictionDetailAddToLibrary = "fiction-detail-add-to-library"
+    const val FictionDetailResume = "fiction-detail-resume"
+    const val FictionDetailReadMore = "fiction-detail-read-more"
+    const val FictionDetailMenu = "fiction-detail-menu"
 
     // ── Voices ───────────────────────────────────────────────────────────
     const val VoiceList = "voice-list"

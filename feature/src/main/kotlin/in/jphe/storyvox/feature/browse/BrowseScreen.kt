@@ -59,8 +59,11 @@ import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -130,7 +133,7 @@ private fun BrowseScaffoldOrFrame(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun BrowseScreen(
     onOpenFiction: (String) -> Unit,
@@ -203,7 +206,11 @@ fun BrowseScreen(
         // Issue #1195 — only the standalone path owns a top bar to collapse.
         scrollBehavior = if (embedded) null else scrollBehavior,
     ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    // #1333 — surface every descendant testTag as a resource-id so on-device
+    // uiautomator/adb can target Browse elements by id (the Compose tree is
+    // otherwise opaque to uiautomator — dumps return 0 nodes). Semantics-only;
+    // no layout effect. Common content root for both embedded + standalone paths.
+    Box(modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
     // Issue #1195 — the source carousel, tab row and filter funnel scroll
     // away as the listing is scrolled and return on scroll-up. The header is
     // composed in every content state (loading / empty / error / grid), so
