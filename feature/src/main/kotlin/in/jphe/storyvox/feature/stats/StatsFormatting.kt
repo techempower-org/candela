@@ -100,35 +100,26 @@ object StatsFormatting {
     }
 
     /**
-     * A short, shareable plain-text summary of the snapshot — backs the
-     * top-bar "share" action (the issue's "I listened to N hours" card,
-     * as text rather than a rendered image). Lines are emitted only when
-     * they carry a non-zero figure, so a sparse history reads cleanly.
+     * A short, shareable plain-text summary — backs the top-bar share action
+     * (the issue's "I listened to N hours" card, as text). Lines are emitted
+     * only when they carry a non-zero figure, so a sparse history reads cleanly.
+     *
+     * #1265 — the wording (header, "listened", the plurals, the 🔥) lives in
+     * string resources and is resolved by the UI into [content], so this stays
+     * free of hardcoded English and JVM-testable. The value worth testing here
+     * is the inclusion logic, which the unit test pins.
      */
-    fun shareSummary(stats: ListeningStats, appName: String): String = buildString {
-        append("My listening on ")
-        append(appName)
-        append(':')
-        if (stats.totalEstimatedMs > 0L) {
-            append("\n• ≈ ")
-            append(formatDuration(stats.totalEstimatedMs))
-            append(" listened")
-        }
-        if (stats.booksCompleted > 0) {
-            append("\n• ")
-            append(stats.booksCompleted)
-            append(if (stats.booksCompleted == 1) " book finished" else " books finished")
-        }
-        if (stats.chaptersFinished > 0) {
-            append("\n• ")
-            append(formatCompactNumber(stats.chaptersFinished.toLong()))
-            append(" chapters read")
-        }
-        if (stats.currentStreakDays > 0) {
-            append("\n• ")
-            append(stats.currentStreakDays)
-            append(if (stats.currentStreakDays == 1) " day streak" else " day streak 🔥")
-        }
+    fun shareSummary(stats: ListeningStats, content: ShareSummaryContent): String = buildString {
+        append(content.header)
+        if (stats.totalEstimatedMs > 0L) appendBullet(content.timeListened)
+        if (stats.booksCompleted > 0) appendBullet(content.booksFinished)
+        if (stats.chaptersFinished > 0) appendBullet(content.chaptersRead)
+        if (stats.currentStreakDays > 0) appendBullet(content.dayStreak)
+    }
+
+    private fun StringBuilder.appendBullet(line: String) {
+        append("\n• ")
+        append(line)
     }
 
     /** Single-letter weekday initial (Mon→"M") for the compact trend axis. */
@@ -150,3 +141,17 @@ object StatsFormatting {
         DayPart.NIGHT -> "Night"
     }
 }
+
+/**
+ * Localized, fully-resolved lines for [StatsFormatting.shareSummary]. The UI
+ * supplies these from string resources (including plurals for the book/streak
+ * counts), so the formatter holds no hardcoded English and stays JVM-testable.
+ * #1265.
+ */
+data class ShareSummaryContent(
+    val header: String,
+    val timeListened: String,
+    val booksFinished: String,
+    val chaptersRead: String,
+    val dayStreak: String,
+)

@@ -71,8 +71,13 @@ fun lemmaCandidates(word: String): List<String> {
     if (word.isEmpty()) return emptyList()
     val candidates = LinkedHashSet<String>()
     candidates += word
+    // #1265 — an all-caps acronym ("NASA") skips the first-letter-decapitalise
+    // step: lowercasing only its first letter yields a nonsense mixed-case form
+    // ("nASA") that's a guaranteed Wiktionary 404 — a wasted sequential request
+    // on mobile. The fully-lower-cased form below ("nasa") still covers it.
+    val isAcronym = word == word.uppercase() && word != word.lowercase()
     // De-capitalise the first letter only (the common sentence-initial case).
-    if (word.first().isUpperCase()) {
+    if (word.first().isUpperCase() && !isAcronym) {
         candidates += word.replaceFirstChar { it.lowercaseChar() }
     }
     // A SHOUTED or Mixed-case token: a fully lower-cased form is worth a try.

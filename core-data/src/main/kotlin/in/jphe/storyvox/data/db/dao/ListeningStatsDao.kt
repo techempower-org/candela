@@ -77,7 +77,7 @@ interface ListeningStatsDao {
         """
         SELECT COALESCE(SUM(c.wordCount), 0)
           FROM chapter_history h
-          JOIN chapter c ON c.id = h.chapterId
+          JOIN chapter c ON c.fictionId = h.fictionId AND c.id = h.chapterId
          WHERE h.completed = 1
         """,
     )

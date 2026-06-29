@@ -122,13 +122,16 @@ object ListeningStatsCalculator {
         val activeDays = activity.mapTo(HashSet()) { localDate(it.openedAt, zone) }
 
         // Finished-chapter contributions, bucketed once and reused.
-        val finished = activity.asSequence().filter { it.completed }
         var todayMs = 0L
         var weekMs = 0L
         val perDayFinished = HashMap<LocalDate, Int>()
         val perDayMs = HashMap<LocalDate, Long>()
         val perPart = IntArray(DayPart.entries.size)
-        for (row in finished) {
+        // #1265 — iterate the list directly, skipping incomplete rows, instead
+        // of wrapping it in `asSequence().filter {}` (which allocates a Sequence
+        // + filtering machinery for a single in-memory pass).
+        for (row in activity) {
+            if (!row.completed) continue
             val zdt = Instant.ofEpochMilli(row.openedAt).atZone(zone)
             val day = zdt.toLocalDate()
             if (day == today) todayMs += row.durationEstimateMs

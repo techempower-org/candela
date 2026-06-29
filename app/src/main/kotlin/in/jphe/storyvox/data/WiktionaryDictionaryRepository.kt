@@ -7,6 +7,7 @@ import `in`.jphe.storyvox.data.dictionary.lemmaCandidates
 import `in`.jphe.storyvox.data.dictionary.normalizeLookupWord
 import `in`.jphe.storyvox.data.dictionary.parseWiktionaryDefinitions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -43,6 +44,10 @@ class WiktionaryDictionaryRepository(
 
         var lastError: String? = null
         for (candidate in lemmaCandidates(lemma)) {
+            // #1265 — `fetch` is a blocking network call; bail promptly if the
+            // lookup was cancelled (e.g. the user dismissed the sheet) rather
+            // than working through the remaining case variants.
+            ensureActive()
             when (val result = fetch(candidate)) {
                 is DictionaryResult.Success -> return@withContext result
                 is DictionaryResult.NotFound -> Unit // try the next case variant

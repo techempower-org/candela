@@ -275,7 +275,10 @@ class MainActivity : ComponentActivity() {
                         // the URL / notification resolver.
                         val importRoute = sampleRoute
                             ?: DeepLinkResolver.documentImportUri(i)
-                                ?.let { uri -> importDocument(uri) }
+                                // #1265 — pass THIS intent's MIME, not the
+                                // mutable Activity `intent` field (onNewIntent
+                                // could swap it before importDocument reads it).
+                                ?.let { uri -> importDocument(uri, i.type) }
                         val route = importRoute ?: DeepLinkResolver.resolve(i)
                         route?.let { navController.navigate(it) }
                         intentFlow.value = null
@@ -405,8 +408,8 @@ class MainActivity : ComponentActivity() {
      * intent's `type` is passed as the mime hint — a file manager's SEND
      * intent often carries a better mime than `ContentResolver.getType`.
      */
-    private suspend fun importDocument(uri: Uri): String? =
-        when (val result = documentImporter.get().importLocalFile(uri.toString(), intent?.type)) {
+    private suspend fun importDocument(uri: Uri, mimeHint: String?): String? =
+        when (val result = documentImporter.get().importLocalFile(uri.toString(), mimeHint)) {
             is ImportFileResult.Success -> StoryvoxRoutes.fictionDetail(result.fictionId)
             // #1264 — surface the importer's user-facing reason. Without this the
             // "Open With" / Share path silently no-ops on a failed import: the
@@ -457,7 +460,9 @@ class MainActivity : ComponentActivity() {
         // file:// to our own cacheDir — the importer reads it directly
         // (we own the file), and the takePersistableUriPermission call
         // no-ops on a file Uri.
-        return importDocument(Uri.fromFile(cached))
+        // #1265 — the seed fixture is plaintext; pass its MIME explicitly now
+        // that importDocument no longer reads the Activity intent field.
+        return importDocument(Uri.fromFile(cached), "text/plain")
     }
 
     private companion object {
