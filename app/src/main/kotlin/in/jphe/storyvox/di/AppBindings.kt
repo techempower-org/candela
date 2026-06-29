@@ -78,6 +78,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import `in`.jphe.storyvox.data.WiktionaryDictionaryRepository
+import `in`.jphe.storyvox.data.dictionary.DictionaryRepository
 
 /**
  * Hilt bindings that bridge `feature.api.*` UI contracts to the concrete
@@ -549,6 +552,27 @@ object AppBindings {
             chain.proceed(withUserAgent)
         }
     }
+
+    /**
+     * Issue #1230 — tap-to-define dictionary backend. A dedicated OkHttpClient
+     * with tight timeouts (a reader interrupting their book wants a fast answer
+     * or a fast failure) carrying the [UserAgentHeader] interceptor Wikimedia's
+     * policy requires — an anonymous client to a Wikimedia REST endpoint 403s.
+     * Bound here in `:app` (not `:core-data`, which stays OkHttp-free) because
+     * the UA interceptor needs `BuildConfig.VERSION_NAME`; the parsing it feeds
+     * is the pure, unit-tested helper in `:core-data`.
+     */
+    @Provides @Singleton
+    fun provideDictionaryRepository(
+        @UserAgentHeader userAgent: Interceptor,
+    ): DictionaryRepository = WiktionaryDictionaryRepository(
+        OkHttpClient.Builder()
+            .addInterceptor(userAgent)
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build(),
+    )
 
     /**
      * Stub WebViewFetcher — Selene's `:core-data` declares the interface; the

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -159,11 +158,12 @@ fun ReaderTextView(
     chapterText: String,
     onPlayPause: () -> Unit,
     onSeekToChar: (Int) -> Unit = {},
-    /** Long-press a word in the chapter body → open the chat surface
-     *  with `Who is <word>?` pre-filled in the input field. The reader
-     *  doesn't know about navigation, so HybridReaderScreen wires this
-     *  to `navController.navigate(StoryvoxRoutes.chat(fId, prefill = q))`.
-     *  No-op default keeps preview/test callsites working unchanged. */
+    /** The tap-to-define sheet's "Ask AI" action (#1230) → open the chat
+     *  surface with a prebuilt "What does <word> mean?" question pre-filled in
+     *  the input field. The reader doesn't know about navigation, so
+     *  HybridReaderScreen wires this to
+     *  `navController.navigate(StoryvoxRoutes.chat(fId, prefill = q))`. No-op
+     *  default keeps preview/test callsites working unchanged. */
     onAskAiAbout: (String) -> Unit = {},
     /**
      * Issue #946 — magical auto-scroll toggle. When true, the chapter
@@ -225,6 +225,17 @@ fun ReaderTextView(
     onUpdateHighlight: (`in`.jphe.storyvox.data.db.entity.Annotation, String, String?) -> Unit = { _, _, _ -> },
     /** Issue #999 phase 2 — delete a highlight by id. */
     onDeleteHighlight: (String) -> Unit = {},
+    /** Issue #1230 — tap-to-define dictionary state for the long-press popup.
+     *  [DictionaryUiState.Hidden] (default) keeps the sheet closed, so
+     *  preview/test callsites render unchanged. */
+    definitionState: DictionaryUiState = DictionaryUiState.Hidden,
+    /** Issue #1230 — long-press a word → look it up. Wired by
+     *  [HybridReaderScreen] to [ReaderViewModel.defineWord]. No-op default. */
+    onDefineWord: (String) -> Unit = {},
+    /** Issue #1230 — dismiss the tap-to-define sheet (→ [ReaderViewModel.dismissDefinition]). */
+    onDismissDefinition: () -> Unit = {},
+    /** Issue #1230 — retry a failed lookup (→ [ReaderViewModel.retryDefine]). */
+    onRetryDefine: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -236,14 +247,6 @@ fun ReaderTextView(
     var bodyTopPx by remember { mutableFloatStateOf(0f) }
     var viewportHeightPx by remember { mutableFloatStateOf(0f) }
     var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
-
-    // Long-press lookup state. When non-null, the dialog is showing for
-    // this word — tapping its primary action navigates to the chat
-    // surface with `Who is <word>?` pre-filled. The state lives on
-    // ReaderTextView (not the SentenceHighlight) because the SentenceHighlight
-    // is a low-level rendering primitive shared with the audiobook view —
-    // putting the popup here keeps that primitive stateless.
-    var lookupWord by remember { mutableStateOf<String?>(null) }
 
     // Issue #999 phase 2 — in-reader highlight state.
     //  - selectionRange: the live drag selection (raw anchor/focus, normalised
@@ -544,7 +547,12 @@ fun ReaderTextView(
                             val hit = hitId?.let { id -> savedHighlights.firstOrNull { it.id == id } }
                             if (hit != null) editingHighlight = hit else onSeekToChar(charIndex)
                         },
-                        onLongPressWord = { word -> lookupWord = word },
+                        // Issue #1230 — long-press a word opens the
+                        // tap-to-define sheet (supersedes the older #188
+                        // ask-AI-only popup; the sheet still offers Ask AI).
+                        // The drag-to-select highlight gesture (#999) is a
+                        // separate detector, so this doesn't disturb it.
+                        onLongPressWord = { word -> onDefineWord(word) },
                         onLayout = { layout -> textLayout = layout },
                         // #998 — paint in-text search hits; the active one
                         // (chevron target) gets the stronger fill.
@@ -816,54 +824,21 @@ fun ReaderTextView(
             }
         }
 
-        // Character-lookup popup (#188). Long-press a word → AlertDialog
-        // with the librarian sigil + a primary "Ask AI" action. We use
-        // AlertDialog rather than a popup-at-position because the M3 dialog
-        // already gives us the brass scrim, dismiss-on-outside-tap, and
-        // back-button handling for free; pinning a popup to the press
-        // coordinate would ride on top of the moving sentence underline
-        // and obscure the very word the user just selected.
-        lookupWord?.let { word ->
-            AlertDialog(
-                onDismissRequest = { lookupWord = null },
-                icon = {
-                    Icon(
-                        Icons.Outlined.AutoAwesome,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                },
-                title = {
-                    Text(
-                        text = stringResource(R.string.reader_ask_ai_title, word),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                },
-                text = {
-                    Text(
-                        text = stringResource(R.string.reader_ask_ai_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val q = "Who is $word?"
-                            lookupWord = null
-                            onAskAiAbout(q)
-                        },
-                    ) {
-                        Text(stringResource(R.string.reader_ask_ai))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { lookupWord = null }) {
-                        Text(stringResource(R.string.reader_cancel))
-                    }
-                },
-            )
-        }
+        // Issue #1230 — tap-to-define popup. Long-press a word (a no-drag
+        // long-press; the drag variant selects text for a highlight) opens a
+        // bottom sheet with its Wiktionary definition, an "open in dictionary
+        // app" offline fallback, and an "Ask AI" action that preserves the
+        // older #188 character-lookup affordance this supersedes. All lookup
+        // state is hoisted to [ReaderViewModel]; this just renders it.
+        DefineWordSheet(
+            state = definitionState,
+            onDismiss = onDismissDefinition,
+            onAskAi = { question ->
+                onDismissDefinition()
+                onAskAiAbout(question)
+            },
+            onRetry = onRetryDefine,
+        )
 
         // Issue #999 phase 2 — highlight create toolbar. Shown after a
         // selection drag lifts (pendingSelection set). A compact bottom sheet

@@ -142,10 +142,17 @@
     <string name="generic_filter_chip_any">Any</string>
 
     <!-- Reader / ReaderView -->
-    <string name="reader_ask_ai_title">Ask AI: who is \"%1$s\"?</string>
-    <string name="reader_ask_ai_body">The librarian-companion will answer based on what you\'ve read so far — no spoilers from later chapters.</string>
     <string name="reader_ask_ai">Ask AI</string>
     <string name="reader_cancel">Cancel</string>
+    <!-- Reader / tap-to-define dictionary (#1230) -->
+    <string name="reader_define_loading">Looking up \"%1$s\"…</string>
+    <string name="reader_define_empty">No dictionary entry for \"%1$s\".</string>
+    <string name="reader_define_error">Couldn\'t reach the dictionary.</string>
+    <string name="reader_define_retry">Retry</string>
+    <string name="reader_define_system_dict">Dictionary app</string>
+    <string name="reader_define_attribution">Definitions from Wiktionary · CC BY-SA</string>
+    <string name="reader_define_no_dictionary_app">No dictionary or browser app found.</string>
+    <string name="reader_define_ask_ai_question">What does \"%1$s\" mean?</string>
 
     <!-- Reader / HybridReaderScreen -->
     <string name="reader_empty_library_title">Your library awaits</string>
