@@ -75,14 +75,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -135,6 +138,89 @@ import kotlinx.coroutines.withContext
  */
 internal fun shouldAutoPlayAfterAdvance(stateAfterWait: PlaybackState): Boolean =
     stateAfterWait.isPlaying
+
+/**
+ * Issue #1262 — wait for a chapter's body to land in Room before
+ * [EnginePlayer.advanceChapter] hands off to `loadAndPlay`, RE-QUEUING a
+ * fresh download on every attempt.
+ *
+ * ## Root cause this fixes
+ *
+ * Auto-advance and the manual "Listen" path (`PlaybackBindings.startListening`)
+ * share the exact same `queueChapterDownload` + `observeChapter()
+ * .filterNotNull().first()` shape — and auto-advance actually waits LONGER
+ * (60 s vs 30 s). So there is no code-path difference that would make a
+ * chapter play on a manual tap yet skip on auto-advance; the difference is
+ * timing. When the next chapter's body isn't already cached — its #558
+ * prefetch download was killed mid-flight (e.g. a low-memory kill during
+ * TTS playback) and left the row stuck at `DOWNLOADING` — the single
+ * fixed-window wait loses the race against the download completing and
+ * surfaces a terminal error, stranding the chapter. A later manual tap
+ * finds the by-then-completed body in Room and plays it fine, which is the
+ * "manual works, auto-advance skips" symptom from the field report.
+ *
+ * Note the issue's own proposed fixes do NOT address this: resetting the
+ * row to `QUEUED` on timeout is a no-op (`queueChapterDownload` already
+ * sets `QUEUED` before scheduling), and the #705 reaper's 5-minute cutoff
+ * never gates the target chapter for the same reason.
+ *
+ * ## The recovery
+ *
+ * Re-queue on EVERY attempt. [ChapterRepository.queueChapterDownload] flips
+ * the row to `QUEUED` and REPLACE-enqueues a brand-new worker
+ * (`runAttemptCount = 0`, no exponential backoff), so a worker that was
+ * killed mid-flight gets a CLEAN restart on the retry instead of the wait
+ * parking on a dead/stuck job. The first attempt keeps the full
+ * `firstTimeoutMs` window (preserving #558's headroom for slow Notion
+ * walks); follow-up attempts use the shorter `retryTimeoutMs`, keeping the
+ * worst-case total wait bounded so a truly dead chapter still surfaces an
+ * actionable error promptly.
+ *
+ * Returns `true` once the body is present, `false` if it never lands across
+ * [attempts] windows (the caller then surfaces the terminal error).
+ * Rethrows [kotlin.coroutines.cancellation.CancellationException] so a skip
+ * / seek / teardown during the wait propagates instead of being swallowed
+ * (#1175), rather than being mistaken for "not ready" and retried.
+ *
+ * Extracted as a top-level suspend function so the retry semantics can be
+ * exercised in a pure coroutine-test (ChapterBodyWaitRetryTest) without
+ * standing up the full EnginePlayer + Hilt + sherpa-onnx graph — the same
+ * constraint that gates [shouldAutoPlayAfterAdvance].
+ *
+ * @param observeBodyPresent re-subscribed on each attempt; emits `true`
+ *   when the chapter's body is present in Room (Room re-queries on write).
+ */
+internal suspend fun awaitChapterBodyReady(
+    attempts: Int,
+    firstTimeoutMs: Long,
+    retryTimeoutMs: Long,
+    queueDownload: suspend () -> Unit,
+    observeBodyPresent: () -> Flow<Boolean>,
+): Boolean {
+    var attempt = 0
+    while (attempt < attempts) {
+        queueDownload()
+        val timeoutMs = if (attempt == 0) firstTimeoutMs else retryTimeoutMs
+        val present = try {
+            kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+                observeBodyPresent().filter { it }.first()
+            }
+        } catch (t: Throwable) {
+            // #1175 — never swallow cancellation: a skip / seek / teardown
+            // during the wait must stop advanceChapter, not fall through to
+            // another re-queue + retry. (withTimeoutOrNull handles its OWN
+            // timeout by returning null; anything reaching here is either an
+            // external cancellation or an observe error.)
+            if (t is kotlin.coroutines.cancellation.CancellationException) throw t
+            // observe failed (Room flow hiccup) — treat as "not ready this
+            // window" and let the loop re-queue + retry.
+            null
+        }
+        if (present == true) return true
+        attempt++
+    }
+    return false
+}
 
 /**
  * Issue #980 — pure guard for whether a position checkpoint has anything to
@@ -4466,36 +4552,39 @@ class EnginePlayer @AssistedInject constructor(
             "EnginePlayer",
             "advanceChapter: targeting next=$nextId, queueing download + waiting for body",
         )
-        chapterRepo.queueChapterDownload(fiction, nextId, requireUnmetered = false)
-        // Issue #553 — wait for the chapter body, but with a hard cap.
-        // Pre-fix `observeChapter(nextId).filterNotNull().first()` could
-        // park indefinitely if the row never lands (download stuck,
-        // network down, scheduler queue blocked). The audit's stall
-        // symptom (isBuffering=true forever, no audio, MediaSession
-        // state=PLAYING) is exactly what an indefinite park produces.
+        // Issue #553 — wait for the chapter body, but with a hard cap so we
+        // never park indefinitely if the row never lands (download stuck,
+        // network down, scheduler queue blocked). The audit's stall symptom
+        // (isBuffering=true forever, no audio, MediaSession state=PLAYING)
+        // is exactly what an indefinite park produces.
         //
-        // 30 s is generous for an in-library Notion chapter on LAN
-        // (typically <1 s) and short enough that the user can recover
-        // by tapping skip-next manually before the buffer-watchdog in
-        // PlaybackController fires its own retry (~5 s).
-        val readyChapter = try {
-            kotlinx.coroutines.withTimeoutOrNull(
-                CHAPTER_BODY_WAIT_TIMEOUT_MS,
-            ) {
-                chapterRepo.observeChapter(nextId).filterNotNull().first()
-            }
-        } catch (t: Throwable) {
+        // Issue #1262 — do it across CHAPTER_BODY_WAIT_ATTEMPTS windows,
+        // re-queuing a FRESH download worker each time. The re-queue is the
+        // actual recovery: if the next chapter's prefetch download was
+        // killed mid-flight and left the row stuck at DOWNLOADING, one fixed
+        // window parked on that dead job timed out and skipped the chapter
+        // on auto-advance forever — even though a later manual tap (finding
+        // the by-then-completed body) played it fine. Re-queuing
+        // REPLACE-enqueues a clean worker so the retry actually makes
+        // progress. The first window keeps the full 60 s (#558's headroom
+        // for slow Notion walks); the follow-up is shorter. See
+        // [awaitChapterBodyReady] for the full root-cause writeup.
+        val bodyReady = awaitChapterBodyReady(
+            attempts = CHAPTER_BODY_WAIT_ATTEMPTS,
+            firstTimeoutMs = CHAPTER_BODY_WAIT_TIMEOUT_MS,
+            retryTimeoutMs = CHAPTER_BODY_WAIT_RETRY_TIMEOUT_MS,
+            queueDownload = {
+                chapterRepo.queueChapterDownload(fiction, nextId, requireUnmetered = false)
+            },
+            observeBodyPresent = {
+                chapterRepo.observeChapter(nextId).map { it != null }
+            },
+        )
+        if (!bodyReady) {
             android.util.Log.w(
                 "EnginePlayer",
-                "advanceChapter: observeChapter($nextId) failed (${t.javaClass.simpleName}) — surfacing error",
-            )
-            null
-        }
-        if (readyChapter == null) {
-            android.util.Log.w(
-                "EnginePlayer",
-                "advanceChapter: next chapter $nextId not ready within " +
-                    "${CHAPTER_BODY_WAIT_TIMEOUT_MS}ms; clearing buffering + surfacing error",
+                "advanceChapter: next chapter $nextId not ready after " +
+                    "$CHAPTER_BODY_WAIT_ATTEMPTS attempts; clearing buffering + surfacing error",
             )
             _observableState.update {
                 it.copy(
@@ -5720,6 +5809,25 @@ class EnginePlayer @AssistedInject constructor(
          *  network surfaces an actionable error before the user
          *  walks away from the device. */
         const val CHAPTER_BODY_WAIT_TIMEOUT_MS = 60_000L
+
+        /** Issue #1262 — number of body-wait windows [advanceChapter] tries
+         *  before surfacing the "still downloading" error. Each attempt
+         *  re-queues a FRESH download worker (see [awaitChapterBodyReady]),
+         *  so a worker killed mid-flight (e.g. a low-memory kill during TTS
+         *  playback, which leaves the row stuck at DOWNLOADING) gets a clean
+         *  restart on the retry instead of the wait parking on a dead job —
+         *  the difference between auto-advance skipping a chapter forever
+         *  and it playing the way a manual tap already does. */
+        const val CHAPTER_BODY_WAIT_ATTEMPTS = 2
+
+        /** Issue #1262 — timeout for the follow-up body-wait window(s) after
+         *  the first [CHAPTER_BODY_WAIT_TIMEOUT_MS] one lapses. Shorter than
+         *  the first because the re-queued worker starts clean (no
+         *  exponential backoff) and the body, if it lands at all, lands
+         *  fast; keeps the worst-case total wait bounded (~80 s) so a truly
+         *  dead chapter still surfaces an actionable error before the user
+         *  walks away from the device. */
+        const val CHAPTER_BODY_WAIT_RETRY_TIMEOUT_MS = 20_000L
 
         /** Issue #196 — Kokoro's previously-hardcoded silence scale
          *  (0.2f) is the multiplier=1.0 baseline. We linearly scale
