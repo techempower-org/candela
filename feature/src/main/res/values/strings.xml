@@ -147,6 +147,14 @@
     <string name="reader_cancel">Cancel</string>
     <!-- Reader / teleprompter rehearsal mode (#1239) -->
     <string name="reader_teleprompter_wpm_unit">words/min</string>
+    <!-- Reader / practice "pause-for-me" mode (#1287) -->
+    <string name="reader_teleprompter_autoscroll">Auto-scroll</string>
+    <string name="reader_practice">Practice</string>
+    <string name="reader_practice_your_turn">Your turn</string>
+    <string name="reader_practice_read_aloud">Read the dialogue aloud</string>
+    <string name="reader_practice_continue">Continue</string>
+    <string name="reader_practice_narrating">Reading narration…</string>
+    <string name="reader_practice_tap_play">Practice — tap play to begin</string>
     <!-- Reader / tap-to-define dictionary (#1230) -->
     <string name="reader_define_loading">Looking up \"%1$s\"…</string>
     <string name="reader_define_empty">No dictionary entry for \"%1$s\".</string>
