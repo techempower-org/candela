@@ -45,22 +45,29 @@ class DocumentImporterUiImpl @Inject constructor(
     private val pdfConfig: PdfConfigImpl,
 ) : DocumentImporterUi {
 
-    override suspend fun importLocalFile(uriString: String, mimeHint: String?): ImportFileResult {
-        val uri = runCatching { Uri.parse(uriString) }.getOrNull()
-            ?: return ImportFileResult.Error("That file couldn't be read.")
-        // intent-supplied mime (when present) wins; otherwise ask the
-        // resolver. File managers are inconsistent, so the classifier also
-        // falls back to the filename extension.
-        val mime = mimeHint ?: runCatching { context.contentResolver.getType(uri) }.getOrNull()
-        val displayName = queryDisplayName(uri) ?: uri.lastPathSegment.orEmpty()
+    override suspend fun importLocalFile(uriString: String, mimeHint: String?): ImportFileResult =
+        // #1265 — the whole sequence touches blocking I/O off the bat
+        // (`contentResolver.getType`, the SAF display-name query, and the
+        // per-format `importFile` DataStore writes). Both entry points call
+        // this from a main-ish dispatcher (viewModelScope / LaunchedEffect),
+        // so offload the lot to IO rather than relying on each callee to
+        // re-dispatch.
+        withContext(Dispatchers.IO) {
+            val uri = runCatching { Uri.parse(uriString) }.getOrNull()
+                ?: return@withContext ImportFileResult.Error("That file couldn't be read.")
+            // intent-supplied mime (when present) wins; otherwise ask the
+            // resolver. File managers are inconsistent, so the classifier also
+            // falls back to the filename extension.
+            val mime = mimeHint ?: runCatching { context.contentResolver.getType(uri) }.getOrNull()
+            val displayName = queryDisplayName(uri) ?: uri.lastPathSegment.orEmpty()
 
-        return when (DocumentImportClassifier.classify(mime, displayName)) {
-            ImportKind.Epub -> registerEpub(uri, uriString, displayName, EpubEntryKind.Epub)
-            ImportKind.Text -> registerEpub(uri, uriString, displayName, EpubEntryKind.Text)
-            ImportKind.Pdf -> registerPdf(uri, uriString, displayName)
-            ImportKind.Unsupported -> ImportFileResult.Unsupported
+            when (DocumentImportClassifier.classify(mime, displayName)) {
+                ImportKind.Epub -> registerEpub(uri, uriString, displayName, EpubEntryKind.Epub)
+                ImportKind.Text -> registerEpub(uri, uriString, displayName, EpubEntryKind.Text)
+                ImportKind.Pdf -> registerPdf(uri, uriString, displayName)
+                ImportKind.Unsupported -> ImportFileResult.Unsupported
+            }
         }
-    }
 
     private suspend fun registerEpub(
         uri: Uri,
@@ -86,7 +93,10 @@ class DocumentImporterUiImpl @Inject constructor(
     }
 
     private fun failure(displayName: String, cause: Throwable): ImportFileResult {
-        Log.w(TAG, "Import failed for $displayName", cause)
+        // #1265 — don't log the document name (private content) at warn
+        // level; the cause/stack is enough to diagnose. The name still goes
+        // in the user-facing error string, which isn't persisted to logcat.
+        Log.w(TAG, "Import failed", cause)
         return ImportFileResult.Error("Couldn't import ${displayName.ifBlank { "that file" }}.")
     }
 
@@ -98,12 +108,17 @@ class DocumentImporterUiImpl @Inject constructor(
      * this session, and a failed persist must not abort the open.
      */
     private fun persistReadGrant(uri: Uri) {
+        // #1265 — only content:// Uris can carry a persistable grant. A
+        // file:// Uri (the debug sample seed) would just throw a caught
+        // SecurityException and emit a noisy warn, so skip it outright.
+        if (uri.scheme != "content") return
         runCatching {
             context.contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
-        }.onFailure { Log.w(TAG, "Could not persist URI permission for $uri", it) }
+            // #1265 — don't log the Uri (can encode a private document path).
+        }.onFailure { Log.w(TAG, "Could not persist URI permission", it) }
     }
 
     /** Query the SAF [OpenableColumns.DISPLAY_NAME] for a content Uri.

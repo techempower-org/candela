@@ -68,9 +68,10 @@ class LookupWordTest {
     }
 
     @Test
-    fun `all-caps acronym adds a fully lowercased candidate`() {
-        // "NASA" -> as-seen, then first-letter-lower ("nASA"), then full lower ("nasa").
-        assertEquals(listOf("NASA", "nASA", "nasa"), lemmaCandidates("NASA"))
+    fun `all-caps acronym skips the nonsense mixed-case candidate`() {
+        // #1265 — "NASA" -> as-seen + full lower ("nasa"). The first-letter-lower
+        // form ("nASA") is a guaranteed Wiktionary 404, so it's no longer emitted.
+        assertEquals(listOf("NASA", "nasa"), lemmaCandidates("NASA"))
     }
 
     @Test

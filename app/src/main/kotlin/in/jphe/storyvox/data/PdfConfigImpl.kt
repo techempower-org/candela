@@ -200,10 +200,15 @@ class PdfConfigImpl internal constructor(
         uriString: String,
         displayName: String,
     ): String {
+        // #1265 — normalize the Uri ONCE and hash the normalized form, so the
+        // stored `uriString` and the `fictionId` derived from it agree. Hashing
+        // the raw string while storing the trimmed one meant a whitespace-padded
+        // Uri yielded an id that later (trimmed) lookups couldn't match.
+        val normalizedUri = uriString.trim()
         val entry = PdfFileEntry(
-            fictionId = fictionIdForPdfUri(uriString),
-            uriString = uriString.trim(),
-            displayName = displayName.ifBlank { uriString.substringAfterLast('/') },
+            fictionId = fictionIdForPdfUri(normalizedUri),
+            uriString = normalizedUri,
+            displayName = displayName.ifBlank { normalizedUri.substringAfterLast('/') },
         )
         store.edit { prefs ->
             val existing = prefs[PdfKeys.IMPORTED_FILES].orEmpty()

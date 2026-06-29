@@ -89,7 +89,11 @@ class TextClassifierLanguageDetector internal constructor(
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                     null
                 } else {
-                    context.getSystemService(TextClassificationManager::class.java)
+                    // #1265 — resolve the manager off the application context so
+                    // we never pin a short-lived context (the detector keeps the
+                    // TextClassifier, not the Context, so this is defensive).
+                    context.applicationContext
+                        .getSystemService(TextClassificationManager::class.java)
                         ?.textClassifier
                 }
             }.getOrNull()

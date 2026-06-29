@@ -3,7 +3,6 @@ package `in`.jphe.storyvox.feature.stats
 import `in`.jphe.storyvox.data.repository.stats.ListeningStats
 import `in`.jphe.storyvox.data.repository.stats.SourceShare
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -59,7 +58,17 @@ class StatsFormattingTest {
     }
 
     @Test
-    fun `share summary only emits lines with non-zero figures`() {
+    fun `share summary emits the header plus one bullet per non-zero figure`() {
+        // #1265 — wording is now supplied by the UI; the formatter just decides
+        // which lines appear and assembles them. Sentinel strings make the
+        // assembly + inclusion logic exact.
+        val content = ShareSummaryContent(
+            header = "HEADER",
+            timeListened = "TIME",
+            booksFinished = "BOOKS",
+            chaptersRead = "CHAPTERS",
+            dayStreak = "STREAK",
+        )
         val populated = ListeningStats.EMPTY.copy(
             totalEstimatedMs = 15 * 60_000L,
             booksCompleted = 2,
@@ -67,24 +76,21 @@ class StatsFormattingTest {
             currentStreakDays = 3,
             chaptersOpened = 50,
         )
-        val text = StatsFormatting.shareSummary(populated, "Candela")
-        assertTrue(text.startsWith("My listening on Candela:"))
-        assertTrue(text.contains("≈ 15m listened"))
-        assertTrue(text.contains("2 books finished"))
-        assertTrue(text.contains("42 chapters read"))
-        assertTrue(text.contains("3 day streak"))
+        assertEquals(
+            "HEADER\n• TIME\n• BOOKS\n• CHAPTERS\n• STREAK",
+            StatsFormatting.shareSummary(populated, content),
+        )
 
         // An empty snapshot collapses to just the header — no zero-value noise.
-        val empty = StatsFormatting.shareSummary(ListeningStats.EMPTY, "Candela")
-        assertEquals("My listening on Candela:", empty)
+        assertEquals("HEADER", StatsFormatting.shareSummary(ListeningStats.EMPTY, content))
     }
 
     @Test
-    fun `share summary singularizes a one-book, one-day result`() {
-        val one = ListeningStats.EMPTY.copy(booksCompleted = 1, currentStreakDays = 1, chaptersOpened = 1)
-        val text = StatsFormatting.shareSummary(one, "Candela")
-        assertTrue(text.contains("1 book finished"))
-        assertTrue(text.contains("1 day streak"))
+    fun `share summary omits the lines whose figures are zero`() {
+        val content = ShareSummaryContent("H", "TIME", "BOOKS", "CHAPTERS", "STREAK")
+        // Only books-finished + streak are non-zero here.
+        val partial = ListeningStats.EMPTY.copy(booksCompleted = 1, currentStreakDays = 1, chaptersOpened = 1)
+        assertEquals("H\n• BOOKS\n• STREAK", StatsFormatting.shareSummary(partial, content))
     }
 
     @Test

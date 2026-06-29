@@ -1,7 +1,7 @@
 package `in`.jphe.storyvox.feature.reader
 
+import android.app.Activity
 import android.app.SearchManager
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -271,8 +271,17 @@ private fun launchWordLookup(context: Context, word: String) {
 }
 
 private fun tryStart(context: Context, intent: Intent): Boolean = try {
+    // #1265 — a non-Activity context (e.g. the application context) can't
+    // launch an Activity without FLAG_ACTIVITY_NEW_TASK. In Compose
+    // LocalContext is normally the Activity, but guard anyway. Catch every
+    // exception (not just ActivityNotFoundException) so a SecurityException or
+    // an odd OEM throw from a dictionary/search app can't crash the reader —
+    // we just fall through to the next candidate / the no-app toast.
+    if (context !is Activity) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
     context.startActivity(intent)
     true
-} catch (e: ActivityNotFoundException) {
+} catch (e: Exception) {
     false
 }

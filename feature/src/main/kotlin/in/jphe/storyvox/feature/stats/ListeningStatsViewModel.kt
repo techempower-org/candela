@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.repository.stats.ListeningStats
 import `in`.jphe.storyvox.data.repository.stats.ListeningStatsRepository
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,12 +38,18 @@ class ListeningStatsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ListeningStatsUiState>(ListeningStatsUiState.Loading)
     val uiState: StateFlow<ListeningStatsUiState> = _uiState.asStateFlow()
 
+    /** #1265 — the in-flight load, cancelled before each new [refresh]. */
+    private var refreshJob: Job? = null
+
     init {
         refresh()
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        // #1265 — cancel any in-flight load first so rapid re-entry can't
+        // overlap DB queries or let a stale snapshot land after a newer one.
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _uiState.value = ListeningStatsUiState.Loading
             // A query failure on a stats screen should degrade to the
             // empty state, never crash the app — the data is informational.

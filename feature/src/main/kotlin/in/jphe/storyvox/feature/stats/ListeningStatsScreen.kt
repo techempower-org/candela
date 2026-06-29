@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -100,11 +101,35 @@ fun ListeningStatsScreen(
                 },
                 actions = {
                     if (shareableStats != null) {
+                        // #1265 — resolve every share line from string resources
+                        // here (plurals for the book/streak counts); the formatter
+                        // stays free of hardcoded English and JVM-testable.
+                        val shareContent = ShareSummaryContent(
+                            header = stringResource(R.string.stats_share_header, appName),
+                            timeListened = stringResource(
+                                R.string.stats_share_time,
+                                StatsFormatting.formatDuration(shareableStats.totalEstimatedMs),
+                            ),
+                            booksFinished = pluralStringResource(
+                                R.plurals.stats_share_books_finished,
+                                shareableStats.booksCompleted,
+                                shareableStats.booksCompleted,
+                            ),
+                            chaptersRead = stringResource(
+                                R.string.stats_share_chapters,
+                                StatsFormatting.formatCompactNumber(shareableStats.chaptersFinished.toLong()),
+                            ),
+                            dayStreak = pluralStringResource(
+                                R.plurals.stats_share_streak,
+                                shareableStats.currentStreakDays,
+                                shareableStats.currentStreakDays,
+                            ),
+                        )
                         IconButton(
                             onClick = {
                                 shareStatsText(
                                     context = context,
-                                    text = StatsFormatting.shareSummary(shareableStats, appName),
+                                    text = StatsFormatting.shareSummary(shareableStats, shareContent),
                                     chooserTitle = chooserTitle,
                                 )
                             },

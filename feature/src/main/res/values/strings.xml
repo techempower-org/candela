@@ -1054,6 +1054,19 @@
     <string name="stats_share">Share stats</string>
     <string name="stats_share_chooser">Share your listening stats</string>
     <string name="stats_app_name">Candela</string>
+    <!-- #1265 — share-summary lines: resolved in the UI (plurals for the
+         book/streak counts) and assembled by StatsFormatting.shareSummary. -->
+    <string name="stats_share_header">My listening on %1$s:</string>
+    <string name="stats_share_time">≈ %1$s listened</string>
+    <string name="stats_share_chapters">%1$s chapters read</string>
+    <plurals name="stats_share_books_finished">
+        <item quantity="one">%1$d book finished</item>
+        <item quantity="other">%1$d books finished</item>
+    </plurals>
+    <plurals name="stats_share_streak">
+        <item quantity="one">%1$d day streak</item>
+        <item quantity="other">%1$d day streak 🔥</item>
+    </plurals>
     <string name="stats_total_time_label">Time listened</string>
     <!-- %1$d current streak, %2$d longest streak -->
     <string name="stats_streak_line">🔥 %1$d-day streak · best ever %2$d</string>
