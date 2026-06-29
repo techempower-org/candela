@@ -351,6 +351,33 @@ internal fun isSilentNaturalEnd(naturalEnd: Boolean, chunksEmitted: Int): Boolea
     naturalEnd && chunksEmitted == 0
 
 /**
+ * Issue #1330 — the fiction id the player should expose in [PlaybackState]
+ * while a [chapter] is loaded. The chapter's [PlaybackChapter.fictionId] is
+ * FK-bound to a real `fiction` row, so it's the source of truth even when the
+ * caller's [requestedFictionId] is non-canonical — e.g. a Royal Road URL slug
+ * ("archmage-coefficient") instead of the numeric fiction id ("156215").
+ *
+ * Playback still works with a non-canonical request (the chapter loads by
+ * chapterId), but pre-fix the bad id leaked into `currentFictionId`, so the
+ * reader's "Open chapter list" → FictionDetail lookup
+ * (fictionById/refreshDetail) 404'd ("Fiction <slug> not found") for a book
+ * that played fine — the playback path resolved by chapter while the reader
+ * resolved by fiction id and they disagreed.
+ *
+ * Falls back to [requestedFictionId] only if the chapter somehow carries a
+ * blank id (the column is NOT NULL, so this shouldn't happen) — that keeps the
+ * fix from ever regressing `currentFictionId` to blank. A no-op in the common
+ * case where the caller already passed the canonical id.
+ *
+ * Extracted as a top-level function so the rule is unit-testable
+ * ([EnginePlayerFictionIdTest]) without standing up the full EnginePlayer +
+ * Hilt + sherpa-onnx graph — same constraint as [isSilentNaturalEnd] /
+ * [shouldAutoPlayAfterAdvance].
+ */
+internal fun playingFictionId(requestedFictionId: String, chapter: PlaybackChapter): String =
+    chapter.fictionId.ifBlank { requestedFictionId }
+
+/**
  * Issue #189 — playback state for the one-shot recap-aloud TTS pipeline.
  * Distinct from [PlaybackState] because the recap is a transient utterance
  * with its own AudioTrack; conflating the two would force every chapter
@@ -1968,7 +1995,9 @@ class EnginePlayer @AssistedInject constructor(
         )
         _observableState.update {
             it.copy(
-                currentFictionId = fictionId,
+                // Issue #1330 — expose the chapter's FK-bound parent id, not the
+                // caller's (possibly non-canonical) arg. See [playingFictionId].
+                currentFictionId = playingFictionId(fictionId, chapter),
                 currentChapterId = chapterId,
                 charOffset = charOffset,
                 // Issue #728 — respect a pause that landed during the
@@ -5379,7 +5408,8 @@ class EnginePlayer @AssistedInject constructor(
 
         _observableState.update {
             it.copy(
-                currentFictionId = fictionId,
+                // Issue #1330 — mirror the TTS path: chapter's id wins. See [playingFictionId].
+                currentFictionId = playingFictionId(fictionId, chapter),
                 currentChapterId = chapterId,
                 charOffset = 0,
                 isPlaying = true,
