@@ -58,4 +58,15 @@ data class FictionSummary(
      * cool-down. Only meaningful when [isPlaceholder] is also true.
      */
     val backfillFailed: Boolean = false,
+    /**
+     * Issue #1208 — back-link to the public-domain *text* this fiction was
+     * sourced from, when the backend knows it. LibriVox populates it with the
+     * recording's `url_text_source` (usually a `gutenberg.org/ebooks/<id>`
+     * page); other backends leave it null. The cross-source companion matcher
+     * ([CompanionResolver][in.jphe.storyvox.data.source.companion.CompanionResolver])
+     * reads this to pair an audiobook with its text counterpart (and to
+     * verify a reverse title/author match by exact ebook id) — all via the
+     * public model, without reaching into a leaf source's internals.
+     */
+    val companionSourceUrl: String? = null,
 )

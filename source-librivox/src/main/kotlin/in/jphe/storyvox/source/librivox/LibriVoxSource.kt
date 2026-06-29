@@ -395,6 +395,10 @@ internal class LibriVoxSource @Inject constructor(
             // releases completed books) — COMPLETED reads correctly.
             status = FictionStatus.COMPLETED,
             chapterCount = numSections.toIntOrNull(),
+            // #1208 — publish the Gutenberg back-link so the cross-source
+            // companion matcher can pair this audiobook with its text (and
+            // verify a reverse title/author match by the exact ebook id).
+            companionSourceUrl = urlTextSource.ifBlank { null },
         )
 
     private fun LibriVoxSection.toChapterInfo(bookId: String, index: Int): ChapterInfo =

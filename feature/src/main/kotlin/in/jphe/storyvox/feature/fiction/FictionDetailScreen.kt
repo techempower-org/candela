@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.feature.fiction
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.annotation.AnnotationExportFormatter
+import `in`.jphe.storyvox.data.source.companion.CompanionMatch
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiChapter
 import `in`.jphe.storyvox.feature.api.UiFiction
@@ -110,6 +112,8 @@ fun FictionDetailScreen(
      *  as Settings → Royal Road and the Browse anonymous-CTA from
      *  #241. */
     onOpenRoyalRoadSignIn: () -> Unit = {},
+    /** Issue #1208 — open the audio↔text companion's detail (LibriVox↔Gutenberg). */
+    onOpenCompanion: (String) -> Unit = {},
     viewModel: FictionDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -472,6 +476,8 @@ fun FictionDetailScreen(
                         speakingState = synopsisSpeaking,
                         onToggleListen = viewModel::toggleSynopsisAloud,
                     )
+                    // Issue #1208 — audio↔text companion (LibriVox↔Gutenberg).
+                    CompanionRow(state.companion, onOpenCompanion)
                     // Issue #217 — Notebook section in the wide-layout
                     // left column. Hides itself if there's nothing to show
                     // and the user hasn't tapped Add.
@@ -672,6 +678,8 @@ fun FictionDetailScreen(
                         onToggleListen = viewModel::toggleSynopsisAloud,
                     )
                 }
+                // Issue #1208 — audio↔text companion (LibriVox↔Gutenberg).
+                item { CompanionRow(state.companion, onOpenCompanion) }
                 // Issue #217 — Notebook section in the narrow (phone)
                 // layout. Inserted as a single LazyColumn item so it
                 // scrolls with the chapter list rather than pinning.
@@ -1308,6 +1316,43 @@ private fun NotebookSection(
                 )
             }
         }
+    }
+}
+
+/**
+ * Issue #1208 — a clickable row offering this fiction's audio↔text companion
+ * (a LibriVox narration for a Gutenberg text, or vice versa). Self-hiding: a
+ * null [match] renders nothing, so callers place it unconditionally alongside
+ * the synopsis the way [NotebookSection] hides itself when empty.
+ */
+@Composable
+private fun CompanionRow(match: CompanionMatch?, onOpenCompanion: (String) -> Unit) {
+    if (match == null) return
+    val spacing = LocalSpacing.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenCompanion(match.fictionId) }
+            .padding(spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.PlayArrow,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = stringResource(
+                if (match.kind == CompanionMatch.Kind.AUDIO) {
+                    R.string.fiction_companion_listen_along
+                } else {
+                    R.string.fiction_companion_read_along
+                },
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

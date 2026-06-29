@@ -867,6 +867,8 @@ private fun StoryvoxNavHostContent(
                     // #211 — Follow on Royal Road button routes to the
                     // shared sign-in WebView when the user is anonymous.
                     onOpenRoyalRoadSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
+                    // #1208 — open the audio↔text companion's fiction detail.
+                    onOpenCompanion = { id -> navController.navigate(StoryvoxRoutes.fictionDetail(id)) },
                 )
             }
 
