@@ -1,10 +1,10 @@
 ---
 layout: default
 title: Candela · Play Store Listing (Draft)
-description: Draft Play Store listing copy and assets for Candela v1.0.
+description: Draft Play Store listing copy and assets for Candela v1.3.0.
 ---
 
-# Play Store Listing — v1.0 (Draft)
+# Play Store Listing — v1.3.0 (Draft)
 
 This is the draft copy + asset inventory for Candela's Play Store
 submission. **All copy is draft.** JP reviews and picks final wording before
@@ -63,17 +63,18 @@ your device. No subscription. No ads. No tracking.
 Under the hood, Candela is a serious audiobook player for any text you
 have access to — twenty-five fiction and reference backends are wired in,
 side by side. Browse Royal Road, Archive of Our Own, Standard Ebooks,
-Project Gutenberg, Wikipedia, Hacker News, arXiv, PLOS, and more. Open
-EPUB files from your device's storage. Connect your Notion workspace,
+Project Gutenberg, Wikipedia, Hacker News, arXiv, PLOS, and more. Import
+EPUB, PDF, and text files from your device's storage. Connect your Notion workspace,
 your Outline wiki, your Memory Palace, your Discord / Slack / Matrix /
 Telegram channels, or a Palace Project library card. Share any URL into
 Candela from any app — a magic-link reader pulls the readable text and
 queues it for narration.
 
-Three on-device neural voice families ship: Piper (compact, dozens of
-languages), Kokoro (multi-speaker, brass-warm narration), and KittenTTS
+Four on-device neural voice families ship: Piper (compact, dozens of
+languages), Kokoro (multi-speaker, brass-warm narration), KittenTTS
 (the lightest tier, designed for slow phones — eight English speakers
-share a single 24 MB model). Voices download once, then live offline.
+share a single 24 MB model), and Supertonic (a fast, natural English
+family). Voices download once, then live offline.
 Bring your own Microsoft Azure key for optional cloud-grade voices;
 Candela doesn't take a cut, and falls back to your local voice if the
 network drops.
@@ -84,6 +85,12 @@ the voice. Swipe to the audiobook view for a clean cover-and-scrubber
 layout. Lock-screen and home-screen widget controls. Sleep timer. Gapless
 chapter auto-advance.
 
+Tap any word in the reader for a dictionary definition, search for a
+phrase across a book's chapters, and share a passage with its title and
+author. Candela can auto-detect a passage's language and switch to a
+matching voice, remembers your playback speed per book, and tracks your
+listening time and streaks in a stats dashboard.
+
 Built for slow devices and built for accessibility: cold launch in under
 a second on a Galaxy Tab A7 Lite, TalkBack-aware navigation, high-
 contrast brass-on-near-black theme that passes WCAG AA, optional reduced
@@ -93,9 +100,16 @@ work continues.
 
 FEATURES
 • 25 fiction & reference backends — opt in to the ones you want
-• 3 on-device neural voice families (Piper, Kokoro, KittenTTS)
+• 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic)
 • Optional Bring-Your-Own-Key cloud voices (Microsoft Azure)
 • Reader view with synced sentence highlighting
+• Tap-to-define dictionary in the reader (Wiktionary)
+• In-book search across a fiction's chapters
+• Auto language detection → matching voice
+• In-app import of EPUB / PDF / text files
+• Per-fiction playback speed, auto-restored
+• Share quotes with title + author attribution
+• Listening statistics — time, streaks, per book
 • Home-screen widget — Continue Listening + Play/Pause
 • Sleep timer, gapless auto-advance, lock-screen controls
 • Cross-device sync (optional, email magic-link)
@@ -217,7 +231,7 @@ caption baked into the design.
 | --- | --- | --- |
 | 1 | Library tab with TechEmpower hero card + Continue Listening | "Free books, tech guides, and peer support — in one library." |
 | 2 | Reader view with sentence highlighted in brass | "Read along while a neural voice does the work." |
-| 3 | Voices tab with Piper / Kokoro / KittenTTS picker | "Three on-device voice families. Pick what fits your phone." |
+| 3 | Voices tab with Piper / Kokoro / KittenTTS / Supertonic picker | "Four on-device voice families. Pick what fits your phone." |
 | 4 | Settings → Accessibility | "Built for accessibility. WCAG AA. TalkBack-friendly." |
 | 5 | TechEmpower Home with peer-support Discord + 211 + 988 | "Real peer support, one tap away. Dial 211 or 988." |
 | 6 | Emergency Help card on TechEmpower Home (light mode, to show dark+light) | "Light or dark. Your call." |
