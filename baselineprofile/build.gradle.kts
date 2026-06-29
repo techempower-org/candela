@@ -69,7 +69,7 @@ android {
         // needs to install on devices that can actually generate
         // profiles. The Tab A7 Lite is Android 14.)
         minSdk = 28
-        targetSdk = 35
+        targetSdk = 36
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
