@@ -1,10 +1,10 @@
 ---
 layout: default
 title: Candela · Play Store Listing (Draft)
-description: Draft Play Store listing copy and assets for Candela v1.3.0.
+description: Draft Play Store listing copy and assets for Candela v1.4.5.
 ---
 
-# Play Store Listing — v1.3.0 (Draft)
+# Play Store Listing — v1.4.5 (Draft)
 
 This is the draft copy + asset inventory for Candela's Play Store
 submission. **All copy is draft.** JP reviews and picks final wording before
@@ -27,17 +27,24 @@ images; JP (or a future graphics-capable agent) produces the renders.
 
 ## Title and descriptions
 
-### App title (50 char max)
+> **Source of truth for the uploaded strings:** the publish-ready copy now lives in
+> `docs/play-store/listing/` (`title.txt` → `Candela: Read Aloud`, `short-description.txt`,
+> `full-description.txt`, `release-notes-template.txt`) and ships from
+> `app/src/main/play/listings/en-US/` via gradle-play-publisher. The drafts below are the
+> original design exploration + rationale — **defer to the `.txt` files for final wording**
+> (see `docs/play-store-consistency-check.md` M2/M3).
+
+### App title (30 char max)
+
+> **Limit corrected.** Play reduced the app-title field from 50 → **30 characters**
+> (and bars promotional phrases — no "#1", "best", all-caps, or emoji). The earlier
+> 39–46-char drafts would be **rejected at upload**; the drafts below fit 30 and comply.
 
 Three drafts, ranked. JP picks final:
 
-1. **`Candela · accessible tech help, read aloud`** (44 ch) ✅ recommended — leads with the TechEmpower mission; "read aloud" carries the audiobook angle without jargon.
-2. `Candela: Audiobook reader for everything text` (46 ch) — leans audiobook-app, undersells the accessibility / TechEmpower side.
-3. `Candela · Free tech guides, read aloud` (39 ch) — tight, leads with the resource library.
-
-> **Constraint check.** Play Store policy now bars "promotional phrases" in
-> the title field (no "#1", no "best", no all-caps gimmicks, no emoji).
-> All three drafts comply.
+1. **`Candela: read aloud for all`** (27 ch) ✅ recommended — "for all" echoes the TechEmpower _Technology for All_ mission; "read aloud" carries the audiobook promise without jargon.
+2. `Candela: accessible reading` (27 ch) — accessibility-led, mission-forward, softer on the audio angle.
+3. `Candela — listen to any text` (28 ch) — audiobook-first fallback if the listing ever pivots away from the mission lead.
 
 ### Short description (80 char max)
 
@@ -49,8 +56,10 @@ Three drafts, ranked:
 
 ### Full description (4000 char max)
 
-Draft below. Headline + 5 body paragraphs + feature list. Comes in around
-2,800 characters; comfortable margin for tuning.
+Draft below — headline + body paragraphs + feature list. This inline copy is
+**superseded by `docs/play-store/listing/full-description.txt`** (the uploaded source);
+kept here for rationale. Runs close to the 4000 limit — re-count on every edit
+(Play counts characters, not bytes).
 
 ```text
 Candela is TechEmpower's free, accessible resource app — read aloud.
@@ -70,14 +79,13 @@ Telegram channels, or a Palace Project library card. Share any URL into
 Candela from any app — a magic-link reader pulls the readable text and
 queues it for narration.
 
-Four on-device neural voice families ship: Piper (compact, dozens of
-languages), Kokoro (multi-speaker, brass-warm narration), KittenTTS
-(the lightest tier, designed for slow phones — eight English speakers
-share a single 24 MB model), and Supertonic (a fast, natural English
-family). Voices download once, then live offline.
-Bring your own Microsoft Azure key for optional cloud-grade voices;
-Candela doesn't take a cut, and falls back to your local voice if the
-network drops.
+Four on-device neural voice families ship, fully offline once downloaded:
+Piper (45 English voices, US + UK accents), Kokoro (53 warm multi-speaker
+voices across nine languages), KittenTTS (the lightest tier, ~25 MB, for
+slower phones), and Supertonic (ten expressive English voices). Your
+device's own System TTS voices work with no download, and you can add a
+Microsoft Azure key for optional cloud voices — Candela takes no cut and
+falls back to a local voice if the network drops.
 
 Reader view shows the chapter text in EB Garamond on a warm dark theme,
 with the spoken sentence highlighted in brass and glided along to match
@@ -87,16 +95,21 @@ chapter auto-advance.
 
 Tap any word in the reader for a dictionary definition, search for a
 phrase across a book's chapters, and share a passage with its title and
-author. Candela can auto-detect a passage's language and switch to a
-matching voice, remembers your playback speed per book, and tracks your
-listening time and streaks in a stats dashboard.
+author. Highlight passages and keep private notes. Candela can auto-detect
+a passage's language and switch to a matching voice, remembers your
+playback speed per book, and tracks your listening time and streaks in a
+stats dashboard.
+
+Reading aloud yourself? Teleprompter mode auto-scrolls the text at your
+pace, and a "pause-for-me" practice mode narrates the prose, then waits in
+silence while you voice the dialogue — made for rehearsing lines and
+read-along practice.
 
 Built for slow devices and built for accessibility: cold launch in under
 a second on a Galaxy Tab A7 Lite, TalkBack-aware navigation, high-
 contrast brass-on-near-black theme that passes WCAG AA, optional reduced
 motion, larger touch targets, and an explicit accessibility settings
-section. Twelve accessibility audit findings closed in version 0.5.43;
-work continues.
+section.
 
 FEATURES
 • 25 fiction & reference backends — opt in to the ones you want
@@ -108,12 +121,14 @@ FEATURES
 • Auto language detection → matching voice
 • In-app import of EPUB / PDF / text files
 • Per-fiction playback speed, auto-restored
+• Highlights & private notes you can keep and share
+• Teleprompter mode — auto-scroll + "pause-for-me" practice mode
 • Share quotes with title + author attribution
 • Listening statistics — time, streaks, per book
 • Home-screen widget — Continue Listening + Play/Pause
 • Sleep timer, gapless auto-advance, lock-screen controls
 • Cross-device sync (optional, email magic-link)
-• AI chat per book (Bring-Your-Own-Key — Anthropic, OpenAI, Google, …)
+• AI chat per book (Bring-Your-Own-Key — Anthropic, OpenAI, Ollama)
 • Wear OS companion with brass-circular scrubber
 • Dark and light themes
 • TalkBack-friendly; WCAG AA brass-on-near-black contrast
@@ -126,6 +141,24 @@ candela.techempower.org/privacy/
 
 ---
 
+## What's new (500 char max)
+
+Shown in the "What's new" listing field; refresh every release to track the
+latest `versionName`. **v1.4.5:**
+
+```text
+A stability release. Tapping a new chapter in your Inbox — or an entry in
+your History — now opens it instead of getting stuck on "loading." Lock-
+screen and notification skip buttons jump chapters correctly. A rare voice-
+model crash now recovers gracefully, prompting a re-download instead of
+closing. And following stories on Royal Road works reliably when you're
+signed in. Smoother, steadier listening.
+```
+
+(≈400 / 500 chars. Earlier entries archive in `CHANGELOG.md`.)
+
+---
+
 ## Categorization
 
 Play Console asks for one primary category + tags / type.
@@ -133,8 +166,8 @@ Play Console asks for one primary category + tags / type.
 - **Application type:** Apps (not Games)
 - **Category:** **Books & Reference** (primary) — most natural fit; users
   searching for audiobook / reader / TTS apps land here.
-- **Tags (Play Console suggests these from a controlled list once you pick
-  a category):** Audiobooks, Accessibility, Reference, Education
+- **Tags (5; Play Console offers a controlled list once you pick a
+  category):** Audiobooks, Accessibility, Reference, Education, E-books
 - **Alternative considered: Music & Audio.** Reasons not to: Music & Audio
   competes with Spotify / Audible / podcast players, where Candela's
   "library of free text, read aloud" framing doesn't fit. Books & Reference
@@ -233,7 +266,7 @@ caption baked into the design.
 | 2 | Reader view with sentence highlighted in brass | "Read along while a neural voice does the work." |
 | 3 | Voices tab with Piper / Kokoro / KittenTTS / Supertonic picker | "Four on-device voice families. Pick what fits your phone." |
 | 4 | Settings → Accessibility | "Built for accessibility. WCAG AA. TalkBack-friendly." |
-| 5 | TechEmpower Home with peer-support Discord + 211 + 988 | "Real peer support, one tap away. Dial 211 or 988." |
+| 5 | TechEmpower Home with peer-support Discord + 211 | "Real peer support, one tap away. Dial 211." |
 | 6 | Emergency Help card on TechEmpower Home (light mode, to show dark+light) | "Light or dark. Your call." |
 
 Capture at the 1080×2400 (Tab A7 Lite) or 1080×1920 (older phone) ratio.
