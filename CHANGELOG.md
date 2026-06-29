@@ -9,6 +9,40 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.0] -- 2026-06-29
+
+**Read along and on the road.** A teleprompter and rehearsal mode, Android Auto playback with voice search, full Google News articles, a Bookshare DAISY importer, a browsable radio directory, LibriVox read-along, per-book narrator voices, and the groundwork for character voices.
+
+### Added
+
+- **Android Auto.** Browse your library, search by voice ("play Pride and Prejudice"), and resume where you left off — all from your car's head unit. (#1232 / #1292)
+- **Teleprompter & rehearsal mode.** A read-along view that auto-scrolls in time with the narration, with adjustable words-per-minute that persists across sessions, voice-paced line alignment, and a practice "pause-for-me" mode where Candela narrates and waits for you to voice the dialogue. (#1239 / #1286, #1291 / #1296, #1287 / #1304, #1287 / #1306)
+- **Wear OS teleprompter remote.** Drive the teleprompter from your watch — the Wear companion gains a remote-control protocol and matching UI. (#1308 / #1328)
+- **Google News source.** Read the news as a narrated feed — a browsable headline list, plus an opt-in mode that fetches and reads the full publisher article instead of just the headline. (#1238 / #1294, #1295 / #1309)
+- **Browsable radio directory.** Discover internet radio beyond the curated stations — sort the directory by most popular, most voted, or recently updated. (#1282 / #1316)
+- **LibriVox read-along.** Pair a LibriVox audiobook with its matching Project Gutenberg text and follow along, split section by section. (#1208 / #1300, #1224 / #1289)
+- **Bookshare.** Search and browse Bookshare by category, and import DAISY 2.02 talking books. (#1002 / #1290, #1293 / #1303, #1325)
+- **ODT file import.** Open With / Share an OpenDocument Text (.odt) file into Candela, or import one in-app, as a single-file fiction. (#1310 / #1318)
+- **Per-book narrator voice.** Pin a specific narrator voice to an individual fiction, so each book keeps its own voice. (#1299 / #1317)
+- **Share a fiction by link.** A share button on the fiction detail screen produces a `candela://fiction/<id>` deep link; opening it jumps straight to that book. (#1313 / #1321)
+- **Offline fiction detail.** The fiction detail screen now shows cached content behind a "showing cached" banner when you're offline, and a freshness (TTL) guard skips needless re-fetches. (#1314 / #1326)
+- **Character voices (foundation).** Groundwork for distinct per-character narration — speaker attribution, persistence, and resolution — ahead of the full feature. (#1283 / #1297)
+- **Live radio captions (foundation).** Speech-to-text groundwork toward live read-along captions for radio streams. (#1223 / #1284)
+
+### Fixed
+
+- **Imported file playback.** Opening an imported EPUB (or other file) that wasn't yet saved to your library now works — prefixed fiction ids route to the right source instead of failing to resolve. (#1298 / #1307)
+- **Silent cached audio.** Playback now rejects all-silence cached audio segments on read, so a bad cache entry no longer plays back as silence. (#1281 / #1288)
+- **Zero-audio chapters.** A chapter that comes back with no audio now surfaces a retryable error instead of being silently skipped, so a transient fetch miss no longer drops it from playback. (#1311 / #1322)
+- **Accessibility labels.** Hardcoded UI strings were extracted and click labels added for a cleaner screen-reader pass. (#1268 / #1285)
+
+### Changed
+
+- **Teleprompter control state hoisted.** The teleprompter's scroll/playback state moved into a shared `TeleprompterController` so the reader and Playing screens read from one source of truth — an internal refactor with no behavior change. (#1308 / #1320)
+- **Play Store privacy policy.** Corrected an inverted privacy-policy URL and refreshed the store listing checklist. (#1301 / #1305)
+- **Edge-case test coverage.** Added ~1,194 lines of unit tests across the Google News decoder, Bookshare DAISY parser, dialogue segmenter, PCM-silence detection, voice-paced scroller, and the Android Auto resolver. (#1315 / #1324)
+- **Stale-code cleanup.** Resolved leftover TODOs and dead code flagged by the #1271 code audit. (#1323)
+
 ## [1.3.0] -- 2026-06-28
 
 **Reader intelligence.** Listening stats, a tap-to-define dictionary, automatic language detection, in-app file import, in-book search, per-fiction speed, AI catalog search, and shareable quotes.
