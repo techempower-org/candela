@@ -185,17 +185,41 @@ $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs \
 
 ---
 
-## CI wiring (self-hosted runner on katana)
+## CI wiring (self-hosted runner fleet)
 
-The CI workflow at `.github/workflows/android.yml` currently `cp`s
-`local.properties` from `/home/jp/Projects/storyvox/local.properties` on
-the self-hosted runner — meaning **once JP adds the four release-keystore
-lines to that file, CI picks them up automatically on the next build**.
+The CI workflow at `.github/workflows/android.yml` materializes
+`local.properties` in two layers (see the **Materialize local.properties**
+step):
 
-No GitHub Actions secrets to wire (the self-hosted runner has the file
-on-disk). The release keystore file itself needs to be present at
-`~/.storyvox-keystore/storyvox-release.keystore` on the katana runner — JP
-copies it once and the runner uses it for every subsequent tag build.
+1. **Seed from katana's persistent checkout.** When
+   `/home/jp/Projects/candela/local.properties` is present (it is on
+   katana — `…/storyvox` is a symlink to it), the step copies it verbatim.
+   That file carries `sdk.dir`, `INSTANTDB_APP_ID`, **and the four
+   `storyvox.release*` keystore lines** — so **once JP adds the
+   release-keystore lines to katana's `local.properties`, a tag build that
+   runs on katana picks them up automatically**.
+2. **Backfill on every other runner.** familiar / ubox0 / game (and any
+   future/hosted runner) have no such file. The step writes `sdk.dir` from
+   the SDK env and `INSTANTDB_APP_ID` from the **`INSTANTDB_APP_ID` GitHub
+   Actions secret**. Without this backfill, a release that happened to be
+   scheduled onto a non-katana runner silently shipped
+   `INSTANTDB_APP_ID=PLACEHOLDER` (cloud sync disabled). A tag build still
+   emits a CI warning if the value ends up unset.
+
+> **Action required:** create the `INSTANTDB_APP_ID` repo secret
+> (Settings → Secrets and variables → Actions). It is a *public* InstantDB
+> client id, not a credential — the secret only keeps it out of the public
+> source tree. This is the fix for "sync missing on CI runners."
+
+The **release keystore is NOT wired through CI secrets today.** The GitHub
+Release APK (`:app:assembleRelease`, what CI runs) is intentionally
+debug-signed for sideload continuity (see `#952`), so CI never needs the
+release key. The release key is only used by the **manual Play AAB path**
+(`:app:publishReleaseBundle`), run on katana where the keystore file +
+`storyvox.release*` lines already live. If you ever want tag builds on
+*any* runner to also be release-signed, add the keystore via secrets per
+the ubuntu-latest migration steps below — but gate it to non-PR events so
+the key is never exposed to a pull-request build.
 
 If we ever move back to a hosted ubuntu-latest runner, the migration is:
 
@@ -245,7 +269,9 @@ inconvenience, not a project-ending event.
 - [ ] JP generates `storyvox-release.keystore` per the procedure above
 - [ ] JP creates the `storyvox-release-keystore` Vaultwarden Secure Note (or whatever name JP picks — confirm here)
 - [ ] JP adds the four `storyvox.release*` lines to
-      `/home/jp/Projects/storyvox/local.properties`
+      `/home/jp/Projects/candela/local.properties` (katana)
+- [ ] JP creates the `INSTANTDB_APP_ID` GitHub Actions repo secret so
+      non-katana runners produce sync-enabled release APKs
 - [ ] JP copies the keystore to `~/.storyvox-keystore/` on the katana CI runner
 - [ ] Local `./gradlew :app:assembleRelease` produces an APK signed with the
       new cert (verify with `apksigner verify --print-certs`)

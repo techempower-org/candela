@@ -47,6 +47,17 @@ storyvox-upload.keystore
 # without "package conflicts" errors. No security value, intentional.
 !app/storyvox-debug.keystore
 
+# Env / dotfiles that hold secrets. The app reads build-time config from
+# local.properties (gitignored above) and runtime secrets from
+# EncryptedSharedPreferences, so no .env is used today — but ignoring it
+# pre-emptively keeps an accidental `.env` from ever landing in this
+# public repo. Service-account JSON (Play publisher) lives outside the
+# repo too; ignore it by name as belt-and-suspenders.
+.env
+.env.*
+*-service-account.json
+play-service-account.json
+
 # storyvox-local
 .superpowers/
 .claude/

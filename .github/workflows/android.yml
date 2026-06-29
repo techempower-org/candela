@@ -31,10 +31,28 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Materialize local.properties from runner-persistent location
+      - name: Materialize local.properties
+        # Test-compile only needs the SDK path; INSTANTDB_APP_ID=PLACEHOLDER
+        # compiles fine (the sync DI graph routes to DisabledBackend). We do
+        # NOT inject the INSTANTDB_APP_ID secret here because this job runs
+        # on pull_request — keeping secrets off PR-triggered runs is the
+        # GitHub-recommended posture (fork PRs never receive them anyway).
         run: |
-          if [ -f /home/jp/Projects/candela/local.properties ]; then
-            cp /home/jp/Projects/candela/local.properties ./local.properties
+          set -euo pipefail
+          # Seed from katana's persistent dev checkout when present (the
+          # `storyvox` path is a symlink to `candela`; try the canonical
+          # name first). Other runners have no such file — that's fine,
+          # the SDK env below supplies what the compile needs.
+          for seed in /home/jp/Projects/candela/local.properties \
+                      /home/jp/Projects/storyvox/local.properties; do
+            if [ -f "$seed" ]; then
+              cp "$seed" ./local.properties
+              break
+            fi
+          done
+          touch ./local.properties
+          if ! grep -q '^sdk.dir=' ./local.properties; then
+            echo "sdk.dir=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}" >> ./local.properties
           fi
 
       - name: Compile test sources
@@ -72,16 +90,68 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Materialize local.properties from runner-persistent location
-        # Self-hosted runners start without local.properties (gitignored),
-        # so INSTANTDB_APP_ID + keystore config live in each runner's
-        # persistent checkout at /home/jp/Projects/candela/. The `cp`
-        # source is a static absolute path (no untrusted input).
-        # If we move back to ubuntu-latest, replace this with a step
-        # that writes local.properties from `${{ secrets.* }}`.
+      - name: Materialize local.properties
+        # The runner's fresh checkout has no local.properties (gitignored),
+        # so we assemble it from two sources to guarantee an identical,
+        # sync-enabled build on EVERY runner in the fleet (katana +
+        # familiar + ubox0 + game + any future/hosted runner):
+        #
+        #   1. katana keeps a persistent dev checkout at
+        #      /home/jp/Projects/candela (the `storyvox` path is a symlink
+        #      to it). When present we seed from it — carrying sdk.dir,
+        #      INSTANTDB_APP_ID, and the release-keystore props exactly as
+        #      before, so katana's behavior is unchanged.
+        #   2. Every other runner has no such file. We backfill sdk.dir
+        #      from the SDK env each android-labeled runner already exports,
+        #      and INSTANTDB_APP_ID from the repo Actions secret. Without
+        #      this, builds that landed on a non-katana runner silently
+        #      shipped INSTANTDB_APP_ID=PLACEHOLDER — cloud sync routed to
+        #      DisabledBackend in the published APK. This step fixes that.
+        #
+        # INSTANTDB_APP_ID is a *public* InstantDB client id (like a
+        # Firebase project id), NOT a credential: the backend authorizes
+        # per-user via an `as-token` refresh token, never an admin secret
+        # (see core-sync/.../HttpInstantBackend.kt). It lives in a repo
+        # secret only to keep it out of the public source tree / abuse
+        # surface, not because disclosure would be a breach.
+        #
+        # No untrusted input is interpolated into run: — INSTANTDB_APP_ID
+        # comes from secrets via env (quoted on use) and GITHUB_REF is a
+        # runner-provided env var, so there is no command-injection surface.
+        env:
+          INSTANTDB_APP_ID: ${{ secrets.INSTANTDB_APP_ID }}
         run: |
-          if [ -f /home/jp/Projects/candela/local.properties ]; then
-            cp /home/jp/Projects/candela/local.properties ./local.properties
+          set -euo pipefail
+          # 1. Seed from katana's persistent checkout when available.
+          for seed in /home/jp/Projects/candela/local.properties \
+                      /home/jp/Projects/storyvox/local.properties; do
+            if [ -f "$seed" ]; then
+              cp "$seed" ./local.properties
+              break
+            fi
+          done
+          touch ./local.properties
+          # 2. Ensure sdk.dir (every android-labeled runner exports the SDK path).
+          if ! grep -q '^sdk.dir=' ./local.properties; then
+            echo "sdk.dir=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}" >> ./local.properties
+          fi
+          # 3. Ensure INSTANTDB_APP_ID from the repo secret when the seed
+          #    file didn't supply it (any runner other than katana).
+          if ! grep -q '^INSTANTDB_APP_ID=' ./local.properties; then
+            if [ -n "${INSTANTDB_APP_ID:-}" ]; then
+              echo "INSTANTDB_APP_ID=$INSTANTDB_APP_ID" >> ./local.properties
+            fi
+          fi
+          # 4. On a release (tag) build, warn loudly if sync would ship
+          #    disabled. Visible in the run summary; the real fix is to set
+          #    the INSTANTDB_APP_ID Actions secret (Settings → Secrets and
+          #    variables → Actions) so step 3 backfills it on any runner.
+          #    Flip this to `::error::` + `exit 1` once the secret exists if
+          #    you want a sync-disabled release to hard-fail CI.
+          if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
+            if ! grep -q '^INSTANTDB_APP_ID=..*' ./local.properties; then
+              echo "::warning::INSTANTDB_APP_ID is unset on runner '$(hostname)' — this release APK will ship with cloud sync DISABLED. Set the INSTANTDB_APP_ID Actions secret, or run the tag build on katana."
+            fi
           fi
 
       - name: Assemble release APK
