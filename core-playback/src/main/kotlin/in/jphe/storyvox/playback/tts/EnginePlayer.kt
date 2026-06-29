@@ -383,8 +383,15 @@ class EnginePlayer @AssistedInject constructor(
      *  watcher (see [observeActiveVoice]) to decide whether a DataStore
      *  emission represents a real change worth reloading for, and by
      *  [resume] to detect a "voice changed while paused" situation that
-     *  needs a full reload before playback can continue with the new model. */
-    private var loadedVoiceId: String? = null
+     *  needs a full reload before playback can continue with the new model.
+     *
+     *  `@Volatile` (#1263): written on the load coroutine but read off other
+     *  threads without always holding [engineMutex] — notably the audio
+     *  producer thread via [routeKokoroSpeaker], plus pipeline / cache-key
+     *  construction in [startPlaybackPipeline]. The volatile write/read pair
+     *  guarantees those threads see the latest loaded voice rather than a
+     *  stale cached reference. */
+    @Volatile private var loadedVoiceId: String? = null
 
     /** Flagged when the user picks a different voice while playback is
      *  paused. The flag tells [resume] to route through [loadAndPlay] for
@@ -959,6 +966,14 @@ class EnginePlayer @AssistedInject constructor(
      * put" case — feature off, unknown active voice, low-confidence/short
      * text, no Kokoro voice for that language — collapses to
      * [primarySpeakerId], which is #1233's graceful fallback.
+     *
+     * Issue #1263 — the Kokoro handle now calls this **unconditionally**
+     * before every synth (not only when auto-detect is on) to re-assert the
+     * active speaker against a background [`in`.jphe.storyvox.playback.cache.ChapterRenderJob]
+     * mutating the shared `KokoroEngine` singleton. That makes the
+     * "auto-detect off ⇒ return [primarySpeakerId]" guard load-bearing, not a
+     * mere optimization: it must keep returning the primary speaker when the
+     * feature is off, or the leak-guard re-assertion would itself mis-route.
      *
      * Called on the producer thread inside the engine mutex (see
      * [activeVoiceEngineHandle]): pure reads plus a deterministic router,
@@ -3694,28 +3709,55 @@ class EnginePlayer @AssistedInject constructor(
                     AndroidProcess.setThreadPriority(producerPriority())
                     return when (engineType) {
                         is EngineType.Kokoro -> {
-                            // Issue #1233 — per-sentence language routing.
-                            // No-op unless the listener enabled auto-detect.
-                            // setActiveSpeakerId is reload-free across Kokoro's
-                            // one shared model, and this runs inside the
-                            // producer's engineMutex lock — the sole writer of
-                            // the active speaker on the serial path (parallel
-                            // secondaries are forced off when routing is on; see
-                            // effectiveSecondaryHandles), so there's no speaker-id
-                            // race against a concurrent synth.
-                            if (cachedAutoLanguageDetection) {
-                                KokoroEngine.getInstance().setActiveSpeakerId(
-                                    routeKokoroSpeaker(text, engineType.speakerId),
-                                )
-                            }
+                            // Issue #1263 — KokoroEngine is a process-wide
+                            // singleton, so a background ChapterRenderJob
+                            // (prerender) that calls setActiveSpeakerId on it for
+                            // a different voice (ChapterRenderJob.loadModel) can
+                            // leak that speaker into foreground playback between
+                            // our sentences. So re-assert OUR speaker before
+                            // EVERY synth, unconditionally — not only when
+                            // auto-language routing is on (#1233).
+                            //
+                            // routeKokoroSpeaker returns the primary speaker
+                            // (engineType.speakerId) when auto-detect is off, so
+                            // this one call serves both the plain path and the
+                            // per-sentence language-routing path. The set + the
+                            // generate below are atomic under the producer's
+                            // engineMutex.withLock — both on the serial path and
+                            // on the useEngineMutex=true primary parallel worker —
+                            // and ChapterRenderJob serializes on the same
+                            // engineMutex, so no background swap can land between
+                            // them. setActiveSpeakerId is a reload-free index flip
+                            // across Kokoro's one shared model, so re-asserting
+                            // per sentence is cheap.
+                            KokoroEngine.getInstance().setActiveSpeakerId(
+                                routeKokoroSpeaker(text, engineType.speakerId),
+                            )
                             KokoroEngine.getInstance().generateAudioPCM(text, speed, pitch)
                         }
                         // Issue #119 — Kitten dispatch.
-                        is EngineType.Kitten -> KittenEngine.getInstance()
-                            .generateAudioPCM(text, speed, pitch)
+                        is EngineType.Kitten -> {
+                            // Issue #1263 — KittenEngine is also a shared-model
+                            // singleton, so re-assert our speaker before every
+                            // synth for the same reason as the Kokoro branch
+                            // above (a background ChapterRenderJob can overwrite
+                            // the active speaker between our sentences). Kitten
+                            // has no language routing, so it's always the primary
+                            // speaker. Atomic with the generate under the
+                            // producer's engineMutex; cheap reload-free index flip.
+                            KittenEngine.getInstance().setActiveSpeakerId(engineType.speakerId)
+                            KittenEngine.getInstance().generateAudioPCM(text, speed, pitch)
+                        }
                         // Issue #1114 — Supertonic dispatch.
-                        is EngineType.Supertonic -> SupertonicEngine.getInstance()
-                            .generateAudioPCM(text, speed, pitch)
+                        is EngineType.Supertonic -> {
+                            // Issue #1263 — same shared-model singleton leak guard
+                            // as the Kokoro/Kitten branches above.
+                            SupertonicEngine.getInstance().setActiveSpeakerId(engineType.speakerId)
+                            SupertonicEngine.getInstance().generateAudioPCM(text, speed, pitch)
+                        }
+                        // Piper voices are per-voice models (not a shared
+                        // multi-speaker singleton), so there's no active-speaker
+                        // state to leak — no re-assertion needed here.
                         else -> VoiceEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)
                     }

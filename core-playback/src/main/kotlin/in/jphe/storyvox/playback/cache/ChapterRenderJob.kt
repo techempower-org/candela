@@ -331,12 +331,30 @@ class ChapterRenderJob @AssistedInject constructor(
 
     private fun generateAudioPCM(voice: UiVoiceInfo, text: String): ByteArray? =
         when (voice.engineType) {
-            is EngineType.Kokoro -> KokoroEngine.getInstance()
-                .generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Kitten -> KittenEngine.getInstance()
-                .generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Supertonic -> SupertonicEngine.getInstance()
-                .generateAudioPCM(text, 1.0f, 1.0f)
+            // Issue #1263 — re-assert OUR speaker before each synth. These
+            // engines are process-wide shared-model singletons: the foreground
+            // EnginePlayer now mutates the active speaker per sentence (its own
+            // #1263 fix), so a prerender that set its speaker only once at
+            // loadModel would render later sentences in the foreground's voice.
+            // Atomic with the generate under the caller's engineMutex.withLock
+            // (see doWork); setActiveSpeakerId is a cheap reload-free index flip.
+            is EngineType.Kokoro -> {
+                KokoroEngine.getInstance()
+                    .setActiveSpeakerId((voice.engineType as EngineType.Kokoro).speakerId)
+                KokoroEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
+            }
+            is EngineType.Kitten -> {
+                KittenEngine.getInstance()
+                    .setActiveSpeakerId((voice.engineType as EngineType.Kitten).speakerId)
+                KittenEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
+            }
+            is EngineType.Supertonic -> {
+                SupertonicEngine.getInstance()
+                    .setActiveSpeakerId((voice.engineType as EngineType.Supertonic).speakerId)
+                SupertonicEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
+            }
+            // Piper is per-voice (not a shared multi-speaker singleton) — no
+            // active-speaker state to re-assert.
             else -> VoiceEngine.getInstance()
                 .generateAudioPCM(text, 1.0f, 1.0f)
         }
