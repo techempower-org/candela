@@ -109,7 +109,10 @@ fun HybridReaderScreen(
     val currentAuthor by viewModel.currentAuthor.collectAsStateWithLifecycle()
     // Issue #1230 — tap-to-define dictionary popup state.
     val definitionState by viewModel.dictionary.collectAsStateWithLifecycle()
-    // Issue #1287 — persisted teleprompter pace (WPM).
+    // Issue #1308 — teleprompter control state, hoisted to the shared
+    // TeleprompterController (single source of truth for the reader + Wear remote).
+    val teleprompterEnabled by viewModel.teleprompterEnabled.collectAsStateWithLifecycle()
+    val teleprompterPlaying by viewModel.teleprompterPlaying.collectAsStateWithLifecycle()
     val teleprompterWpm by viewModel.teleprompterWpm.collectAsStateWithLifecycle()
     val playback = state.playback
 
@@ -406,10 +409,16 @@ fun HybridReaderScreen(
                 onDefineWord = viewModel::defineWord,
                 onDismissDefinition = viewModel::dismissDefinition,
                 onRetryDefine = viewModel::retryDefine,
-                // Issue #1287 — seed the teleprompter pace from the persisted
-                // pref and write changes back so it survives a restart.
-                persistedTeleprompterWpm = teleprompterWpm,
-                onTeleprompterWpmChange = viewModel::setTeleprompterWpm,
+                // Issue #1308 — teleprompter controls from the shared controller;
+                // setters drive it (and persist WPM via the VM, #1287/#1304), and
+                // onReset clears the transient state when the reader leaves.
+                teleprompterEnabled = teleprompterEnabled,
+                teleprompterPlaying = teleprompterPlaying,
+                teleprompterWpm = teleprompterWpm,
+                onSetTeleprompterEnabled = viewModel::setTeleprompterEnabled,
+                onSetTeleprompterPlaying = viewModel::setTeleprompterPlaying,
+                onSetTeleprompterWpm = viewModel::setTeleprompterWpm,
+                onResetTeleprompter = viewModel::resetTeleprompter,
             )
         },
     )

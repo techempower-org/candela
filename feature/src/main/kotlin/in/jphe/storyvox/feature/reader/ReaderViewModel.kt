@@ -27,6 +27,7 @@ import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
 import `in`.jphe.storyvox.feature.api.UiSleepTimerMode
 import `in`.jphe.storyvox.ui.theme.ReaderColors
 import `in`.jphe.storyvox.playback.PlaybackUiEvent
+import `in`.jphe.storyvox.playback.TeleprompterController
 import `in`.jphe.storyvox.llm.LlmError
 import `in`.jphe.storyvox.llm.feature.ChapterRecap
 import `in`.jphe.storyvox.ui.component.ReaderView
@@ -287,6 +288,13 @@ class ReaderViewModel @Inject constructor(
      * parallel `*Ui` port.
      */
     private val dictionaryRepo: DictionaryRepository,
+    /**
+     * Issue #1308 — shared teleprompter control state (enabled / playing / wpm),
+     * hoisted out of `ReaderView`'s local Compose state into a `@Singleton` in
+     * core-playback so the reader and the Wear remote (PR2) drive one source of
+     * truth. Mode + practice-flow state intentionally stay local to the reader.
+     */
+    private val teleprompter: TeleprompterController,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -793,16 +801,18 @@ class ReaderViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    /**
-     * Issue #1287 — persisted teleprompter (#1239) auto-scroll pace (WPM).
-     * [ReaderTextView] seeds its per-session pace from this when the teleprompter
-     * opens, and writes user adjustments back via [setTeleprompterWpm] so the
-     * pace is restored on the next session. Device-local pref.
-     */
-    val teleprompterWpm: StateFlow<Int> = settings.settings
-        .map { it.teleprompterWpm }
-        .distinctUntilChanged()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TELEPROMPTER_DEFAULT_WPM)
+    // Issue #1308 — teleprompter control state, now owned by the shared
+    // [TeleprompterController] (single source of truth for the phone reader and
+    // the Wear remote). The reader collects these and drives them via the
+    // setters below; the controller is a @Singleton, so PR2's Wear bridge drives
+    // the same state.
+    val teleprompterEnabled: StateFlow<Boolean> = teleprompter.enabled
+    val teleprompterPlaying: StateFlow<Boolean> = teleprompter.playing
+
+    /** Live rehearsal pace (WPM). Seeded from the persisted pref when the
+     *  teleprompter opens and written through on change — see
+     *  [setTeleprompterEnabled] / [setTeleprompterWpm] (#1287/#1304). */
+    val teleprompterWpm: StateFlow<Int> = teleprompter.wpm
 
     /** Issue #278 — user-initiated retry from the timed-out error block.
      *  Re-invokes the playback `play()` path; the underlying controller
@@ -1150,11 +1160,40 @@ class ReaderViewModel @Inject constructor(
         viewModelScope.launch { settings.setReaderFocusModeEnabled(enabled) }
     }
 
-    /** Issue #1287 — persist the teleprompter pace so it survives an app restart.
-     *  Fire-and-forget, same shape as [setAutoScrollEnabled]; the impl clamps to
-     *  the supported band and the [teleprompterWpm] StateFlow re-emits. */
+    /** Issue #1308 — drive the shared teleprompter controls. The reader calls
+     *  these (and, in PR2, the Wear bridge); the controller's StateFlows re-emit
+     *  so every observer stays in sync. */
+    fun setTeleprompterEnabled(enabled: Boolean) {
+        teleprompter.setEnabled(enabled)
+        // Issue #1287/#1304 — seed the live pace from the persisted pref each
+        // time the teleprompter opens, so a restart restores the last pace. Read
+        // the current pref on demand (the settings flow is cached) rather than a
+        // hot StateFlow, so the seed is the real saved value, not a placeholder.
+        if (enabled) {
+            viewModelScope.launch {
+                teleprompter.setWpm(settings.settings.first().teleprompterWpm)
+            }
+        }
+    }
+
+    fun setTeleprompterPlaying(playing: Boolean) {
+        teleprompter.setPlaying(playing)
+    }
+
+    /** Issue #1287/#1304 — update the live pace AND persist it (the impl clamps
+     *  to the supported band; the next open re-seeds from the saved value). */
     fun setTeleprompterWpm(wpm: Int) {
+        teleprompter.setWpm(wpm)
         viewModelScope.launch { settings.setTeleprompterWpm(wpm) }
+    }
+
+    /** Issue #1308 — reset the transient controls when the reader leaves
+     *  composition. The [TeleprompterController] is a @Singleton, so without
+     *  this it would retain `enabled` across navigation — a behavior change from
+     *  #1239's per-visit-transient local state. */
+    fun resetTeleprompter() {
+        teleprompter.setEnabled(false)
+        teleprompter.setPlaying(false)
     }
 
     // Issue #121 — in-chapter bookmark fan-out. ReaderViewModel stays

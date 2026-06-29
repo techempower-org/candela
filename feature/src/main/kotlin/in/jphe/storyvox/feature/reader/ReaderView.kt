@@ -59,6 +59,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -313,13 +314,23 @@ fun ReaderTextView(
     onDismissDefinition: () -> Unit = {},
     /** Issue #1230 — retry a failed lookup (→ [ReaderViewModel.retryDefine]). */
     onRetryDefine: (String) -> Unit = {},
-    /** Issue #1287 — persisted teleprompter (#1239) pace (WPM) to seed the
-     *  per-session pace from when the teleprompter opens. Default keeps
-     *  preview/test callsites at [TELEPROMPTER_DEFAULT_WPM]. */
-    persistedTeleprompterWpm: Int = TELEPROMPTER_DEFAULT_WPM,
-    /** Issue #1287 — persist a teleprompter pace change (→
-     *  [ReaderViewModel.setTeleprompterWpm]) so it survives a restart. No-op default. */
-    onTeleprompterWpmChange: (Int) -> Unit = {},
+    /** Issue #1308 — teleprompter control state, hoisted to [TeleprompterController]
+     *  (collected via [ReaderViewModel]) so the reader and the Wear remote share
+     *  one source of truth. Mode + practice-flow state stay local below. Defaults
+     *  keep preview/test/audiobook callsites unchanged. */
+    teleprompterEnabled: Boolean = false,
+    teleprompterPlaying: Boolean = false,
+    teleprompterWpm: Int = TELEPROMPTER_DEFAULT_WPM,
+    /** Issue #1308 — drive the shared teleprompter controls (→ ReaderViewModel
+     *  setters). [onSetTeleprompterWpm] also persists the pace (#1287/#1304);
+     *  [onSetTeleprompterEnabled] with `true` seeds the pace from the saved pref. */
+    onSetTeleprompterEnabled: (Boolean) -> Unit = {},
+    onSetTeleprompterPlaying: (Boolean) -> Unit = {},
+    onSetTeleprompterWpm: (Int) -> Unit = {},
+    /** Issue #1308 — reset the transient controls when the reader leaves
+     *  composition (→ [ReaderViewModel.resetTeleprompter]). Preserves #1239's
+     *  per-visit-transient behavior against the @Singleton controller. */
+    onResetTeleprompter: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -361,21 +372,18 @@ fun ReaderTextView(
         }
     }
 
-    // Issue #1239 — Teleprompter / solo-rehearsal mode state. Transient
-    // (per-session) by design for this first cut — no persistence plumbing.
-    // `enabled` swaps the bottom transport for the teleprompter controls and
-    // steps the TTS-follow affordances aside; `playing` drives the per-frame
-    // auto-scroll; `wpm` is the rehearsal pace.
-    var teleprompterEnabled by remember { mutableStateOf(false) }
-    var teleprompterPlaying by remember { mutableStateOf(false) }
-    // Issue #1287 — the pace is now persisted (#1239 shipped it transient). Seed
-    // the session value from the saved pref, and re-seed each time the
-    // teleprompter opens so a restart restores the last pace (the persisted Flow
-    // has loaded by the time the user taps the teleprompter button). Within a
-    // session the local value leads; adjustments write through below.
-    var teleprompterWpm by remember { mutableIntStateOf(persistedTeleprompterWpm) }
-    LaunchedEffect(teleprompterEnabled) {
-        if (teleprompterEnabled) teleprompterWpm = persistedTeleprompterWpm
+    // Issue #1308 — `teleprompterEnabled` / `teleprompterPlaying` / `teleprompterWpm`
+    // are now hoisted to the shared [TeleprompterController] and arrive as
+    // parameters (collected from [ReaderViewModel]); writes go through the
+    // on-set callbacks. Mode + practice-flow state below stay local. Seeding the
+    // pace from the persisted pref now happens in the VM's setTeleprompterEnabled
+    // (#1287/#1304), not here.
+    //
+    // The controller is a @Singleton, so reset the transient controls when the
+    // reader leaves composition — this preserves #1239's per-visit-transient
+    // behavior (a leftover `enabled = true` must not survive navigating away).
+    DisposableEffect(Unit) {
+        onDispose { onResetTeleprompter() }
     }
     val totalWords = remember(chapterText) { countWords(chapterText) }
     // True once the body has scrolled to the very end — the teleprompter's
@@ -474,7 +482,7 @@ fun ReaderTextView(
                     }
                 }
                 if (scroll.value >= scroll.maxValue) {
-                    teleprompterPlaying = false
+                    onSetTeleprompterPlaying(false)
                     break
                 }
             }
@@ -825,7 +833,7 @@ fun ReaderTextView(
         // When on, the bottom chrome becomes the teleprompter controls.
         if (!focusModeEnabled && !teleprompterEnabled) {
             SmallFloatingActionButton(
-                onClick = { teleprompterEnabled = true },
+                onClick = { onSetTeleprompterEnabled(true) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = spacing.md, bottom = 360.dp)
@@ -1059,7 +1067,7 @@ fun ReaderTextView(
                     onSelect = { picked ->
                         if (picked != teleprompterMode) {
                             teleprompterMode = picked
-                            teleprompterPlaying = false // stop the silent auto-scroll
+                            onSetTeleprompterPlaying(false) // stop the silent auto-scroll
                             practiceTurn = null
                             if (state.isPlaying) onPlayPause() // pause TTS across a swap
                         }
@@ -1075,20 +1083,20 @@ fun ReaderTextView(
                                 // so the per-frame effect starts fresh.
                                 scope.launch {
                                     scroll.scrollTo(0)
-                                    teleprompterPlaying = true
+                                    onSetTeleprompterPlaying(true)
                                 }
                             } else {
-                                teleprompterPlaying = !teleprompterPlaying
+                                onSetTeleprompterPlaying(!teleprompterPlaying)
                             }
                         },
                         onWpmDelta = { steps ->
-                            teleprompterWpm = adjustTeleprompterWpm(teleprompterWpm, steps)
-                            // #1287/#1304 — persist the pace so it survives a restart.
-                            onTeleprompterWpmChange(teleprompterWpm)
+                            // #1308 — update the live pace and persist it (the VM
+                            // setter writes through to SettingsRepositoryUi, #1287/#1304).
+                            onSetTeleprompterWpm(adjustTeleprompterWpm(teleprompterWpm, steps))
                         },
                         onExit = {
-                            teleprompterPlaying = false
-                            teleprompterEnabled = false
+                            onSetTeleprompterPlaying(false)
+                            onSetTeleprompterEnabled(false)
                         },
                     )
                     TeleprompterMode.Practice -> PracticeTransport(
@@ -1112,7 +1120,7 @@ fun ReaderTextView(
                         onExit = {
                             practiceTurn = null
                             if (state.isPlaying) onPlayPause() // stop TTS on exit
-                            teleprompterEnabled = false
+                            onSetTeleprompterEnabled(false)
                         },
                     )
                 }
