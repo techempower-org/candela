@@ -133,7 +133,6 @@ sealed interface FictionDetailUiEvent {
     data class AnnotationsExportFailed(val message: String) : FictionDetailUiEvent
 }
 
-@HiltViewModel
 /** Issue #1208 — identity key that re-triggers a companion resolve only when
  *  the fiction's id/title actually changes (e.g. a placeholder hydrates), not
  *  on every unrelated cache-state re-emission of the fiction flow. */
@@ -144,6 +143,7 @@ private data class CompanionKey(
     val author: String,
 )
 
+@HiltViewModel
 class FictionDetailViewModel @Inject constructor(
     private val repo: FictionRepositoryUi,
     private val playback: PlaybackControllerUi,
