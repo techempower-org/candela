@@ -518,6 +518,39 @@ val MIGRATION_16_17: Migration = object : Migration(16, 17) {
     }
 }
 
+/**
+ * v18 — issue #1369: teleprompter script manager. Adds the
+ * `teleprompter_script` table backing the save/edit/organize feature — a row
+ * per user-authored script (talk, narration draft, lines to rehearse) the
+ * teleprompter can load on demand. Purely additive new table; no existing
+ * table or row is touched, and no foreign keys (scripts are independent of
+ * any fiction/chapter — see the [`in`.jphe.storyvox.data.db.entity.TeleprompterScript]
+ * kdoc).
+ *
+ * The CREATE TABLE SQL must match what Room generates from the
+ * [`in`.jphe.storyvox.data.db.entity.TeleprompterScript] `@Entity` exactly
+ * (column order, types, the `tags` NOT NULL DEFAULT '') or Room's startup
+ * identity-hash check rejects the migration.
+ */
+val MIGRATION_17_18: Migration = object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `teleprompter_script` (
+                `id` TEXT NOT NULL PRIMARY KEY,
+                `title` TEXT NOT NULL,
+                `body` TEXT NOT NULL,
+                `estimatedDurationSecs` INTEGER NOT NULL,
+                `tags` TEXT NOT NULL DEFAULT '',
+                `format` TEXT NOT NULL DEFAULT 'FREEFORM',
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -535,4 +568,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_14_15,
     MIGRATION_15_16,
     MIGRATION_16_17,
+    MIGRATION_17_18,
 )

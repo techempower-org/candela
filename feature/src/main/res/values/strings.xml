@@ -652,6 +652,9 @@
     <!-- Issue #1235 — Listening stats hub row -->
     <string name="settings_hub_stats_title">Listening stats</string>
     <string name="settings_hub_stats_subtitle">Time listened, streaks, books finished.</string>
+    <!-- Issue #1369 — teleprompter script manager hub row -->
+    <string name="settings_hub_scripts_title">Scripts</string>
+    <string name="settings_hub_scripts_subtitle">Save, edit, and organize teleprompter scripts.</string>
     <string name="settings_hub_all_settings_title">All settings</string>
     <string name="settings_hub_all_settings_subtitle">Every setting on one long page (legacy).</string>
 
