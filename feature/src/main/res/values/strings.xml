@@ -949,6 +949,9 @@
     <string name="settings_section_library_descriptor">Where stories come from and how often we check for updates.</string>
     <string name="settings_legacy_plugins_title">Plugins</string>
     <string name="settings_legacy_plugins_subtitle">Fiction sources, audio streams, and voice bundles.</string>
+    <!-- #1295 — Google News full-article text opt-in -->
+    <string name="settings_google_news_full_text_title">Google News: full article text</string>
+    <string name="settings_google_news_full_text_subtitle">Narrate the full publisher article instead of just the headline digest. Off by default — uses Google\'s internal endpoint (may break on their changes) and is intended for personal feed-reader use.</string>
 
     <!-- Settings · legacy Inbox notifications sub-card -->
     <string name="settings_inbox_royalroad_title">Inbox: Royal Road</string>

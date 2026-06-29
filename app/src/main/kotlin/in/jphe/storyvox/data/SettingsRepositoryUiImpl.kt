@@ -47,6 +47,7 @@ import `in`.jphe.storyvox.feature.api.UiParticleIntensity
 import `in`.jphe.storyvox.feature.api.UiSkeletonStyle
 import `in`.jphe.storyvox.data.repository.net.NetworkPatience
 import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
+import `in`.jphe.storyvox.data.repository.GoogleNewsConfig
 import `in`.jphe.storyvox.data.repository.playback.AutoBrowserConfig
 import `in`.jphe.storyvox.data.repository.playback.PrerenderChapterCountConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerDndConfig
@@ -524,6 +525,11 @@ private object Keys {
      *  StoryvoxAutoBrowserService. */
     val AUTO_ITEMS_PER_CATEGORY =
         intPreferencesKey("pref_auto_items_per_category_v1")
+
+    /** Issue #1295 — opt-in for Google News full-article-text extraction
+     *  (ToS-gray + fragile, so default OFF). Per-device, not synced. */
+    val GOOGLE_NEWS_FULL_TEXT =
+        booleanPreferencesKey("pref_google_news_full_text_v1")
 
     // ── AI / LLM (issue #81) ────────────────────────────────────────
     /** Active provider — stored as the [ProviderId] enum's name.
@@ -1122,6 +1128,7 @@ class SettingsRepositoryUiImpl(
     `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig,
     PrerenderChapterCountConfig,
     AutoBrowserConfig,
+    GoogleNewsConfig,
     NetworkPatienceConfig,
     PronunciationDictRepository,
     LlmConfigProvider,
@@ -1572,6 +1579,8 @@ class SettingsRepositoryUiImpl(
             autoItemsPerCategory = snapAutoItemsPerCategory(
                 prefs[Keys.AUTO_ITEMS_PER_CATEGORY] ?: 6,
             ),
+            // Issue #1295 — Google News full-article-text opt-in (default OFF).
+            googleNewsFullArticleText = prefs[Keys.GOOGLE_NEWS_FULL_TEXT] ?: false,
             // Issue #993 — reading-theme. Unknown enum strings fall back to
             // Default; custom fg/bg are raw ARGB ints (0 = unset). The
             // UiSettings.readerColors accessor resolves these into the
@@ -1869,6 +1878,15 @@ class SettingsRepositoryUiImpl(
     }
 
     override suspend fun currentItemsPerCategory(): Int = itemsPerCategory.first()
+
+    // --- GoogleNewsConfig (issue #1295, consumed by :source-google-news's
+    //     GoogleNewsArticleResolver) ---
+
+    override val fullArticleTextEnabled: Flow<Boolean> = store.data.map { prefs ->
+        prefs[Keys.GOOGLE_NEWS_FULL_TEXT] ?: false
+    }
+
+    override suspend fun isFullArticleTextEnabled(): Boolean = fullArticleTextEnabled.first()
 
     // --- NetworkPatienceConfig (issue #597, consumed by source-* OkHttp
     //     module builders) ---
@@ -2656,6 +2674,12 @@ class SettingsRepositoryUiImpl(
     override suspend fun setNetworkPatience(patience: UiNetworkPatience) {
         store.edit { it[Keys.NETWORK_PATIENCE] = patience.name }
         stampSyncedWrite()
+    }
+
+    /** Issue #1295 — toggle Google News full-article-text extraction.
+     *  Per-device, not synced (the ToS-gray decode is a local choice). */
+    override suspend fun setGoogleNewsFullArticleText(enabled: Boolean) {
+        store.edit { it[Keys.GOOGLE_NEWS_FULL_TEXT] = enabled }
     }
 
     /** Issue #598 — Android Auto bucket size. Synced as of #916. */

@@ -391,6 +391,12 @@ object AppBindings {
     fun provideAutoBrowserConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.playback.AutoBrowserConfig = impl
 
+    /** Issue #1295 — Google News full-article-text opt-in. Same singleton;
+     *  consumed by `:source-google-news`'s `GoogleNewsArticleResolver`. */
+    @Provides @Singleton
+    fun provideGoogleNewsConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.GoogleNewsConfig = impl
+
     /** Issue #597 — user-tunable HTTP timeout preset. Same singleton;
      *  consumed by source-* modules' OkHttp factories via an
      *  Interceptor / timeout override. v1 wires this into the most-
