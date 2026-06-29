@@ -118,15 +118,27 @@ for users on an Anthropic Teams plan who'd rather not paste an API key.
 Sign-in lands a token in `EncryptedSharedPreferences` on-device. The token
 goes to Anthropic when you chat; nowhere else.
 
-### 2.7 Emergency Help card
+### 2.7 Call 211 (social services)
 
-The TechEmpower Home screen surfaces three emergency-resource shortcuts:
-**988** (988 Suicide & Crisis Lifeline, US), **211** (United Way local
-services, US/Canada), and **911** (emergency, US/Canada). Tapping a shortcut
-opens the device's dialer with the number pre-filled — **Candela does not
-place the call automatically**, you have to tap "Call" in the dialer. No
-data about whether you tapped a shortcut is collected or transmitted by
-Candela.
+The TechEmpower Home screen surfaces a single **Call 211** shortcut (211 —
+United Way local community services, US/Canada). Tapping it opens the
+device's dialer with the number pre-filled — **Candela does not place the
+call automatically**, you have to tap "Call" in the dialer. No data about
+whether you tapped the shortcut is collected or transmitted by Candela.
+(The earlier 988 and 911 shortcuts were removed in a prior release; 211 is
+the only remaining dial affordance.)
+
+### 2.8 Camera / OCR text capture (optional)
+
+Candela can scan printed text with the device camera and turn it into a
+readable, narratable chapter (optical character recognition). When you
+start a scan, Candela requests camera permission with a plain-language
+explanation first, and the camera is active **only** while you are actively
+capturing. Text recognition runs **entirely on-device** via Google ML Kit:
+the captured image and the recognized text **never leave your device** and
+are never uploaded, collected, or shared. Declining the camera permission
+does not dead-end the feature — you can instead pick an existing image from
+your gallery, which needs no permission.
 
 ---
 

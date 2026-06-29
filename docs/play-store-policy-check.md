@@ -131,13 +131,14 @@ visible workloads and are user-stoppable.
 
 ### Surface
 
-The TechEmpower Home screen's Emergency Help card surfaces three buttons:
+The TechEmpower Home screen surfaces a single **Call 211** affordance:
 
-- **988** — 988 Suicide & Crisis Lifeline (US)
-- **211** — United Way local services (US / Canada)
-- **911** — emergency services (US / Canada)
+- **211** — United Way local community services (US / Canada)
 
-Tapping any of them fires `Intent.ACTION_DIAL` with the number pre-filled.
+(The earlier **988** Suicide & Crisis Lifeline and **911** emergency
+buttons were removed in #775; 211 is the only surviving dial affordance.)
+
+Tapping it fires `Intent.ACTION_DIAL` with the number pre-filled.
 **Candela never calls `ACTION_CALL`** (which would dial automatically and
 need `CALL_PHONE` permission). The user has to tap "Call" in the dialer
 themselves.
@@ -160,8 +161,8 @@ can't make calls" dialog with copy-to-clipboard and a web fallback for 211
   emergency-service contact info.
 
 Candela doesn't charge, doesn't claim to be an emergency service, and
-uses the public, well-known short codes (988 / 211 / 911 are first-party
-US numbers). The UX is "open the dialer with a number pre-filled" —
+uses the public, well-known 211 short code (a first-party US/Canada
+social-services number). The UX is "open the dialer with a number pre-filled" —
 identical to clicking a `tel:` link in a web browser.
 
 ### Disclosure / remediation
@@ -170,7 +171,7 @@ identical to clicking a `tel:` link in a web browser.
 | --- | --- |
 | Uses `CALL_PHONE` permission? | **No** — uses `ACTION_DIAL` only, no permission required |
 | Auto-places calls? | **No** — user must confirm in the dialer |
-| Accurate numbers? | **Yes** — 988, 211, 911 are the documented US/CA short codes |
+| Accurate numbers? | **Yes** — 211 is the documented US/CA social-services short code |
 | Tablet / WiFi-only handling? | **Yes** — runtime check + fallback dialog |
 | Disclaimer text in the card? | **Recommend adding for v1.0** — one line "These are US/Canada numbers. For emergencies outside US/Canada, use your local emergency number." |
 
@@ -199,7 +200,7 @@ submission time.
 | **Library state** (fiction IDs, reading positions, voice preferences) | Yes, **only with optional sync** | No | Yes | Yes — sign out | App functionality (sync) |
 | Crash / diagnostic data | **No** | — | — | — | We don't collect crash data |
 | Approximate / precise location | **No** | — | — | — | Never requested |
-| Photos / videos / audio | **No** | — | — | — | No camera / mic access |
+| Photos / videos / audio | **No** | — | — | — | Camera is used on-device for OCR scan-to-read (#995): images + recognized text are processed by ML Kit on-device and are **never** transmitted, collected, or shared — so "collected" stays **No** even though the CAMERA permission is declared. No microphone access. |
 | Files / docs | **No** | — | — | — | EPUB import reads files via SAF; doesn't send them anywhere |
 | Contacts | **No** | — | — | — | Never requested |
 | App activity (page views, in-app actions) | **No** | — | — | — | No analytics |
@@ -233,7 +234,8 @@ submission time.
 ## 5. Permissions audit
 
 Every `<uses-permission>` in `app/src/main/AndroidManifest.xml`, why it's
-declared, and the user benefit. (Source: lines 5–19 of the manifest.)
+declared, and the user benefit. (Source: the `<uses-permission>`
+declarations in the manifest.)
 
 | Permission | Why | User benefit |
 | --- | --- | --- |
@@ -245,6 +247,8 @@ declared, and the user benefit. (Source: lines 5–19 of the manifest.)
 | `android.permission.FOREGROUND_SERVICE_DATA_SYNC` | ChapterRenderJob + tag-sync worker (API 34+) | Gapless chapter transitions (pre-render); cross-device sync |
 | `android.permission.POST_NOTIFICATIONS` | The playback notification (transport buttons + Continue Listening); also used by the WorkManager foreground notifications | Lock-screen and notification-shade transport controls — primary UX for audiobook playback. Without this on API 33+ the user has no transport surface outside the app itself. |
 | `android.permission.RECEIVE_BOOT_COMPLETED` | The home-screen widget (#159) needs to redraw on boot if the user has a widget placed; the receiver listens for the broadcast so the widget shows the last-played state when the device finishes booting | Widget shows correct state after reboot rather than a "tap to launch" placeholder |
+| `android.permission.ACCESS_NOTIFICATION_POLICY` | The sleep-timer (#1190) can auto-enable Do Not Disturb as audio fades at the end of a timed session; this permission lets the app toggle the user's interruption filter | The device goes quiet when the audiobook stops, without the user manually enabling DND |
+| `android.permission.CAMERA` | OCR scan-to-read (#995): capture printed text with the camera and convert it **on-device** (ML Kit) into a narratable chapter. Requested at runtime with a plain-language rationale; the optional `uses-feature android:required="false"` keeps the app installable on camera-less tablets | Read physical books / printouts aloud; the gallery-pick fallback needs no permission |
 | `<uses-feature android:hardware.telephony required="false" />` | (not a permission — feature gate) | Keeps app installable on WiFi-only tablets; runtime check before dial |
 
 **Permissions NOT requested** (and why each is intentionally absent):
@@ -255,7 +259,6 @@ declared, and the user benefit. (Source: lines 5–19 of the manifest.)
 | `READ_PHONE_STATE` | We don't need device identifiers, IMEI, line type |
 | `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` | No location features |
 | `RECORD_AUDIO` | No mic access (TTS generates; nothing records) |
-| `CAMERA` | No camera access |
 | `READ_CONTACTS` / `WRITE_CONTACTS` | No contacts use |
 | `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` / `MANAGE_EXTERNAL_STORAGE` | EPUB import uses the Storage Access Framework (SAF) — no broad storage permission needed |
 | `com.google.android.gms.permission.AD_ID` | No advertising; no ad ID needed |
