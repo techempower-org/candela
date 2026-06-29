@@ -58,14 +58,28 @@ class RadioFiltersTest {
 
     // ─── filterDimensions ─────────────────────────────────────────────
 
-    @Test fun `filterDimensions exposes country language and tag as text inputs`() {
+    @Test fun `filterDimensions exposes sort plus country language and tag`() {
         val dims = source().filterDimensions()
-        assertEquals(3, dims.size)
-        val keys = dims.map { it.key }.toSet()
-        assertEquals(setOf("country", "language", "tags"), keys)
-        // All three are free-form text — Radio Browser's facet
-        // taxonomies are too large for a select picker.
-        assertTrue(dims.all { it is FilterDimension.Text })
+        // #1282 — directory sort leads, then the three free-form facet
+        // text inputs (Radio Browser's taxonomies are too large for a
+        // select picker).
+        assertEquals(4, dims.size)
+        assertTrue("sort dimension leads the list", dims.first() is FilterDimension.Sort)
+        val textKeys = dims.filterIsInstance<FilterDimension.Text>().map { it.key }.toSet()
+        assertEquals(setOf("country", "language", "tags"), textKeys)
+    }
+
+    @Test fun `sort dimension offers relevance plus the three directory endpoints`() {
+        val sort = source().filterDimensions()
+            .filterIsInstance<FilterDimension.Sort>()
+            .single()
+        assertEquals("sort", sort.key)
+        assertEquals(
+            listOf("relevance", "topclick", "topvote", "lastchange"),
+            sort.options.map { it.id },
+        )
+        // Default is relevance (the existing name/facet search path).
+        assertEquals(RadioSource.SORT_RELEVANCE, sort.default.id)
     }
 
     // ─── applyFilters ──────────────────────────────────────────────────
@@ -201,5 +215,90 @@ class RadioFiltersTest {
         val popular = (src.popular() as FictionResult.Success).value.items
         val searched = (src.search(SearchQuery(term = "")) as FictionResult.Success).value.items
         assertEquals(popular.map { it.id }, searched.map { it.id })
+    }
+
+    // ─── #1282 directory sort ─────────────────────────────────────────
+
+    @Test fun `applyFilters stashes a non-default sort under the sort prefix`() {
+        val q = source().applyFilters(
+            base = SearchQuery(),
+            state = FilterState(
+                values = mapOf("sort" to FilterValue.StringVal(RadioSource.SORT_TOP_CLICK)),
+            ),
+        )
+        assertTrue(
+            q.tags.contains("${RadioSource.SORT_PREFIX}${RadioSource.SORT_TOP_CLICK}"),
+        )
+    }
+
+    @Test fun `applyFilters does not stash the default relevance sort`() {
+        val q = source().applyFilters(
+            base = SearchQuery(),
+            state = FilterState(
+                values = mapOf("sort" to FilterValue.StringVal(RadioSource.SORT_RELEVANCE)),
+            ),
+        )
+        assertTrue(
+            "relevance is the default search path — no sentinel",
+            q.tags.none { it.startsWith(RadioSource.SORT_PREFIX) },
+        )
+    }
+
+    @Test fun `search routes each directory sort to its Radio Browser endpoint`() = runTest {
+        val cases = mapOf(
+            RadioSource.SORT_TOP_CLICK to "topclick",
+            RadioSource.SORT_TOP_VOTE to "topvote",
+            RadioSource.SORT_LAST_CHANGE to "lastchange",
+        )
+        for ((sortId, expectedCall) in cases) {
+            val api = RecordingApi()
+            val q = SearchQuery(tags = setOf("${RadioSource.SORT_PREFIX}$sortId"))
+            RadioSource(api, fakeConfig()).search(q)
+            assertEquals(
+                "sort=$sortId must hit the $expectedCall endpoint",
+                listOf(expectedCall),
+                api.calls,
+            )
+        }
+    }
+
+    @Test fun `search with a sort and no term still queries instead of mirroring popular`() = runTest {
+        // A directory sort is "active" even with empty term/facets — it
+        // must reach the endpoint, not early-return popular().
+        val api = RecordingApi()
+        val q = SearchQuery(
+            term = "",
+            tags = setOf("${RadioSource.SORT_PREFIX}${RadioSource.SORT_TOP_VOTE}"),
+        )
+        RadioSource(api, fakeConfig()).search(q)
+        assertEquals(listOf("topvote"), api.calls)
+    }
+
+    /** Records which Radio Browser endpoint the source routed to. All
+     *  return empty so the source's combine path is exercised without a
+     *  network. Relies on [RadioBrowserApi] being `open` (#1282). */
+    private class RecordingApi : RadioBrowserApi(OkHttpClient()) {
+        val calls = mutableListOf<String>()
+        override suspend fun byName(query: String, limit: Int): FictionResult<List<RadioStation>> {
+            calls += "byname"; return FictionResult.Success(emptyList())
+        }
+        override suspend fun search(
+            name: String?,
+            country: String?,
+            language: String?,
+            tag: String?,
+            limit: Int,
+        ): FictionResult<List<RadioStation>> {
+            calls += "search"; return FictionResult.Success(emptyList())
+        }
+        override suspend fun topClick(limit: Int): FictionResult<List<RadioStation>> {
+            calls += "topclick"; return FictionResult.Success(emptyList())
+        }
+        override suspend fun topVote(limit: Int): FictionResult<List<RadioStation>> {
+            calls += "topvote"; return FictionResult.Success(emptyList())
+        }
+        override suspend fun lastChange(limit: Int): FictionResult<List<RadioStation>> {
+            calls += "lastchange"; return FictionResult.Success(emptyList())
+        }
     }
 }

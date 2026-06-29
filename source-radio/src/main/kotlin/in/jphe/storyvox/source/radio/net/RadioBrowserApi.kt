@@ -31,11 +31,16 @@ import kotlin.time.Duration.Companion.seconds
  *   Browse → Radio → Search tab. Capped server-side to ~10k results;
  *   we apply a client-side limit of 50 below (anything beyond that
  *   isn't useful in a phone list view).
+ * - **`GET /json/stations/search`** — multi-facet search (name +
+ *   country + language + tag, AND-composed server-side). Drives the
+ *   Browse → Radio filter chips (#795).
+ * - **`GET /json/stations/{topclick,topvote,lastchange}/<limit>`** —
+ *   directory browse by popularity / votes / recency (#1282). These
+ *   are global top-N lists (no facet params); the source narrows them
+ *   client-side when a term/facet is also active.
  *
- * Other Radio Browser endpoints (`bycountry`, `bytag`, `bylanguage`,
- * `byuuid`) are intentionally NOT wired in v1 — the issue calls for
- * search + star, not a multi-facet picker. The shape is here for a
- * follow-up PR to add filter chips without an API client rewrite.
+ * `open` (with `open` methods) purely so the source's filter tests can
+ * substitute a recording double — production wires the real singleton.
  *
  * ## Server selection
  *
@@ -63,7 +68,7 @@ import kotlin.time.Duration.Companion.seconds
  *   as `cause` for debug-overlay surfacing.
  */
 @Singleton
-internal class RadioBrowserApi @Inject constructor(
+internal open class RadioBrowserApi @Inject constructor(
     private val client: OkHttpClient,
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
@@ -81,7 +86,7 @@ internal class RadioBrowserApi @Inject constructor(
      * (curated stations use short ids like `"kvmr"`; imports look like
      * `"rb:4af97ba5-..."`).
      */
-    suspend fun byName(
+    open suspend fun byName(
         query: String,
         limit: Int = 50,
     ): FictionResult<List<RadioStation>> {
@@ -98,15 +103,7 @@ internal class RadioBrowserApi @Inject constructor(
             .addQueryParameter("limit", limit.coerceIn(1, 100).toString())
             .build()
             .toString()
-        return getJson<List<RadioBrowserStation>>(url)
-            .let { result ->
-                when (result) {
-                    is FictionResult.Success -> FictionResult.Success(
-                        result.value.mapNotNull { it.toRadioStation() },
-                    )
-                    is FictionResult.Failure -> result
-                }
-            }
+        return getJson<List<RadioBrowserStation>>(url).mapStations()
     }
 
     /**
@@ -119,7 +116,7 @@ internal class RadioBrowserApi @Inject constructor(
      * Same HTTPS-only / lastcheckok / ssl_error filtering as [byName]
      * via the shared [RadioBrowserStation.toRadioStation] mapper.
      */
-    suspend fun search(
+    open suspend fun search(
         name: String? = null,
         country: String? = null,
         language: String? = null,
@@ -146,16 +143,45 @@ internal class RadioBrowserApi @Inject constructor(
             }
             .build()
             .toString()
-        return getJson<List<RadioBrowserStation>>(url)
-            .let { result ->
-                when (result) {
-                    is FictionResult.Success -> FictionResult.Success(
-                        result.value.mapNotNull { it.toRadioStation() },
-                    )
-                    is FictionResult.Failure -> result
-                }
-            }
+        return getJson<List<RadioBrowserStation>>(url).mapStations()
     }
+
+    /**
+     * Issue #1282 — directory browse by popularity (`topclick`), votes
+     * (`topvote`), or recency (`lastchange`). Path-param top-N lists; no
+     * facet params (the source narrows client-side). HTTPS-only / broken
+     * filtering via the shared [RadioBrowserStation.toRadioStation] mapper.
+     */
+    open suspend fun topClick(limit: Int = 50): FictionResult<List<RadioStation>> =
+        stationList("topclick", limit)
+
+    open suspend fun topVote(limit: Int = 50): FictionResult<List<RadioStation>> =
+        stationList("topvote", limit)
+
+    open suspend fun lastChange(limit: Int = 50): FictionResult<List<RadioStation>> =
+        stationList("lastchange", limit)
+
+    /** Shared shape for the path-param station-list endpoints
+     *  (`/json/stations/<endpoint>/<limit>`). */
+    private suspend fun stationList(
+        endpoint: String,
+        limit: Int,
+    ): FictionResult<List<RadioStation>> {
+        val url = "$BASE_URL/json/stations/$endpoint/${limit.coerceIn(1, 100)}"
+            .toHttpUrl().newBuilder()
+            .addQueryParameter("hidebroken", "true")
+            .build()
+            .toString()
+        return getJson<List<RadioBrowserStation>>(url).mapStations()
+    }
+
+    /** Map a raw station-list result to storyvox [RadioStation]s,
+     *  dropping unusable entries; pass failures through unchanged. */
+    private fun FictionResult<List<RadioBrowserStation>>.mapStations(): FictionResult<List<RadioStation>> =
+        when (this) {
+            is FictionResult.Success -> FictionResult.Success(value.mapNotNull { it.toRadioStation() })
+            is FictionResult.Failure -> this
+        }
 
     // ─── transport ────────────────────────────────────────────────────
 
