@@ -77,6 +77,16 @@ class RecordingViewModel @Inject constructor(
     private val _frontCamera = MutableStateFlow(true)
     val frontCamera: StateFlow<Boolean> = _frontCamera.asStateFlow()
 
+    /** Script font size in sp (#1367 design ref — A−/A+). Sized for camera
+     *  distance: a phone on a tripod needs bigger text than one held close. */
+    private val _fontSize = MutableStateFlow(DEFAULT_FONT_SP)
+    val fontSize: StateFlow<Int> = _fontSize.asStateFlow()
+
+    /** Mirror the script horizontally for beam-splitter glass teleprompter
+     *  rigs (the text reads correctly through the half-silvered mirror). */
+    private val _mirror = MutableStateFlow(false)
+    val mirror: StateFlow<Boolean> = _mirror.asStateFlow()
+
     private val _commands = Channel<RecordingCommand>(Channel.BUFFERED)
 
     /** One-shot camera instructions for the composable to execute against its
@@ -169,6 +179,15 @@ class RecordingViewModel @Inject constructor(
         _opacity.value = value.coerceIn(MIN_OPACITY, MAX_OPACITY)
     }
 
+    /** Step the script font size (A− / A+) within the supported band. */
+    fun adjustFontSize(deltaSp: Int) {
+        _fontSize.value = (_fontSize.value + deltaSp).coerceIn(MIN_FONT_SP, MAX_FONT_SP)
+    }
+
+    fun toggleMirror() {
+        _mirror.value = !_mirror.value
+    }
+
     /** Back to a clean live preview (after a save, an error, or "record
      *  again"). */
     fun reset() {
@@ -195,6 +214,12 @@ class RecordingViewModel @Inject constructor(
         const val DEFAULT_OPACITY = 0.7f
         const val MIN_OPACITY = 0.3f
         const val MAX_OPACITY = 1.0f
+        // Font band (sp). The web ref uses 24–120px on a broadcast monitor;
+        // capped tighter here for a phone screen held / tripod-mounted.
+        const val DEFAULT_FONT_SP = 26
+        const val MIN_FONT_SP = 16
+        const val MAX_FONT_SP = 64
+        const val FONT_STEP_SP = 4
         private const val ELAPSED_TICK_MS = 100L
     }
 }
