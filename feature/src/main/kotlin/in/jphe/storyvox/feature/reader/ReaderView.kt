@@ -39,11 +39,15 @@ import androidx.compose.material.icons.outlined.CenterFocusStrong
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Slideshow
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -79,8 +83,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.input.ImeAction
@@ -180,6 +186,16 @@ internal const val TELEPROMPTER_DEFAULT_WPM = 130
 internal const val TELEPROMPTER_MIN_WPM = 30
 internal const val TELEPROMPTER_MAX_WPM = 500
 internal const val TELEPROMPTER_WPM_STEP = 10
+
+/**
+ * Issue #1287 — the two teleprompter sub-modes.
+ *  - [AutoScroll]: silent, manual-WPM auto-scroll (#1286) — rehearse aloud
+ *    at your own pace.
+ *  - [Practice]: TTS narrates and pauses at each dialogue line for the user
+ *    to voice the character ("pause-for-me"), tap to continue. Honor-system
+ *    (no mic) for v1.
+ */
+enum class TeleprompterMode { AutoScroll, Practice }
 
 /** Whitespace-delimited word count; the teleprompter's pace is per-word. */
 internal fun countWords(text: String): Int =
@@ -367,6 +383,17 @@ fun ReaderTextView(
     val teleprompterAtEnd by remember {
         derivedStateOf { scroll.maxValue > 0 && scroll.value >= scroll.maxValue }
     }
+    // #1287 — practice mode: TTS narrates and pauses at dialogue for the user
+    // to voice. `mode` selects auto-scroll vs practice; `practiceTurn` is the
+    // dialogue segment the user is currently on (non-null = paused on their
+    // turn), null while narration plays. `segments` is the cached split.
+    var teleprompterMode by remember { mutableStateOf(TeleprompterMode.AutoScroll) }
+    var practiceTurn by remember { mutableStateOf<TextSegment?>(null) }
+    // Char offset we last resumed narration from after a hand-off — the
+    // turn-taking effect won't re-fire on any dialogue starting before it, so
+    // a just-handled line can't re-trigger during the post-seek playhead lag.
+    var practiceResumeFrom by remember { mutableIntStateOf(0) }
+    val segments = remember(chapterText) { segmentDialogue(chapterText) }
 
     // Auto-scroll target: when sentence range or layout changes, settle the highlighted
     // line at 40% from the top of the viewport — unless we're inside the manual-scroll
@@ -377,11 +404,14 @@ fun ReaderTextView(
     // and never schedules another animateScrollTo. Flipping back on re-keys and resumes
     // following the next sentence boundary (no jump — only the next emit triggers a
     // scroll, so the user's manual position is preserved until then).
-    LaunchedEffect(autoScrollEnabled, focusModeEnabled, teleprompterEnabled, state.sentenceStart, state.sentenceEnd, textLayout, viewportHeightPx, bodyTopPx, chapterText) {
+    LaunchedEffect(autoScrollEnabled, focusModeEnabled, teleprompterEnabled, teleprompterMode, practiceTurn, state.sentenceStart, state.sentenceEnd, textLayout, viewportHeightPx, bodyTopPx, chapterText) {
         if (!autoScrollEnabled) return@LaunchedEffect
-        // #1239 — rehearsal owns the wheel; the sentence-follow must not
-        // fight the teleprompter's auto-scroll.
-        if (teleprompterEnabled) return@LaunchedEffect
+        // #1239 — the silent auto-scroll mode owns the wheel; suppress the
+        // sentence-follow only then. #1287 — practice mode WANTS the follow
+        // while TTS narrates, so leave it on; only the user's-turn pause
+        // suspends it (the dialogue-centering effect repositions instead).
+        if (teleprompterEnabled && teleprompterMode == TeleprompterMode.AutoScroll) return@LaunchedEffect
+        if (practiceTurn != null) return@LaunchedEffect
         val layout = textLayout ?: return@LaunchedEffect
         if (chapterText.isEmpty()) return@LaunchedEffect
         if (viewportHeightPx <= 0f) return@LaunchedEffect
@@ -414,8 +444,10 @@ fun ReaderTextView(
     // "peek then carry on". Frame-rate independent via withFrameNanos +
     // elapsed nanos; the sub-pixel remainder is carried so slow paces still
     // creep smoothly.
-    LaunchedEffect(teleprompterEnabled, teleprompterPlaying, teleprompterWpm, totalWords) {
-        if (!teleprompterEnabled || !teleprompterPlaying || totalWords <= 0) return@LaunchedEffect
+    LaunchedEffect(teleprompterEnabled, teleprompterMode, teleprompterPlaying, teleprompterWpm, totalWords) {
+        if (!teleprompterEnabled || teleprompterMode != TeleprompterMode.AutoScroll ||
+            !teleprompterPlaying || totalWords <= 0
+        ) return@LaunchedEffect
         var lastFrame = 0L
         var carry = 0f
         while (isActive) {
@@ -448,6 +480,40 @@ fun ReaderTextView(
             }
             lastFrame = frame
         }
+    }
+
+    // Issue #1287 — practice mode turn-taking. While practice mode narrates,
+    // watch the playhead; when it crosses into a dialogue segment, pause TTS
+    // and hand that line to the user ("your turn"). Continue seeks past the
+    // line (see the transport), so the playhead lands in the following
+    // narration and the same line never re-triggers.
+    LaunchedEffect(teleprompterEnabled, teleprompterMode, practiceTurn, practiceResumeFrom, state.isPlaying, state.sentenceStart, segments) {
+        if (!teleprompterEnabled || teleprompterMode != TeleprompterMode.Practice) return@LaunchedEffect
+        if (practiceTurn != null || !state.isPlaying) return@LaunchedEffect
+        val dialogue = dialogueAt(segments, state.sentenceStart) ?: return@LaunchedEffect
+        // Skip a line we just handed off and sought past — the playhead can
+        // transiently still report the old dialogue right after seek+resume.
+        if (dialogue.start < practiceResumeFrom) return@LaunchedEffect
+        practiceTurn = dialogue // the user's turn for this line
+        onPlayPause()           // state.isPlaying is true here, so this pauses TTS
+    }
+
+    // Issue #1287 — on the user's turn, centre the dialogue line they should
+    // read aloud (reuses the Focused-Reading centring math). The sentence-
+    // follow is suspended while practiceTurn != null, so this won't fight it.
+    LaunchedEffect(practiceTurn, textLayout, viewportHeightPx, bodyTopPx) {
+        val turn = practiceTurn ?: return@LaunchedEffect
+        val layout = textLayout ?: return@LaunchedEffect
+        if (viewportHeightPx <= 0f || chapterText.isEmpty()) return@LaunchedEffect
+        val safeStart = turn.start.coerceIn(0, (chapterText.length - 1).coerceAtLeast(0))
+        val targetY = focusScrollTargetY(
+            bodyTopPx = bodyTopPx,
+            lineTopWithinText = layout.getLineTop(layout.getLineForOffset(safeStart)),
+            viewportHeightPx = viewportHeightPx,
+            viewportFraction = FOCUS_VIEWPORT_FRACTION,
+            maxScroll = scroll.maxValue,
+        )
+        scroll.animateScrollTo(targetY)
     }
 
     // Issue #919 — "scroll to current sentence" FAB. Derived state tracks
@@ -983,36 +1049,74 @@ fun ReaderTextView(
             }
         }
 
-        // Issue #1239 — Teleprompter transport. Replaces the normal bottom
-        // bar while rehearsal mode is on: Play/Pause for the auto-scroll,
-        // WPM −/+, and an exit. Brass surface mirroring the normal bar.
+        // Issue #1239/#1287 — Teleprompter bottom chrome: a mode selector
+        // (Auto-scroll / Practice) above the mode-specific transport,
+        // replacing the normal bottom bar while teleprompter is on.
         if (teleprompterEnabled) {
-            TeleprompterTransport(
-                playing = teleprompterPlaying,
-                wpm = teleprompterWpm,
-                onPlayPause = {
-                    if (teleprompterAtEnd && !teleprompterPlaying) {
-                        // Replay from the top — scroll home, then arm so the
-                        // per-frame effect starts from a fresh position.
-                        scope.launch {
-                            scroll.scrollTo(0)
-                            teleprompterPlaying = true
+            Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                TeleprompterModeChips(
+                    mode = teleprompterMode,
+                    onSelect = { picked ->
+                        if (picked != teleprompterMode) {
+                            teleprompterMode = picked
+                            teleprompterPlaying = false // stop the silent auto-scroll
+                            practiceTurn = null
+                            if (state.isPlaying) onPlayPause() // pause TTS across a swap
                         }
-                    } else {
-                        teleprompterPlaying = !teleprompterPlaying
-                    }
-                },
-                onWpmDelta = { steps ->
-                    teleprompterWpm = adjustTeleprompterWpm(teleprompterWpm, steps)
-                    // #1287 — write the new pace through so it survives a restart.
-                    onTeleprompterWpmChange(teleprompterWpm)
-                },
-                onExit = {
-                    teleprompterPlaying = false
-                    teleprompterEnabled = false
-                },
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+                    },
+                )
+                when (teleprompterMode) {
+                    TeleprompterMode.AutoScroll -> TeleprompterTransport(
+                        playing = teleprompterPlaying,
+                        wpm = teleprompterWpm,
+                        onPlayPause = {
+                            if (teleprompterAtEnd && !teleprompterPlaying) {
+                                // Replay from the top — scroll home, then arm
+                                // so the per-frame effect starts fresh.
+                                scope.launch {
+                                    scroll.scrollTo(0)
+                                    teleprompterPlaying = true
+                                }
+                            } else {
+                                teleprompterPlaying = !teleprompterPlaying
+                            }
+                        },
+                        onWpmDelta = { steps ->
+                            teleprompterWpm = adjustTeleprompterWpm(teleprompterWpm, steps)
+                            // #1287/#1304 — persist the pace so it survives a restart.
+                            onTeleprompterWpmChange(teleprompterWpm)
+                        },
+                        onExit = {
+                            teleprompterPlaying = false
+                            teleprompterEnabled = false
+                        },
+                    )
+                    TeleprompterMode.Practice -> PracticeTransport(
+                        playing = state.isPlaying,
+                        turn = practiceTurn,
+                        onPlayPause = onPlayPause,
+                        onContinue = {
+                            val t = practiceTurn
+                            practiceTurn = null
+                            // Seek past the line the user just voiced, then
+                            // resume narration — TTS never reads it back. Record
+                            // the resume point so the turn-taking effect won't
+                            // re-fire on this same line during the seek lag.
+                            if (t != null) {
+                                val resume = resumeOffsetAfter(t).coerceIn(0, chapterText.length)
+                                practiceResumeFrom = resume
+                                onSeekToChar(resume)
+                            }
+                            if (!state.isPlaying) onPlayPause()
+                        },
+                        onExit = {
+                            practiceTurn = null
+                            if (state.isPlaying) onPlayPause() // stop TTS on exit
+                            teleprompterEnabled = false
+                        },
+                    )
+                }
+            }
         }
 
         // Issue #1230 — tap-to-define popup. Long-press a word (a no-drag
@@ -1189,6 +1293,134 @@ private fun TeleprompterTransport(
                     imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (playing) "Pause rehearsal" else "Start rehearsal",
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Issue #1287 — teleprompter mode selector (Auto-scroll / Practice). Two
+ * chips above the mode-specific transport; selecting Practice swaps to the
+ * TTS-paced "pause-for-me" flow.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TeleprompterModeChips(
+    mode: TeleprompterMode,
+    onSelect: (TeleprompterMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.sm, vertical = spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(
+                selected = mode == TeleprompterMode.AutoScroll,
+                onClick = { onSelect(TeleprompterMode.AutoScroll) },
+                label = { Text(stringResource(R.string.reader_teleprompter_autoscroll)) },
+            )
+            FilterChip(
+                selected = mode == TeleprompterMode.Practice,
+                onClick = { onSelect(TeleprompterMode.Practice) },
+                label = { Text(stringResource(R.string.reader_practice)) },
+            )
+        }
+    }
+}
+
+/**
+ * Issue #1287 — practice / "pause-for-me" transport. While narration plays
+ * it shows a play/pause for the TTS; when the playhead hits dialogue ([turn]
+ * non-null) it becomes the user's turn — a "Your turn" cue (+ speaker if
+ * known) and a Continue button that seeks past the line and resumes. Pure
+ * presentational; all state hoisted to [ReaderTextView].
+ */
+@Composable
+private fun PracticeTransport(
+    playing: Boolean,
+    turn: TextSegment?,
+    onPlayPause: () -> Unit,
+    onContinue: () -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 4.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onExit,
+                modifier = Modifier.semantics { contentDescription = "Exit practice mode" },
+            ) {
+                Icon(imageVector = Icons.Filled.Close, contentDescription = null)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            if (turn != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    modifier = Modifier.semantics(mergeDescendants = true) {
+                        liveRegion = LiveRegionMode.Polite
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.RecordVoiceOver,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Column {
+                        Text(
+                            text = stringResource(R.string.reader_practice_your_turn),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = turn.speaker ?: stringResource(R.string.reader_practice_read_aloud),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Button(onClick = onContinue) {
+                    Text(stringResource(R.string.reader_practice_continue))
+                }
+            } else {
+                Text(
+                    text = stringResource(
+                        if (playing) R.string.reader_practice_narrating else R.string.reader_practice_tap_play,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                FilledIconButton(
+                    onClick = onPlayPause,
+                    modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (playing) "Pause narration" else "Start narration",
+                    )
+                }
             }
         }
     }
