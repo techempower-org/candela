@@ -1509,6 +1509,16 @@ class EnginePlayer @AssistedInject constructor(
                 Player.Commands.Builder()
                     .addAll(
                         Player.COMMAND_PLAY_PAUSE,
+                        // Issue #1341 — advertise the *combined* seek commands
+                        // (COMMAND_SEEK_TO_PREVIOUS / _NEXT) alongside the
+                        // media-item variants. The lock-screen / notification
+                        // pill's prev+next buttons resolve to
+                        // Player.seekToPrevious()/seekToNext(), which are gated
+                        // on these combined commands; without them advertised
+                        // the system media controls render no skip buttons.
+                        // handleSeek() (below) routes all four to advanceChapter.
+                        Player.COMMAND_SEEK_TO_PREVIOUS,
+                        Player.COMMAND_SEEK_TO_NEXT,
                         Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
                         Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
                         Player.COMMAND_GET_METADATA,
@@ -5193,6 +5203,60 @@ class EnginePlayer @AssistedInject constructor(
         }
         if (playWhenReady) resume() else pauseTts()
         return Futures.immediateVoidFuture()
+    }
+
+    override fun handleSeek(
+        mediaItemIndex: Int,
+        positionMs: Long,
+        seekCommand: Int,
+    ): ListenableFuture<*> {
+        // Issue #1341 — the lock-screen / notification "pill" drives the
+        // session with transport *commands* (Player.seekToNext/Previous), a
+        // separate path from the BT/headset KeyEvents that MediaButtonHandler
+        // handles. SimpleBasePlayer dispatches those commands here. EnginePlayer
+        // exposes a single-item playlist (it synthesises TTS one chapter at a
+        // time — see buildPlaylist), so there is no adjacent timeline item to
+        // land on and, before this override, the pill's skip buttons were inert
+        // (the seek had nowhere to go and no handler to redirect it). Route
+        // next/prev to the same chapter-advance the hardware path uses
+        // (MediaButtonHandler → controller.nextChapter → advanceChapter) so the
+        // pill and BT keys share one behaviour.
+        when (seekCommand) {
+            Player.COMMAND_SEEK_TO_NEXT,
+            Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+            -> launchAdvanceChapter(direction = 1)
+
+            Player.COMMAND_SEEK_TO_PREVIOUS,
+            Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+            -> launchAdvanceChapter(direction = -1)
+            // Within-item scrubbing / seek-to-default aren't advertised in
+            // getState (COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM is absent), so they
+            // won't reach here; no-op defensively if a controller sends one.
+        }
+        return Futures.immediateVoidFuture()
+    }
+
+    /**
+     * Issue #1341 — bridge a (suspend) chapter advance out of the non-suspend
+     * [handleSeek]. advanceChapter guards itself (advance mutex + invocation
+     * token), so driving it from several entry points at once — handleChapterDone,
+     * the controller, the stall watchdog, and now the MediaSession pill — is safe
+     * by design. Fire-and-return: we never block the session controller's seek
+     * future on the chapter load. Mirrors the handleChapterDone runCatching /
+     * onFailure idiom (issue #553).
+     */
+    private fun launchAdvanceChapter(direction: Int) {
+        scope.launch {
+            runCatching { advanceChapter(direction = direction) }
+                .onFailure { t ->
+                    android.util.Log.e(
+                        "EnginePlayer",
+                        "handleSeek: advanceChapter(direction=$direction) threw " +
+                            "(${t.javaClass.simpleName}: ${t.message})",
+                        t,
+                    )
+                }
+        }
     }
 
     override fun handleStop(): ListenableFuture<*> {
