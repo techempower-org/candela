@@ -54,6 +54,7 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -181,6 +182,11 @@ fun AudiobookView(
      *  previews / tests; production callsites pass
      *  `navController.navigate(StoryvoxRoutes.fictionDetail(fId))`. */
     onOpenLibrary: () -> Unit = {},
+    /** Issue #1229 — open the whole-book ("find in book") search overlay. The
+     *  top-bar magnifying glass invokes this; [HybridReaderScreen] wires it to
+     *  [ReaderViewModel.openBookSearch] and renders the overlay above both
+     *  panes. Default no-op for previews / tests. */
+    onOpenSearch: () -> Unit = {},
     /** Issue #1016 — "another magical way of accessing the reading mode in
      *  the play tab besides just swiping to the right." The [HybridReaderShell]
      *  reaches the text reader by a horizontal swipe (offset 0 → -width); the
@@ -408,7 +414,10 @@ fun AudiobookView(
                         // the player → fiction-detail jump. Asymmetric
                         // padding via start/end keeps the title visually
                         // centered across both sides' negative space.
-                        .padding(start = 104.dp, end = 104.dp),
+                        // Issue #1229 — trailing side now carries THREE icons
+                        // (search + voice + overflow), so its reserve grows to
+                        // 152 dp; leading stays 104 dp (Back + MenuBook).
+                        .padding(start = 104.dp, end = 152.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -444,6 +453,21 @@ fun AudiobookView(
                     modifier = Modifier.align(Alignment.CenterEnd),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Issue #1229 — whole-book ("find in book") search. Leads
+                    // the trailing cluster (search → voice → overflow) so the
+                    // magnifying glass reads as a first-class affordance, not
+                    // a buried menu item. Opens the overlay rendered above both
+                    // panes by HybridReaderScreen.
+                    IconButton(
+                        onClick = onOpenSearch,
+                        modifier = Modifier.testTag(TestTags.ReaderBookSearch),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = stringResource(R.string.reader_book_search),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     val voiceInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                     Box(
                         modifier = Modifier

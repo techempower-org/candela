@@ -180,6 +180,33 @@
     <!-- TalkBack summary of the result counter -->
     <string name="reader_search_count_description">Match %1$d of %2$d</string>
 
+    <!-- Reader / in-book search (#1229) -->
+    <string name="reader_book_search">Search this book</string>
+    <string name="reader_book_search_field_label">Find in book</string>
+    <string name="reader_book_search_prev">Previous result</string>
+    <string name="reader_book_search_next">Next result</string>
+    <!-- Prompt shown before a query has been entered -->
+    <string name="reader_book_search_hint">Search the text of every downloaded chapter.</string>
+    <string name="reader_book_search_searching">Searching…</string>
+    <string name="reader_book_search_no_matches">No matches in this book</string>
+    <!-- Stepper position, e.g. "2 / 7" -->
+    <string name="reader_book_search_position">%1$d / %2$d</string>
+    <!-- TalkBack summary of the stepper position -->
+    <string name="reader_book_search_position_description">Result %1$d of %2$d</string>
+    <!-- Footer shown when the chapter cap was hit before scanning the whole book -->
+    <string name="reader_book_search_truncated">Showing the first %1$d chapters.</string>
+    <string name="reader_book_search_go_to">Go to match</string>
+    <!-- Header: how many chapters contain the query -->
+    <plurals name="reader_book_search_chapter_count">
+        <item quantity="one">%1$d chapter</item>
+        <item quantity="other">%1$d chapters</item>
+    </plurals>
+    <!-- Per-result badge: matches within that one chapter -->
+    <plurals name="reader_book_search_match_badge">
+        <item quantity="one">%1$d match</item>
+        <item quantity="other">%1$d matches</item>
+    </plurals>
+
     <!-- Reader / in-text highlights (#999 phase 2) -->
     <string name="reader_highlight_create_title">Highlight</string>
     <string name="reader_highlight_edit_title">Edit highlight</string>

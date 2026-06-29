@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.data.repository
 
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
+import `in`.jphe.storyvox.data.db.dao.ChapterSearchRow
 import `in`.jphe.storyvox.data.db.entity.Chapter
 import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
 import `in`.jphe.storyvox.data.repository.playback.PlaybackChapter
@@ -109,7 +110,25 @@ interface ChapterRepository {
 
     /** Issue #121 — read the persisted bookmark for a chapter, or null. */
     suspend fun chapterBookmark(chapterId: String): Int?
+
+    /**
+     * Issue #1229 — in-book text search. Returns the downloaded chapters of
+     * [fictionId] whose body contains [query] (case-insensitive substring),
+     * in reading order, each with its full plain-text body so the caller can
+     * extract exact match offsets + a highlighted snippet. Capped at [limit]
+     * chapters to bound memory on a match-everything query; the caller treats
+     * a full result list as "possibly truncated". A blank [query] returns
+     * empty without touching the DB.
+     */
+    suspend fun searchChapterBodies(
+        fictionId: String,
+        query: String,
+        limit: Int = DEFAULT_BOOK_SEARCH_LIMIT,
+    ): List<ChapterSearchRow>
 }
+
+/** Issue #1229 — default chapter cap for [ChapterRepository.searchChapterBodies]. */
+const val DEFAULT_BOOK_SEARCH_LIMIT = 500
 
 /** Issue #293 — paired count/bytes return for [ChapterRepository.cachedBodyUsage]. */
 data class CachedBodyUsage(
@@ -260,4 +279,18 @@ class ChapterRepositoryImpl @Inject constructor(
 
     override suspend fun chapterBookmark(chapterId: String): Int? =
         dao.getBookmark(chapterId)
+
+    override suspend fun searchChapterBodies(
+        fictionId: String,
+        query: String,
+        limit: Int,
+    ): List<ChapterSearchRow> {
+        // Trim so a stray paste space doesn't zero the LIKE pre-filter; the
+        // feature layer's findMatches trims the same way, keeping the coarse
+        // SQL filter and the exact literal re-scan in agreement. Room runs
+        // this suspend query off the main thread on its own executor.
+        val needle = query.trim()
+        if (needle.isEmpty()) return emptyList()
+        return dao.searchChapters(fictionId, needle, limit)
+    }
 }

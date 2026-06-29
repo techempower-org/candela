@@ -407,6 +407,12 @@ class FictionRepositoryImplTest {
             chapters.forEach { rows[it.id] = it }
             chapters.map { it.fictionId }.toSet().forEach(::publishInfo)
         }
+
+        override suspend fun searchChapters(
+            fictionId: String,
+            query: String,
+            limit: Int,
+        ): List<`in`.jphe.storyvox.data.db.dao.ChapterSearchRow> = emptyList()
     }
 
     // -- Fake source -------------------------------------------------------------

@@ -56,6 +56,17 @@ object TestTags {
     const val ReaderPlay = "reader-play"
     const val ReaderBack = "reader-back"
 
+    // ── Reader in-book search (#1229) ─────────────────────────────────────
+    // The whole-book find flow: a top-bar magnifying glass ([ReaderBookSearch])
+    // opens the [BookSearchOverlay], whose field ([BookSearchField]) drives a
+    // results list ([BookSearchResults]); tapping a result jumps to that
+    // chapter. [BookSearchClose] dismisses the overlay.
+    const val ReaderBookSearch = "reader-book-search"
+    const val BookSearchOverlay = "book-search-overlay"
+    const val BookSearchField = "book-search-field"
+    const val BookSearchResults = "book-search-results"
+    const val BookSearchClose = "book-search-close"
+
     // ── Reader highlights (#1079 phase 2) ────────────────────────────────
     // The select-text → highlight flow. A Maestro flow drives: drag-select
     // body text → [HighlightSheet] appears → pick a swatch in

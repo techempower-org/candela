@@ -498,6 +498,57 @@ interface ChapterDao {
         """,
     )
     suspend fun cacheUsage(): ChapterCacheUsageRow
+
+    /**
+     * Issue #1229 — in-book text search. Returns every *downloaded* chapter
+     * of [fictionId] whose plain-text body contains [query], in reading
+     * order, capped at [limit] rows.
+     *
+     * # Why LIKE, not FTS
+     *
+     * Book-sized content (a fiction's downloaded chapters) is small enough
+     * that a `LIKE '%term%'` table scan is well within budget on a single
+     * fiction's rows — there's no full-text index to build/maintain and no
+     * schema migration. The `index` column carries the unique
+     * `(fictionId, index)` index, so SQLite still narrows to one fiction's
+     * rows before scanning bodies. SQLite's `LIKE` is case-insensitive for
+     * ASCII by default (`PRAGMA case_sensitive_like` is off), which is the
+     * desired find-in-book behaviour.
+     *
+     * # Why this is a coarse pre-filter
+     *
+     * `LIKE` treats `%` and `_` in [query] as wildcards, so a literal
+     * search for "100%" would over-match. The feature layer re-scans each
+     * returned body with a *literal*, case-insensitive substring pass
+     * (`findMatches`) to compute exact match offsets, counts, and the
+     * highlighted snippet — that pass is the source of truth. Over-matched
+     * chapters simply yield zero literal hits and are dropped; LIKE can
+     * never *under*-match (a literal substring always satisfies
+     * `'%' || term || '%'`), so coverage is preserved without an `ESCAPE`
+     * clause here.
+     *
+     * # Why return the body
+     *
+     * The snippet/offset extraction lives in the feature module's pure,
+     * unit-tested search core rather than in SQL, so the full `plainBody`
+     * crosses the boundary for matching chapters only. [limit] bounds the
+     * bytes a pathological match-everything query (e.g. "e") can pull into
+     * memory; the caller surfaces truncation when the cap is hit. Pure-audio
+     * chapters (empty body) are excluded by the `plainBody <> ''` guard, so
+     * they never appear as text-search hits.
+     */
+    @Query(
+        """
+        SELECT id, `index`, title, plainBody
+          FROM chapter
+         WHERE fictionId = :fictionId
+           AND plainBody IS NOT NULL AND plainBody <> ''
+           AND plainBody LIKE '%' || :query || '%'
+         ORDER BY `index` ASC
+         LIMIT :limit
+        """,
+    )
+    suspend fun searchChapters(fictionId: String, query: String, limit: Int): List<ChapterSearchRow>
 }
 
 /** Light projection used by [ChapterDao.observeDownloadStates]. */
@@ -526,6 +577,20 @@ data class BookmarkRow(
 data class ChapterCacheUsageRow(
     val count: Int,
     val bytes: Long,
+)
+
+/**
+ * Issue #1229 — projection backing [ChapterDao.searchChapters]. Carries the
+ * full `plainBody` of each matching chapter so the feature layer's pure
+ * search core can compute exact match offsets, counts, and a highlighted
+ * snippet. `index` mirrors the entity column (reading order); `title` labels
+ * the result row.
+ */
+data class ChapterSearchRow(
+    val id: String,
+    val index: Int,
+    val title: String,
+    val plainBody: String,
 )
 
 /**
