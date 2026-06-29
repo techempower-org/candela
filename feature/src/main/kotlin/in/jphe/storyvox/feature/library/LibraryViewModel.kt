@@ -408,14 +408,29 @@ class LibraryViewModel @Inject constructor(
     }
 
     /**
-     * Issue #158 — History row tap. Navigates to the reader at that
-     * (fictionId, chapterId). We deliberately *don't* call
-     * `playback.startListening` here: the user might be browsing history
-     * to find context, not to start playing right now. Reader opens the
-     * chapter view; if they want audio they tap play from there.
+     * Issue #1350 — History row tap. Preload the chapter into the global
+     * [PlaybackController] BEFORE navigating: the reader is a passive view of
+     * the controller, so opening /reader/{fid}/{cid} without first loading
+     * leaves it stuck on the "loading chapter" prompt (then the 30s timeout).
+     * `startListening` is what queues the chapter-body download + loads the
+     * controller, so the reader's loading card resolves once the body arrives.
+     * This is the identical navigate-without-load bug fixed for the inbox path
+     * in #1343 / #1345.
+     *
+     * `autoPlay = false` keeps Issue #158's intent — a history tap is browsing
+     * for context, not "play now" — so the chapter loads and the reader opens,
+     * but audio stays paused until the user taps play. `runCatching` so a
+     * `startForegroundService` hiccup can't swallow the navigation below.
      */
     fun openHistoryEntry(entry: HistoryEntry) {
         viewModelScope.launch {
+            runCatching {
+                playback.startListening(
+                    fictionId = entry.fictionId,
+                    chapterId = entry.chapterId,
+                    autoPlay = false,
+                )
+            }
             _events.send(LibraryUiEvent.OpenReader(entry.fictionId, entry.chapterId))
         }
     }
