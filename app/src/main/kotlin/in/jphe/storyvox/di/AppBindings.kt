@@ -1065,8 +1065,18 @@ internal class RealPlaybackControllerUi(
     override val state: Flow<UiPlaybackState> = combine(
         controller.state,
         tickWhilePlaying(controller.state),
-    ) { s, nowMs ->
-        s.toUi(nowMs)
+        controller.engineState,
+    ) { s, nowMs, engine ->
+        // Issue #1319 — fold the upstream EngineState.Warming(message, progress)
+        // into UiPlaybackState so the reader prefers the engine's render-ready
+        // copy over the voiceLabel-derived fallback, and a self-reported
+        // progress can drive the thin warmup bar. Non-Warming states leave both
+        // null (reader falls back to the derived label / hides the bar).
+        val warming = engine as? `in`.jphe.storyvox.playback.EngineState.Warming
+        s.toUi(nowMs).copy(
+            warmingMessage = warming?.message,
+            warmingProgress = warming?.progress,
+        )
     }.shareIn(scope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     /**

@@ -874,11 +874,27 @@ object VoiceCatalog {
             )
         val F = VoiceGender.Female
         val M = VoiceGender.Male
-        // Speaker order follows the Kitten/Kokoro convention: female
-        // embeddings at low indices, male embeddings at high indices.
-        // TODO(#1319): verify the speaker index → gender mapping against the
-        // actual Supertonic 3 voices.bin layout — #1114 shipped the engine but
-        // left this F/M assignment (Kitten/Kokoro convention) unverified.
+        // Speaker order ASSUMED to follow the Kitten/Kokoro convention: female
+        // embeddings at low indices (0–4), male at high (5–9).
+        //
+        // #1319 investigation — this remains UNVERIFIED against the shipped
+        // voice.bin and must not be trusted blindly:
+        //  • sherpa-onnx's export workflow copies Supertone's prebuilt
+        //    `assets/voice_styles/voice.bin` verbatim, so the sid order is
+        //    whatever Supertone baked in — and that order is published in NO
+        //    artifact (tts.json carries only model hyper-params; voice.bin is
+        //    nameless float embeddings; the model README has no sid→name table).
+        //  • The signals that DO exist conflict: Supertone's voices doc lists
+        //    voices males-first (M1–M5 then F1–F5); supertonic-py's import store
+        //    globs styles alphabetically (F before M); and the Dec-2025 history
+        //    (original M1,M2,F1,F2 + 6 appended M3–5,F3–5) implies a third,
+        //    batched order. Our mapping below matches only the clean
+        //    females-first case.
+        //  • The sole definitive check is on-device: select "Supertonic F1"
+        //    (sid 0) and listen — if it sounds male, the split is inverted (or
+        //    batched) and these labels must be reordered to match the audio.
+        // TODO(#1319): confirm via an on-device listen of sid 0..9, then fix the
+        // gender assignment here if the audit shows it's wrong.
         return listOf(
             supertonic("supertonic_f1_en_US_0", "Supertonic F1", 0, F),
             supertonic("supertonic_f2_en_US_1", "Supertonic F2", 1, F),
