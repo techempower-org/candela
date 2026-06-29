@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.data
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.speech.tts.TextToSpeech
 
 /**
@@ -43,6 +44,14 @@ internal class TtsEngineResolver(private val context: Context) {
      *  loop that [TextToSpeech.shutdown] cannot stop. */
     fun bindableEnginePackages(): List<String> =
         installedEnginePackages().filter { it !in PRIVATE_ENGINES }
+
+    /** #1392 — Samsung's modified framework disconnects ALL TTS
+     *  instances when its internal private-engine check fails during
+     *  connection setup, even for TextToSpeech created with an explicit
+     *  public engine target. Any TextToSpeech on Samsung triggers the
+     *  loop. Returns true on Samsung OneUI devices. */
+    val isSamsungDevice: Boolean
+        get() = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
 
     internal companion object {
         /** Google's TTS — the canonical public engine and the framework's
