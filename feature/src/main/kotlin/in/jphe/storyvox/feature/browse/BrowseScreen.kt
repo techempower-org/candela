@@ -584,6 +584,8 @@ fun BrowseScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                // #1333 — per-result id so on-device QA can open a specific fiction.
+                                .testTag(TestTags.browseResultCard(fiction.id))
                                 .animateItem()
                                 .cascadeReveal(index = index, key = fiction.id)
                                 // a11y (#481): Role.Button + label for the fiction-card tap.

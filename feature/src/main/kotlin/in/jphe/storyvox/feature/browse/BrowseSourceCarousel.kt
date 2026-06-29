@@ -93,6 +93,7 @@ import androidx.compose.ui.zIndex
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginDescriptor
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.ui.component.TestTags
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -323,6 +324,8 @@ private fun BrowseSourceCard(
         modifier = Modifier
             .width(CARD_WIDTH)
             .height(cardHeight)
+            // #1333 — per-source id so on-device QA can tap a specific source.
+            .testTag(TestTags.browseSourceChip(descriptor.id))
             // Drag-and-drop: the dragged card floats above siblings via
             // zIndex and translates horizontally by the accumulated drag
             // offset. Non-dragged cards use animateItem() on the LazyRow
