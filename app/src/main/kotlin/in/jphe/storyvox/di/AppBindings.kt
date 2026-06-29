@@ -314,6 +314,15 @@ object AppBindings {
     fun provideVoiceTuningConfig(impl: SettingsRepositoryUiImpl): VoiceTuningConfig = impl
 
     /**
+     * Issue #1233 — auto-detect-language config binding. Same
+     * SettingsRepositoryUiImpl singleton; consumed by `core-playback`'s
+     * EnginePlayer to route foreign passages to a matching Kokoro voice.
+     */
+    @Provides @Singleton
+    fun provideLanguageDetectionConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.playback.LanguageDetectionConfig = impl
+
+    /**
      * PR-6 (#185) — Azure offline-fallback contract. Same
      * SettingsRepositoryUiImpl singleton; one DataStore, four contracts
      * now. EnginePlayer reads this to decide whether to auto-swap to a

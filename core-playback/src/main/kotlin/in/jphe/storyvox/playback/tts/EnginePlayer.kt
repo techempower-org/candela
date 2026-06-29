@@ -29,6 +29,7 @@ import `in`.jphe.storyvox.data.log.DebugLog
 import `in`.jphe.storyvox.data.repository.ChapterRepository
 import `in`.jphe.storyvox.data.repository.HistoryRepository
 import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
+import `in`.jphe.storyvox.data.repository.playback.LanguageDetectionConfig
 import `in`.jphe.storyvox.data.repository.playback.NOISE_SCALE_EXPRESSIVE
 import `in`.jphe.storyvox.data.repository.playback.NOISE_SCALE_STEADY
 import `in`.jphe.storyvox.data.repository.playback.NOISE_SCALE_W_EXPRESSIVE
@@ -55,11 +56,15 @@ import `in`.jphe.storyvox.playback.cache.PcmCacheKey
 import `in`.jphe.storyvox.playback.cache.PcmIndex
 import `in`.jphe.storyvox.playback.cache.PrerenderTriggers
 import `in`.jphe.storyvox.playback.cache.pcmCacheJson
+import `in`.jphe.storyvox.playback.lang.LanguageDetector
+import `in`.jphe.storyvox.playback.lang.LanguageVoiceRouter
+import `in`.jphe.storyvox.playback.lang.TextClassifierLanguageDetector
 import `in`.jphe.storyvox.playback.tts.source.CacheFileSource
 import `in`.jphe.storyvox.playback.tts.source.EngineStreamingSource
 import `in`.jphe.storyvox.playback.tts.source.PcmChunk
 import `in`.jphe.storyvox.playback.tts.source.PcmSource
 import `in`.jphe.storyvox.playback.voice.EngineType
+import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceManager
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
@@ -316,6 +321,11 @@ class EnginePlayer @AssistedInject constructor(
      *  when the device is in battery-saver mode. The consumer thread keeps
      *  URGENT_AUDIO — audio glitches are worse than battery drain. */
     private val powerSaveMonitor: `in`.jphe.storyvox.playback.PowerSaveMonitor,
+    /** Issue #1233 — "auto-detect language & switch voice" preference.
+     *  Off by default; when on, the Kokoro synth path routes each
+     *  sentence to a target-language speaker (see [observeLanguageDetectionConfig]
+     *  and [routeKokoroSpeaker]). */
+    private val languageDetectionConfig: LanguageDetectionConfig,
 ) : SimpleBasePlayer(Looper.getMainLooper()) {
 
     @AssistedFactory
@@ -558,6 +568,7 @@ class EnginePlayer @AssistedInject constructor(
         observeAzureFallbackConfig()
         observeA11yPacing()
         observeThermalStatus()
+        observeLanguageDetectionConfig()
     }
 
     /**
@@ -899,6 +910,73 @@ class EnginePlayer @AssistedInject constructor(
                 VoiceEngine.getInstance().setNoiseScaleW(noiseScaleW)
             }
         }
+    }
+
+    /**
+     * Issue #1233 — cached snapshot of
+     * [LanguageDetectionConfig.autoLanguageDetectionEnabled]. Read on the
+     * audio producer thread inside [activeVoiceEngineHandle], which is not
+     * a coroutine, so a live `Flow.collect` there would be wrong — this
+     * mirrors the `cachedVoiceSteady` / `cachedParallelSynthInstances`
+     * volatile-snapshot pattern. The collector in
+     * [observeLanguageDetectionConfig] writes it; the pipeline reads it at
+     * construction (serial-vs-parallel + cache key) and per sentence.
+     *
+     * A flip takes effect on the next natural pipeline boundary (chapter /
+     * seek / voice-swap / speed change) — like the thermal and
+     * parallel-synth snapshots — because both the serial decision and the
+     * cache key are captured at construction time. We deliberately do NOT
+     * force a mid-chapter rebuild (it causes an audible pause-then-repeat).
+     */
+    @Volatile private var cachedAutoLanguageDetection: Boolean = false
+
+    /**
+     * Issue #1233 — on-device language detector, built once from the
+     * assisted [context]. Lazy so devices/tests that never enable the
+     * feature pay nothing. On API < 29 this is a no-op detector that always
+     * returns null (see [TextClassifierLanguageDetector]).
+     */
+    private val languageDetector: LanguageDetector by lazy {
+        TextClassifierLanguageDetector.create(context)
+    }
+
+    private fun observeLanguageDetectionConfig() {
+        scope.launch {
+            languageDetectionConfig.autoLanguageDetectionEnabled.collect { enabled ->
+                cachedAutoLanguageDetection = enabled
+            }
+        }
+    }
+
+    /**
+     * Issue #1233 — resolve the Kokoro speaker id to synthesize [text]
+     * with, given the chapter's primary speaker ([primarySpeakerId]).
+     *
+     * Returns [primarySpeakerId] unchanged unless auto-language routing is
+     * on AND the detector confidently reports a language that maps to a
+     * *different* Kokoro speaker (French dialogue → the Siwis `fr_FR`
+     * speaker, a Japanese passage → a `ja_JP` speaker, …). Every "stay
+     * put" case — feature off, unknown active voice, low-confidence/short
+     * text, no Kokoro voice for that language — collapses to
+     * [primarySpeakerId], which is #1233's graceful fallback.
+     *
+     * Called on the producer thread inside the engine mutex (see
+     * [activeVoiceEngineHandle]): pure reads plus a deterministic router,
+     * so it is cheap and thread-safe there. Determinism matters — the PCM
+     * cache replays whatever speakers a prior render chose, so identical
+     * text must resolve to the identical speaker on re-render.
+     */
+    private fun routeKokoroSpeaker(text: String, primarySpeakerId: Int): Int {
+        if (!cachedAutoLanguageDetection) return primarySpeakerId
+        val current = VoiceCatalog.byId(loadedVoiceId ?: return primarySpeakerId)
+            ?: return primarySpeakerId
+        val detected = languageDetector.detect(text) ?: return primarySpeakerId
+        val target = LanguageVoiceRouter.route(
+            detectedLanguage = detected.languageCode,
+            current = current,
+            catalog = VoiceCatalog.voices,
+        ) ?: return primarySpeakerId
+        return (target.engineType as? EngineType.Kokoro)?.speakerId ?: primarySpeakerId
     }
 
     /**
@@ -2448,7 +2526,12 @@ class EnginePlayer @AssistedInject constructor(
         // it touches AudioTrack / Compose state which are main-thread-bound.
         val cachedIndexSampleRate: Int? = run {
             val chapId = _observableState.value.currentChapterId
-            val voiceId = loadedVoiceId
+            // #1233 — keep the sample-rate probe key in lockstep with the
+            // render key below: routed renders live under a "+autolang"
+            // voiceId namespace, so the probe must read that same entry.
+            val voiceId = loadedVoiceId?.let {
+                if (cachedAutoLanguageDetection && engineType is EngineType.Kokoro) "$it+autolang" else it
+            }
             if (chapId == null || voiceId == null) return@run null
             val probeKey = PcmCacheKey(
                 chapterId = chapId,
@@ -2643,6 +2726,16 @@ class EnginePlayer @AssistedInject constructor(
         // so a thermal change takes effect on the next natural pipeline
         // boundary (next chapter / seek / voice-swap / speed change),
         // restoring or capping concurrency without re-loading models.
+        // Issue #1233 — per-sentence language routing mutates the shared
+        // KokoroEngine's active speaker, which only the serial producer
+        // serializes safely (via engineMutex). The parallel secondaries are
+        // independent KokoroEngine instances pinned to the primary speaker
+        // at load, so they'd synthesize the wrong voice for routed
+        // sentences. Force serial whenever routing is active on Kokoro.
+        val autoLangForcesSerial =
+            cachedAutoLanguageDetection &&
+                engineType is EngineType.Kokoro &&
+                secondaryHandles.isNotEmpty()
         val effectiveSecondaryHandles = if (
             thermalStatus >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
             secondaryHandles.isNotEmpty()
@@ -2657,6 +2750,14 @@ class EnginePlayer @AssistedInject constructor(
                     "parallel synth ${secondaryHandles.size + 1} -> 1 instance(s)",
             )
             emptyList()
+        } else if (autoLangForcesSerial) {
+            android.util.Log.i(
+                "EnginePlayer",
+                "#1233 auto-language routing active: parallel synth " +
+                    "${secondaryHandles.size + 1} -> 1 instance(s) " +
+                    "(serial required for per-sentence speaker swap)",
+            )
+            emptyList()
         } else {
             secondaryHandles
         }
@@ -2668,7 +2769,20 @@ class EnginePlayer @AssistedInject constructor(
         // mid-pipeline state mutation can't shift the key out from
         // under the live appender.
         val chapterIdForCache = _observableState.value.currentChapterId
-        val voiceIdForCache = loadedVoiceId
+        // Issue #1233 — when per-sentence language routing is active the
+        // rendered audio is a MIX of the primary voice and target-language
+        // speakers, so it must not share an on-disk entry with the plain
+        // single-voice render. Namespacing the voiceId (rather than adding a
+        // PcmCacheKey field) keeps every pre-#1233 cache entry valid — only
+        // routed renders get a fresh basename, nothing self-evicts on
+        // upgrade. Routing only ever changes audio for Kokoro, so the suffix
+        // is scoped to that case. The voiceId in a cache key is opaque (only
+        // hashed into the basename, never decoded back), so the suffix is safe.
+        val routingActiveForCache =
+            cachedAutoLanguageDetection && engineType is EngineType.Kokoro
+        val voiceIdForCache = loadedVoiceId?.let {
+            if (routingActiveForCache) "$it+autolang" else it
+        }
         val cacheKey: PcmCacheKey? = if (
             chapterIdForCache != null && voiceIdForCache != null
         ) {
@@ -3579,8 +3693,23 @@ class EnginePlayer @AssistedInject constructor(
                     // Issue #801 — respect power-save mode on the producer thread.
                     AndroidProcess.setThreadPriority(producerPriority())
                     return when (engineType) {
-                        is EngineType.Kokoro -> KokoroEngine.getInstance()
-                            .generateAudioPCM(text, speed, pitch)
+                        is EngineType.Kokoro -> {
+                            // Issue #1233 — per-sentence language routing.
+                            // No-op unless the listener enabled auto-detect.
+                            // setActiveSpeakerId is reload-free across Kokoro's
+                            // one shared model, and this runs inside the
+                            // producer's engineMutex lock — the sole writer of
+                            // the active speaker on the serial path (parallel
+                            // secondaries are forced off when routing is on; see
+                            // effectiveSecondaryHandles), so there's no speaker-id
+                            // race against a concurrent synth.
+                            if (cachedAutoLanguageDetection) {
+                                KokoroEngine.getInstance().setActiveSpeakerId(
+                                    routeKokoroSpeaker(text, engineType.speakerId),
+                                )
+                            }
+                            KokoroEngine.getInstance().generateAudioPCM(text, speed, pitch)
+                        }
                         // Issue #119 — Kitten dispatch.
                         is EngineType.Kitten -> KittenEngine.getInstance()
                             .generateAudioPCM(text, speed, pitch)

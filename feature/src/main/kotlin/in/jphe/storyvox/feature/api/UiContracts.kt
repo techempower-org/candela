@@ -890,6 +890,10 @@ data class UiSettings(
      * (introduced in `VoxSherpa-TTS` v2.7.4).
      */
     val voiceSteady: Boolean = true,
+    /** Issue #1233 — auto-detect each sentence's language and switch to a
+     *  matching voice. Off by default; effect is Kokoro-only (the one
+     *  in-app family with multi-language speakers). */
+    val autoLanguageDetectionEnabled: Boolean = false,
     /** Memory Palace daemon config (#79). Empty host = source disabled. */
     val palace: UiPalaceConfig = UiPalaceConfig(),
     /**
@@ -2422,6 +2426,24 @@ interface SettingsRepositoryUi {
      *  brass IconButton in the reader controls overlay. Default no-op
      *  for fakes; the DataStore impl persists. */
     suspend fun setReaderAutoScrollEnabled(enabled: Boolean) {}
+
+    /**
+     * Issue #1233 — auto-detect each sentence's language and switch to a
+     * matching TTS voice (e.g. French dialogue in an English novel reads
+     * in a French voice instead of English phonemes).
+     *
+     * Default emits `false` (off) so test fakes and the first-launch
+     * state opt out; the DataStore impl overrides with the persisted
+     * value. Only affects the Kokoro engine family (the one with
+     * multi-language speakers); every other voice stays put — see
+     * [`in`.jphe.storyvox.data.repository.playback.LanguageDetectionConfig].
+     */
+    val autoLanguageDetectionEnabled: Flow<Boolean>
+        get() = kotlinx.coroutines.flow.flowOf(false)
+
+    /** Persist the auto-detect-language toggle (#1233). Default no-op
+     *  for fakes; the DataStore impl persists. */
+    suspend fun setAutoLanguageDetectionEnabled(enabled: Boolean) {}
 
     /**
      * Issue #997 — Focused Reading mode. When true, the reader dims the

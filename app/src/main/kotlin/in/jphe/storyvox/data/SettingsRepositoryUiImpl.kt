@@ -461,6 +461,9 @@ private object Keys {
      *  values. */
     val VOICE_STEADY = booleanPreferencesKey("pref_voice_steady_v1")
 
+    /** Issue #1233 — auto-detect-language & switch-voice toggle. Default false. */
+    val AUTO_LANGUAGE_DETECTION = booleanPreferencesKey("pref_auto_language_detection_v1")
+
     /** Issue #589 — global animation-speed master multiplier (Float).
      *  Synced as of #916. Default 1.0× preserves existing behavior
      *  on fresh installs. */
@@ -1106,6 +1109,7 @@ class SettingsRepositoryUiImpl(
     PlaybackBufferConfig,
     PlaybackModeConfig,
     VoiceTuningConfig,
+    `in`.jphe.storyvox.data.repository.playback.LanguageDetectionConfig,
     AzureFallbackConfig,
     ParallelSynthConfig,
     PlaybackResumePolicyConfig,
@@ -1320,6 +1324,7 @@ class SettingsRepositoryUiImpl(
             cacheUsedBytes = configs.cacheStats.usedBytes,
             cacheQuotaBytes = configs.cacheStats.quotaBytes,
             voiceSteady = prefs[Keys.VOICE_STEADY] ?: true,
+            autoLanguageDetectionEnabled = prefs[Keys.AUTO_LANGUAGE_DETECTION] ?: false,
             palace = UiPalaceConfig(host = palace.host, apiKey = palace.apiKey),
             github = githubSession.toUi(),
             githubPrivateReposEnabled = prefs[Keys.GITHUB_PRIVATE_REPOS_ENABLED] ?: false,
@@ -1904,6 +1909,18 @@ class SettingsRepositoryUiImpl(
 
     override val voiceSteady: Flow<Boolean> = store.data.map { it[Keys.VOICE_STEADY] ?: true }
     override suspend fun currentVoiceSteady(): Boolean = voiceSteady.first()
+
+    // --- LanguageDetectionConfig (#1233) + SettingsRepository toggle ---
+    // One set of overrides satisfies both contracts: the core-playback
+    // LanguageDetectionConfig (EnginePlayer collects the flow) and the
+    // UiContracts SettingsRepository setter (the Settings UI writes it).
+    override val autoLanguageDetectionEnabled: Flow<Boolean> =
+        store.data.map { it[Keys.AUTO_LANGUAGE_DETECTION] ?: false }
+    override suspend fun currentAutoLanguageDetectionEnabled(): Boolean =
+        autoLanguageDetectionEnabled.first()
+    override suspend fun setAutoLanguageDetectionEnabled(enabled: Boolean) {
+        store.edit { it[Keys.AUTO_LANGUAGE_DETECTION] = enabled }
+    }
 
     // --- AzureFallbackConfig (#185, PR-6) ---
     // Surfaced through the same DataStore-backed flow as the other
