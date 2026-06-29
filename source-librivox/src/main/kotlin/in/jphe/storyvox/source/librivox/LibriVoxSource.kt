@@ -18,8 +18,11 @@ import `in`.jphe.storyvox.source.librivox.net.GutenbergTextApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxBook
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxSection
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Issue #1015 — `:source-librivox`, storyvox's first **pre-recorded**
@@ -44,17 +47,20 @@ import javax.inject.Singleton
  *   Each chapter's [ChapterContent.audioUrl] is the section's
  *   `listen_url`; text bodies are empty so EnginePlayer takes the
  *   Media3 branch.
- * - **Open-domain text companion (issue #1046)**. A LibriVox recording
- *   is a volunteer reading a public-domain text — almost always a
- *   Project Gutenberg ebook, linked from the book's `url_text_source`.
- *   When that link resolves to a Gutenberg id ([GutenbergTextApi]),
- *   [fictionDetail] appends one extra **text** chapter
- *   ("📖 Read the text (Project Gutenberg)", chapterId
- *   `"<bookId>:gutenberg-text"`) after the audio sections. It carries
- *   NO `audioUrl`, so the reader shows the public-domain text and the
- *   TTS pipeline can narrate it — the open-domain text "alongside" the
- *   human-narrated audio. The Gutenberg fetch is lazy: only [chapter]
- *   for that id pays it, never the browse/detail listing.
+ * - **Read-along text (issues #1046 / #1224)**. A LibriVox recording is
+ *   a volunteer reading a public-domain text — almost always a Project
+ *   Gutenberg ebook, linked from the book's `url_text_source`. When that
+ *   link resolves to a Gutenberg id ([GutenbergTextApi]), [chapter]
+ *   fetches the cleaned plain text once, splits it across the audio
+ *   sections ([GutenbergChapterSplitter]) and populates each section's
+ *   text body with its matching segment — so the reader shows the right
+ *   text while that section's human narration plays (read-along). The
+ *   split is built lazily on the first section download and cached per
+ *   book; the browse/detail listing never pays the text fetch.
+ *   Pre-#1224 the text was instead appended as a single bonus chapter
+ *   `"<bookId>:gutenberg-text"`; [chapter] still resolves that legacy id
+ *   defensively for any persisted/deep-linked rows, but [fictionDetail]
+ *   no longer advertises it.
  *
  * ## Two API shapes (lazy section hydration)
  *
@@ -65,15 +71,15 @@ import javax.inject.Singleton
  * `extended=1` single-book fetch that returns the sections. See
  * [LibriVoxApi] for the endpoint detail.
  *
- * ## Audio-stream backend invariant (issue #373 / #1046)
+ * ## Audio-stream backend invariant (issues #373 / #1046 / #1224)
  *
- * Every *audio section* chapter has `audioUrl != null` with empty text
- * bodies — EnginePlayer's audio-vs-TTS branch keys off `audioUrl` and
- * routes those through Media3. The lone exception is the optional
- * Gutenberg text companion above: it deliberately has `audioUrl == null`
- * and a populated body so it flows through the normal text → TTS / reader
- * path. Keep the section chapters' `audioUrl` non-null in lockstep with
- * `:core-playback`'s expectations or audio playback regresses.
+ * Every *audio section* chapter keeps `audioUrl != null` — EnginePlayer's
+ * audio-vs-TTS branch keys off `audioUrl` and routes those through Media3
+ * regardless of the body, so populating the section's text body for
+ * read-along (#1224) does NOT change playback: the human narration still
+ * streams, the body is only surfaced in the reader. Keep the section
+ * chapters' `audioUrl` non-null in lockstep with `:core-playback`'s
+ * expectations or audio playback regresses.
  */
 @SourcePlugin(
     id = SourceIds.LIBRIVOX,
@@ -93,6 +99,27 @@ internal class LibriVoxSource @Inject constructor(
 
     override val id: String = SourceIds.LIBRIVOX
     override val displayName: String = "LibriVox"
+
+    /**
+     * Issue #1224 — per-book read-along segments (one entry per audio
+     * section), built lazily on the first section download and reused by
+     * its siblings. `LibriVoxSource` is a `@Singleton`, so this map
+     * survives across `ChapterDownloadWorker` runs in-process — without it
+     * every section download would re-fetch + re-split the whole book
+     * text. Only successful splits are cached, so a transient Gutenberg
+     * fetch failure can still be retried on the next section open.
+     */
+    private val readAlongCache = ConcurrentHashMap<String, List<String>>()
+
+    /**
+     * Per-book mutex guarding the build-and-cache of [readAlongCache] so
+     * concurrent section downloads for the same book fetch + split once,
+     * not once each. Mirrors `:source-gutenberg`'s `lockFor` pattern (#942).
+     */
+    private val readAlongLocks = ConcurrentHashMap<String, Mutex>()
+
+    private fun readAlongLockFor(bookId: String): Mutex =
+        readAlongLocks.computeIfAbsent(bookId) { Mutex() }
 
     // ─── filters ──────────────────────────────────────────────────────
 
@@ -256,17 +283,11 @@ internal class LibriVoxSource @Inject constructor(
                 val audioChapters = book.sections.mapIndexed { index, section ->
                     section.toChapterInfo(book.id, index)
                 }
-                // Issue #1046 — append the open-domain text companion
-                // when `url_text_source` resolves to a Project Gutenberg
-                // ebook. Sits after the audio sections; carries no audio
-                // so the reader/TTS path handles it. The id is checked
-                // here (cheap, offline) but the text itself is fetched
-                // lazily in [chapter].
-                val chapters = audioChapters + listOfNotNull(
-                    GutenbergTextApi.parseGutenbergId(book.urlTextSource)?.let {
-                        gutenbergTextChapterInfo(book.id, audioChapters.size)
-                    },
-                )
+                // Issue #1224 — the Project Gutenberg companion text is now
+                // split across the audio sections (read-along, populated in
+                // [chapter]) rather than appended as a single bonus chapter,
+                // so the TOC is exactly the audio sections.
+                val chapters = audioChapters
                 FictionResult.Success(
                     FictionDetail(
                         summary = book.toSummary(),
@@ -285,10 +306,12 @@ internal class LibriVoxSource @Inject constructor(
         chapterId: String,
     ): FictionResult<ChapterContent> {
         val bookId = bookIdFromFictionId(fictionId)
-        // Issue #1046 — the open-domain text companion. Resolve the
-        // Gutenberg id from the book's `url_text_source`, then fetch +
-        // clean the plain text. Returned with NO audioUrl so the reader
-        // shows it and the TTS pipeline (not Media3) handles playback.
+        // Issues #1046 / #1224 — legacy single bonus-chapter id. No longer
+        // advertised by [fictionDetail] (the text is now split across the
+        // audio sections for read-along), but still resolved here so a
+        // persisted or deep-linked "<bookId>:gutenberg-text" row from a
+        // pre-#1224 build still opens the full text. Carries NO audioUrl,
+        // so it flows through the reader / TTS path, not Media3.
         if (chapterId == gutenbergTextChapterIdFor(bookId)) {
             return fetchGutenbergTextChapter(bookId, chapterId)
         }
@@ -309,14 +332,20 @@ internal class LibriVoxSource @Inject constructor(
                         "LibriVox section has no audio URL: $chapterId",
                     )
                 }
+                // Issue #1224 — populate the section's text body with its
+                // matching slice of the Project Gutenberg companion text so
+                // the reader shows it while the human narration plays
+                // (read-along). Empty when the book has no Gutenberg source
+                // or the fetch/split yields nothing — the section then
+                // behaves exactly as the pre-#1224 audio-only chapter.
+                // `audioUrl` stays set regardless, so EnginePlayer still
+                // routes playback through Media3 (#373), not TTS.
+                val readAlong = readAlongSegmentFor(book, idx)
                 FictionResult.Success(
                     ChapterContent(
                         info = section.toChapterInfo(book.id, idx),
-                        // Issue #373 — audio chapters carry empty text
-                        // bodies; EnginePlayer sees `audioUrl != null` and
-                        // routes through Media3 instead of TTS.
-                        htmlBody = "",
-                        plainBody = "",
+                        htmlBody = if (readAlong.isEmpty()) "" else gutenbergHtml(readAlong),
+                        plainBody = readAlong,
                         audioUrl = section.listenUrl,
                     ),
                 )
@@ -421,6 +450,40 @@ internal class LibriVoxSource @Inject constructor(
                 ),
             )
             is FictionResult.Failure -> text
+        }
+    }
+
+    /**
+     * Issue #1224 — read-along text for audio section [idx] of [book]: its
+     * slice of the Project Gutenberg companion text, or "" when the book
+     * has no Gutenberg source, the fetch fails, or the split has no
+     * segment for this index (the caller then renders an audio-only
+     * chapter, exactly as before #1224).
+     */
+    private suspend fun readAlongSegmentFor(book: LibriVoxBook, idx: Int): String =
+        readAlongSegments(book).getOrNull(idx).orEmpty()
+
+    /**
+     * Build-or-fetch the per-section read-along segments for [book],
+     * memoised in [readAlongCache]. Fetches the cleaned Gutenberg plain
+     * text once and splits it into `book.sections.size` segments via
+     * [GutenbergChapterSplitter]. Returns an empty list — left *uncached*
+     * so a later open can retry — when the book has no Gutenberg
+     * `url_text_source` or the text fetch fails. The per-book mutex makes
+     * concurrent sibling-section downloads share a single fetch + split.
+     */
+    private suspend fun readAlongSegments(book: LibriVoxBook): List<String> {
+        readAlongCache[book.id]?.let { return it }
+        val gutenbergId = GutenbergTextApi.parseGutenbergId(book.urlTextSource)
+            ?: return emptyList()
+        return readAlongLockFor(book.id).withLock {
+            readAlongCache[book.id]?.let { return@withLock it }
+            val text = when (val result = gutenberg.fetchPlainText(gutenbergId)) {
+                is FictionResult.Success -> result.value
+                is FictionResult.Failure -> return@withLock emptyList()
+            }
+            GutenbergChapterSplitter.split(text, book.sections.size)
+                .also { readAlongCache[book.id] = it }
         }
     }
 
