@@ -29,14 +29,16 @@ import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 /**
- * Issue #787 — shared scaffold wrapping each of the three onboarding
- * screens with a step indicator that tells the user where they are in
- * the forward-only flow (Welcome → VoicePick → FirstFiction).
+ * Issue #787 — shared scaffold wrapping each onboarding screen with a
+ * step indicator that tells the user where they are in the forward-only
+ * flow (Welcome → VoicePick → SourcePick → FirstFiction as of #1370).
  *
- * Visual: a row of three dots at the top of the page (filled brass =
- * visited or current, outlined = upcoming) plus a small "Step X of 3"
- * text label below the dots. The dots alone are not screen-reader
- * accessible — TalkBack needs the explicit count — so we surface both.
+ * Visual: a row of [totalSteps] dots at the top of the page (filled
+ * brass = visited or current, outlined = upcoming) plus a small
+ * "Step X of N" text label below the dots. The dots alone are not
+ * screen-reader accessible — TalkBack needs the explicit count — so we
+ * surface both. The host passes [totalSteps] from `OnboardingStep`'s
+ * size so the indicator tracks the flow length automatically.
  *
  * The indicator is informational only: dots are NOT clickable. Per
  * `OnboardingHost.kt`'s state-machine doc, the welcome flow is
@@ -44,7 +46,7 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * Back affordance.
  *
  * The whole indicator row is wrapped in a [contentDescription] +
- * [liveRegion] so TalkBack announces the step change ("Step 2 of 3")
+ * [liveRegion] so TalkBack announces the step change ("Step 2 of 4")
  * once when the AnimatedContent transition lands on a new screen,
  * rather than re-reading the dot count on every focus pass.
  */
