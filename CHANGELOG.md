@@ -35,6 +35,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ### Changed
 
+- **Teleprompter control state hoisted.** The teleprompter's scroll/playback state moved into a shared `TeleprompterController` so the reader and Playing screens read from one source of truth — an internal refactor with no behavior change. (#1308 / #1320)
 - **Play Store privacy policy.** Corrected an inverted privacy-policy URL and refreshed the store listing checklist. (#1301 / #1305)
 - **Edge-case test coverage.** Added ~1,194 lines of unit tests across the Google News decoder, Bookshare DAISY parser, dialogue segmenter, PCM-silence detection, voice-paced scroller, and the Android Auto resolver. (#1315 / #1324)
 
