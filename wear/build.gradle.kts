@@ -18,6 +18,20 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        // Reuse :app's checked-in keystore instead of the per-machine
+        // ~/.android/debug.keystore AGP defaults to, so the watch APK and
+        // the phone APK share one signing certificate: the Wearable Data
+        // Layer bridge only pairs phone <-> watch when both are signed
+        // with the same key.
+        getByName("debug") {
+            storeFile = rootProject.file("app/storyvox-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -26,6 +40,9 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // An unsigned release APK can't be adb-installed; sign the
+            // sideload build with the shared keystore above.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
