@@ -4,6 +4,7 @@ import `in`.jphe.storyvox.playback.SentenceRange
 import `in`.jphe.storyvox.playback.cache.PcmIndex
 import `in`.jphe.storyvox.playback.cache.PcmIndexEntry
 import `in`.jphe.storyvox.playback.cache.pcmCacheJson
+import `in`.jphe.storyvox.playback.cache.pcmIsAllSilence
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -304,6 +305,26 @@ class CacheFileSource private constructor(
             if (maxExtent > pcmLen) {
                 throw IOException(
                     "PCM cache index overruns file: maxExtent=$maxExtent > length=$pcmLen",
+                )
+            }
+            // Issue #1281 — content gate. Every check above is STRUCTURAL
+            // (sentence count, byte length, offsets); none inspects the PCM
+            // samples. A render that produced non-empty but zero-amplitude PCM
+            // (transient engine glitch, model decline that still emits a silent
+            // buffer, low-memory partial synth) finalizes as a structurally
+            // valid "complete" entry, passes everything above, and then plays
+            // back as pure silence to a clean natural-end — the chapter is
+            // SILENTLY SKIPPED on every play, never erroring and never
+            // re-rendering (the same user-facing shape as #1128, via a path
+            // #1128's structural belt doesn't close). Reject an all-silence
+            // entry here so EnginePlayer deletes it and re-renders, exactly like
+            // the truncation/degenerate cases. The scan early-exits on the first
+            // non-zero sample (a normal entry reads ~one buffer); real audio has
+            // non-zero samples from its first instant, so a quiet-but-real
+            // chapter is never rejected — only a provably all-zero render is.
+            if (pcmIsAllSilence(pcmFile, index.totalBytes)) {
+                throw IOException(
+                    "PCM cache all-silence: ${pcmFile.name} — re-rendering (#1281)",
                 )
             }
             val raf = RandomAccessFile(pcmFile, "r")

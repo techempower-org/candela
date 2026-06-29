@@ -4,8 +4,10 @@ import android.app.Application
 import `in`.jphe.storyvox.playback.cache.PcmCache
 import `in`.jphe.storyvox.playback.cache.PcmCacheConfig
 import `in`.jphe.storyvox.playback.cache.PcmCacheKey
+import `in`.jphe.storyvox.playback.cache.PCM_SILENCE_TOLERANCE_BYTES
 import `in`.jphe.storyvox.playback.cache.PcmIndex
 import `in`.jphe.storyvox.playback.cache.PcmIndexEntry
+import `in`.jphe.storyvox.playback.cache.isPcmBufferSilent
 import `in`.jphe.storyvox.playback.cache.pcmCacheJson
 import `in`.jphe.storyvox.playback.tts.CHUNKER_VERSION
 import `in`.jphe.storyvox.playback.tts.Sentence
@@ -13,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -244,6 +247,81 @@ class CacheFileSourceTest {
             )
         }
         assertTrue("open should reject a zero-sentence index (#1128)", threw)
+    }
+
+    @Test
+    fun `all-silence pcm fails to open with IOException`() = runBlocking {
+        // Issue #1281 — a STRUCTURALLY valid entry (correct sentenceCount,
+        // totalBytes, contiguous in-bounds offsets) whose .pcm is all
+        // zero-amplitude samples. It passes every #1128 structural check, so
+        // pre-fix CacheFileSource served pure silence to a clean natural-end
+        // and the chapter silently skipped on every play. open() must now
+        // reject it via the content gate so EnginePlayer deletes + re-renders.
+        writeIndex(
+            PcmIndex(
+                sampleRate = 22050,
+                sentenceCount = 3,
+                totalBytes = 300L,
+                sentences = listOf(
+                    PcmIndexEntry(i = 0, start = 0, end = 10, byteOffset = 0L, byteLen = 100, trailingSilenceMs = 0),
+                    PcmIndexEntry(i = 1, start = 11, end = 20, byteOffset = 100L, byteLen = 100, trailingSilenceMs = 0),
+                    PcmIndexEntry(i = 2, start = 21, end = 30, byteOffset = 200L, byteLen = 100, trailingSilenceMs = 0),
+                ),
+            ),
+            ByteArray(300), // all zeros == digital silence
+        )
+        var threw = false
+        try {
+            CacheFileSource.open(pcmFile = cache.pcmFileFor(key), indexFile = cache.indexFileFor(key))
+        } catch (e: java.io.IOException) {
+            threw = true
+            assertTrue(
+                "message should flag silence, got: ${e.message}",
+                e.message?.contains("silence") == true,
+            )
+        }
+        assertTrue("open should reject an all-silence entry so it re-renders (#1281)", threw)
+    }
+
+    @Test
+    fun `mostly-silent but audible pcm still opens`() = runBlocking {
+        // Issue #1281 no-over-reject: a real chapter can be mostly quiet yet
+        // carry genuine speech. One audible sentence among silent ones puts the
+        // non-zero byte count well past the tolerance, so the content gate must
+        // KEEP the entry (only an essentially all-zero render is rejected).
+        val pcm = ByteArray(300) // sentences 0 and 2 silent...
+        for (j in 100 until 200) pcm[j] = 0x7F // ...sentence 1 is audible
+        writeIndex(
+            PcmIndex(
+                sampleRate = 22050,
+                sentenceCount = 3,
+                totalBytes = 300L,
+                sentences = listOf(
+                    PcmIndexEntry(i = 0, start = 0, end = 10, byteOffset = 0L, byteLen = 100, trailingSilenceMs = 0),
+                    PcmIndexEntry(i = 1, start = 11, end = 20, byteOffset = 100L, byteLen = 100, trailingSilenceMs = 0),
+                    PcmIndexEntry(i = 2, start = 21, end = 30, byteOffset = 200L, byteLen = 100, trailingSilenceMs = 0),
+                ),
+            ),
+            pcm,
+        )
+        val source = CacheFileSource.open(
+            pcmFile = cache.pcmFileFor(key),
+            indexFile = cache.indexFileFor(key),
+        )
+        assertEquals(0, source.nextChunk()?.sentenceIndex)
+        source.close()
+    }
+
+    @Test
+    fun `isPcmBufferSilent honors the tolerance`() {
+        // Pure helper (#1281): all-zero is silence; real audio is not; the
+        // boundary is the tolerance.
+        assertTrue("all-zero buffer is silence", isPcmBufferSilent(ByteArray(1000)))
+        assertFalse("audible buffer is not silence", isPcmBufferSilent(ByteArray(1000) { 0x40 }))
+        val atTolerance = ByteArray(1000).also { b -> for (j in 0 until PCM_SILENCE_TOLERANCE_BYTES) b[j] = 1 }
+        assertTrue("<= tolerance non-zero bytes still counts as silence", isPcmBufferSilent(atTolerance))
+        val overTolerance = ByteArray(1000).also { b -> for (j in 0..PCM_SILENCE_TOLERANCE_BYTES) b[j] = 1 }
+        assertFalse("> tolerance non-zero bytes is not silence", isPcmBufferSilent(overTolerance))
     }
 
     @Test
