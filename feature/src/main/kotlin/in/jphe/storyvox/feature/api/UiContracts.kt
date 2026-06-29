@@ -6,6 +6,7 @@ import `in`.jphe.storyvox.ui.theme.ReaderTheme
 import `in`.jphe.storyvox.ui.theme.ReaderFontFamily
 import `in`.jphe.storyvox.ui.theme.ReaderTypography
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Lightweight contracts the feature module depends on. The real impls live in
@@ -161,6 +162,17 @@ interface FictionRepositoryUi {
      * FictionDetailViewModel to avoid the O(n) full-list scan.
      */
     fun observeIsInLibrary(fictionId: String): Flow<Boolean>
+    /**
+     * Issue #1231 — per-fiction playback speed. [observePlaybackSpeed] is a
+     * targeted stream of this book's pinned speed (null = inherit the global
+     * default); [setPlaybackSpeed] pins it, or clears it with null. The
+     * reader's speed control uses these to offer "this book vs all books" and
+     * to reflect which scope is currently active. Defaulted so the many
+     * lightweight [FictionRepositoryUi] fakes in tests don't have to implement
+     * them; the real adapter overrides both.
+     */
+    fun observePlaybackSpeed(fictionId: String): Flow<Float?> = flowOf(null)
+    suspend fun setPlaybackSpeed(fictionId: String, speed: Float?) {}
     /**
      * Issue #212 — fetch the plain-text body of a downloaded chapter
      * for AI grounding. Returns null if the chapter row doesn't exist

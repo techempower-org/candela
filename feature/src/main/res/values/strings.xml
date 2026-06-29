@@ -217,6 +217,11 @@
     <!-- TalkBack labels for the colour-swatch chips; %1$s is the colour name -->
     <string name="reader_highlight_color_selected">%1$s highlight colour, selected</string>
     <string name="reader_highlight_color_unselected">%1$s highlight colour</string>
+    <!-- #1234 — share a highlighted quote with attribution -->
+    <string name="reader_quote_share">Share quote</string>
+    <string name="reader_quote_share_via">Share…</string>
+    <string name="reader_quote_copy">Copy to clipboard</string>
+    <string name="reader_quote_copied">Quote copied to clipboard</string>
 
     <!-- Reader / ResumePrompt -->
     <string name="reader_from_the_start">From the start</string>
@@ -249,6 +254,11 @@
     <string name="reader_voice_hide_custom_slider">Hide custom slider</string>
     <string name="reader_voice_show_custom_slider">Show custom slider</string>
     <string name="reader_voice_speed_header">Speed</string>
+    <!-- #1231 — per-fiction playback speed scope toggle in the voice quick-sheet. -->
+    <string name="reader_speed_scope_this_book">This book</string>
+    <string name="reader_speed_scope_all_books">All books</string>
+    <string name="reader_speed_scope_this_book_cd">Save speed for this book only</string>
+    <string name="reader_speed_scope_all_books_cd">Use this speed for all books</string>
     <string name="reader_voice_pitch_header">Pitch</string>
     <string name="reader_voice_sentence_silence_header">Sentence silence</string>
     <string name="reader_voice_speech_speed_cd">Speech speed</string>
@@ -435,6 +445,8 @@
     <string name="chat_tool_in_flight_mark_chapter_read">Marking as read…</string>
     <string name="chat_tool_in_flight_set_speed">Setting playback speed…</string>
     <string name="chat_tool_in_flight_open_voice_library">Opening voice library…</string>
+    <string name="chat_tool_in_flight_search_sources">Searching sources…</string>
+    <string name="chat_tool_in_flight_get_book_details">Fetching book details…</string>
     <string name="chat_tool_in_flight_generic">Running %1$s…</string>
     <!-- Chat · empty states -->
     <string name="chat_empty_no_provider_body">Pick a provider in Settings → AI to start chatting.</string>

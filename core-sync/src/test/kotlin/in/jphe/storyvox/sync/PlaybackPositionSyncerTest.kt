@@ -197,6 +197,7 @@ class PlaybackPositionSyncerTest {
         override suspend fun setFollowedRemote(id: String, followed: Boolean) = error("not used")
         override suspend fun setDownloadMode(id: String, mode: DownloadMode?) = error("not used")
         override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = error("not used")
+        override suspend fun updatePlaybackSpeed(id: String, speed: Float?) = error("not used")
         override suspend fun touchMetadata(id: String, now: Long) = error("not used")
         override suspend fun setSourceId(id: String, sourceId: String) = error("not used")
         override suspend fun getSourceUrl(id: String): String? = error("not used")

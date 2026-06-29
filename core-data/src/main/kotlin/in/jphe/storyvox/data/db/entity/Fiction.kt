@@ -103,6 +103,23 @@ data class Fiction(
      * null at the same time via [FictionDao.clearBackfillFailure].
      */
     val metadataBackfillFailedAt: Long? = null,
+    /**
+     * Issue #1231 — per-fiction playback speed override. Null = inherit the
+     * global default (`pref_default_speed`, with the #195 per-voice override
+     * layered on top); a non-null value pins this book to that speed and is
+     * auto-restored whenever the book is loaded for playback, regardless of
+     * what the user last left some other book at.
+     *
+     * Resolution order applied by the playback wiring
+     * (`RealPlaybackControllerUi`): live-audio/radio chapters force 1.0×
+     * (speeding up a live stream is meaningless), then a non-null
+     * [playbackSpeed] wins, then the global/effective speed. Persisted via
+     * [FictionDao.updatePlaybackSpeed] from the reader's speed control when
+     * the user picks "this book"; cleared back to null when they pick
+     * "all books". Like the other user-owned columns it is preserved across
+     * browse-listing upserts in [FictionDao.upsertAllPreservingUserState].
+     */
+    val playbackSpeed: Float? = null,
 ) {
     companion object {
         /**

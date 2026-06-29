@@ -269,6 +269,14 @@ internal class Ao3Source @Inject constructor(
     }
 
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
+        // #1243 — AO3 throttles anonymous search hard; gate it behind the
+        // captured session so queries ride the signed-in user's more
+        // generous rate limits. Mirrors the follows surface
+        // ([subscriptions] / [markedForLater]), which gate on the same
+        // [readUsername] session check. Browse (popular / byGenre /
+        // latestUpdates) stays anonymous.
+        readUsername()
+            ?: return FictionResult.AuthRequired("Sign in to AO3 to search")
         val term = query.term.trim()
         // Peel filter state back out of [SearchQuery]. [applyFilters]
         // stuffs the rating into `tags` with a "rating:" prefix because

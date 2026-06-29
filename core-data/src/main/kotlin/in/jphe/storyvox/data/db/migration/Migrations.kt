@@ -479,6 +479,21 @@ val MIGRATION_14_15: Migration = object : Migration(14, 15) {
     }
 }
 
+/**
+ * v16 — issue #1231: per-fiction playback speed. Adds the nullable
+ * `fiction.playbackSpeed` column so a book can pin its own speed and have
+ * it auto-restored on load, independent of the global default. Purely
+ * additive; existing rows get NULL (inherit the global/effective speed).
+ *
+ * SQLite `ALTER TABLE ADD COLUMN` with a nullable type is a metadata-only
+ * change — no row is rewritten. REAL affinity matches the `Float?` field.
+ */
+val MIGRATION_15_16: Migration = object : Migration(15, 16) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `fiction` ADD COLUMN `playbackSpeed` REAL")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -494,4 +509,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_12_13,
     MIGRATION_13_14,
     MIGRATION_14_15,
+    MIGRATION_15_16,
 )

@@ -78,7 +78,11 @@ import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
     // v15 (#1083 inbox unread-count) — adds `inbox_event.newChapterCount`
     // so coalesced polls accumulate chapter deltas instead of overwriting.
     // Purely additive NOT NULL DEFAULT 0 column.
-    version = 15,
+    //
+    // v16 (#1231 per-fiction playback speed) — adds `fiction.playbackSpeed`
+    // so a book can pin its own speed (auto-restored on load) independent of
+    // the global default. Purely additive nullable REAL column.
+    version = 16,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

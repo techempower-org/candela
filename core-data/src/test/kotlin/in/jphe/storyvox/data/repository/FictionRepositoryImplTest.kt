@@ -167,6 +167,13 @@ class FictionRepositoryImplTest {
             publish(id)
         }
 
+        override suspend fun updatePlaybackSpeed(id: String, speed: Float?) {
+            callLog += "updatePlaybackSpeed($id, $speed)"
+            val r = rows[id] ?: return
+            rows[id] = r.copy(playbackSpeed = speed)
+            publish(id)
+        }
+
         override suspend fun touchMetadata(id: String, now: Long) {
             val r = rows[id] ?: return
             rows[id] = r.copy(metadataFetchedAt = now)

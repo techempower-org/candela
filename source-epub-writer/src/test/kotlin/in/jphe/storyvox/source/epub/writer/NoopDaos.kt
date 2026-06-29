@@ -43,6 +43,7 @@ internal class NoopFictionDao : FictionDao {
     override suspend fun setFollowedRemote(id: String, followed: Boolean) = Unit
     override suspend fun setDownloadMode(id: String, mode: DownloadMode?) = Unit
     override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
+    override suspend fun updatePlaybackSpeed(id: String, speed: Float?) = Unit
     override suspend fun touchMetadata(id: String, now: Long) = Unit
     override suspend fun setSourceId(id: String, sourceId: String) = Unit
     override suspend fun getSourceUrl(id: String): String? = null

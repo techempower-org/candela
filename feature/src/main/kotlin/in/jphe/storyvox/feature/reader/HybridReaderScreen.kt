@@ -93,6 +93,8 @@ fun HybridReaderScreen(
     val recapPlayback by viewModel.recapPlayback.collectAsStateWithLifecycle()
     val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
     val chapters by viewModel.chapters.collectAsStateWithLifecycle()
+    // #1231 — whether the current book has its own pinned playback speed.
+    val speedIsPerBook by viewModel.speedIsPerBook.collectAsStateWithLifecycle()
     val autoScrollEnabled by viewModel.autoScrollEnabled.collectAsStateWithLifecycle()
     val focusModeEnabled by viewModel.focusModeEnabled.collectAsStateWithLifecycle()
     val readerColors by viewModel.readerColors.collectAsStateWithLifecycle()
@@ -103,6 +105,8 @@ fun HybridReaderScreen(
     val chapterHighlights by viewModel.chapterHighlights.collectAsStateWithLifecycle()
     // Issue #1229 — whole-book ("find in book") search overlay state.
     val bookSearch by viewModel.bookSearch.collectAsStateWithLifecycle()
+    // Issue #1234 — author for the share-quote attribution (not on playback state).
+    val currentAuthor by viewModel.currentAuthor.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -278,6 +282,9 @@ fun HybridReaderScreen(
                 onPickVoice = onPickVoice,
                 onSetSpeed = viewModel::setSpeed,
                 onPersistSpeed = viewModel::persistSpeed,
+                // #1231 — per-fiction speed scope toggle.
+                perBookSpeedActive = speedIsPerBook,
+                onToggleSpeedScope = viewModel::toggleSpeedScope,
                 onSetPitch = viewModel::setPitch,
                 onPersistPitch = viewModel::persistPitch,
                 onStartSleepTimer = viewModel::startSleepTimer,
@@ -381,6 +388,10 @@ fun HybridReaderScreen(
                 // create / edit / delete verbs; ReaderTextView renders the
                 // spans, drives the selection toolbar, and routes taps on a
                 // saved highlight to its edit/delete sheet.
+                // Issue #1234 — author for the share-quote attribution line;
+                // book + chapter titles come from the playback state inside
+                // ReaderTextView.
+                authorName = currentAuthor,
                 savedHighlights = chapterHighlights,
                 onCreateHighlight = viewModel::createHighlight,
                 onUpdateHighlight = viewModel::updateHighlight,

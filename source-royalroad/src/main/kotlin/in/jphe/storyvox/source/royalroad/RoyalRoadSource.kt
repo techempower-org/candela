@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.royalroad
 
+import `in`.jphe.storyvox.data.db.dao.AuthDao
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.filter.FilterDimension
@@ -63,6 +64,11 @@ class RoyalRoadSource @Inject internal constructor(
     private val fetcher: RoyalRoadChallengeFetcher,
     @Suppress("unused") private val client: RateLimitedClient,
     @Suppress("unused") private val cookieJar: RoyalRoadCookieJar,
+    // #1243 — read-only session-presence check for the search() gate. The
+    // shared auth store writes a row here on WebView sign-in
+    // (AuthRepository.captureSession) and clears it on sign-out, so a
+    // non-null row is the proactive "is signed in" signal search() needs.
+    private val authDao: AuthDao,
 ) : FictionSource {
 
     override val id: String = RoyalRoadIds.SOURCE_ID
@@ -198,8 +204,18 @@ class RoyalRoadSource @Inject internal constructor(
             page,
         )
 
-    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> =
-        fetchBrowsePage(buildSearchUrl(query), query.page)
+    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
+        // #1243 — RR throttles anonymous search; gate it behind the captured
+        // session so queries ride the signed-in user's more generous rate
+        // limits. The shared auth store holds a row per signed-in source, so a
+        // non-null row means a session was captured — the same proactive check
+        // the AO3 search gate uses. browse()/byGenre() stay anonymous (the
+        // popular/trending pages serve fine unauthenticated).
+        if (authDao.get(SourceIds.ROYAL_ROAD) == null) {
+            return FictionResult.AuthRequired(message = "Sign in to Royal Road to search")
+        }
+        return fetchBrowsePage(buildSearchUrl(query), query.page)
+    }
 
     override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> =
         when (val outcome = fetcher.fetchHtml(fictionUrl(fictionId))) {
