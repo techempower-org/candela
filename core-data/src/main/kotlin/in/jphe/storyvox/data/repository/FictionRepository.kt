@@ -292,12 +292,13 @@ class FictionRepositoryImpl @Inject constructor(
     ): FictionResult<ListPage<FictionSummary>> = cacheListing(result)
 
     override suspend fun refreshDetail(id: String): FictionResult<Unit> = withContext(Dispatchers.IO) {
-        // Look up the persisted row to route to the correct source. Falls
-        // back to the default source when the row is absent (first-add flow:
-        // addToLibrary → refreshDetail before the row exists). Future
-        // multi-source addByUrl pre-writes a stub row with sourceId so this
-        // path always finds it.
-        val src = sourceFor(fictionDao.get(id)?.sourceId ?: SourceIds.ROYAL_ROAD)
+        // Look up the persisted row to route to the correct source. When the
+        // row is absent — the EPUB/PDF import flows navigate straight to
+        // FictionDetail before any row is written (#1298) — derive the source
+        // from the fictionId's `<sourceId>:` prefix; bare-id sources (Royal
+        // Road) fall back to the legacy default. A successful hydrate below
+        // then writes the row, so subsequent loads route off the row.
+        val src = sourceFor(fictionDao.get(id)?.sourceId ?: sourceIdForFictionId(id, sources.keys))
         when (val result = src.fictionDetail(id)) {
             is FictionResult.Success -> {
                 upsertDetail(result.value)
@@ -404,7 +405,7 @@ class FictionRepositoryImpl @Inject constructor(
 
     override suspend fun setFollowedRemote(id: String, followed: Boolean): FictionResult<Unit> =
         withContext(Dispatchers.IO) {
-            val src = sourceFor(fictionDao.get(id)?.sourceId ?: SourceIds.ROYAL_ROAD)
+            val src = sourceFor(fictionDao.get(id)?.sourceId ?: sourceIdForFictionId(id, sources.keys))
             when (val r = src.setFollowed(id, followed)) {
                 is FictionResult.Success -> {
                     fictionDao.setFollowedRemote(id, followed)
@@ -693,6 +694,25 @@ internal fun FictionDetail.toEntity(existing: Fiction?, now: Long): Fiction {
  *  catching it here rather than asking every source to opt in keeps the
  *  guard durable.
  */
+/**
+ * Issue #1298 — derive the backing source for a fictionId that has no
+ * persisted row yet. Most sources prefix their ids with `<sourceId>:`
+ * (`epub:`, `pdf:`, `gutenberg:`, `ao3:`, `ocr:`, `readability:`, …); Royal
+ * Road uses bare numeric ids. Returns the prefix when it names a
+ * currently-bound source, else falls back to [SourceIds.ROYAL_ROAD] — never
+ * an unbound prefix, since [FictionRepositoryImpl.sourceFor] errors on an
+ * unknown source id.
+ *
+ * Why this exists: the EPUB/PDF import flows (Open-With #1000 and the in-app
+ * picker #1228) navigate straight to FictionDetail, so `refreshDetail` runs
+ * before any row is written. Defaulting to Royal Road there sent
+ * `epub:<hash>` to RoyalRoadSource → "Fiction epub:<hash> not found".
+ */
+internal fun sourceIdForFictionId(id: String, boundSourceIds: Set<String>): String =
+    id.substringBefore(':', missingDelimiterValue = "")
+        .takeIf { it.isNotEmpty() && it in boundSourceIds }
+        ?: SourceIds.ROYAL_ROAD
+
 internal fun preferTitle(incoming: String, existing: String, sourceFallback: String?): String {
     if (incoming.isBlank()) return existing.ifBlank { incoming }
     if (existing.isBlank()) return incoming
