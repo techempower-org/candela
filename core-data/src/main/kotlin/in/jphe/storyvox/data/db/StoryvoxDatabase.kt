@@ -17,6 +17,7 @@ import `in`.jphe.storyvox.data.db.dao.ListeningStatsDao
 import `in`.jphe.storyvox.data.db.dao.LlmMessageDao
 import `in`.jphe.storyvox.data.db.dao.LlmSessionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackDao
+import `in`.jphe.storyvox.data.db.dao.TeleprompterScriptDao
 import `in`.jphe.storyvox.data.db.entity.Annotation
 import `in`.jphe.storyvox.data.db.entity.AuthCookie
 import `in`.jphe.storyvox.data.db.entity.Chapter
@@ -29,6 +30,7 @@ import `in`.jphe.storyvox.data.db.entity.InboxEvent
 import `in`.jphe.storyvox.data.db.entity.LlmSession
 import `in`.jphe.storyvox.data.db.entity.LlmStoredMessage
 import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
+import `in`.jphe.storyvox.data.db.entity.TeleprompterScript
 
 @Database(
     entities = [
@@ -62,6 +64,9 @@ import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
         // v17 (#1283 per-character voice) — per-(fiction, character) voiceId
         // map. Additive junction table; FK CASCADE to fiction.
         CharacterVoice::class,
+        // v18 (#1369 script manager) — user-authored teleprompter scripts
+        // (save/edit/organize). Standalone rows with no FK to fiction/chapter.
+        TeleprompterScript::class,
     ],
     // v11 (#965 per-chapter playback position) — PlaybackPosition PK changes
     // from `fictionId` to composite `(fictionId, chapterId)` so each chapter
@@ -92,7 +97,12 @@ import `in`.jphe.storyvox.data.db.entity.PlaybackPosition
     // v17 (#1283 per-character voice) — adds the `character_voice` table
     // (per-(fiction, character) → voiceId). Purely additive new table with a
     // CASCADE FK to fiction. See MIGRATION_16_17.
-    version = 17,
+    //
+    // v18 (#1369 script manager) — adds the `teleprompter_script` table for
+    // user-authored teleprompter scripts (save/edit/organize). Purely additive
+    // new table; no FK (scripts are independent of fiction/chapter). See
+    // MIGRATION_17_18.
+    version = 18,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -111,6 +121,9 @@ abstract class StoryvoxDatabase : RoomDatabase() {
 
     // Issue #1283 — per-character voice assignment map.
     abstract fun characterVoiceDao(): CharacterVoiceDao
+
+    // Issue #1369 — user-authored teleprompter scripts (save/edit/organize).
+    abstract fun teleprompterScriptDao(): TeleprompterScriptDao
 
     // Issue #1235 — read-only aggregate queries for the listening-stats
     // dashboard. No entity of its own; aggregates chapter_history +

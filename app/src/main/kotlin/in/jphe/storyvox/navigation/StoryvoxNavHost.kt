@@ -94,6 +94,17 @@ object StoryvoxRoutes {
 
     /** Issue #1235 — Listening stats dashboard, reached from the Settings hub. */
     const val STATS = "stats"
+
+    /** Issue #1369 — teleprompter script manager (save/edit/organize). The
+     *  list is reached from the Settings hub and (once wired) the teleprompter
+     *  transport bar; [SCRIPT_EDIT] is the per-script editor. */
+    const val SCRIPT_LIST = "scripts"
+    const val SCRIPT_EDIT = "scripts/{scriptId}"
+
+    /** Build the editor route for [scriptId]. The id is a client UUID (no
+     *  slashes) but we encode it for parity with [reader]/[fictionDetail]. */
+    fun scriptEdit(scriptId: String) = "scripts/${Uri.encode(scriptId)}"
+
     const val SETTINGS = "settings"
     const val SETTINGS_PRONUNCIATION = "settings/pronunciation"
     const val VOICE_LIBRARY = "settings/voices"
@@ -1034,6 +1045,7 @@ private fun StoryvoxNavHostContent(
                     onOpenAbout = { navController.navigate(StoryvoxRoutes.SETTINGS_ABOUT) },
                     onOpenAdvanced = { navController.navigate(StoryvoxRoutes.SETTINGS_ADVANCED) },
                     onOpenStats = { navController.navigate(StoryvoxRoutes.STATS) },
+                    onOpenScripts = { navController.navigate(StoryvoxRoutes.SCRIPT_LIST) },
                 )
             }
 
@@ -1048,6 +1060,42 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 ListeningStatsScreen(onBack = { navController.popBackStack() })
+            }
+
+            // Issue #1369 — teleprompter script manager. List + editor are
+            // drill-downs (push enter/exit) reached from the Settings hub.
+            // "Load into Teleprompter" queues the script into the shared
+            // TeleprompterScriptStore (core-playback) and routes to PLAYING,
+            // where the reader picks it up in teleprompter mode.
+            composable(
+                StoryvoxRoutes.SCRIPT_LIST,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.reader.script.ScriptListScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenScript = { id -> navController.navigate(StoryvoxRoutes.scriptEdit(id)) },
+                    onOpenTeleprompter = {
+                        navController.navigate(StoryvoxRoutes.PLAYING) { launchSingleTop = true }
+                    },
+                )
+            }
+            composable(
+                route = StoryvoxRoutes.SCRIPT_EDIT,
+                arguments = listOf(navArgument("scriptId") { type = NavType.StringType }),
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.reader.script.ScriptEditScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenTeleprompter = {
+                        navController.navigate(StoryvoxRoutes.PLAYING) { launchSingleTop = true }
+                    },
+                )
             }
 
             composable(

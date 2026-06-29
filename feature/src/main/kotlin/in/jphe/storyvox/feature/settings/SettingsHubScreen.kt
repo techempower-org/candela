@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
@@ -157,6 +158,12 @@ fun SettingsHubScreen(
      * lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenStats: () -> Unit = {},
+    /**
+     * Issue #1369 — teleprompter script manager. Default no-op so existing
+     * callers / smoke tests compile without wiring it; production wiring lives
+     * in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
+     */
+    onOpenScripts: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var query by remember { mutableStateOf("") }
@@ -246,6 +253,14 @@ fun SettingsHubScreen(
                     title = stringResource(R.string.settings_hub_stats_title),
                     subtitle = stringResource(R.string.settings_hub_stats_subtitle),
                     onClick = onOpenStats,
+                )
+                // Issue #1369 — teleprompter script manager. Reading-adjacent:
+                // save/edit/organize scripts the teleprompter can load.
+                SettingsHubRow(
+                    icon = Icons.Outlined.Description,
+                    title = stringResource(R.string.settings_hub_scripts_title),
+                    subtitle = stringResource(R.string.settings_hub_scripts_subtitle),
+                    onClick = onOpenScripts,
                 )
                 // v0.5.59 (#cover-style-toggle) — Appearance. Book-
                 // cover fallback style (Monogram / Branded / Cover

@@ -30,6 +30,7 @@ import `in`.jphe.storyvox.data.db.dao.ListeningStatsDao
 import `in`.jphe.storyvox.data.db.dao.LlmMessageDao
 import `in`.jphe.storyvox.data.db.dao.LlmSessionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackDao
+import `in`.jphe.storyvox.data.db.dao.TeleprompterScriptDao
 import `in`.jphe.storyvox.data.db.migration.ALL_MIGRATIONS
 import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
@@ -131,6 +132,8 @@ object DataModule {
     @Provides fun annotationDao(db: StoryvoxDatabase): AnnotationDao = db.annotationDao()
     // Issue #1283 — per-character voice assignment map.
     @Provides fun characterVoiceDao(db: StoryvoxDatabase): CharacterVoiceDao = db.characterVoiceDao()
+    // Issue #1369 — user-authored teleprompter scripts (save/edit/organize).
+    @Provides fun teleprompterScriptDao(db: StoryvoxDatabase): TeleprompterScriptDao = db.teleprompterScriptDao()
     // Issue #1235 — read-only aggregate DAO for the listening-stats dashboard.
     @Provides fun listeningStatsDao(db: StoryvoxDatabase): ListeningStatsDao = db.listeningStatsDao()
 
