@@ -592,6 +592,17 @@
     <string name="onboarding_voice_download_failed">Couldn\'t download %1$s. %2$s</string>
     <string name="onboarding_voice_try_again">Try again</string>
 
+    <!-- Onboarding · SourcePickerOnboarding (#1370) -->
+    <string name="onboarding_sources_headline">What do you want to read?</string>
+    <string name="onboarding_sources_subtitle">You can always change these later in Settings.</string>
+    <string name="onboarding_sources_group_books">Books &amp; Literature</string>
+    <string name="onboarding_sources_group_webfiction">Web Fiction</string>
+    <string name="onboarding_sources_group_news">News &amp; Research</string>
+    <string name="onboarding_sources_group_yourcontent">Your Content</string>
+    <string name="onboarding_sources_group_audio">Audio</string>
+    <string name="onboarding_sources_continue">Continue</string>
+    <string name="onboarding_sources_skip">Skip for now</string>
+
     <!-- Onboarding · Friendly voice descriptions (keyed by catalog displayName) -->
     <string name="voice_desc_lessac">Warm American narrator — clear and steady.</string>
     <string name="voice_desc_cori">British, gentle and even — good for long sessions.</string>

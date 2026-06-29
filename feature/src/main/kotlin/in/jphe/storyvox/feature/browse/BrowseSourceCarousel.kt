@@ -668,9 +668,9 @@ private fun sourceTagline(id: String): String {
  * material-icons-extended, already on the classpath via the BottomTabBar
  * compass import.
  *
- * `internal` so the Source Catalog screen (#1365) reuses the exact same
- * id→glyph mapping — the carousel card and the catalog card show the same
- * icon for a given source, with one table to keep in sync.
+ * `internal` so the Source Catalog screen (#1365) and onboarding source
+ * picker (#1370) reuse the exact same id→glyph mapping — one table to
+ * keep in sync rather than duplicates that silently drift.
  */
 internal fun sourceGlyph(id: String): ImageVector = when (id) {
     SourceIds.ROYAL_ROAD -> Icons.Filled.AutoStories

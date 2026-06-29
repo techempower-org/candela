@@ -47,16 +47,19 @@ import `in`.jphe.storyvox.feature.components.overlayForeground
  * install (until Settings → Developer → Reset onboarding flips it
  * back for testing).
  *
- * State machine (three steps, forward-only — no Back, by design; if
+ * State machine (four steps, forward-only — no Back, by design; if
  * the user needs to revisit a choice they completed earlier they can
  * use the corresponding affordance in the post-welcome app):
  *
- *   Welcome → VoicePicker → FirstFiction → done.
+ *   Welcome → VoicePicker → SourcePick → FirstFiction → done.
+ *
+ * (#1370 inserted SourcePick — "What do you want to read?" — between the
+ * voice picker and the first-fiction picker.)
  *
  * Each transition is a fade — the screens share the same background
  * colour so a horizontal slide would feel like the user moved
  * "inside" the welcome, which is wrong; the welcome is a single
- * conceptual step composed of three pages.
+ * conceptual step composed of four pages.
  *
  * The host renders `content()` underneath itself unconditionally so
  * the embedded NavHost is alive when the user finally taps a CTA
@@ -96,7 +99,7 @@ fun OnboardingHost(
             content()
         }
         if (show) {
-            // Forward-only three-step state machine. rememberSaveable
+            // Forward-only four-step state machine. rememberSaveable
             // so a configuration change (rotation) doesn't snap the
             // user back to step 1 mid-flow.
             var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
@@ -119,7 +122,7 @@ fun OnboardingHost(
                     ),
             ) {
                 // Issue #787 — the shared scaffold (dot row +
-                // "Step X of 3" indicator) is hoisted OUTSIDE the
+                // "Step X of N" indicator) is hoisted OUTSIDE the
                 // AnimatedContent so the indicator and any future
                 // chrome stay mounted across step transitions; only
                 // the per-step page body cross-fades. Issue #933
@@ -134,7 +137,13 @@ fun OnboardingHost(
                 // own state (not AnimatedContent's `current`), so the
                 // indicator updates the instant the user taps a CTA
                 // rather than waiting for the cross-fade to complete.
-                OnboardingScaffold(stepIndex = step.ordinal) {
+                OnboardingScaffold(
+                    stepIndex = step.ordinal,
+                    // Derive the dot count from the enum so adding a step
+                    // (e.g. #1370's SourcePick) updates the indicator
+                    // without a second hand-edit here.
+                    totalSteps = OnboardingStep.entries.size,
+                ) {
                     AnimatedContent(
                         targetState = step,
                         transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -148,12 +157,21 @@ fun OnboardingHost(
                                 },
                             )
                             OnboardingStep.VoicePick -> VoicePickerOnboarding(
-                                onContinue = { step = OnboardingStep.FirstFiction },
-                                onSkip = { step = OnboardingStep.FirstFiction },
+                                onContinue = { step = OnboardingStep.SourcePick },
+                                onSkip = { step = OnboardingStep.SourcePick },
                                 onMoreVoices = {
                                     viewModel.markCompleted()
                                     onOpenVoiceLibrary()
                                 },
+                            )
+                            // #1370 — "What do you want to read?" Toggles
+                            // write straight through to settings, so both
+                            // CTAs are pure navigation onward to the
+                            // first-fiction picker; Skip just leaves the
+                            // default-enabled roster untouched.
+                            OnboardingStep.SourcePick -> SourcePickerOnboarding(
+                                onContinue = { step = OnboardingStep.FirstFiction },
+                                onSkip = { step = OnboardingStep.FirstFiction },
                             )
                             OnboardingStep.FirstFiction -> FirstFictionPicker(
                                 // Issues #644 + #647 (v1.0) — bypass the
@@ -198,8 +216,9 @@ fun OnboardingHost(
     }
 }
 
-/** The three pages of the welcome flow, in display order. */
-internal enum class OnboardingStep { Welcome, VoicePick, FirstFiction }
+/** The four pages of the welcome flow, in display order. #1370 added
+ *  [SourcePick] between the voice picker and the first-fiction picker. */
+internal enum class OnboardingStep { Welcome, VoicePick, SourcePick, FirstFiction }
 
 @HiltViewModel
 class OnboardingHostViewModel @Inject constructor(
