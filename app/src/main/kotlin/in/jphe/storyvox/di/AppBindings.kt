@@ -33,6 +33,7 @@ import `in`.jphe.storyvox.feature.api.BrowseRepositoryUi
 import `in`.jphe.storyvox.feature.api.BrowseSource
 import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.data.repository.AddByUrlResult
+import `in`.jphe.storyvox.feature.api.DocumentImporterUi
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
 import `in`.jphe.storyvox.feature.api.UiAddByUrlResult
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
@@ -91,6 +92,15 @@ object AppBindings {
         repo: FictionRepository,
         chapters: ChapterRepository,
     ): FictionRepositoryUi = RealFictionRepositoryUi(repo, chapters)
+
+    /** Issue #1228 — bridges the `:feature` [DocumentImporterUi] seam to
+     *  the app-side single-file import path (the same one MainActivity's
+     *  "Open With" ingest uses), so the Library "Import a file…" picker can
+     *  drive an import without `:feature` depending on `:app`. */
+    @Provides @Singleton
+    fun provideDocumentImporterUi(
+        impl: `in`.jphe.storyvox.data.DocumentImporterUiImpl,
+    ): DocumentImporterUi = impl
 
     @Provides @Singleton
     fun provideBrowseRepositoryUi(

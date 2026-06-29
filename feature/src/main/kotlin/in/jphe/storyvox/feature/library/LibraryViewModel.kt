@@ -17,8 +17,10 @@ import `in`.jphe.storyvox.data.repository.ShelfRepository
 import `in`.jphe.storyvox.data.repository.playback.PlaybackResumePolicyConfig
 import `in`.jphe.storyvox.data.work.MetadataBackfillScheduler
 import `in`.jphe.storyvox.data.source.model.FictionSummary
+import `in`.jphe.storyvox.feature.api.DocumentImporterUi
 import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
+import `in`.jphe.storyvox.feature.api.ImportFileResult
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.UiAddByUrlResult
 import `in`.jphe.storyvox.feature.api.UiRouteCandidate
@@ -156,6 +158,13 @@ sealed interface ManageShelvesSheetState {
 sealed interface LibraryUiEvent {
     data class OpenFiction(val fictionId: String) : LibraryUiEvent
     data class OpenReader(val fictionId: String, val chapterId: String) : LibraryUiEvent
+
+    /**
+     * Issue #1228 — transient toast for the "Import a file…" flow, e.g.
+     * an unreadable pick or a type Candela can't import. Success navigates
+     * via [OpenFiction] instead; this carries only the failure copy.
+     */
+    data class ShowMessage(val text: String) : LibraryUiEvent
     /**
      * Issue #383 — Inbox row tap. Carries a fully-resolved deep-link URI
      * string (`storyvox://reader/<fid>/<cid>` or `storyvox://fiction/<fid>`).
@@ -216,6 +225,9 @@ class LibraryViewModel @Inject constructor(
     /** Issue #981 — kick the metadata back-fill worker on screen open so
      *  synced "Loading…" placeholder rows hydrate. */
     private val metadataBackfillScheduler: MetadataBackfillScheduler,
+    /** Issue #1228 — single-file import seam backing the "Import a file…"
+     *  add-menu entry (EPUB / PDF / TXT via SAF). */
+    private val documentImporter: DocumentImporterUi,
 ) : ViewModel() {
 
     init {
@@ -546,6 +558,32 @@ class LibraryViewModel @Inject constructor(
 
     fun dismissAddByUrl() {
         _addByUrlState.value = AddByUrlSheetState.Hidden
+    }
+
+    /**
+     * Issue #1228 — import a single local file (EPUB / PDF / TXT) the user
+     * picked via the SAF document picker. Delegates to [DocumentImporterUi]
+     * (classify → take a persistable read grant → register with the
+     * matching per-format store) and, on success, navigates to the new
+     * fiction via the same [LibraryUiEvent.OpenFiction] event the
+     * Add-by-URL flow uses. A non-success outcome surfaces a transient
+     * message rather than failing silently.
+     */
+    fun importPickedFile(uriString: String) {
+        viewModelScope.launch {
+            when (val result = documentImporter.importLocalFile(uriString)) {
+                is ImportFileResult.Success ->
+                    _events.send(LibraryUiEvent.OpenFiction(result.fictionId))
+                ImportFileResult.Unsupported ->
+                    _events.send(
+                        LibraryUiEvent.ShowMessage(
+                            "That file can't be imported. Try an EPUB, PDF, or text file.",
+                        ),
+                    )
+                is ImportFileResult.Error ->
+                    _events.send(LibraryUiEvent.ShowMessage(result.message))
+            }
+        }
     }
 
     /**

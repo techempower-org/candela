@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.documentfile.provider.DocumentFile
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -16,6 +17,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -29,6 +31,56 @@ private object PdfKeys {
      *  reboots — we don't re-prompt. Empty / missing = no folder
      *  configured (Browse → Local PDFs shows empty state). */
     val FOLDER_URI = stringPreferencesKey("pref_pdf_folder_uri")
+
+    /** Issue #1228 — single PDFs imported via the in-app "Import a file…"
+     *  picker (vs the folder picker). Each member is one encoded record
+     *  (`displayName|uriString` — see [encodeImportedPdf] /
+     *  [decodeImportedPdf]). A `Set<String>` dedups by exact record; the
+     *  indexed list also keys on fictionId so re-importing the same
+     *  document doesn't create a duplicate fiction. Mirrors the
+     *  [EpubConfigImpl] #1000 import store; PDFs carry no entry-kind so
+     *  the record is one field shorter. */
+    val IMPORTED_FILES = stringSetPreferencesKey("pref_pdf_imported_files")
+}
+
+/** Issue #1228 — encoded `Set<String>` record for one imported PDF.
+ *  Pipe-delimited; the uriString is last so it can legally contain the
+ *  delimiter (we `substringAfter` the first pipe). */
+private fun encodeImportedPdf(entry: PdfFileEntry): String =
+    "${entry.displayName.replace('|', '_')}|${entry.uriString}"
+
+private fun decodeImportedPdf(record: String): PdfFileEntry? {
+    val pipe = record.indexOf('|')
+    if (pipe < 0) return null
+    val displayName = record.substring(0, pipe)
+    val uriString = record.substring(pipe + 1)
+    if (uriString.isBlank()) return null
+    return PdfFileEntry(
+        fictionId = fictionIdForPdfUri(uriString),
+        uriString = uriString,
+        displayName = displayName,
+    )
+}
+
+/** Decode the persisted import-record set into entries, sorted by
+ *  display name. Malformed records are dropped silently (forward-
+ *  compat / corruption resilience). Mirrors [EpubConfigImpl]'s decoder. */
+private fun decodeImportedPdfSet(records: Set<String>?): List<PdfFileEntry> =
+    records.orEmpty()
+        .mapNotNull { decodeImportedPdf(it) }
+        .sortedBy { it.displayName.lowercase() }
+
+/** Issue #1228 — merge folder-enumerated PDFs with single-file imports.
+ *  Folder entries win on fictionId collision (the folder is the canonical
+ *  surface); imports for files not in the folder are appended. Stable
+ *  order: folder documents first, then imports. Mirrors [mergeBooks]. */
+private fun mergeDocuments(
+    folder: List<PdfFileEntry>,
+    imported: List<PdfFileEntry>,
+): List<PdfFileEntry> {
+    if (imported.isEmpty()) return folder
+    val folderIds = folder.mapTo(HashSet()) { it.fictionId }
+    return folder + imported.filter { it.fictionId !in folderIds }
 }
 
 /**
@@ -89,13 +141,25 @@ class PdfConfigImpl internal constructor(
     override suspend fun snapshot(): String? =
         store.data.first()[PdfKeys.FOLDER_URI]?.takeIf { it.isNotBlank() }
 
-    override val documents: Flow<List<PdfFileEntry>> = folderUriString.map { uri ->
-        if (uri == null) emptyList() else withContext(Dispatchers.IO) { enumerator.enumerate(uri) }
-    }.distinctUntilChanged()
+    /** Issue #1228 — single PDFs imported via the in-app picker, decoded
+     *  from the [PdfKeys.IMPORTED_FILES] preference set. Independent of the
+     *  folder picker; merged into [documents] below. */
+    private val importedFiles: Flow<List<PdfFileEntry>> = store.data
+        .map { prefs -> decodeImportedPdfSet(prefs[PdfKeys.IMPORTED_FILES]) }
+        .distinctUntilChanged()
+
+    override val documents: Flow<List<PdfFileEntry>> =
+        combine(folderUriString, importedFiles) { uri, imported ->
+            val folder = if (uri == null) emptyList()
+            else withContext(Dispatchers.IO) { enumerator.enumerate(uri) }
+            mergeDocuments(folder, imported)
+        }.distinctUntilChanged()
 
     override suspend fun documents(): List<PdfFileEntry> {
-        val uri = snapshot() ?: return emptyList()
-        return withContext(Dispatchers.IO) { enumerator.enumerate(uri) }
+        val folder = snapshot()?.let { withContext(Dispatchers.IO) { enumerator.enumerate(it) } }
+            ?: emptyList()
+        val imported = decodeImportedPdfSet(store.data.first()[PdfKeys.IMPORTED_FILES])
+        return mergeDocuments(folder, imported)
     }
 
     /**
@@ -115,6 +179,43 @@ class PdfConfigImpl internal constructor(
 
     suspend fun clearFolder() {
         store.edit { prefs -> prefs.remove(PdfKeys.FOLDER_URI) }
+    }
+
+    /**
+     * Issue #1228 — register a single PDF picked via the in-app "Import a
+     * file…" flow as a standalone fiction, independent of the folder
+     * picker. The caller (the shared document-import path) is expected to
+     * have already taken persistable read permission on the Uri via
+     * [android.content.ContentResolver.takePersistableUriPermission] so the
+     * grant survives the next launch (re-opens from Library work). Returns
+     * the stable fictionId the caller navigates to.
+     *
+     * Idempotent on the Uri: the persisted record set is keyed by the
+     * exact encoded record, and the indexed list dedups by fictionId
+     * ([fictionIdForPdfUri] is a stable hash of the Uri), so importing the
+     * same file twice doesn't create a second fiction. Direct mirror of
+     * [EpubConfigImpl.importFile].
+     */
+    suspend fun importFile(
+        uriString: String,
+        displayName: String,
+    ): String {
+        val entry = PdfFileEntry(
+            fictionId = fictionIdForPdfUri(uriString),
+            uriString = uriString.trim(),
+            displayName = displayName.ifBlank { uriString.substringAfterLast('/') },
+        )
+        store.edit { prefs ->
+            val existing = prefs[PdfKeys.IMPORTED_FILES].orEmpty()
+            // Drop any prior record for the same fictionId (e.g. the
+            // display name changed) before adding the fresh one.
+            val pruned = existing.filterTo(mutableSetOf()) { rec ->
+                decodeImportedPdf(rec)?.fictionId != entry.fictionId
+            }
+            pruned.add(encodeImportedPdf(entry))
+            prefs[PdfKeys.IMPORTED_FILES] = pruned
+        }
+        return entry.fictionId
     }
 
     companion object {
