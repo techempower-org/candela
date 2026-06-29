@@ -34,7 +34,7 @@ image: /screenshots/03-reader.png
       <a class="cta-tertiary" href="install/">Install guide →</a>
     </p>
     <p class="cta-fineprint muted">
-      Sideload, Android 8.0+, ~140 MB APK. No Play Store. No tracking. No in-app purchases.
+      Sideload, Android 8.0+, ~210 MB APK. No Play Store. No tracking. No in-app purchases.
     </p>
   </div>
   <div class="hero-art">
