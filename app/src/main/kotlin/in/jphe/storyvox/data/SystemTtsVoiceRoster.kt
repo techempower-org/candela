@@ -127,8 +127,12 @@ class SystemTtsVoiceRoster @Inject constructor(
 
         val raw = mutableListOf<RawVoice>()
         // Step 2: bind each engine and enumerate its voices.
+        // #1390 — filter to bindable engines only: Samsung's private
+        // engine triggers a reconnect loop that survives shutdown().
+        val bindable = engineResolver.bindableEnginePackages().toSet()
         for (engineInfo in engineInfos) {
             val engineName = engineInfo.name
+            if (engineName !in bindable) continue
             val engineLabel = runCatching {
                 engineInfo.label.takeIf { !it.isNullOrBlank() } ?: engineName
             }.getOrDefault(engineName)

@@ -53,4 +53,31 @@ class TtsEngineResolverTest {
     fun `a single non-Google engine is selected`() {
         assertEquals("org.example.espeak", pickPreferred(listOf("org.example.espeak")))
     }
+
+    // --- #1390: bindableEnginePackages filtering ---
+
+    @Test
+    fun `Samsung private engine is excluded from bindable set`() {
+        val installed = listOf(GOOGLE_TTS, "com.samsung.SMT", "org.example.espeak")
+        val bindable = installed.filter { it !in PRIVATE_ENGINES }
+        assertEquals(listOf(GOOGLE_TTS, "org.example.espeak"), bindable)
+    }
+
+    @Test
+    fun `bindable set keeps all non-private engines`() {
+        val installed = listOf(GOOGLE_TTS, "org.example.pico", "net.ekho.tts")
+        val bindable = installed.filter { it !in PRIVATE_ENGINES }
+        assertEquals(installed, bindable)
+    }
+
+    @Test
+    fun `bindable set is empty when only private engine installed`() {
+        val installed = listOf("com.samsung.SMT")
+        val bindable = installed.filter { it !in PRIVATE_ENGINES }
+        assertTrue(bindable.isEmpty())
+    }
+
+    companion object {
+        private val PRIVATE_ENGINES = setOf("com.samsung.SMT")
+    }
 }
