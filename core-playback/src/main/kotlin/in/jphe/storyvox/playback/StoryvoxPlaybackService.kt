@@ -65,6 +65,10 @@ class StoryvoxPlaybackService : MediaSessionService() {
     @Inject lateinit var wearBridge: PhoneWearBridge
     @Inject lateinit var mediaSessionLocator: MediaSessionLocator
 
+    /** Issue #1232 — resolves Android Auto play-from-media-id / play-from-search
+     *  requests (routed into the session callback) to a playable chapter. */
+    @Inject lateinit var autoPlaybackResolver: `in`.jphe.storyvox.playback.auto.AutoPlaybackResolver
+
     /** Issue #560 — process-wide audio-focus singleton. Held here so the
      *  service can wire the loss callback to controller.pause() once at
      *  onCreate(); the engine acquires/abandons through the same
@@ -141,11 +145,17 @@ class StoryvoxPlaybackService : MediaSessionService() {
         audioOutputMonitor.start()
 
         session = MediaSession.Builder(this, player)
-            .setCallback(StoryvoxSessionCallback(controller, scope))
+            .setCallback(StoryvoxSessionCallback(controller, scope, autoPlaybackResolver))
             .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader.Builder(this).build()))
             .setSessionActivity(buildSessionActivity(null, null))
             .build()
         mediaSessionLocator.token = session.token
+        // Issue #1232 — publish the legacy MediaSessionCompat.Token so the Auto
+        // browser service can setSessionToken() and bind transport controls.
+        // Media3's framework platformToken bridges to the compat token.
+        mediaSessionLocator.setCompatToken(
+            android.support.v4.media.session.MediaSessionCompat.Token.fromToken(session.platformToken),
+        )
 
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this)
