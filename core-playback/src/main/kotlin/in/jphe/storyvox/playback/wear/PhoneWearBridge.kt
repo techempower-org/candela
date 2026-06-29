@@ -103,5 +103,21 @@ class PhoneWearBridge @Inject constructor(
          * [SeekPayload] (absolute target position in ms).
          */
         const val CMD_SEEK = "/playback/cmd/seek"
+
+        /**
+         * Issue #1308 — teleprompter remote (wrist) commands. Toggle and
+         * play/pause are payload-less (the watch knows current state from the
+         * synced teleprompter state); [CMD_TELEPROMPTER_WPM] carries a 4-byte
+         * [TeleprompterWpmPayload] (absolute WPM).
+         *
+         * The `onMessageReceived` dispatch routing these to PR-1's
+         * `TeleprompterController` (`setEnabled` / `setPlaying` / `setWpm`)
+         * lands at integration once #1320 merges; these constants ship now so
+         * the watch send-side ([in.jphe.storyvox.wear.playback.WearPlaybackBridge])
+         * speaks the final protocol.
+         */
+        const val CMD_TELEPROMPTER_TOGGLE = "/playback/cmd/teleprompterToggle"
+        const val CMD_TELEPROMPTER_PLAY_PAUSE = "/playback/cmd/teleprompterPlayPause"
+        const val CMD_TELEPROMPTER_WPM = "/playback/cmd/teleprompterWpm"
     }
 }
