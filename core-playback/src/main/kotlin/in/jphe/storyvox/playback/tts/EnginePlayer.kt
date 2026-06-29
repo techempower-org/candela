@@ -383,8 +383,15 @@ class EnginePlayer @AssistedInject constructor(
      *  watcher (see [observeActiveVoice]) to decide whether a DataStore
      *  emission represents a real change worth reloading for, and by
      *  [resume] to detect a "voice changed while paused" situation that
-     *  needs a full reload before playback can continue with the new model. */
-    private var loadedVoiceId: String? = null
+     *  needs a full reload before playback can continue with the new model.
+     *
+     *  `@Volatile` (#1263): written on the load coroutine but read off other
+     *  threads without always holding [engineMutex] — notably the audio
+     *  producer thread via [routeKokoroSpeaker], plus pipeline / cache-key
+     *  construction in [startPlaybackPipeline]. The volatile write/read pair
+     *  guarantees those threads see the latest loaded voice rather than a
+     *  stale cached reference. */
+    @Volatile private var loadedVoiceId: String? = null
 
     /** Flagged when the user picks a different voice while playback is
      *  paused. The flag tells [resume] to route through [loadAndPlay] for
