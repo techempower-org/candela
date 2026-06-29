@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.5.3] -- 2026-06-29
+
+**Samsung TTS startup bypass.** Skips all `TextToSpeech` creation on Samsung at startup, preventing the infinite reconnect loop caused by Samsung's internal private-engine probe.
+
+### Fixed
+
+- App no longer creates any `TextToSpeech` instance at startup on Samsung devices. Samsung's modified framework internally probes its private default engine during *any* TTS connection setup, disconnecting all active instances and entering an unstoppable reconnect loop. Prior fixes (#1384, #1390) filtered the private engine from our code but Samsung's framework bypassed the filter. Piper/Kokoro/Azure voices remain available in the picker. (#1392)
+
 ## [1.5.2] -- 2026-06-29
 
 **Samsung TTS step-2 fix.** Stops the roster's per-engine enumeration from binding Samsung's private TTS engine, which triggered an infinite reconnect loop that survived `TextToSpeech.shutdown()`.
