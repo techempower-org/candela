@@ -195,9 +195,9 @@ submission time.
 
 | Data type | Collected? | Required? | Encrypted in transit? | Deletable? | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| **Email address** | Yes, **only with optional sync** | No | Yes (HTTPS to InstantDB) | Yes — sign out of sync | Account / sync lookup key |
+| **Email address** | Yes, **only with optional sync** | No | Yes (HTTPS to InstantDB) | Yes — via deletion-request email (`$users` record; not removable by the in-app action) | Account / sync lookup key |
 | **User IDs** | The InstantDB user record ID — internal to InstantDB, not exposed to other users | No | Yes | Yes | Sync record key |
-| **Library state** (fiction IDs, reading positions, voice preferences) | Yes, **only with optional sync** | No | Yes | Yes — sign out | App functionality (sync) |
+| **Library state** (fiction IDs, reading positions, voice preferences) | Yes, **only with optional sync** | No | Yes | Yes — in-app **Delete cloud data** (#1248) | App functionality (sync) |
 | Crash / diagnostic data | **No** | — | — | — | We don't collect crash data |
 | Approximate / precise location | **No** | — | — | — | Never requested |
 | Photos / videos / audio | **No** | — | — | — | Camera is used on-device for OCR scan-to-read (#995): images + recognized text are processed by ML Kit on-device and are **never** transmitted, collected, or shared — so "collected" stays **No** even though the CAMERA permission is declared. No microphone access. |
@@ -222,8 +222,15 @@ submission time.
 
 - Data encrypted in transit: **Yes** (all HTTPS, enforced by
   `network_security_config.xml`)
-- Users can request deletion: **Yes** (sign out of sync deletes the
-  record; uninstall deletes on-device data)
+- Users can request deletion: **Yes** — the in-app **Delete cloud data**
+  action (`SyncAuthViewModel.purgeRemoteData`, #1248) deletes every synced
+  domain's remote rows (library, positions, follows, bookmarks, annotations,
+  pronunciation, secrets, settings) via `SyncCoordinator.purgeRemoteData` →
+  admin transact delete. The account email/identity (`$users`) record — which
+  the app can't delete via its own auth token — is removed on request via the
+  privacy-policy email channel. Uninstall clears on-device data. (Note: plain
+  **sign-out** only revokes the token + wipes local state; it does NOT delete
+  the cloud copy — that's deliberate, #1248, so other devices keep syncing.)
 - Independent security review: **Not yet** — JP's call whether to commit
   to this; safe to answer No
 - Follows Families policy guidelines: **No** — we're a 13+ app with a UGC
