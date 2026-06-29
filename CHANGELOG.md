@@ -31,6 +31,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 - **Imported file playback.** Opening an imported EPUB (or other file) that wasn't yet saved to your library now works — prefixed fiction ids route to the right source instead of failing to resolve. (#1298 / #1307)
 - **Silent cached audio.** Playback now rejects all-silence cached audio segments on read, so a bad cache entry no longer plays back as silence. (#1281 / #1288)
+- **Zero-audio chapters.** A chapter that comes back with no audio now surfaces a retryable error instead of being silently skipped, so a transient fetch miss no longer drops it from playback. (#1311 / #1322)
 - **Accessibility labels.** Hardcoded UI strings were extracted and click labels added for a cleaner screen-reader pass. (#1268 / #1285)
 
 ### Changed
@@ -38,6 +39,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 - **Teleprompter control state hoisted.** The teleprompter's scroll/playback state moved into a shared `TeleprompterController` so the reader and Playing screens read from one source of truth — an internal refactor with no behavior change. (#1308 / #1320)
 - **Play Store privacy policy.** Corrected an inverted privacy-policy URL and refreshed the store listing checklist. (#1301 / #1305)
 - **Edge-case test coverage.** Added ~1,194 lines of unit tests across the Google News decoder, Bookshare DAISY parser, dialogue segmenter, PCM-silence detection, voice-paced scroller, and the Android Auto resolver. (#1315 / #1324)
+- **Stale-code cleanup.** Resolved leftover TODOs and dead code flagged by the #1271 code audit. (#1323)
 
 ## [1.3.0] -- 2026-06-28
 
