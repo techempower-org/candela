@@ -667,8 +667,12 @@ private fun sourceTagline(id: String): String {
  * a generic compass for "everything else". The same icon set ships with
  * material-icons-extended, already on the classpath via the BottomTabBar
  * compass import.
+ *
+ * `internal` so the Source Catalog screen (#1365) reuses the exact same
+ * id→glyph mapping — the carousel card and the catalog card show the same
+ * icon for a given source, with one table to keep in sync.
  */
-private fun sourceGlyph(id: String): ImageVector = when (id) {
+internal fun sourceGlyph(id: String): ImageVector = when (id) {
     SourceIds.ROYAL_ROAD -> Icons.Filled.AutoStories
     SourceIds.AO3 -> Icons.Filled.LibraryBooks
     SourceIds.GUTENBERG -> Icons.Filled.MenuBook
