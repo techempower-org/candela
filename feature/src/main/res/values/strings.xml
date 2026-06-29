@@ -144,6 +144,8 @@
     <!-- Reader / ReaderView -->
     <string name="reader_ask_ai">Ask AI</string>
     <string name="reader_cancel">Cancel</string>
+    <!-- Reader / teleprompter rehearsal mode (#1239) -->
+    <string name="reader_teleprompter_wpm_unit">words/min</string>
     <!-- Reader / tap-to-define dictionary (#1230) -->
     <string name="reader_define_loading">Looking up \"%1$s\"…</string>
     <string name="reader_define_empty">No dictionary entry for \"%1$s\".</string>
