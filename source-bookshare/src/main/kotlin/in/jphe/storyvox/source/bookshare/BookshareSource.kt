@@ -54,7 +54,7 @@ import javax.inject.Singleton
     description = "Accessible DAISY library · partner API (see #1002)",
     sourceUrl = "https://www.bookshare.org",
 )
-class BookshareSource @Inject constructor(
+internal class BookshareSource @Inject constructor(
     private val api: BookshareApi,
     private val config: BookshareConfig,
 ) : FictionSource {
