@@ -1,9 +1,11 @@
 # storyvox app-level R8 / ProGuard rules (#409 part 3)
 #
-# Build types: BOTH `debug` and `release` flip `isMinifyEnabled = true` in
-# app/build.gradle.kts. Storyvox ships a single signed-debug APK to
-# sideloaders (no release flavor today — see PR #16 / v1.0 prerequisite),
-# so these rules apply to every shipped build.
+# Build types: only the `release` buildType flips `isMinifyEnabled = true`
+# in app/build.gradle.kts — the `debug` buildType is `isMinifyEnabled =
+# false` (local-iteration only, never shipped). The shipped sideload APK is
+# `:app:assembleRelease`: the release buildType, signed with the checked-in
+# debug keystore for cert continuity (no release flavor today — see PR #16 /
+# v1.0 prerequisite). So these rules apply to the shipped release build.
 #
 # Rule shape: catch-all umbrella for every reflection-using subsystem,
 # even where the consuming module ships its own consumer-rules.pro. The
@@ -249,3 +251,37 @@
 # AGP auto-generates exactly this rule into
 # build/outputs/mapping/release/missing_rules.txt.
 -dontwarn com.gemalto.jp2.JP2Decoder
+
+# ----------------------------------------------------------------------
+# Strip debug/trace logging from release builds (#1276, from audit #1270)
+# ----------------------------------------------------------------------
+# The release buildType minifies with proguard-android-optimize.txt (the
+# OPTIMIZING R8 config — see app/build.gradle.kts), so R8's optimisation
+# pass honours -assumenosideeffects: every matched android.util.Log call,
+# AND its argument expressions (string concatenation, the message lambdas
+# that DebugLog inlines), is removed from the release DEX entirely. The
+# audit found ~132 raw Log.v/d/i call sites shipping in the release APK
+# (heaviest in EnginePlayer + the core-sync syncers) plus DebugLog.
+#
+# Scope rationale:
+#  - v / d / i are stripped. In this codebase `i` is a trace-breadcrumb
+#    level (SyncCoordinator's sync-step logs, DebugLog.i), not ship-worthy
+#    info, so it goes too.
+#  - w / e are deliberately NOT listed — warnings and errors must survive
+#    so `adb logcat` and Play Console crash/ANR diagnostics still work.
+#  - DebugLog (#823) is a runtime, user-flippable "Verbose logging" toggle
+#    (default off) that calls Log.i/Log.d internally. It is not a build
+#    gate and ships in release; stripping Log.i/Log.d here turns its
+#    inlined `if (isEnabled()) Log.x(...)` into a no-op that R8 then DCEs,
+#    so a user flipping the toggle in a release build emits nothing.
+#
+# Caveat: -assumenosideeffects also drops side-effecting arguments. All
+# log arguments in this codebase are pure string building, so this is the
+# intended "no wasted work in release" outcome. Effective only while R8
+# optimisation stays on (proguard-android-optimize.txt); a no-op under
+# -dontoptimize.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
