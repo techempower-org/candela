@@ -20,7 +20,7 @@ import javax.inject.Inject
  * the extension point so adding it later touches one binding, not the
  * source's control flow.
  */
-interface ArticleResolver {
+internal interface ArticleResolver {
 
     /**
      * Resolved full-article plain text for [item], or null when the
