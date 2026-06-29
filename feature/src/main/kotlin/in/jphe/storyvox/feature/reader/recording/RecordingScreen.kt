@@ -21,13 +21,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -44,12 +43,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,11 +61,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import `in`.jphe.storyvox.feature.reader.countWords
-import `in`.jphe.storyvox.feature.reader.teleprompterScrollDeltaPx
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.isActive
 
 /**
  * Issue #1367 — Recording mode.
@@ -135,6 +130,8 @@ private fun RecordingContent(
     val wpm by viewModel.wpm.collectAsStateWithLifecycle()
     val opacity by viewModel.opacity.collectAsStateWithLifecycle()
     val frontCamera by viewModel.frontCamera.collectAsStateWithLifecycle()
+    val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val mirror by viewModel.mirror.collectAsStateWithLifecycle()
 
     // The camera lives with the composition's lifecycle — created here, not in
     // the ViewModel, so it's torn down when we leave the screen.
@@ -197,11 +194,14 @@ private fun RecordingContent(
                 ),
         )
 
-        // 3 — the scrolling teleprompter script.
+        // 3 — the scrolling teleprompter script (speaker colour-coding, section
+        // banners, production-cue styling, eye-line markers, edge fades, mirror).
         TeleprompterOverlay(
             script = script,
             wpm = wpm,
+            fontSize = fontSize,
             opacity = opacity,
+            mirror = mirror,
             scrolling = uiState is RecordingState.Recording,
         )
 
@@ -253,9 +253,13 @@ private fun RecordingContent(
             BottomControls(
                 state = uiState,
                 opacity = opacity,
+                mirror = mirror,
                 canFlip = uiState !is RecordingState.Recording && uiState !is RecordingState.Saving,
                 onOpacityChange = viewModel::setOpacity,
                 onFlip = viewModel::flipCamera,
+                onToggleMirror = viewModel::toggleMirror,
+                onFontSmaller = { viewModel.adjustFontSize(-RecordingViewModel.FONT_STEP_SP) },
+                onFontLarger = { viewModel.adjustFontSize(RecordingViewModel.FONT_STEP_SP) },
                 onRecordButton = viewModel::onRecordButton,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
@@ -303,76 +307,6 @@ private fun RecordingContent(
     }
 }
 
-/**
- * The semi-transparent script that scrolls over the camera. Reuses
- * [teleprompterScrollDeltaPx] / [countWords] from the reader so the pace at a
- * given WPM is identical to the in-reader teleprompter (frame-rate independent,
- * sub-pixel remainder carried). Scrolls only while [scrolling] (i.e. recording);
- * before that it sits at the top so the user can frame themselves.
- */
-@Composable
-private fun TeleprompterOverlay(
-    script: String,
-    wpm: Int,
-    opacity: Float,
-    scrolling: Boolean,
-) {
-    val scroll = rememberScrollState()
-    val totalWords = remember(script) { countWords(script) }
-
-    LaunchedEffect(scrolling, wpm, totalWords) {
-        if (!scrolling || totalWords <= 0) return@LaunchedEffect
-        // Begin each take from the top of the script.
-        scroll.scrollTo(0)
-        var lastFrame = 0L
-        var carry = 0f
-        while (isActive) {
-            val frame = withFrameNanos { it }
-            if (lastFrame != 0L && scroll.maxValue > 0) {
-                val px = teleprompterScrollDeltaPx(
-                    wpm = wpm,
-                    totalWords = totalWords,
-                    scrollableHeightPx = scroll.maxValue,
-                    elapsedNanos = frame - lastFrame,
-                ) + carry
-                val whole = px.toInt()
-                carry = px - whole
-                if (whole > 0) {
-                    try {
-                        scroll.scrollTo(scroll.value + whole)
-                    } catch (e: CancellationException) {
-                        if (!isActive) throw e
-                        carry = 0f
-                    }
-                }
-                if (scroll.value >= scroll.maxValue) break
-            }
-            lastFrame = frame
-        }
-    }
-
-    if (script.isBlank()) return
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scroll)
-            // Generous vertical padding keeps the first/last lines clear of the
-            // top indicator and the bottom controls.
-            .padding(horizontal = 24.dp, vertical = 160.dp),
-    ) {
-        Text(
-            text = script,
-            color = Color.White.copy(alpha = opacity),
-            fontSize = 26.sp,
-            lineHeight = 38.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
 /** Red dot + mm:ss elapsed, in a translucent pill — the live "REC" cue. */
 @Composable
 private fun RecordingIndicator(elapsedMs: Long) {
@@ -403,9 +337,13 @@ private fun RecordingIndicator(elapsedMs: Long) {
 private fun BottomControls(
     state: RecordingState,
     opacity: Float,
+    mirror: Boolean,
     canFlip: Boolean,
     onOpacityChange: (Float) -> Unit,
     onFlip: () -> Unit,
+    onToggleMirror: () -> Unit,
+    onFontSmaller: () -> Unit,
+    onFontLarger: () -> Unit,
     onRecordButton: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -416,6 +354,25 @@ private fun BottomControls(
             .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Font size (A− / A+) + mirror — design cues from the show teleprompter.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ControlChip(label = "A−", contentDesc = "Smaller text", onClick = onFontSmaller)
+            ControlChip(label = "A+", contentDesc = "Larger text", onClick = onFontLarger)
+            ControlChip(
+                label = "Mirror",
+                icon = Icons.Filled.Flip,
+                active = mirror,
+                contentDesc = if (mirror) "Mirror on" else "Mirror off",
+                onClick = onToggleMirror,
+            )
+        }
+
+        Spacer(modifier = Modifier.size(14.dp))
+
         // Text-opacity slider (30–100%), in a translucent rail.
         Row(
             modifier = Modifier
@@ -471,6 +428,39 @@ private fun BottomControls(
             // Right: spacer to keep the record button centered.
             Spacer(modifier = Modifier.size(56.dp))
         }
+    }
+}
+
+/** A translucent rounded control pill (font A−/A+, mirror toggle). Highlights
+ *  when [active]. */
+@Composable
+private fun ControlChip(
+    label: String,
+    contentDesc: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    active: Boolean = false,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (active) Color.White.copy(alpha = 0.30f) else Color.Black.copy(alpha = 0.35f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .semantics { contentDescription = contentDesc },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Text(text = label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 
