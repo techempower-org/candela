@@ -55,6 +55,14 @@ data class TeleprompterScript(
     val estimatedDurationSecs: Int,
     /** Comma-separated freeform tags. Empty string = no tags. */
     val tags: String = "",
+    /**
+     * Script format, persisted as a [ScriptFormat] enum *name* (string, not
+     * ordinal — same forward-compat pattern as `FictionShelf.shelf`) so a new
+     * format can be appended without a schema migration. Drives organization
+     * and (future) format-aware behavior; the spoken-text parser
+     * ([spokenText]) is format-agnostic so duration is correct regardless.
+     */
+    val format: String = ScriptFormat.FREEFORM.name,
     /** Wall-clock millis the script was first created. */
     val createdAt: Long,
     /** Wall-clock millis of the last edit. Equal to [createdAt] on first save;
@@ -71,23 +79,89 @@ data class TeleprompterScript(
          */
         const val WPM_BASELINE: Int = 150
 
-        /** Whitespace-delimited word count — the same notion the teleprompter
-         *  paces on (one "word" per token). Blank/whitespace-only → 0. */
-        fun wordCount(body: String): Int =
-            if (body.isBlank()) 0 else body.trim().split(Regex("\\s+")).size
+        /** A `[bracketed]` production cue — `[POST: JINGLE]`, `[pause]`, etc.
+         *  May span lines, so DOT_MATCHES_ALL. Not spoken. */
+        private val BRACKET_CUE = Regex("""\[[^\[\]]*]""", RegexOption.DOT_MATCHES_ALL)
+
+        /** A full-line `====` banner. Toggles in/out of a non-spoken block
+         *  (the top metadata block AND `====`-wrapped section headers). */
+        private val BANNER_LINE = Regex("""^\s*={3,}\s*$""")
+
+        /** A full-line `----` rule (metadata separator). Not spoken. */
+        private val RULE_LINE = Regex("""^\s*-{3,}\s*$""")
+
+        /** A speaker label alone on its line — `SHAWNA:`, `JEFF:`,
+         *  `SHAWNA AND JEFF:`. All-caps name(s) + colon. Not spoken. */
+        private val SPEAKER_LABEL = Regex("""^\s*[A-Z][A-Z0-9 .'&/()-]*:\s*$""")
+
+        private val WHITESPACE = Regex("""\s+""")
+
+        /** Total whitespace-delimited word count of [text] (markup included).
+         *  Blank/whitespace-only → 0. */
+        fun wordCount(text: String): Int =
+            if (text.isBlank()) 0 else text.trim().split(WHITESPACE).size
 
         /**
-         * Estimated read-aloud duration of [body] in whole seconds at
-         * [WPM_BASELINE]. Rounds up so a short script never shows 0:00 (a
-         * single word still reads as ~1s). Pure + side-effect-free so it's
-         * unit-testable without a clock.
+         * The *spoken* portion of a show-format [body]: strips `[bracketed]`
+         * production cues, `====`-delimited banner blocks (the top metadata /
+         * "prompter notes" block AND `====`-wrapped section headers), `----`
+         * rule lines, and whole-line `SPEAKER:` labels. Plain freeform text
+         * (no markup) passes through unchanged. This is what the teleprompter
+         * actually reads aloud, so the duration estimate counts these words —
+         * not the cues/headers/labels (issue #1369, TechEmpower Show format).
+         */
+        fun spokenText(body: String): String {
+            // 1. Remove [bracketed] cues first (they can span lines).
+            val noCues = BRACKET_CUE.replace(body, " ")
+            // 2. Line pass with a "inside ==== banner block" toggle. Each
+            //    banner line flips the toggle, so both the top metadata block
+            //    and every ====-wrapped section header fall inside it.
+            var inBanner = false
+            val kept = StringBuilder()
+            for (line in noCues.lineSequence()) {
+                if (BANNER_LINE.matches(line)) { inBanner = !inBanner; continue }
+                if (inBanner) continue
+                if (RULE_LINE.matches(line)) continue
+                if (SPEAKER_LABEL.matches(line)) continue
+                kept.append(line).append('\n')
+            }
+            return kept.toString().trim()
+        }
+
+        /** Word count of the spoken text only — see [spokenText]. */
+        fun spokenWordCount(body: String): Int = wordCount(spokenText(body))
+
+        /**
+         * Estimated read-aloud duration of [body] in whole seconds at the given
+         * pace, counting [spokenWordCount] (cues / headers / speaker labels
+         * excluded). Rounds up so a short script never shows 0:00. Pure +
+         * side-effect-free so it's unit-testable without a clock.
          */
         fun estimateDurationSecs(body: String, wpm: Int = WPM_BASELINE): Int {
-            val words = wordCount(body)
+            val words = spokenWordCount(body)
             if (words == 0) return 0
             val safeWpm = wpm.coerceAtLeast(1)
             // ceil(words / wpm * 60) without floating-point surprises.
             return ((words * 60) + safeWpm - 1) / safeWpm
         }
+    }
+}
+
+/**
+ * Issue #1369 — the kind of script, used for organization (and future
+ * format-aware behavior). JP's three named buckets; persisted as the enum
+ * `name` on [TeleprompterScript.format].
+ */
+enum class ScriptFormat(val label: String) {
+    FREEFORM("Freeform"),
+    SHORT("YouTube Short"),
+    FULL_SHOW("Full Show"),
+    ;
+
+    companion object {
+        /** Parse a stored [TeleprompterScript.format] string, falling back to
+         *  [FREEFORM] for an unknown/legacy value. */
+        fun fromName(name: String): ScriptFormat =
+            entries.firstOrNull { it.name == name } ?: FREEFORM
     }
 }

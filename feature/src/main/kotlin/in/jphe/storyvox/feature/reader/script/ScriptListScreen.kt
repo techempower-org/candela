@@ -204,6 +204,10 @@ private fun ScriptRow(
 ) {
     val spacing = LocalSpacing.current
     var menuOpen by remember { mutableStateOf(false) }
+    // Spoken word count (cues/headers/labels excluded) — matches the
+    // spoken-based duration badge. Remembered so a 2,500-word show script
+    // isn't re-tokenized on every recomposition.
+    val spokenWords = remember(script.body) { TeleprompterScript.spokenWordCount(script.body) }
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -239,7 +243,7 @@ private fun ScriptRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "${TeleprompterScript.wordCount(script.body)} words",
+                        text = "$spokenWords words",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -41,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.jphe.storyvox.data.db.entity.ScriptFormat
 import `in`.jphe.storyvox.data.db.entity.TeleprompterScript
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -134,6 +136,19 @@ fun ScriptEditScreen(
                 label = { Text("Title") },
             )
 
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                ScriptFormat.entries.forEach { fmt ->
+                    FilterChip(
+                        selected = state.format == fmt.name,
+                        onClick = { viewModel.onFormatChange(fmt) },
+                        label = { Text(fmt.label) },
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = state.tags,
                 onValueChange = viewModel::onTagsChange,
@@ -195,14 +210,22 @@ private fun ScriptMetricsFooter(
     wpm: Int,
     modifier: Modifier = Modifier,
 ) {
-    val words = remember(body) { TeleprompterScript.wordCount(body) }
+    val total = remember(body) { TeleprompterScript.wordCount(body) }
+    val spoken = remember(body) { TeleprompterScript.spokenWordCount(body) }
     val durationSecs = remember(body, wpm) { TeleprompterScript.estimateDurationSecs(body, wpm) }
+    // When the script carries cues / headers / speaker labels, spoken < total —
+    // show both so the user knows the duration counts only what's read aloud.
+    val wordsLabel = if (spoken == total) {
+        "$total words"
+    } else {
+        "$spoken spoken / $total total words"
+    }
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.xs),
     ) {
         Text(
-            text = "$words words · ${formatDuration(durationSecs)} at $wpm wpm",
+            text = "$wordsLabel · ${formatDuration(durationSecs)} at $wpm wpm",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

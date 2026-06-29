@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.data.db.entity
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -42,5 +43,73 @@ class TeleprompterScriptTest {
     @Test fun `estimateDurationSecs clamps a non-positive wpm to avoid div-by-zero`() {
         // wpm coerced to >= 1; "a b" = 2 words @ 1 wpm = 120s.
         assertEquals(120, TeleprompterScript.estimateDurationSecs("a b", wpm = 0))
+    }
+
+    // ── Show-script format parsing (#1369 / TechEmpower Show) ──────────────
+
+    @Test fun `spokenText passes plain freeform text through unchanged`() {
+        assertEquals("Just some plain words.", TeleprompterScript.spokenText("Just some plain words."))
+        assertEquals(4, TeleprompterScript.spokenWordCount("Just some plain words."))
+    }
+
+    @Test fun `spokenText strips bracketed cues, inline and multi-line`() {
+        assertEquals(5, TeleprompterScript.spokenWordCount("Glad to be here [chuckles] really."))
+        // Multi-line cue is removed whole — only "Before" + "after" remain.
+        val multi = "Before [POST: jingle\nand logo] after"
+        assertEquals(2, TeleprompterScript.spokenWordCount(multi))
+        assertTrue(
+            "bracketed cue content must be gone",
+            !TeleprompterScript.spokenText(multi).contains("jingle"),
+        )
+    }
+
+    @Test fun `spokenText strips banner blocks, rules, and speaker labels`() {
+        val script = """
+            ================================================================
+            WAIT, I QUALIFY?!  --  EPISODE 1
+            ----------------------------------------------------------------
+            PROMPTER NOTES (do not read):
+            - Lines in [BRACKETS] are cues, not dialogue.
+            ================================================================
+
+            [POST: JINGLE + LOGO INTRO]
+
+            SHAWNA:
+            Welcome to the show.
+
+            JEFF:
+            Glad to be here [chuckles] really.
+
+            ================================================================
+            MYTH ONE: "BENEFITS ARE ONLY FOR THE DESTITUTE"
+            ================================================================
+
+            SHAWNA:
+            Let's jump in.
+        """.trimIndent()
+
+        // Only the three dialogue lines are spoken: 4 + 5 + 3 = 12 words.
+        assertEquals(12, TeleprompterScript.spokenWordCount(script))
+        // The raw total is much larger (metadata, headers, labels, cues).
+        assertTrue(
+            "total word count must exceed spoken",
+            TeleprompterScript.wordCount(script) > TeleprompterScript.spokenWordCount(script),
+        )
+    }
+
+    @Test fun `estimateDurationSecs counts spoken words only`() {
+        val script = """
+            [intro music plays for a while with many bracketed words here]
+            SHAWNA:
+            Hello there.
+        """.trimIndent()
+        // Only "Hello there." is spoken → 2 words → ceil(2*60/150) = 1s.
+        assertEquals(1, TeleprompterScript.estimateDurationSecs(script))
+    }
+
+    @Test fun `ScriptFormat fromName falls back to FREEFORM for unknown values`() {
+        assertEquals(ScriptFormat.FULL_SHOW, ScriptFormat.fromName("FULL_SHOW"))
+        assertEquals(ScriptFormat.FREEFORM, ScriptFormat.fromName("not-a-format"))
+        assertEquals(ScriptFormat.FREEFORM, ScriptFormat.fromName(""))
     }
 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.db.dao.TeleprompterScriptDao
+import `in`.jphe.storyvox.data.db.entity.ScriptFormat
 import `in`.jphe.storyvox.data.db.entity.TeleprompterScript
 import `in`.jphe.storyvox.playback.PendingTeleprompterScript
 import `in`.jphe.storyvox.playback.TeleprompterController
@@ -117,6 +118,8 @@ data class ScriptEditUiState(
     val title: String = "",
     val body: String = "",
     val tags: String = "",
+    /** [ScriptFormat] name — Freeform / YouTube Short / Full Show. */
+    val format: String = ScriptFormat.FREEFORM.name,
     /** True until the first save — drives the top-bar title ("New script" vs
      *  "Edit script") and whether Back warns about unsaved changes. */
     val isNewDraft: Boolean = true,
@@ -174,6 +177,7 @@ class ScriptEditViewModel @Inject constructor(
                     title = existing.title,
                     body = existing.body,
                     tags = existing.tags,
+                    format = existing.format,
                     isNewDraft = false,
                     isDirty = false,
                 )
@@ -192,6 +196,10 @@ class ScriptEditViewModel @Inject constructor(
 
     fun onTagsChange(value: String) {
         _uiState.value = _uiState.value.copy(tags = value, isDirty = true)
+    }
+
+    fun onFormatChange(format: ScriptFormat) {
+        _uiState.value = _uiState.value.copy(format = format.name, isDirty = true)
     }
 
     /** Import-from-clipboard: append the pasted [text] to the body (the screen
@@ -218,6 +226,7 @@ class ScriptEditViewModel @Inject constructor(
                     body = state.body,
                     estimatedDurationSecs = TeleprompterScript.estimateDurationSecs(state.body),
                     tags = normalizeTags(state.tags),
+                    format = state.format,
                     createdAt = createdAt,
                     updatedAt = now,
                 ),

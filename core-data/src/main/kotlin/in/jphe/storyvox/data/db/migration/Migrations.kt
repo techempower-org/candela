@@ -542,6 +542,7 @@ val MIGRATION_17_18: Migration = object : Migration(17, 18) {
                 `body` TEXT NOT NULL,
                 `estimatedDurationSecs` INTEGER NOT NULL,
                 `tags` TEXT NOT NULL DEFAULT '',
+                `format` TEXT NOT NULL DEFAULT 'FREEFORM',
                 `createdAt` INTEGER NOT NULL,
                 `updatedAt` INTEGER NOT NULL
             )
