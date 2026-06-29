@@ -44,6 +44,17 @@ data class SourcePluginDescriptor(
      *  manager details sheet. Matches the annotation's `sourceUrl`.
      *  Empty string = hide the row. */
     val sourceUrl: String = "",
+    /** Short Browse-chip label (#1371). Matches the annotation's
+     *  `chipLabel`. Empty string = fall back to [displayName]. */
+    val chipLabel: String = "",
+    /** Browse search empty-state subtitle (#1371). Matches the
+     *  annotation's `searchHint`. Empty string = fall back to
+     *  "Search <displayName>". */
+    val searchHint: String = "",
+    /** Material icon name for the Browse glyph (#1371). Matches the
+     *  annotation's `iconName`. Empty string = fall back to the
+     *  per-source `when`-branch in `BrowseSourceCarousel`. */
+    val iconName: String = "",
     /** Live `FictionSource` instance — same one the repository's
      *  `Map<String, FictionSource>` resolves for this id. */
     val source: FictionSource,

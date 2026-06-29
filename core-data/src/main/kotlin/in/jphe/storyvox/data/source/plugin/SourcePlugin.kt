@@ -21,17 +21,24 @@ package `in`.jphe.storyvox.data.source.plugin
  * compile time but isn't carried into the runtime classpath — there's
  * no need to read it via reflection once KSP has emitted the bindings.
  *
- * ## Phase 1 scope
+ * ## What KSP generates (#1371)
  *
- * Phase 1 lands the annotation + registry + KSP processor + the new
- * `sourcePluginsEnabled` settings shape, with `:source-kvmr` as the
- * worked example. The other 11 backends keep their existing
- * `@IntoMap @StringKey` bindings unchanged; Phase 2 migrates them
- * one-by-one. The legacy bindings and the new descriptor binding
- * coexist — a `FictionSource` can have both a `@IntoMap` legacy
- * binding (so the repository's `Map<String, FictionSource>` keeps
- * resolving it) AND an `@SourcePlugin` annotation (so the registry
- * also surfaces it) until the legacy binding is removed.
+ * As of the touchpoint-consolidation pass (#1371) the `:core-plugin-ksp`
+ * processor emits **both** Hilt contributions a `FictionSource` needs
+ * from this single annotation:
+ *
+ *  1. `@Provides @IntoSet SourcePluginDescriptor` — the registry / UI
+ *     surface (`SourcePluginRegistry`, Browse chip row, Settings
+ *     auto-section).
+ *  2. `@Binds @IntoMap @StringKey(id) FictionSource` — the repository's
+ *     `Map<String, FictionSource>` routing entry.
+ *
+ * So a new backend no longer hand-writes a `@Binds @IntoMap @StringKey`
+ * module: annotate the `FictionSource` and both bindings appear.
+ * Hand-written `@IntoMap` bindings remain only for *aliases* (a second
+ * id pointing at the same source, e.g. the `kvmr` → Radio migration
+ * alias) and for *non-`FictionSource`* contributions (`AuthSource`,
+ * `SessionHydrator`), which the annotation does not model.
  *
  * @property id Stable identifier matching `FictionSource.id` and the
  *  legacy `SourceIds` constant. Used as the key in
@@ -58,6 +65,22 @@ package `in`.jphe.storyvox.data.source.plugin
  *  surfaced in the plugin manager details sheet (#404). Used so a
  *  user can verify what storyvox is actually talking to. Empty
  *  string hides the row.
+ * @property chipLabel Short label for the Browse chip strip (#1371),
+ *  where [displayName]'s formal form ("Archive of Our Own") is too
+ *  long for a narrow-phone chip. Empty string falls back to
+ *  [displayName]. Read by `BrowseSourceUi.chipLabel` from the
+ *  descriptor, replacing a per-source `when`-branch.
+ * @property searchHint Subtitle for the Browse search empty-state
+ *  (#1371, #271) — e.g. "Search AO3 by tag, fandom, or character".
+ *  Empty string falls back to "Search <displayName>". Read by
+ *  `BrowseSourceUi.searchHint` from the descriptor.
+ * @property iconName Material icon name for the Browse source glyph
+ *  (#1371) — e.g. "MenuBook", "RssFeed", matching an
+ *  `androidx.compose.material.icons.Icons.Filled.*` entry. Empty
+ *  string falls back to the per-source `when`-branch in
+ *  `BrowseSourceCarousel`. Carried on the descriptor so an
+ *  out-of-tree backend can declare its glyph without a feature-module
+ *  edit.
  */
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.CLASS)
@@ -70,6 +93,9 @@ annotation class SourcePlugin(
     val supportsSearch: Boolean = false,
     val description: String = "",
     val sourceUrl: String = "",
+    val chipLabel: String = "",
+    val searchHint: String = "",
+    val iconName: String = "",
 )
 
 /**
