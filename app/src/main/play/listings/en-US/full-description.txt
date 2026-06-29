@@ -1,47 +1,30 @@
-Candela turns books, articles, and stories into beautiful audio — read out loud by your choice of on-device voices. No subscription. No account required.
+Candela is TechEmpower's free, accessible resource app — read aloud.
 
-Open the app and you've got an audiobook player ready to go. Tap to start. Skip ahead, jump back, fall asleep to a sleep timer, or play through Android Auto on the drive home.
+Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and read or listen to all of it through high-quality neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
 
-═══════════
+Under the hood, Candela is a serious audiobook player for any text you can reach — twenty-five fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio across 30,000+ stations. Share any web link into Candela and a magic-link reader queues the readable text for narration.
 
-⊹ FREE BOOKS, GUIDES, AND THE WEB
-Browse and listen to:
-• Project Gutenberg classics (Pride and Prejudice, The Count of Monte Cristo, Frankenstein, thousands more)
-• Standard Ebooks (Project Gutenberg reborn with proper typography)
-• Wikipedia and Wikisource articles
-• Royal Road web serials (sign in optional, for follows + reading lists)
-• PLOS scientific journals (free open-access research)
-• Hacker News stories
-• arXiv research papers
-• AO3 fanfiction (with your AO3 account)
-• Any Notion workspace (paste your token, share a database, listen)
-• Any RSS feed (your blogs, podcasts, anything)
-• Any web article (paste a URL — magic-link reader extracts the text)
-• Your own EPUB files (import from anywhere)
+Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 English voices in US and UK accents), Kokoro (53 warm multi-speaker voices across nine languages, from Spanish and French to Hindi, Japanese, and Chinese), KittenTTS (the lightest tier, about 25 MB, for slower phones), and Supertonic (ten expressive, high-quality English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
 
-⊹ READ ALOUD BY ANY VOICE
-Choose from dozens of free on-device voices:
-• Crisp neural voices via Piper, Kokoro, and Kitten (run entirely on your phone — no internet needed once installed)
-• Optional Microsoft Azure cloud voices if you want premium quality
-• Per-book voice memory — assign different narrators to different stories
-• Adjust speed, pitch, and pause-between-sentences live
-• Pronunciation dictionary — teach the voice how to say specific names and words
+The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, or local Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
 
-⊹ BEAUTIFUL, ACCESSIBLE, AND CALM
-Library Nocturne aesthetic — warm dark theme, brass accents, EB Garamond typography. Reduce motion, adjust font scale, and turn off animations from Settings → Accessibility. TalkBack-tested throughout.
+Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-⊹ PLAYS WHERE YOU PLAY
-• Android Auto — listen on the drive home
-• Lock-screen and notification controls
-• Bluetooth, AirPods, car stereo — all the audio routes
-• Sleep timer with shake-to-extend
-• Home-screen widget — see what's playing without unlocking
-• Auto-advance through chapters, with smart prerendering so the next chapter is ready before you need it
+Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Delete synced data any time with the in-app "Delete cloud data" action. Or stay fully offline; your call.
 
-⊹ CLOUD SYNC (OPTIONAL)
-Sign in to sync your library, follows, reading positions, bookmarks, and voice settings across all your devices. Powered by InstantDB — end-to-end secure, no ads, your data is yours. The app works fully offline if you'd rather not.
+FEATURES
+• 25 fiction & reference sources — enable only the ones you want
+• 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
+• Optional bring-your-own-key cloud voices (Microsoft Azure)
+• Hybrid reader with synced brass highlighting + an auto-scrolling teleprompter
+• Tap-to-define dictionary, in-book search, and listening stats
+• Per-book AI chat & chapter recaps (bring your own key — Anthropic, OpenAI, Ollama)
+• Android Auto, lock-screen controls, sleep timer, home-screen widget
+• Make-your-own-audiobook (M4B) and EPUB export
+• Gapless chapter auto-advance with smart prerendering
+• Optional end-to-end-encrypted cross-device sync — or fully offline
+• Wear OS companion (playback + teleprompter remote)
+• Dark & light themes; OpenDyslexic & Atkinson fonts; TalkBack-friendly; WCAG AA contrast
+• Free, GPL-3.0, ad-free, no tracking, no account required
 
-⊹ FOR PEOPLE WHO LIKE TO LISTEN
-Candela is built for audiobook readers, drivers, walkers, accessibility users, busy parents, students, and anyone who wants to hear instead of read. Open-source, no ads, no tracking, no upsells.
-
-Made with love by TechEmpower. Free, no account required.
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools. Open source on GitHub.
