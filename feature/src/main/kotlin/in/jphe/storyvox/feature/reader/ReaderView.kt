@@ -26,9 +26,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -97,6 +100,8 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 import `in`.jphe.storyvox.ui.theme.ReaderColors
 import `in`.jphe.storyvox.ui.theme.ReaderTypography
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -151,6 +156,62 @@ internal fun focusScrollTargetY(
     (bodyTopPx + lineTopWithinText - viewportHeightPx * viewportFraction)
         .roundToInt()
         .coerceIn(0, maxScroll.coerceAtLeast(0))
+
+// ─────────────────────────────────────────────────────────────────────
+// Issue #1239 — Teleprompter / solo-rehearsal mode
+// ─────────────────────────────────────────────────────────────────────
+// A reader sub-mode (sibling to Focused Reading #997 / auto-scroll #946):
+// the chapter body auto-scrolls at a user-set words-per-minute so the
+// reader can rehearse aloud — a teleprompter for solo practice. The pace
+// math is extracted to pure, frame-rate-independent functions so the
+// arithmetic is unit-testable without a Compose/Android runtime (mirrors
+// [focusScrollTargetY]).
+
+/** Default rehearsal pace. ~130 wpm sits in the conversational-speech band
+ *  most teleprompter apps default to (typical range ~100–160). */
+internal const val TELEPROMPTER_DEFAULT_WPM = 130
+
+/**
+ * Supported pace band + step for the −/+ controls. Deliberately WIDE
+ * (~0.5–8 words/sec) per the #1239 market research: low-vision and
+ * cognitive-access readers need a far slower floor than a filming
+ * teleprompter, and skimmers a faster ceiling — so don't cap it narrowly.
+ */
+internal const val TELEPROMPTER_MIN_WPM = 30
+internal const val TELEPROMPTER_MAX_WPM = 500
+internal const val TELEPROMPTER_WPM_STEP = 10
+
+/** Whitespace-delimited word count; the teleprompter's pace is per-word. */
+internal fun countWords(text: String): Int =
+    if (text.isBlank()) 0 else text.trim().split(Regex("\\s+")).size
+
+/**
+ * Pixels to advance the auto-scroll this frame at [wpm], given the
+ * chapter's word density (its [totalWords] spread over [scrollableHeightPx],
+ * the [androidx.compose.foundation.ScrollState.maxValue]). Frame-rate
+ * independent — driven by [elapsedNanos] — so the perceived pace is
+ * identical on 60Hz and 120Hz panels. Pure + unit-testable.
+ *
+ * pixelsPerWord = scrollableHeightPx / totalWords; wordsPerSec = wpm / 60;
+ * delta = wordsPerSec · pixelsPerWord · elapsedSeconds.
+ */
+internal fun teleprompterScrollDeltaPx(
+    wpm: Int,
+    totalWords: Int,
+    scrollableHeightPx: Int,
+    elapsedNanos: Long,
+): Float {
+    if (wpm <= 0 || totalWords <= 0 || scrollableHeightPx <= 0 || elapsedNanos <= 0L) return 0f
+    val wordsPerSec = wpm / 60f
+    val pixelsPerWord = scrollableHeightPx.toFloat() / totalWords
+    val elapsedSec = elapsedNanos / 1_000_000_000f
+    return wordsPerSec * pixelsPerWord * elapsedSec
+}
+
+/** Clamp + step a WPM adjustment to the supported band. */
+internal fun adjustTeleprompterWpm(current: Int, deltaSteps: Int): Int =
+    (current + deltaSteps * TELEPROMPTER_WPM_STEP)
+        .coerceIn(TELEPROMPTER_MIN_WPM, TELEPROMPTER_MAX_WPM)
 
 @Composable
 fun ReaderTextView(
@@ -277,6 +338,21 @@ fun ReaderTextView(
         }
     }
 
+    // Issue #1239 — Teleprompter / solo-rehearsal mode state. Transient
+    // (per-session) by design for this first cut — no persistence plumbing.
+    // `enabled` swaps the bottom transport for the teleprompter controls and
+    // steps the TTS-follow affordances aside; `playing` drives the per-frame
+    // auto-scroll; `wpm` is the rehearsal pace.
+    var teleprompterEnabled by remember { mutableStateOf(false) }
+    var teleprompterPlaying by remember { mutableStateOf(false) }
+    var teleprompterWpm by remember { mutableIntStateOf(TELEPROMPTER_DEFAULT_WPM) }
+    val totalWords = remember(chapterText) { countWords(chapterText) }
+    // True once the body has scrolled to the very end — the teleprompter's
+    // Play then replays from the top (see the transport's onPlayPause).
+    val teleprompterAtEnd by remember {
+        derivedStateOf { scroll.maxValue > 0 && scroll.value >= scroll.maxValue }
+    }
+
     // Auto-scroll target: when sentence range or layout changes, settle the highlighted
     // line at 40% from the top of the viewport — unless we're inside the manual-scroll
     // grace window, in which case the user has the wheel.
@@ -286,8 +362,11 @@ fun ReaderTextView(
     // and never schedules another animateScrollTo. Flipping back on re-keys and resumes
     // following the next sentence boundary (no jump — only the next emit triggers a
     // scroll, so the user's manual position is preserved until then).
-    LaunchedEffect(autoScrollEnabled, focusModeEnabled, state.sentenceStart, state.sentenceEnd, textLayout, viewportHeightPx, bodyTopPx, chapterText) {
+    LaunchedEffect(autoScrollEnabled, focusModeEnabled, teleprompterEnabled, state.sentenceStart, state.sentenceEnd, textLayout, viewportHeightPx, bodyTopPx, chapterText) {
         if (!autoScrollEnabled) return@LaunchedEffect
+        // #1239 — rehearsal owns the wheel; the sentence-follow must not
+        // fight the teleprompter's auto-scroll.
+        if (teleprompterEnabled) return@LaunchedEffect
         val layout = textLayout ?: return@LaunchedEffect
         if (chapterText.isEmpty()) return@LaunchedEffect
         if (viewportHeightPx <= 0f) return@LaunchedEffect
@@ -311,6 +390,49 @@ fun ReaderTextView(
         )
 
         scroll.animateScrollTo(targetY)
+    }
+
+    // Issue #1239 — Teleprompter auto-scroll. While enabled + playing, the
+    // body advances every frame at the chosen pace. Per-frame (not a single
+    // animateScrollTo) so a manual drag mid-rehearsal preempts just that
+    // frame's scroll and the teleprompter resumes on the next — a natural
+    // "peek then carry on". Frame-rate independent via withFrameNanos +
+    // elapsed nanos; the sub-pixel remainder is carried so slow paces still
+    // creep smoothly.
+    LaunchedEffect(teleprompterEnabled, teleprompterPlaying, teleprompterWpm, totalWords) {
+        if (!teleprompterEnabled || !teleprompterPlaying || totalWords <= 0) return@LaunchedEffect
+        var lastFrame = 0L
+        var carry = 0f
+        while (isActive) {
+            val frame = withFrameNanos { it }
+            if (lastFrame != 0L && scroll.maxValue > 0) {
+                val px = teleprompterScrollDeltaPx(
+                    wpm = teleprompterWpm,
+                    totalWords = totalWords,
+                    scrollableHeightPx = scroll.maxValue,
+                    elapsedNanos = frame - lastFrame,
+                ) + carry
+                val whole = px.toInt()
+                carry = px - whole
+                if (whole > 0) {
+                    try {
+                        scroll.scrollTo(scroll.value + whole)
+                    } catch (e: CancellationException) {
+                        // A user drag (higher mutate priority) preempted this
+                        // frame. If the whole effect is tearing down we're no
+                        // longer active — rethrow; otherwise drop the frame and
+                        // resume on the next tick.
+                        if (!isActive) throw e
+                        carry = 0f
+                    }
+                }
+                if (scroll.value >= scroll.maxValue) {
+                    teleprompterPlaying = false
+                    break
+                }
+            }
+            lastFrame = frame
+        }
     }
 
     // Issue #919 — "scroll to current sentence" FAB. Derived state tracks
@@ -616,6 +738,26 @@ fun ReaderTextView(
             }
         }
 
+        // Issue #1239 — Teleprompter / rehearsal toggle. Top of the brass
+        // cluster (above the search FAB). Hidden in Focused Reading, and once
+        // teleprompter is already on (the transport's exit returns you).
+        // When on, the bottom chrome becomes the teleprompter controls.
+        if (!focusModeEnabled && !teleprompterEnabled) {
+            SmallFloatingActionButton(
+                onClick = { teleprompterEnabled = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = spacing.md, bottom = 360.dp)
+                    .semantics {
+                        contentDescription = "Teleprompter rehearsal mode. Tap to start."
+                    },
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                Icon(imageVector = Icons.Outlined.Slideshow, contentDescription = null)
+            }
+        }
+
         // Issue #997 — Focused Reading toggle. Sits below the search FAB
         // (above the auto-scroll toggle) and ALWAYS visible — even in
         // focus mode — so it's the one persistent control the user can
@@ -672,7 +814,7 @@ fun ReaderTextView(
             animationSpec = tween(durationMillis = 280),
             label = "autoscroll-sparkle-alpha",
         )
-        if (!focusModeEnabled) {
+        if (!focusModeEnabled && !teleprompterEnabled) {
             SmallFloatingActionButton(
                 onClick = { onToggleAutoScroll(!autoScrollEnabled) },
                 modifier = Modifier
@@ -727,7 +869,7 @@ fun ReaderTextView(
         // Suppressed in Focused Reading (#997) — center-lock keeps the
         // active line in view, so the one-shot recenter is redundant.
         AnimatedVisibility(
-            visible = showScrollFab && !focusModeEnabled,
+            visible = showScrollFab && !focusModeEnabled && !teleprompterEnabled,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = spacing.md, bottom = 104.dp),
@@ -774,6 +916,8 @@ fun ReaderTextView(
         // single TalkBack-reachable transport affordance (accessibility
         // is a first-class goal of #997). Normal reading keeps the full
         // bar with the chapter/fiction labels.
+        // #1239 — hidden while the teleprompter transport (below) is showing.
+        if (!teleprompterEnabled)
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
             color = if (focusModeEnabled) {
@@ -822,6 +966,34 @@ fun ReaderTextView(
                     )
                 }
             }
+        }
+
+        // Issue #1239 — Teleprompter transport. Replaces the normal bottom
+        // bar while rehearsal mode is on: Play/Pause for the auto-scroll,
+        // WPM −/+, and an exit. Brass surface mirroring the normal bar.
+        if (teleprompterEnabled) {
+            TeleprompterTransport(
+                playing = teleprompterPlaying,
+                wpm = teleprompterWpm,
+                onPlayPause = {
+                    if (teleprompterAtEnd && !teleprompterPlaying) {
+                        // Replay from the top — scroll home, then arm so the
+                        // per-frame effect starts from a fresh position.
+                        scope.launch {
+                            scroll.scrollTo(0)
+                            teleprompterPlaying = true
+                        }
+                    } else {
+                        teleprompterPlaying = !teleprompterPlaying
+                    }
+                },
+                onWpmDelta = { steps -> teleprompterWpm = adjustTeleprompterWpm(teleprompterWpm, steps) },
+                onExit = {
+                    teleprompterPlaying = false
+                    teleprompterEnabled = false
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
 
         // Issue #1230 — tap-to-define popup. Long-press a word (a no-drag
@@ -917,6 +1089,90 @@ fun ReaderTextView(
         }
     }
     } // CompositionLocalProvider(LocalReaderColors) — #993
+}
+
+/**
+ * Issue #1239 — Teleprompter / rehearsal transport. Replaces the normal
+ * bottom bar while rehearsal mode is on. Pure presentational: all state is
+ * hoisted to [ReaderTextView] (playing / wpm); this renders the controls
+ * and reports intents.
+ *
+ * Layout mirrors the normal transport's resting places so muscle memory
+ * holds: an exit on the left, a centred WPM stepper (− / "NNN" / +), and a
+ * prominent Play/Pause for the auto-scroll on the right where the normal
+ * play/pause lives.
+ */
+@Composable
+private fun TeleprompterTransport(
+    playing: Boolean,
+    wpm: Int,
+    onPlayPause: () -> Unit,
+    onWpmDelta: (Int) -> Unit,
+    onExit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 4.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onExit,
+                modifier = Modifier.semantics { contentDescription = "Exit teleprompter" },
+            ) {
+                Icon(imageVector = Icons.Filled.Close, contentDescription = null)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = { onWpmDelta(-1) },
+                enabled = wpm > TELEPROMPTER_MIN_WPM,
+                modifier = Modifier.semantics { contentDescription = "Slower" },
+            ) {
+                Icon(imageVector = Icons.Filled.Remove, contentDescription = null)
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.widthIn(min = 64.dp),
+            ) {
+                Text(
+                    text = "$wpm",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.reader_teleprompter_wpm_unit),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(
+                onClick = { onWpmDelta(1) },
+                enabled = wpm < TELEPROMPTER_MAX_WPM,
+                modifier = Modifier.semantics { contentDescription = "Faster" },
+            ) {
+                Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            FilledIconButton(
+                onClick = onPlayPause,
+                modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Icon(
+                    imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (playing) "Pause rehearsal" else "Start rehearsal",
+                )
+            }
+        }
+    }
 }
 
 /**
