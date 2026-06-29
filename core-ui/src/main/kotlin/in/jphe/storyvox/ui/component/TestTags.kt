@@ -70,6 +70,11 @@ object TestTags {
     const val HighlightConfirm = "highlight-confirm"
     const val HighlightSave = "highlight-save"
     const val HighlightDelete = "highlight-delete"
+    // #1234 — share a quote: the toolbar icon opens a menu with share-sheet +
+    // copy-to-clipboard items.
+    const val HighlightShare = "highlight-share"
+    const val HighlightShareSend = "highlight-share-send"
+    const val HighlightShareCopy = "highlight-share-copy"
 
     // ── Voices ───────────────────────────────────────────────────────────
     const val VoiceList = "voice-list"

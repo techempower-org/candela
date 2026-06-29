@@ -29,14 +29,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.CenterFocusStrong
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,6 +73,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -204,6 +209,11 @@ fun ReaderTextView(
     /** Issue #994 — custom per-word highlight colour (ARGB int). 0 (default)
      *  derives from the reading-theme accent. */
     wordHighlightArgb: Int = 0,
+    /** Issue #1234 — the current fiction's author, for the share-quote
+     *  attribution line. Book + chapter titles come from [state]; the author
+     *  isn't on the playback state, so [HybridReaderScreen] sources it from the
+     *  fiction row. Blank (default) drops the author from the attribution. */
+    authorName: String = "",
     /** Issue #999 phase 2 — the loaded chapter's saved highlights to render as
      *  background spans + make tappable for edit/delete. Empty (default) keeps
      *  preview/test/audiobook callsites unchanged. */
@@ -864,6 +874,9 @@ fun ReaderTextView(
         pendingSelection?.let { sel ->
             HighlightCreateSheet(
                 quotedText = sel.quotedText,
+                authorName = authorName,
+                bookTitle = state.fictionTitle,
+                chapterTitle = state.chapterTitle,
                 onConfirm = { colorName, note ->
                     onCreateHighlight(sel.start, sel.end, sel.quotedText, colorName, note)
                     pendingSelection = null
@@ -878,6 +891,9 @@ fun ReaderTextView(
         editingHighlight?.let { ann ->
             HighlightEditSheet(
                 annotation = ann,
+                authorName = authorName,
+                bookTitle = state.fictionTitle,
+                chapterTitle = state.chapterTitle,
                 onSave = { colorName, note ->
                     onUpdateHighlight(ann, colorName, note)
                     editingHighlight = null
@@ -1036,6 +1052,9 @@ private fun ReaderSearchBar(
 @Composable
 private fun HighlightCreateSheet(
     quotedText: String,
+    authorName: String,
+    bookTitle: String,
+    chapterTitle: String,
     onConfirm: (colorName: String, note: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1084,8 +1103,15 @@ private fun HighlightCreateSheet(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                ShareQuoteAction(
+                    quotedText = quotedText,
+                    authorName = authorName,
+                    bookTitle = bookTitle,
+                    chapterTitle = chapterTitle,
+                )
+                Spacer(Modifier.weight(1f))
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.reader_cancel))
                 }
@@ -1111,6 +1137,9 @@ private fun HighlightCreateSheet(
 @Composable
 private fun HighlightEditSheet(
     annotation: `in`.jphe.storyvox.data.db.entity.Annotation,
+    authorName: String,
+    bookTitle: String,
+    chapterTitle: String,
     onSave: (colorName: String, note: String?) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
@@ -1168,6 +1197,12 @@ private fun HighlightEditSheet(
                 ) {
                     Text(stringResource(R.string.reader_highlight_delete))
                 }
+                ShareQuoteAction(
+                    quotedText = annotation.quotedText,
+                    authorName = authorName,
+                    bookTitle = bookTitle,
+                    chapterTitle = chapterTitle,
+                )
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.reader_cancel))
@@ -1234,6 +1269,77 @@ private fun HighlightColorRow(
                         onClick = { onSelect(color) },
                     )
                     .semantics { contentDescription = label },
+            )
+        }
+    }
+}
+
+/**
+ * Issue #1234 — the share affordance shared by the create + edit highlight
+ * sheets. A single [Icons.Default.Share] [IconButton] that opens a compact
+ * [DropdownMenu] with two destinations: the system share sheet, or copy to the
+ * clipboard. One icon keeps the sheet uncluttered (the menu only materialises
+ * on tap) while still exposing both — the share button is "discoverable but
+ * not cluttered" per the issue.
+ *
+ * The shared text is built once by the pure [QuoteShareFormatter] from the
+ * quote + attribution metadata (remembered so it isn't rebuilt on every
+ * recomposition); dispatch goes through [shareQuoteText] / [copyQuoteToClipboard]
+ * (the Android-coupled half). Strings resolve here in Composable scope so the
+ * dispatch helpers stay free of resource lookups.
+ */
+@Composable
+private fun ShareQuoteAction(
+    quotedText: String,
+    authorName: String,
+    bookTitle: String,
+    chapterTitle: String,
+) {
+    val context = LocalContext.current
+    var menuOpen by remember { mutableStateOf(false) }
+    val shareLabel = stringResource(R.string.reader_quote_share)
+    val copiedMessage = stringResource(R.string.reader_quote_copied)
+    val formatted = remember(quotedText, authorName, bookTitle, chapterTitle) {
+        QuoteShareFormatter.format(
+            quote = quotedText,
+            author = authorName,
+            bookTitle = bookTitle,
+            chapterTitle = chapterTitle,
+        )
+    }
+
+    Box {
+        IconButton(
+            onClick = { menuOpen = true },
+            modifier = Modifier.testTag(TestTags.HighlightShare),
+        ) {
+            Icon(
+                Icons.Default.Share,
+                contentDescription = shareLabel,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.reader_quote_share_via)) },
+                leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                modifier = Modifier.testTag(TestTags.HighlightShareSend),
+                onClick = {
+                    menuOpen = false
+                    shareQuoteText(context = context, text = formatted, chooserTitle = shareLabel)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.reader_quote_copy)) },
+                leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+                modifier = Modifier.testTag(TestTags.HighlightShareCopy),
+                onClick = {
+                    menuOpen = false
+                    copyQuoteToClipboard(context = context, text = formatted, toastMessage = copiedMessage)
+                },
             )
         }
     }

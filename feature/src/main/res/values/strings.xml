@@ -190,6 +190,11 @@
     <!-- TalkBack labels for the colour-swatch chips; %1$s is the colour name -->
     <string name="reader_highlight_color_selected">%1$s highlight colour, selected</string>
     <string name="reader_highlight_color_unselected">%1$s highlight colour</string>
+    <!-- #1234 — share a highlighted quote with attribution -->
+    <string name="reader_quote_share">Share quote</string>
+    <string name="reader_quote_share_via">Share…</string>
+    <string name="reader_quote_copy">Copy to clipboard</string>
+    <string name="reader_quote_copied">Quote copied to clipboard</string>
 
     <!-- Reader / ResumePrompt -->
     <string name="reader_from_the_start">From the start</string>

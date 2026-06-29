@@ -101,6 +101,8 @@ fun HybridReaderScreen(
     val wordHighlightArgb by viewModel.wordHighlightArgb.collectAsStateWithLifecycle()
     // Issue #999 phase 2 — the loaded chapter's saved highlights.
     val chapterHighlights by viewModel.chapterHighlights.collectAsStateWithLifecycle()
+    // Issue #1234 — author for the share-quote attribution (not on playback state).
+    val currentAuthor by viewModel.currentAuthor.collectAsStateWithLifecycle()
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -376,6 +378,10 @@ fun HybridReaderScreen(
                 // create / edit / delete verbs; ReaderTextView renders the
                 // spans, drives the selection toolbar, and routes taps on a
                 // saved highlight to its edit/delete sheet.
+                // Issue #1234 — author for the share-quote attribution line;
+                // book + chapter titles come from the playback state inside
+                // ReaderTextView.
+                authorName = currentAuthor,
                 savedHighlights = chapterHighlights,
                 onCreateHighlight = viewModel::createHighlight,
                 onUpdateHighlight = viewModel::updateHighlight,
