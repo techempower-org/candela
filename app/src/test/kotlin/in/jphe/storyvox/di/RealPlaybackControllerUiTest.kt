@@ -412,6 +412,7 @@ class RealPlaybackControllerUiTest {
         override suspend fun removeFromLibrary(id: String) = Unit
         override suspend fun setDownloadMode(id: String, mode: DownloadMode?) = Unit
         override suspend fun setPinnedVoice(id: String, voiceId: String?, locale: String?) = Unit
+        override suspend fun pinnedVoiceId(id: String): String? = null
         override suspend fun setPlaybackSpeed(id: String, speed: Float?) = Unit
         override fun observePlaybackSpeed(id: String): Flow<Float?> = flowOf(null)
         override suspend fun setFollowedRemote(id: String, followed: Boolean) =
