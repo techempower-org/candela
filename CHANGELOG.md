@@ -9,6 +9,15 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.5.2] -- 2026-06-29
+
+**Samsung TTS step-2 fix.** Stops the roster's per-engine enumeration from binding Samsung's private TTS engine, which triggered an infinite reconnect loop that survived `TextToSpeech.shutdown()`.
+
+### Fixed
+
+- System TTS voice roster skips Samsung's private engine (`com.samsung.SMT`) during per-engine enumeration. The bind refusal triggered a framework Handler reconnect loop that `shutdown()` couldn't stop, burning CPU for the process lifetime. (#1390)
+- `SystemTtsEngine.loadModel()` uses Google TTS as explicit fallback when no engine name is configured, never the private device default.
+
 ## [1.5.1] -- 2026-06-29
 
 **Samsung playback hotfix + Wear OS sideload.** Fixes Piper synthesis cancel loop and system TTS infinite reconnection on Samsung devices. First Wear OS APK in CI.
