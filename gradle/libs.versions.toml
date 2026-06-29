@@ -136,6 +136,12 @@ androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+# Issue #1367 — Recording mode. camera-video supplies the VideoCapture stack
+# (Recorder / MediaStoreOutputOptions / AudioConfig) that LifecycleCameraController
+# drives for the teleprompter video recorder. Kept out of the `camerax` bundle
+# because only :feature's recording surface needs it (the OCR scan path is
+# image-only).
+androidx-camera-video = { module = "androidx.camera:camera-video", version.ref = "camerax" }
 
 # Navigation
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation-compose" }

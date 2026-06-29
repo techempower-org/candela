@@ -89,6 +89,10 @@ dependencies {
     // the capture surface (camera-view's PreviewView + CameraController).
     implementation(project(":source-ocr"))
     implementation(libs.bundles.camerax)
+    // Issue #1367 — Recording mode adds video capture on top of the OCR
+    // preview stack: LifecycleCameraController.startRecording needs the
+    // camera-video artifact (Recorder / MediaStoreOutputOptions / AudioConfig).
+    implementation(libs.androidx.camera.video)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.bundles.lifecycle)

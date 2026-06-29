@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VerticalAlignCenter
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoStories
@@ -359,6 +360,11 @@ fun ReaderTextView(
     onStartVoicePaced: (String) -> Unit = {},
     onStopVoicePaced: () -> Unit = {},
     onPrepareVoicePaced: () -> Unit = {},
+    /** Issue #1367 — open Recording mode (front camera behind the scrolling
+     *  script) from the teleprompter transport's Record button. Threaded up
+     *  through [HybridReaderScreen] to a `navigate(RECORDING)`. No-op default
+     *  keeps preview/test callsites working. */
+    onRecord: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -1200,6 +1206,7 @@ fun ReaderTextView(
                             onSetTeleprompterEnabled(false)
                         },
                         onWriteScript = onWriteScript,
+                        onRecord = onRecord,
                     )
                     TeleprompterMode.Practice -> PracticeTransport(
                         playing = state.isPlaying,
@@ -1351,6 +1358,7 @@ private fun TeleprompterTransport(
     onWpmDelta: (Int) -> Unit,
     onExit: () -> Unit,
     onWriteScript: () -> Unit,
+    onRecord: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -1377,6 +1385,14 @@ private fun TeleprompterTransport(
                 modifier = Modifier.semantics { contentDescription = "Write a script" },
             ) {
                 Icon(imageVector = Icons.Outlined.AutoAwesome, contentDescription = null)
+            }
+            // Issue #1367 — Record: film yourself reading the script with the
+            // camera behind the teleprompter text.
+            IconButton(
+                onClick = onRecord,
+                modifier = Modifier.semantics { contentDescription = "Record video" },
+            ) {
+                Icon(imageVector = Icons.Filled.Videocam, contentDescription = null)
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(
