@@ -841,7 +841,7 @@ fun AudiobookView(
             if (warmingUp) {
                 state.warmingProgress?.let { p ->
                     LinearProgressIndicator(
-                        progress = p.coerceIn(0f, 1f),
+                        progress = { p.coerceIn(0f, 1f) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp),
