@@ -1,4 +1,4 @@
-storyvox turns books, articles, and stories into beautiful audio — read out loud by your choice of on-device voices. No subscription. No account required.
+Candela turns books, articles, and stories into beautiful audio — read out loud by your choice of on-device voices. No subscription. No account required.
 
 Open the app and you've got an audiobook player ready to go. Tap to start. Skip ahead, jump back, fall asleep to a sleep timer, or play through Android Auto on the drive home.
 
@@ -42,6 +42,6 @@ Library Nocturne aesthetic — warm dark theme, brass accents, EB Garamond typog
 Sign in to sync your library, follows, reading positions, bookmarks, and voice settings across all your devices. Powered by InstantDB — end-to-end secure, no ads, your data is yours. The app works fully offline if you'd rather not.
 
 ⊹ FOR PEOPLE WHO LIKE TO LISTEN
-storyvox is built for audiobook readers, drivers, walkers, accessibility users, busy parents, students, and anyone who wants to hear instead of read. Open-source, no ads, no tracking, no upsells.
+Candela is built for audiobook readers, drivers, walkers, accessibility users, busy parents, students, and anyone who wants to hear instead of read. Open-source, no ads, no tracking, no upsells.
 
 Made with love by TechEmpower. Free, no account required.

@@ -10,7 +10,8 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 > Nothing leaves your device unless you explicitly turn on a feature that
 > requires the network (signing in for sync, browsing a fiction backend,
 > downloading a voice). Uninstalling the app deletes everything stored
-> locally; signing out of sync deletes the cloud-side copy too.
+> locally; you can delete cloud-synced data via the in-app "Delete cloud
+> data" action.
 
 **Effective date:** 2026-06-26  
 **App:** Candela (`org.techempower.candela`)  
@@ -191,7 +192,9 @@ it's on your device.
   persists until you uninstall the app or clear app data from Android
   Settings. Uninstalling deletes everything.
 - **Synced data** (only if sync is enabled) lives in InstantDB until you
-  sign out of sync. Signing out of sync deletes your record.
+  explicitly delete it. Use the in-app **"Delete cloud data"** action to
+  purge synced data from InstantDB. Signing out of sync revokes your auth
+  token and wipes local session data, but does not delete the cloud record.
 - **Voice downloads** stay in Candela's cache until you delete them
   (Settings → Voices → Manage → Delete).
 
