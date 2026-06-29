@@ -12,6 +12,8 @@ import `in`.jphe.storyvox.feature.api.ImportFileResult
 import `in`.jphe.storyvox.navigation.DocumentImportClassifier
 import `in`.jphe.storyvox.navigation.ImportKind
 import `in`.jphe.storyvox.source.epub.config.EpubEntryKind
+import java.io.File
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +67,7 @@ class DocumentImporterUiImpl @Inject constructor(
                 ImportKind.Epub -> registerEpub(uri, uriString, displayName, EpubEntryKind.Epub)
                 ImportKind.Text -> registerEpub(uri, uriString, displayName, EpubEntryKind.Text)
                 ImportKind.Pdf -> registerPdf(uri, uriString, displayName)
+                ImportKind.Odt -> registerOdt(uri, uriString, displayName)
                 ImportKind.Unsupported -> ImportFileResult.Unsupported
             }
         }
@@ -90,6 +93,46 @@ class DocumentImporterUiImpl @Inject constructor(
         return runCatching {
             ImportFileResult.Success(pdfConfig.importFile(uriString, displayName))
         }.getOrElse { failure(displayName, it) }
+    }
+
+    /**
+     * Issue #1310 — OpenDocument Text. Unlike EPUB/PDF (which the source
+     * reads lazily from the original Uri), an `.odt` body must be unzipped +
+     * ODF-stripped up front, so we extract the plain text once, stage it as a
+     * UTF-8 file under `filesDir`, and import THAT through the same plaintext
+     * path as a `.txt`. Staging under `filesDir` (not `cacheDir`) keeps the
+     * imported book readable after a cache clear; we read the source bytes
+     * eagerly here, so no persistable Uri grant is needed.
+     */
+    private suspend fun registerOdt(
+        uri: Uri,
+        uriString: String,
+        displayName: String,
+    ): ImportFileResult {
+        val bytes = runCatching {
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.getOrNull() ?: return failure(displayName, IOException("Couldn't read the .odt file"))
+        val text = OdtTextExtractor.extract(bytes)
+        if (text.isBlank()) {
+            return ImportFileResult.Error(
+                "Couldn't read any text from ${displayName.ifBlank { "that file" }}.",
+            )
+        }
+        return runCatching {
+            val stagedUri = stageOdtText(uriString, text)
+            ImportFileResult.Success(epubConfig.importFile(stagedUri, displayName, EpubEntryKind.Text))
+        }.getOrElse { failure(displayName, it) }
+    }
+
+    /** Stage [text] as a UTF-8 file under `filesDir` and return its `file://`
+     *  Uri string. The filename is a hash of [sourceUriString] so the same
+     *  `.odt` always maps to the same staged file (and thus the same
+     *  fictionId — re-importing dedupes rather than duplicating). */
+    private fun stageOdtText(sourceUriString: String, text: String): String {
+        val dir = File(context.filesDir, "odt-import").apply { mkdirs() }
+        val staged = File(dir, Integer.toHexString(sourceUriString.hashCode()) + ".txt")
+        staged.writeText(text, Charsets.UTF_8)
+        return Uri.fromFile(staged).toString()
     }
 
     private fun failure(displayName: String, cause: Throwable): ImportFileResult {

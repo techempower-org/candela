@@ -142,6 +142,8 @@
                 <data android:scheme="file" />
                 <data android:mimeType="application/epub+zip" />
                 <data android:mimeType="text/plain" />
+                <!-- Issue #1310 — OpenDocument Text (.odt). -->
+                <data android:mimeType="application/vnd.oasis.opendocument.text" />
             </intent-filter>
             <!-- ACTION_VIEW: claim by .epub/.txt extension when the mime
                  is generic (octet-stream) or absent. host="*" + a
@@ -160,8 +162,10 @@
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\\.epub" />
                 <data android:pathPattern=".*\\.txt" />
+                <data android:pathPattern=".*\\.odt" />
                 <data android:pathPattern=".*\\..*\\.epub" />
                 <data android:pathPattern=".*\\..*\\.txt" />
+                <data android:pathPattern=".*\\..*\\.odt" />
             </intent-filter>
             <!-- ACTION_SEND: "Share → Candela" for an EPUB attachment.
                  (text/plain file-shares ride the #472 filter above —
@@ -170,6 +174,8 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/epub+zip" />
+                <!-- Issue #1310 — OpenDocument Text (.odt) share. -->
+                <data android:mimeType="application/vnd.oasis.opendocument.text" />
             </intent-filter>
         </activity>
 

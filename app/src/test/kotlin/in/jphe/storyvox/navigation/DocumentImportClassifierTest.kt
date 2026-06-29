@@ -70,6 +70,19 @@ class DocumentImportClassifierTest {
         assertEquals(ImportKind.Pdf, classify("application/octet-stream", "manual.PDF"))
     }
 
+    // ── ODT (#1310 — OpenDocument Text) ──────────────────────────────
+
+    @Test
+    fun odt_classifiesOdt() {
+        assertEquals(ImportKind.Odt, classify("application/vnd.oasis.opendocument.text", "story.odt"))
+        assertEquals(ImportKind.Odt, classify(null, "story.odt"))
+        assertEquals(ImportKind.Odt, classify("APPLICATION/VND.OASIS.OPENDOCUMENT.TEXT", "story"))
+        // Generic mime + .odt extension (the common file-manager case).
+        assertEquals(ImportKind.Odt, classify("application/octet-stream", "novel.ODT"))
+        // A plain .zip must NOT be mistaken for an .odt (both are ZIP containers).
+        assertEquals(ImportKind.Unsupported, classify("application/zip", "archive.zip"))
+    }
+
     // ── Unsupported / edge ───────────────────────────────────────────
 
     @Test
