@@ -331,6 +331,11 @@ fun ReaderTextView(
      *  composition (→ [ReaderViewModel.resetTeleprompter]). Preserves #1239's
      *  per-visit-transient behavior against the @Singleton controller. */
     onResetTeleprompter: () -> Unit = {},
+    /** Issue #1366 — open the AI script-writer sheet from the teleprompter
+     *  transport. Hosted by [HybridReaderScreen] (which owns the nav to
+     *  Settings → AI for the unconfigured-provider path); the no-op default
+     *  keeps preview / test / audiobook callsites unchanged. */
+    onWriteScript: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -1098,6 +1103,7 @@ fun ReaderTextView(
                             onSetTeleprompterPlaying(false)
                             onSetTeleprompterEnabled(false)
                         },
+                        onWriteScript = onWriteScript,
                     )
                     TeleprompterMode.Practice -> PracticeTransport(
                         playing = state.isPlaying,
@@ -1240,6 +1246,7 @@ private fun TeleprompterTransport(
     onPlayPause: () -> Unit,
     onWpmDelta: (Int) -> Unit,
     onExit: () -> Unit,
+    onWriteScript: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -1257,6 +1264,15 @@ private fun TeleprompterTransport(
                 modifier = Modifier.semantics { contentDescription = "Exit teleprompter" },
             ) {
                 Icon(imageVector = Icons.Filled.Close, contentDescription = null)
+            }
+            // Issue #1366 — AI script writer entry point. Opens the
+            // ScriptGeneratorSheet (hosted by HybridReaderScreen) so a user
+            // rehearsing can generate fresh teleprompter copy on the spot.
+            IconButton(
+                onClick = onWriteScript,
+                modifier = Modifier.semantics { contentDescription = "Write a script" },
+            ) {
+                Icon(imageVector = Icons.Outlined.AutoAwesome, contentDescription = null)
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(
