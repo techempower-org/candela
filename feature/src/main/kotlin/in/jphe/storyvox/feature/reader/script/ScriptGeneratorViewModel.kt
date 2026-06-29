@@ -178,13 +178,32 @@ internal val SCRIPT_DURATION_OPTIONS: List<Int> = listOf(30, 60, 90)
 
 private val WHITESPACE = Regex("\\s+")
 
+// The teleprompter format (matching the TechEmpower Show scripts) carries
+// non-spoken scaffolding: `[cue]` blocks, `=====` section-banner rules, and
+// leading `SPEAKER:` labels. None of it is read aloud, so it must not inflate
+// the spoken-duration estimate. Banner *title* lines (ALL-CAPS, no `=`) are a
+// known, accepted exception — detecting them needs block parsing we don't do.
+private val CUE_SPAN = Regex("\\[[^\\]]*\\]")
+private val BANNER_RULE = Regex("(?m)^\\s*=+\\s*$")
+private val SPEAKER_LABEL = Regex("(?m)^\\s*[A-Z][A-Z0-9 .'’&/-]{0,30}:")
+
 /** Target word count for [durationSecs] of speech at [wpm]. */
 internal fun targetWordCount(durationSecs: Int, wpm: Int = SCRIPT_WPM): Int =
     if (durationSecs <= 0 || wpm <= 0) 0 else (durationSecs * wpm) / 60
 
-/** Whitespace-delimited word count; blank text is zero words. */
-internal fun scriptWordCount(text: String): Int =
-    if (text.isBlank()) 0 else text.trim().split(WHITESPACE).size
+/** Strip non-spoken scaffolding — `[cues]`, `=====` banner rules, and leading
+ *  `SPEAKER:` labels — leaving just what a presenter reads aloud. */
+internal fun spokenText(raw: String): String =
+    raw
+        .replace(CUE_SPAN, " ")
+        .replace(BANNER_RULE, " ")
+        .replace(SPEAKER_LABEL, " ")
+
+/** Spoken-word count (scaffolding stripped); blank text is zero words. */
+internal fun scriptWordCount(text: String): Int {
+    val spoken = spokenText(text).trim()
+    return if (spoken.isEmpty()) 0 else spoken.split(WHITESPACE).size
+}
 
 /** Estimated spoken duration of [text] in whole seconds at [wpm]. */
 internal fun estimatedDurationSecs(text: String, wpm: Int = SCRIPT_WPM): Int =
@@ -194,26 +213,44 @@ internal fun estimatedDurationSecs(text: String, wpm: Int = SCRIPT_WPM): Int =
  * The teleprompter-script system prompt (#1366). Short and explicit, like
  * ChapterRecap's librarian persona — interpolates the duration + word-count
  * target so the model paces to length.
+ *
+ * The output format mirrors the TechEmpower Show teleprompter scripts so a
+ * generated script renders cleanly in the same prompter: blocks split by blank
+ * lines, `SPEAKER:` labels, `[bracketed]` production cues, and optional `===`
+ * section banners. (Reference: techempower/show/ep2/teleprompter.html.)
  */
 internal fun buildScriptSystemPrompt(durationSecs: Int, wpm: Int = SCRIPT_WPM): String {
     val words = targetWordCount(durationSecs, wpm)
     return """
-        You are a script writer for short-form video (YouTube Shorts, TikTok, Reels).
-        Write a teleprompter-ready script for the given topic and target duration.
-        Rules:
-        - Write in a conversational, direct tone — as if speaking to the camera
-        - Open with a hook (question, bold claim, or surprising fact) in the first 5 words
-        - Use short sentences (8-12 words max)
-        - Include natural pause markers: "..." for beats, "[pause]" for 1-second breaks
-        - Target ${durationSecs}s at $wpm words per minute ($words words)
-        - End with a clear call-to-action or memorable closing line
-        - No stage directions, no "(smiles)", no camera instructions
-        - Output the script text only, no headers or meta-commentary
+        You are a script writer for short-form video (YouTube Shorts, TikTok, Reels),
+        writing for a teleprompter. Write a script for the given topic and duration.
+
+        Format it so it renders cleanly in the teleprompter:
+        - Separate every block with a blank line.
+        - Begin each spoken block with a SPEAKER label in capitals on its own line,
+          ending in a colon (for example "HOST:"). Use one speaker for a solo piece;
+          add a second named speaker only when the topic is a conversation.
+        - Put production cues — cuts, b-roll, on-screen text, post notes — in [SQUARE
+          BRACKETS], on their own line or inline. Cues are never spoken aloud.
+        - For a longer piece you may add a section banner as its own block: a line of
+          ===, a short ALL-CAPS title, then another line of ===.
+
+        Write to be spoken:
+        - Conversational, direct tone — as if speaking to the camera.
+        - Open with a hook (a question, bold claim, or surprising fact) in the first
+          five words.
+        - Keep sentences short — 8 to 12 words.
+        - Spell out numbers, prices, and web addresses as spoken words, not digits.
+        - Pace for about ${durationSecs}s at $wpm words per minute (~$words spoken words). Labels and cues do not count toward that.
+        - End with a clear call-to-action or a memorable closing line.
+        - Output only the script — no preamble, no explanation, no markdown.
     """.trimIndent()
 }
 
 /** The per-request user prompt carrying the topic + length target. */
 internal fun buildScriptUserPrompt(topic: String, durationSecs: Int, wpm: Int = SCRIPT_WPM): String {
     val words = targetWordCount(durationSecs, wpm)
-    return "Topic: ${topic.trim()}\nTarget: about $durationSecs seconds (~$words words).\nWrite the script."
+    return "Topic: ${topic.trim()}\n" +
+        "Target: about $durationSecs seconds (~$words spoken words).\n" +
+        "Write the script now, in the teleprompter format described."
 }

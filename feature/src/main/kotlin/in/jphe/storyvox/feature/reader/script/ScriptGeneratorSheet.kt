@@ -99,7 +99,7 @@ fun ScriptGeneratorSheet(
                 )
             }
             Text(
-                "Generate a teleprompter-ready script for a short video.",
+                "Generate a teleprompter-ready script — speaker labels, short lines, and cue marks.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

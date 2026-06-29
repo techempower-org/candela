@@ -62,6 +62,51 @@ class ScriptGeneratorLogicTest {
         assertEquals(3, scriptWordCount("  one two three  "))
     }
 
+    // ===== spoken-word stripping (teleprompter format scaffolding) =====
+
+    @Test
+    fun `speaker labels are not counted as spoken words`() {
+        assertEquals(2, scriptWordCount("HOST: hello world"))
+        // Label on its own line, dialogue on the next — the show format.
+        assertEquals(2, scriptWordCount("HOST:\nhello world"))
+        assertEquals(4, scriptWordCount("SHAWNA: hello there\nJEFF: hi back"))
+    }
+
+    @Test
+    fun `bracketed cues are not counted as spoken words`() {
+        assertEquals(2, scriptWordCount("[B-ROLL: city skyline at dusk] hello world"))
+        assertEquals(4, scriptWordCount("look here [CUT to close-up] right now"))
+        assertEquals(0, scriptWordCount("[POST: jingle and logo intro]"))
+    }
+
+    @Test
+    fun `section-banner rule lines are not counted but titles remain`() {
+        // The ===== rules drop out; the ALL-CAPS title line is a known,
+        // accepted exception that still counts (no block parsing).
+        assertEquals(4, scriptWordCount("=====\nMY SECTION\n=====\nHOST: go now"))
+    }
+
+    @Test
+    fun `a full show-format block counts only the spoken words`() {
+        val block = """
+            =====
+            THE HOOK
+            =====
+
+            [POST: JINGLE + LOGO INTRO]
+
+            HOST:
+            Wait — you qualify for this.
+
+            HOST:
+            Here is the catch nobody mentions. [b-roll: phone]
+        """.trimIndent()
+        // Spoken: "THE HOOK" (2, title exception)
+        // + "Wait — you qualify for this." (6 — the spaced em-dash is its own token)
+        // + "Here is the catch nobody mentions." (6) = 14.
+        assertEquals(14, scriptWordCount(block))
+    }
+
     // ===== estimatedDurationSecs =====
 
     @Test
@@ -90,18 +135,25 @@ class ScriptGeneratorLogicTest {
     @Test
     fun `system prompt interpolates the duration and word target`() {
         val prompt = buildScriptSystemPrompt(60)
-        assertTrue(prompt.contains("60s at 150 words per minute (150 words)"))
-        // The voice rules survive the trimIndent.
+        assertTrue(prompt.contains("60s at 150 words per minute (~150 spoken words)"))
+        // The voice + format rules survive the trimIndent.
         assertTrue(prompt.contains("short-form video"))
         assertTrue(prompt.contains("hook"))
-        assertTrue(prompt.contains("[pause]"))
         assertTrue(prompt.contains("call-to-action"))
     }
 
     @Test
+    fun `system prompt specifies the teleprompter format`() {
+        val prompt = buildScriptSystemPrompt(60)
+        assertTrue(prompt.contains("SPEAKER label"))
+        assertTrue(prompt.contains("[SQUARE"))
+        assertTrue(prompt.contains("section banner"))
+    }
+
+    @Test
     fun `system prompt scales the word target with duration`() {
-        assertTrue(buildScriptSystemPrompt(30).contains("(75 words)"))
-        assertTrue(buildScriptSystemPrompt(90).contains("(225 words)"))
+        assertTrue(buildScriptSystemPrompt(30).contains("(~75 spoken words)"))
+        assertTrue(buildScriptSystemPrompt(90).contains("(~225 spoken words)"))
     }
 
     @Test
@@ -109,7 +161,7 @@ class ScriptGeneratorLogicTest {
         val prompt = buildScriptUserPrompt("Why accessibility matters", 60)
         assertTrue(prompt.contains("Why accessibility matters"))
         assertTrue(prompt.contains("60 seconds"))
-        assertTrue(prompt.contains("150 words"))
+        assertTrue(prompt.contains("150 spoken words"))
     }
 
     @Test
