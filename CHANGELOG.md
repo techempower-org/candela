@@ -9,9 +9,18 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.4] -- 2026-06-29
+
+**Cloud sync fix (for real).** v1.4.3 provisioned `local.properties` on runners but the workflow still copied from the pre-rebrand `storyvox` path — which only existed on katana. Builds scheduled on familiar or ubox0 silently fell back to the `PLACEHOLDER` app ID.
+
+### Fixed
+
+- Update CI workflow `local.properties` materialization path from `storyvox` to `candela` so all runners (not just katana) pick up `INSTANTDB_APP_ID`. (#1344)
+- Create persistent `local.properties` on ubox0 (was missing entirely).
+
 ## [1.4.3] -- 2026-06-29
 
-**Cloud sync fix.** All CI runners were missing the InstantDB app ID in `local.properties`, causing release builds to ship with sync disabled (`PLACEHOLDER` app ID → `DisabledBackend`).
+**Cloud sync fix (incomplete).** Provisioned `INSTANTDB_APP_ID` on CI runners but missed the stale path in the workflow — see v1.4.4.
 
 ### Fixed
 
