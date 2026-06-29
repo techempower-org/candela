@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Candela · Play Store Publishing Walkthrough</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23120d07'/%3E%3Crect x='12' y='15' width='8' height='13' rx='1.5' fill='%23e8dcc2'/%3E%3Crect x='15' y='9' width='2' height='6' fill='%236b5a2e'/%3E%3Cpath d='M16 2c3 3.5 3.6 6.2 1.8 8.2C16.6 11.5 14 11.2 14 8.4c0-1.7 1-3 2-6.4z' fill='%23f4b740'/%3E%3Cpath d='M16 4.5c1.6 2.2 1.8 4 .8 5.2-.8.9-2 .6-2-.9 0-1 .4-2.1 1.2-4.3z' fill='%23ffe9a8'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --ember:#0e0a06; --ember-2:#150f08; --panel:#1b140c; --panel-2:#221a10;
+    --line:#3a2c18; --line-soft:#2a2012;
+    --brass:#d6a94a; --brass-bright:#f3cf7a; --brass-deep:#a87a2c;
+    --flame:#f4b740; --flame-hot:#ffe9a8;
+    --cream:#ece0c6; --parch:#e8dcc2; --muted:#a7926b; --faint:#766244;
+    --ok:#8fcf6b; --warn:#e08a4a; --danger:#d96a5a;
+    --serif:"Hoefler Text","Iowan Old Style","Sitka Text",Cambria,"Palatino Linotype",Palatino,"EB Garamond",Garamond,Georgia,serif;
+    --sans:"Optima","Gill Sans Nova","Gill Sans","Avenir Next",Avenir,"Segoe UI",system-ui,sans-serif;
+    --mono:"SF Mono","JetBrains Mono","Fira Code",ui-monospace,Menlo,Consolas,monospace;
+    --shadow:0 18px 50px -20px rgba(0,0,0,.8);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; color:var(--cream); font-family:var(--serif); font-size:17px; line-height:1.62;
+    background:
+      radial-gradient(1100px 520px at 50% -8%, rgba(244,183,64,.16), rgba(244,183,64,.04) 40%, transparent 66%),
+      radial-gradient(700px 700px at 92% 8%, rgba(168,122,44,.10), transparent 60%),
+      linear-gradient(180deg,var(--ember-2),var(--ember) 55%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* faint parchment grain */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background-image:radial-gradient(rgba(255,220,160,.025) 1px, transparent 1px);
+    background-size:3px 3px; mix-blend-mode:screen;
+  }
+  .wrap{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 22px 90px}
+  a{color:var(--brass-bright); text-decoration:none; border-bottom:1px solid rgba(243,207,122,.3)}
+  a:hover{border-bottom-color:var(--brass-bright)}
+
+  /* ---------- Header ---------- */
+  header.hero{ text-align:center; padding:64px 12px 30px; position:relative }
+  .candle{ width:46px; height:118px; margin:0 auto 6px; position:relative }
+  .candle .flame{
+    position:absolute; left:50%; top:-30px; width:18px; height:40px; transform:translateX(-50%);
+    background:radial-gradient(closest-side at 50% 64%, var(--flame-hot), var(--flame) 55%, rgba(244,183,64,0) 78%);
+    border-radius:50% 50% 50% 50%/62% 62% 40% 40%;
+    filter:drop-shadow(0 0 14px rgba(244,183,64,.85));
+    animation:flick 2.6s ease-in-out infinite;
+  }
+  .candle .glow{ position:absolute; left:50%; top:-58px; width:190px; height:170px; transform:translateX(-50%);
+    background:radial-gradient(closest-side, rgba(244,183,64,.30), transparent 70%); animation:glow 2.6s ease-in-out infinite }
+  .candle .wick{ position:absolute; left:50%; top:2px; width:2px; height:9px; transform:translateX(-50%); background:#2b2113 }
+  .candle .body{ position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:30px; height:96px; border-radius:8px 8px 5px 5px;
+    background:linear-gradient(90deg,#cdbf9b,#efe6cf 38%,#fff8e8 50%,#e4d9bd 62%,#b6a884);
+    box-shadow:inset 0 -10px 18px rgba(0,0,0,.25), 0 8px 22px rgba(0,0,0,.5) }
+  .candle .drip{ position:absolute; top:-2px; left:6px; width:7px; height:24px; border-radius:0 0 6px 6px;
+    background:linear-gradient(#fff8e8,#dccfb0) }
+  @keyframes flick{0%,100%{transform:translateX(-50%) scaleY(1) rotate(-1deg)}25%{transform:translateX(-52%) scaleY(1.08) rotate(1deg)}50%{transform:translateX(-49%) scaleY(.94) rotate(-1deg)}75%{transform:translateX(-51%) scaleY(1.05)}}
+  @keyframes glow{0%,100%{opacity:.85}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.candle .flame,.candle .glow{animation:none}}
+
+  .kicker{ font-family:var(--sans); letter-spacing:.42em; text-transform:uppercase; font-size:11px; color:var(--brass); margin:4px 0 2px }
+  h1.title{ font-size:clamp(40px,8vw,68px); margin:.05em 0 .08em; font-weight:600; letter-spacing:.01em;
+    background:linear-gradient(180deg,var(--flame-hot),var(--brass) 70%,var(--brass-deep));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .subtitle{ font-style:italic; color:var(--parch); font-size:clamp(18px,3.4vw,23px); margin:0 0 18px }
+  .statusbar{ display:inline-flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:6px }
+  .chip{ font-family:var(--sans); font-size:12.5px; letter-spacing:.04em; padding:6px 13px; border-radius:999px;
+    border:1px solid var(--line); background:rgba(255,224,160,.05); color:var(--parch) }
+  .chip b{ color:var(--brass-bright); font-weight:600 }
+  .chip.live{ border-color:rgba(143,207,107,.5); background:rgba(143,207,107,.08); color:#cfe9bd }
+  .chip.live::before{ content:"●"; color:var(--ok); margin-right:6px; font-size:10px; vertical-align:1px }
+  .lede{ max-width:620px; margin:22px auto 0; color:var(--muted); font-size:16px }
+  .lede code{ color:var(--brass-bright) }
+
+  /* ---------- Progress rail (sticky) ---------- */
+  .rail{ position:sticky; top:0; z-index:30; margin:30px 0 8px;
+    background:linear-gradient(180deg,rgba(20,15,8,.96),rgba(20,15,8,.82)); backdrop-filter:blur(6px);
+    border:1px solid var(--line); border-radius:14px; padding:13px 18px; box-shadow:var(--shadow) }
+  .rail-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap }
+  .rail .label{ font-family:var(--sans); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--brass) }
+  .meter{ flex:1; min-width:160px; height:12px; border-radius:999px; background:#0c0905; border:1px solid var(--line-soft); overflow:hidden; position:relative }
+  .meter .fill{ height:100%; width:0%; border-radius:999px; transition:width .5s cubic-bezier(.2,.8,.2,1);
+    background:linear-gradient(90deg,var(--brass-deep),var(--brass) 55%,var(--flame-hot));
+    box-shadow:0 0 14px rgba(244,183,64,.6) }
+  .meter .fill::after{ content:""; position:absolute; right:0; top:0; bottom:0; width:18px; background:radial-gradient(circle at right,rgba(255,233,168,.9),transparent 70%) }
+  .count{ font-family:var(--mono); font-size:14px; color:var(--brass-bright); white-space:nowrap }
+  .reset{ font-family:var(--sans); font-size:12px; letter-spacing:.04em; color:var(--muted); background:transparent;
+    border:1px solid var(--line); border-radius:8px; padding:6px 11px; cursor:pointer }
+  .reset:hover{ color:var(--cream); border-color:var(--brass-deep) }
+  .doneflag{ display:none; font-family:var(--sans); font-size:12px; color:var(--ok) }
+  body.complete .doneflag{ display:inline }
+
+  /* ---------- TOC ---------- */
+  nav.toc{ margin:20px 0 8px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center }
+  nav.toc a{ font-family:var(--sans); font-size:12.5px; letter-spacing:.03em; color:var(--muted); border:1px solid var(--line-soft);
+    border-radius:999px; padding:6px 13px; border-bottom:1px solid var(--line-soft) }
+  nav.toc a:hover{ color:var(--brass-bright); border-color:var(--brass-deep) }
+
+  /* ---------- Sections ---------- */
+  section.step{ margin:30px 0; border:1px solid var(--line); border-radius:16px; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),rgba(27,20,12,.7)); box-shadow:var(--shadow); scroll-margin-top:84px }
+  .step > .head{ display:flex; align-items:center; gap:16px; padding:20px 22px; border-bottom:1px solid var(--line-soft);
+    background:linear-gradient(90deg,rgba(214,169,74,.10),transparent 60%) }
+  .seal{ flex:none; width:46px; height:46px; border-radius:50%; display:grid; place-items:center; font-family:var(--serif);
+    font-size:19px; font-weight:600; color:var(--flame-hot); border:1.5px solid var(--brass-deep);
+    background:radial-gradient(circle at 32% 28%, rgba(244,183,64,.32), rgba(20,15,8,.6)); box-shadow:inset 0 0 12px rgba(244,183,64,.25) }
+  .head h2{ margin:0; font-size:clamp(21px,3.6vw,27px); font-weight:600; color:var(--cream); letter-spacing:.01em }
+  .head .sub{ font-family:var(--sans); font-size:12px; color:var(--muted); margin-top:2px; letter-spacing:.02em }
+  .secprog{ margin-left:auto; font-family:var(--mono); font-size:13px; color:var(--brass); white-space:nowrap; align-self:flex-start; padding-top:4px }
+  .body{ padding:16px 22px 24px }
+  .intro{ color:var(--muted); margin:2px 0 14px; font-size:15.5px }
+
+  /* checklist */
+  ul.checks{ list-style:none; margin:0; padding:0 }
+  ul.checks li{ position:relative; padding:11px 6px 11px 44px; border-bottom:1px dashed var(--line-soft) }
+  ul.checks li:last-child{ border-bottom:0 }
+  ul.checks li > input[type=checkbox]{ position:absolute; left:6px; top:13px; width:24px; height:24px; margin:0; cursor:pointer; appearance:none;
+    border:1.5px solid var(--brass-deep); border-radius:50%; background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.05),rgba(12,9,5,.6));
+    transition:all .2s ease }
+  ul.checks li > input[type=checkbox]:hover{ border-color:var(--brass) }
+  ul.checks li > input[type=checkbox]:checked{ border-color:var(--brass-bright);
+    background:radial-gradient(circle at 38% 30%,var(--flame-hot),var(--brass) 60%,var(--brass-deep));
+    box-shadow:0 0 12px rgba(244,183,64,.6) }
+  ul.checks li > input[type=checkbox]:checked::after{ content:"✓"; position:absolute; inset:0; display:grid; place-items:center;
+    color:#241704; font-size:14px; font-weight:700 }
+  ul.checks li > label{ cursor:pointer; display:block }
+  ul.checks li > input:checked + label{ color:var(--faint) }
+  ul.checks li > input:checked + label .what{ text-decoration:line-through; text-decoration-color:var(--brass-deep) }
+  .what{ color:var(--cream) }
+  .why{ display:block; color:var(--muted); font-size:14px; margin-top:2px; font-style:italic }
+  .why.plain{ font-style:normal }
+  .pill{ display:inline-block; font-family:var(--sans); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:1px 8px; border-radius:6px; border:1px solid var(--line); color:var(--muted); margin-left:6px; vertical-align:1px }
+  .pill.once{ color:#e0c089; border-color:var(--brass-deep) }
+  .pill.auto{ color:#9fd6c0; border-color:#3c5a4e }
+  .pill.manual{ color:var(--warn); border-color:#6b4a2e }
+
+  /* code / commands */
+  pre{ font-family:var(--mono); font-size:13.5px; line-height:1.55; background:#0b0805; color:#ecd9b0; border:1px solid var(--line);
+    border-left:3px solid var(--brass-deep); border-radius:10px; padding:14px 16px; overflow-x:auto; margin:12px 0;
+    position:relative; box-shadow:inset 0 0 26px rgba(0,0,0,.5) }
+  pre .c{ color:#7e6b46; font-style:italic } /* comment */
+  pre .k{ color:var(--brass-bright) } /* key/cmd */
+  code{ font-family:var(--mono); font-size:.92em; background:rgba(214,169,74,.10); padding:1px 6px; border-radius:5px; color:#ecd9b0 }
+
+  /* parchment listing block */
+  .parch{ border:1px solid var(--line); border-radius:12px; background:linear-gradient(180deg,#241b10,#1d160d); padding:0; margin:14px 0; overflow:hidden }
+  .parch > h4{ margin:0; font-family:var(--sans); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--brass);
+    padding:11px 16px; border-bottom:1px solid var(--line-soft); display:flex; align-items:center; gap:10px }
+  .parch .ct{ font-family:var(--sans); font-size:11px; color:var(--faint); margin-left:auto; letter-spacing:.04em }
+  .parch .copy{ font-family:var(--sans); font-size:11px; letter-spacing:.05em; color:var(--brass); background:transparent;
+    border:1px solid var(--brass-deep); border-radius:7px; padding:4px 10px; cursor:pointer }
+  .parch .copy:hover{ background:rgba(214,169,74,.12); color:var(--brass-bright) }
+  .parch .copy.copied{ color:var(--ok); border-color:var(--ok) }
+  .parch .txt{ padding:14px 18px; white-space:pre-wrap; color:var(--parch); font-size:15.5px; line-height:1.6 }
+  .parch .txt.body{ max-height:none }
+
+  /* tables */
+  .tablewrap{ overflow-x:auto; margin:14px 0; border:1px solid var(--line); border-radius:12px }
+  table{ border-collapse:collapse; width:100%; min-width:520px; font-size:14px }
+  th,td{ text-align:left; padding:10px 13px; border-bottom:1px solid var(--line-soft); vertical-align:top }
+  th{ font-family:var(--sans); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--brass); background:rgba(214,169,74,.06) }
+  tr:last-child td{ border-bottom:0 }
+  td code{ white-space:nowrap }
+  .yes{ color:var(--warn); font-weight:600 } .no{ color:var(--ok); font-weight:600 }
+
+  /* callouts */
+  .note{ border-radius:11px; padding:13px 16px 13px 16px; margin:14px 0; font-size:15px; border:1px solid var(--line);
+    border-left:3px solid var(--brass); background:rgba(214,169,74,.07) }
+  .note.danger{ border-left-color:var(--danger); background:rgba(217,106,90,.08) }
+  .note.safe{ border-left-color:var(--ok); background:rgba(143,207,107,.07) }
+  .note b{ color:var(--brass-bright) } .note.danger b{ color:#f0a99c } .note.safe b{ color:#bfe6a8 }
+  .note .t{ font-family:var(--sans); font-size:11px; letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:3px; color:var(--brass) }
+  .note.danger .t{ color:#f0a99c } .note.safe .t{ color:#bfe6a8 }
+
+  footer{ text-align:center; margin-top:50px; padding-top:26px; border-top:1px solid var(--line-soft); color:var(--muted); font-size:14px }
+  footer .links{ font-family:var(--sans); font-size:12.5px; margin-top:10px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap }
+  .end-candle{ font-size:22px; color:var(--flame); filter:drop-shadow(0 0 8px rgba(244,183,64,.7)) }
+
+  @media (max-width:560px){ body{font-size:16px} .body{padding:14px 16px 20px} .step>.head{padding:16px 16px} .secprog{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="candle" aria-hidden="true">
+      <div class="glow"></div><div class="flame"></div><div class="wick"></div>
+      <div class="body"><div class="drip"></div></div>
+    </div>
+    <div class="kicker">TechEmpower · Release Rites</div>
+    <h1 class="title">Candela</h1>
+    <p class="subtitle">A walkthrough for carrying the flame to the Play Store</p>
+    <div class="statusbar">
+      <span class="chip live">Latest&nbsp;<b>v1.4.5</b></span>
+      <span class="chip">versionCode <b>247</b></span>
+      <span class="chip">all bug fixes shipped</span>
+      <span class="chip">free · GPL-3.0 · no ads</span>
+    </div>
+    <p class="lede">Once the one-time rites below are complete, every future release is a single
+      <code>./gradlew :app:publishReleaseBundle</code> away — it stages a <b>draft</b> on Internal Test that you
+      bless with one click. Check off each step; the wax meter remembers where you left the candle.</p>
+  </header>
+
+  <!-- progress rail -->
+  <div class="rail">
+    <div class="rail-row">
+      <span class="label">Progress</span>
+      <div class="meter"><div class="fill" id="fill"></div></div>
+      <span class="count" id="count">0 / 0</span>
+      <span class="doneflag">✦ All rites complete — light it up ✦</span>
+      <button class="reset" id="reset" type="button">Snuff &amp; reset</button>
+    </div>
+  </div>
+
+  <nav class="toc">
+    <a href="#s1">I · Console setup</a>
+    <a href="#s2">II · Store listing</a>
+    <a href="#s3">III · Signing &amp; AAB</a>
+    <a href="#s4">IV · Data Safety</a>
+    <a href="#s5">V · Content rating</a>
+    <a href="#s6">VI · First release</a>
+    <a href="#s7">VII · Automation</a>
+    <a href="#tshoot">Troubleshooting</a>
+  </nav>
+
+  <!-- ===================== I. CONSOLE SETUP ===================== -->
+  <section class="step" id="s1">
+    <div class="head">
+      <span class="seal">I</span>
+      <div><h2>One-time Console setup</h2><div class="sub">~15 min · browser only · first-time only</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <p class="intro">These steps need Google's admin UI and can't be automated. Do them once as <b>TechEmpower-org admin</b> at
+        <a href="https://play.google.com/console" target="_blank" rel="noopener">play.google.com/console</a>.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c1a"><label for="c1a"><span class="what">Create app</span><span class="pill manual">UI</span>
+          <span class="why">Name “Candela”, default language English (US), type = App, Free. Accept the developer-program-policy and US-export declarations.</span></label></li>
+        <li><input type="checkbox" id="c1b"><label for="c1b"><span class="what">App access — all functionality open</span>
+          <span class="why">No login wall in v1.0; everything is reachable without restrictions.</span></label></li>
+        <li><input type="checkbox" id="c1c"><label for="c1c"><span class="what">Target audience → 13+, not child-directed</span>
+          <span class="why">Matches the content rating. Answer “No” to the primarily-child-directed question.</span></label></li>
+        <li><input type="checkbox" id="c1d"><label for="c1d"><span class="what">Clear the “No” declarations</span>
+          <span class="why">News apps · COVID-19 contact tracing · Government apps · Financial features · Health · Ads — all <b>No</b>.</span></label></li>
+        <li><input type="checkbox" id="c1e"><label for="c1e"><span class="what">Privacy policy URL</span>
+          <span class="why">Point to <code>candela.techempower.org/privacy/</code> (also linked in-app at Settings → About).</span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== II. STORE LISTING ===================== -->
+  <section class="step" id="s2">
+    <div class="head">
+      <span class="seal">II</span>
+      <div><h2>Store listing upload</h2><div class="sub">graphics + copy · first-time, then auto via bootstrapListing</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <p class="intro">All graphics live in <code>docs/play-store/v1.0/</code>; the copy below is the source of truth in <code>docs/play-store/listing/</code>.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c2a"><label for="c2a"><span class="what">App icon — <code>icon-512.png</code></span></label></li>
+        <li><input type="checkbox" id="c2b"><label for="c2b"><span class="what">Feature graphic — <code>feature-1024x500.png</code></span></label></li>
+        <li><input type="checkbox" id="c2c"><label for="c2c"><span class="what">Phone screenshots (4)</span>
+          <span class="why plain"><code>phone-01-library-hero</code> → <code>phone-04-fiction-detail.png</code></span></label></li>
+        <li><input type="checkbox" id="c2d"><label for="c2d"><span class="what">Tablet screenshots (6) — 7" &amp; 10"</span>
+          <span class="why plain"><code>tablet-01-library-hero</code> → <code>tablet-06-voice-picker.png</code></span></label></li>
+        <li><input type="checkbox" id="c2e"><label for="c2e"><span class="what">Paste title, short &amp; full description, contact email/phone/website</span></label></li>
+      </ul>
+
+      <div class="parch">
+        <h4>Title <span class="ct" id="ct-title"></span><button class="copy" data-copy="cp-title" type="button">Copy</button></h4>
+        <div class="txt" id="cp-title">Candela: Read Aloud</div>
+      </div>
+      <div class="parch">
+        <h4>Short description <span class="ct" id="ct-short"></span><button class="copy" data-copy="cp-short" type="button">Copy</button></h4>
+        <div class="txt" id="cp-short">Free books, tech guides, and the web — read aloud by on-device voices.</div>
+      </div>
+      <div class="parch">
+        <h4>Full description <span class="ct" id="ct-full"></span><button class="copy" data-copy="cp-full" type="button">Copy</button></h4>
+        <div class="txt body" id="cp-full">Candela is TechEmpower's free, accessible resource app — read aloud.
+
+Browse free tech guides, find local help by dialing 211 or 988, reach a peer-support Discord in one tap, and read or listen to all of it through a high-quality neural text-to-speech engine that runs entirely on your device. No subscription. No ads. No tracking. No account required.
+
+Under the hood, Candela is a serious audiobook player for any text you can reach — twenty-five fiction and reference sources are wired in, side by side. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, and PLOS. Open EPUB and PDF files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio with search across 30,000+ stations. Share any web link into Candela and a magic-link reader pulls the readable text and queues it for narration.
+
+Three on-device neural voice families ship: Piper (compact, dozens of languages), Kokoro (multi-speaker, warm narration), and KittenTTS (the lightest tier, built for slower phones). Voices download once, then work fully offline. Bring your own Microsoft Azure key for optional cloud-grade voices — Candela takes no cut, and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
+
+The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along. Swipe to a clean cover-and-scrubber audiobook view. Ask the built-in AI assistant about any book (bring your own Anthropic, OpenAI, or Google key). Listen on Android Auto, from the lock screen, or a home-screen widget, with a sleep timer and gapless chapter auto-advance. A Wear OS companion puts playback on your wrist.
+
+Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, adjustable font scale, and reduced-motion options throughout.
+
+Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, and voice settings across devices — encrypted in transit, never sold. Or stay fully offline; your call.
+
+FEATURES
+• 25 fiction &amp; reference sources — enable only the ones you want
+• 3 on-device neural voice families (Piper, Kokoro, KittenTTS)
+• Optional bring-your-own-key cloud voices (Microsoft Azure)
+• Hybrid reader with synced brass sentence highlighting
+• Per-book AI chat (bring your own key — Anthropic, OpenAI, Google)
+• Android Auto, lock-screen controls, sleep timer, home-screen widget
+• Gapless chapter auto-advance with smart prerendering
+• Optional cross-device sync — or fully offline
+• Wear OS companion
+• Dark and light themes; TalkBack-friendly; WCAG AA contrast
+• Free, GPL-3.0, ad-free, no tracking, no account required
+
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools, training, and software. Open source on GitHub.</div>
+      </div>
+      <div class="note"><span class="t">Release notes</span>Keep them user-facing, ≤ <b>500 chars</b>, 3–5 bullets led by the CHANGELOG tagline — never PR numbers or module names. The <b>first</b> production release should say “First public release” + a 4–5 bullet feature summary. Live file: <code>app/src/main/play/release-notes/en-US/default.txt</code>.</div>
+    </div>
+  </section>
+
+  <!-- ===================== III. SIGNING & AAB ===================== -->
+  <section class="step" id="s3">
+    <div class="head">
+      <span class="seal">III</span>
+      <div><h2>Signing &amp; the AAB</h2><div class="sub">release keystore · Play App Signing</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <ul class="checks">
+        <li><input type="checkbox" id="c3a"><label for="c3a"><span class="what">Release keystore in place</span>
+          <span class="why plain"><code>~/.storyvox-keystore/storyvox-release.keystore</code> — a real, never-committed signing key (replaces the old debug keystore Google rejects at upload). SHA256 <code>38:9F:BD:AA…85:E0:16</code>.</span></label></li>
+        <li><input type="checkbox" id="c3b"><label for="c3b"><span class="what">Enroll in Play App Signing</span>
+          <span class="why">Google holds the app-signing key; our keystore is the <i>upload</i> key. Play Console → Setup → App integrity confirms the upload key matches.</span></label></li>
+        <li><input type="checkbox" id="c3c"><label for="c3c"><span class="what">AAB is the canonical artifact</span>
+          <span class="why">The build defaults to <code>defaultToAppBundles=true</code>; APK uploads only run if explicitly asked.</span></label></li>
+        <li><input type="checkbox" id="c3d"><label for="c3d"><span class="what">Both secrets backed up in Vaultwarden</span>
+          <span class="why">Item <code>storyvox-release-keystore</code> (keystore + password); add the service-account JSON as a Secure Note attachment.</span></label></li>
+      </ul>
+      <div class="note danger"><span class="t">Do not rotate</span>Once Play App Signing accepts the keystore, <b>never rotate</b> it without Google's key-rotation flow — a wrong key uploaded against an existing app is rejected with <b>no recovery path</b>.</div>
+    </div>
+  </section>
+
+  <!-- ===================== IV. DATA SAFETY ===================== -->
+  <section class="step" id="s4">
+    <div class="head">
+      <span class="seal">IV</span>
+      <div><h2>Data Safety form</h2><div class="sub">pre-drafted answers · enter at submission</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <p class="intro">The honest story: Candela collects nothing unless you turn on <b>optional sync</b>. Camera (OCR) and channel sign-ins stay on-device / user-initiated, so they count as <span class="no">No</span> for collection.</p>
+      <div class="tablewrap"><table>
+        <tr><th>Data type</th><th>Collected?</th><th>Notes</th></tr>
+        <tr><td>Email address</td><td class="yes">Yes — sync only</td><td>HTTPS to InstantDB; not required; deletable by signing out. Account / sync lookup key.</td></tr>
+        <tr><td>User ID</td><td class="yes">Yes — sync only</td><td>InstantDB record ID, internal — not exposed to other users.</td></tr>
+        <tr><td>Library state <span class="why plain">(fiction IDs, positions, voice prefs)</span></td><td class="yes">Yes — sync only</td><td>App functionality (sync); encrypted in transit; deletable.</td></tr>
+        <tr><td>Photos / audio</td><td class="no">No</td><td>Camera is used <i>on-device</i> for OCR scan-to-read; images + text never leave the device. No microphone.</td></tr>
+        <tr><td>Files / docs</td><td class="no">No</td><td>EPUB import reads via SAF; nothing is sent anywhere.</td></tr>
+        <tr><td>Messages</td><td class="no">No</td><td>Discord/Slack/Matrix/Telegram are read via the user's own credentials directly to those services.</td></tr>
+        <tr><td>Location · Contacts · App activity · Crash/diagnostics · Device IDs · Financial · Health</td><td class="no">No</td><td>Never requested. No analytics, no crash reporter, no advertising ID, no payments.</td></tr>
+      </table></div>
+      <ul class="checks">
+        <li><input type="checkbox" id="c4a"><label for="c4a"><span class="what">“Data shared” → email + library state with InstantDB (sync only)</span>
+          <span class="why">Third-party sign-ins &amp; BYOK keys are user-initiated transmissions, <b>not</b> sharing under Play's definition.</span></label></li>
+        <li><input type="checkbox" id="c4b"><label for="c4b"><span class="what">Security: encrypted in transit = Yes; deletion = Yes</span>
+          <span class="why">All HTTPS (enforced by <code>network_security_config.xml</code>); sign-out deletes the record, uninstall deletes on-device data.</span></label></li>
+        <li><input type="checkbox" id="c4c"><label for="c4c"><span class="what">Independent security review = No · Families policy = No</span>
+          <span class="why">13+ app with a UGC advisory; not a Families title.</span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== V. CONTENT RATING ===================== -->
+  <section class="step" id="s5">
+    <div class="head">
+      <span class="seal">V</span>
+      <div><h2>Content rating</h2><div class="sub">IARC questionnaire</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <ul class="checks">
+        <li><input type="checkbox" id="c5a"><label for="c5a"><span class="what">Complete the IARC questionnaire → target <b>Teen (13+)</b></span></label></li>
+        <li><input type="checkbox" id="c5b"><label for="c5b"><span class="what">Declare the UGC advisory</span>
+          <span class="why">The app surfaces user-supplied URLs &amp; community sources, so a user-generated-content advisory applies.</span></label></li>
+        <li><input type="checkbox" id="c5c"><label for="c5c"><span class="what">Target audience 13+ matches the rating</span>
+          <span class="why">In-app “Report objectionable content” (mailto) is wired at Settings → About.</span></label></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== VI. FIRST RELEASE ===================== -->
+  <section class="step" id="s6">
+    <div class="head">
+      <span class="seal">VI</span>
+      <div><h2>First release workflow</h2><div class="sub">service account · credentials · first upload</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <p class="intro">The service account is what lets <code>gradle</code> upload without a browser. Set it up once, then the per-release flow is one command.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c6a"><label for="c6a"><span class="what">Create a Google Cloud project + enable the API</span><span class="pill once">once</span>
+          <span class="why">Project <code>techempower-storyvox-publishing</code> → APIs &amp; Services → enable <b>Google Play Android Developer API</b>.</span></label></li>
+        <li><input type="checkbox" id="c6b"><label for="c6b"><span class="what">Create service account + JSON key</span><span class="pill once">once</span>
+          <span class="why">IAM → Service Accounts → <code>storyvox-play-publisher</code> (no role here) → Keys → Add key → JSON.</span></label></li>
+        <li><input type="checkbox" id="c6c"><label for="c6c"><span class="what">Stash the JSON outside the repo</span><span class="pill once">once</span>
+          <span class="why plain"><code>~/.storyvox-keystore/play-service-account.json</code> — gitignored at the directory level.</span></label></li>
+        <li><input type="checkbox" id="c6d"><label for="c6d"><span class="what">Grant Play Console access — <b>Release manager</b>, Candela only</span><span class="pill once">once</span>
+          <span class="why">Play Console → Setup → API access → Link the Cloud project → Grant access → Release manager → Invite + accept. (Release manager can publish but not change app settings — exactly right.)</span></label></li>
+        <li><input type="checkbox" id="c6e"><label for="c6e"><span class="what">Wire the credential into the build</span><span class="pill once">once</span>
+          <span class="why">One line in gitignored <code>local.properties</code> (below). No keystore changes.</span></label></li>
+      </ul>
+      <pre><span class="c"># local.properties (gitignored)</span>
+storyvox.playPublisher.credentialsFile=/home/jp/.storyvox-keystore/play-service-account.json</pre>
+
+      <p class="intro" style="margin-top:18px">Then perform the first release:</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c6f"><label for="c6f"><span class="what">Bump <code>versionCode</code> + <code>versionName</code>, update CHANGELOG, tag &amp; push</span>
+          <span class="why">CI builds the AAB on tag push (self-hosted runner on katana) — the same AAB is what gets uploaded.</span></label></li>
+        <li><input type="checkbox" id="c6g"><label for="c6g"><span class="what">Upload to Internal Test (stages as DRAFT)</span></label></li>
+        <li><input type="checkbox" id="c6h"><label for="c6h"><span class="what">Click “Release” in Play Console → Internal Test</span>
+          <span class="why">A half-broken CI run can't auto-ship — publishing is always a deliberate click.</span></label></li>
+        <li><input type="checkbox" id="c6i"><label for="c6i"><span class="what">Submit first Production release for Google review</span>
+          <span class="why">Mandatory for the first Production release (content-rating accuracy, permissions). Subsequent updates usually clear automatically.</span></label></li>
+      </ul>
+      <pre><span class="c"># 1 · bump version in app/build.gradle.kts, update CHANGELOG.md</span>
+<span class="c"># 2 · tag + push (CI builds the AAB)</span>
+git tag -a v1.4.5 -m "v1.4.5 — six bug fixes + secrets audit"
+git push origin main v1.4.5
+
+<span class="c"># 3 · upload AAB → Internal Test as a draft, prints the edit URL</span>
+<span class="k">./gradlew :app:publishReleaseBundle</span>
+
+<span class="c"># 4 · open Play Console → Internal Test → click "Release"</span></pre>
+      <div class="note"><span class="t">If it says “requires credentials”</span>Re-check <code>storyvox.playPublisher.credentialsFile</code> in <code>local.properties</code> and that the JSON exists.</div>
+    </div>
+  </section>
+
+  <!-- ===================== VII. AUTOMATION ===================== -->
+  <section class="step" id="s7">
+    <div class="head">
+      <span class="seal">VII</span>
+      <div><h2>Per-release automation</h2><div class="sub">gradle-play-publisher · one command, then promote</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <p class="intro">After the rites above, <b>every</b> future release runs through one command — Triple-T's
+        <a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">gradle-play-publisher</a>,
+        configured in the <code>play { }</code> block of <code>app/build.gradle.kts</code>.</p>
+      <pre><span class="k">./gradlew :app:publishReleaseBundle</span>   <span class="c"># → AAB to Internal Test, staged as DRAFT</span></pre>
+      <div class="tablewrap"><table>
+        <tr><th>Setting</th><th>Value</th><th>Why</th></tr>
+        <tr><td><code>track</code></td><td><code>internal</code></td><td>All uploads land in Internal Test; promote separately.</td></tr>
+        <tr><td><code>releaseStatus</code></td><td><code>DRAFT</code></td><td>Stages as a draft; you click “Release”. CI can't auto-ship.</td></tr>
+        <tr><td><code>defaultToAppBundles</code></td><td><code>true</code></td><td>AAB is the canonical path; APK only on explicit ask.</td></tr>
+        <tr><td><code>commit</code></td><td><code>false</code></td><td>Builds an “edit” without committing — prevents half-published state.</td></tr>
+        <tr><td><code>resolutionStrategy</code></td><td><code>IGNORE</code></td><td>Overrides a stale edit rather than failing; AGP <code>versionCode</code> is the source of truth.</td></tr>
+      </table></div>
+      <ul class="checks">
+        <li><input type="checkbox" id="c7a"><label for="c7a"><span class="what">Promote Internal Test → Production after a test cycle</span><span class="pill auto">repeat</span>
+          <span class="why">UI: Production → Create new release → Add from library. Or gradle (below).</span></label></li>
+      </ul>
+      <pre><span class="c"># promote the tested internal build to production</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track production</pre>
+      <div class="note safe"><span class="t">Safety net</span>Every <code>publishReleaseBundle</code> is a <b>draft</b> until you click Release — a broken build never auto-publishes. The release keystore signs the AAB; the service-account JSON only has publishing rights (rotate immediately if exposed, via Cloud Console → Service Accounts → Keys).</div>
+    </div>
+  </section>
+
+  <!-- ===================== TROUBLESHOOTING ===================== -->
+  <section class="step" id="tshoot">
+    <div class="head">
+      <span class="seal" style="font-size:16px">⚠</span>
+      <div><h2>Troubleshooting</h2><div class="sub">when the candle gutters</div></div>
+    </div>
+    <div class="body">
+      <div class="tablewrap"><table>
+        <tr><th>Symptom</th><th>Likely cause → fix</th></tr>
+        <tr><td><code>PlayPublisher requires credentials</code></td><td><code>credentialsFile</code> unset/missing in <code>local.properties</code> → re-check step VI.</td></tr>
+        <tr><td><code>403 caller does not have permission</code></td><td>Service account not granted access → grant <b>Release manager</b> in Play Console → API access.</td></tr>
+        <tr><td><code>version code X has already been used</code></td><td>A prior tag used that <code>versionCode</code> → bump it in <code>app/build.gradle.kts</code> and re-tag.</td></tr>
+        <tr><td><code>Signed Bundle's package name does not match</code></td><td>AAB signed with the wrong keystore → point <code>storyvox.releaseStoreFile</code> at <code>storyvox-release.keystore</code> (SHA256 <code>38:9F:BD:AA…85:E0:16</code>).</td></tr>
+        <tr><td><code>signing key … is not registered</code></td><td>Play App Signing not enrolled / different upload key → Play Console → Setup → App integrity, re-confirm the upload key.</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="end-candle">🕯</div>
+    <p><b style="color:var(--brass-bright)">Candela</b> — built by <b>TechEmpower</b>, a 501(c)(3) nonprofit closing the digital divide.<br>Free · GPL-3.0 · ad-free · no tracking · no account required.</p>
+    <div class="links">
+      <a href="https://play.google.com/console" target="_blank" rel="noopener">Play Console</a>
+      <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Cloud Console</a>
+      <a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">gradle-play-publisher</a>
+      <a href="https://cloud.google.com/iam/docs/keys-create-delete" target="_blank" rel="noopener">Key rotation</a>
+    </div>
+    <p style="color:var(--faint);font-size:12px;margin-top:14px">Source: docs/play-store/RUNBOOK.md · listing/ · play-store-policy-check.md · release-keystore.md</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY="candela-playstore-walkthrough-v1";
+  var boxes=Array.prototype.slice.call(document.querySelectorAll('ul.checks input[type=checkbox]'));
+  var fill=document.getElementById('fill'), count=document.getElementById('count');
+  var saved={};
+  try{ saved=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ saved={}; }
+
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(saved)); }catch(e){} }
+  function sectionProg(){
+    document.querySelectorAll('section.step').forEach(function(sec){
+      var el=sec.querySelector('[data-secprog]'); if(!el) return;
+      var b=sec.querySelectorAll('input[type=checkbox]'); if(!b.length){ el.textContent=''; return; }
+      var d=0; b.forEach(function(x){ if(x.checked) d++; });
+      el.textContent=d+' / '+b.length;
+      el.style.color = (d===b.length) ? 'var(--ok)' : 'var(--brass)';
+    });
+  }
+  function render(){
+    var done=boxes.filter(function(b){return b.checked;}).length, total=boxes.length;
+    var pct= total? Math.round(done/total*100):0;
+    fill.style.width=pct+'%';
+    count.textContent=done+' / '+total+'  ·  '+pct+'%';
+    document.body.classList.toggle('complete', done===total && total>0);
+    sectionProg();
+  }
+  boxes.forEach(function(b){
+    if(saved[b.id]) b.checked=true;
+    b.addEventListener('change', function(){ saved[b.id]=b.checked; save(); render(); });
+  });
+  document.getElementById('reset').addEventListener('click', function(){
+    boxes.forEach(function(b){ b.checked=false; }); saved={}; save(); render();
+  });
+  render();
+
+  /* count chars for listing blocks + copy-to-clipboard */
+  function setCount(id,target){ var el=document.getElementById(id), t=document.getElementById(target);
+    if(el&&t) el.textContent=t.textContent.trim().length+' chars'; }
+  setCount('ct-title','cp-title'); setCount('ct-short','cp-short'); setCount('ct-full','cp-full');
+
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var t=document.getElementById(btn.getAttribute('data-copy'));
+      var text=t? t.textContent.trim():"";
+      var done=function(){ btn.textContent='Copied ✓'; btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent='Copy'; btn.classList.remove('copied'); },1600); };
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done,function(){fallback(text,done);}); }
+      else fallback(text,done);
+    });
+  });
+  function fallback(text,done){
+    try{ var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
