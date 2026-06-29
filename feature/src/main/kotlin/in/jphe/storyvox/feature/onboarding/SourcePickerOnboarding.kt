@@ -281,7 +281,7 @@ internal data class SourcePickRow(
  * this point so the screen never renders a header with no cards.
  */
 @Immutable
-internal data class OnboardingSourceSection(
+data class OnboardingSourceSection(
     val group: OnboardingSourceGroup,
     val rows: List<SourcePickRow>,
 )
