@@ -25,6 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -232,7 +233,24 @@ class VoiceManager @Inject constructor(
     }
 
     /** Hot Flow of the active voice (or null if nothing chosen yet).
-     *  Same legacy-ID normalization as [installedVoices]. */
+     *  Same legacy-ID normalization as [installedVoices].
+     *
+     *  #1383/#1384 — terminated with [distinctUntilChanged]. The combine
+     *  re-fires on every [systemTtsVoiceProvider] roster update, and on
+     *  Samsung devices the OS TTS enters a connect/disconnect loop
+     *  (private-engine fallback) that churns that roster repeatedly. For a
+     *  non-system active voice (Piper / Kokoro / Kitten / Supertonic /
+     *  Azure) the resolved [UiVoiceInfo] is independent of the System TTS
+     *  roster, so each churned re-emission is structurally identical.
+     *  Without the dedup those no-op emissions still reach
+     *  [in.jphe.storyvox.playback.tts.EnginePlayer]'s active-voice
+     *  collector (and every UI collector); per #1383 that could tear down
+     *  and rebuild the pipeline — cancelling and restarting Piper
+     *  synthesis in a tight loop. [distinctUntilChanged] drops the no-op
+     *  churn while still emitting genuine voice changes (including a System
+     *  TTS voice's descriptor changing or its roster entry disappearing),
+     *  so System TTS playback itself is unaffected — the guard only bites
+     *  when nothing about the active voice actually changed. */
     val activeVoice: Flow<UiVoiceInfo?> = combine(
         store.data,
         azureVoiceProvider.voices,
@@ -251,7 +269,7 @@ class VoiceManager @Inject constructor(
             // #676 — SystemTts presence in the roster IS installation.
             entry.engineType is EngineType.SystemTts
         entry.toUiVoiceInfo(installed = isInstalled)
-    }
+    }.distinctUntilChanged()
 
     /**
      * Issue #1299 — roster-aware lookup of a single voice by id, mirroring
