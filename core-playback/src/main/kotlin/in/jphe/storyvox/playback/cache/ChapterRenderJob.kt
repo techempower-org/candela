@@ -26,6 +26,7 @@ import `in`.jphe.storyvox.playback.tts.detectLocale
 import `in`.jphe.storyvox.playback.tts.source.trailingPauseMs
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
+import `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry
 import `in`.jphe.storyvox.playback.voice.VoiceManager
 import java.io.File
 import kotlinx.coroutines.flow.first
@@ -88,6 +89,9 @@ class ChapterRenderJob @AssistedInject constructor(
     private val pcmCache: PcmCache,
     private val engineMutex: EngineMutex,
     private val chunker: SentenceChunker,
+    // #1372 — PCM synthesis dispatch goes through the VoiceEnginePlugin
+    // registry instead of a per-engine `when` here.
+    private val voiceEngines: VoiceEngineRegistry,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -329,35 +333,20 @@ class ChapterRenderJob @AssistedInject constructor(
             else -> VoiceEngine.getInstance().sampleRate
         }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE_HZ
 
+    // #1372 — synthesis routes through the VoiceEnginePlugin registry.
+    // The plugin owns the #1263 speaker re-assertion: shared-model engines
+    // (Kokoro / Kitten / Supertonic) re-assert OUR speaker from
+    // voice.engineType before each synth — these are process-wide
+    // singletons the foreground EnginePlayer mutates per sentence, so a
+    // prerender that set its speaker only once at loadModel would render
+    // later sentences in the foreground's voice. Atomic with the generate
+    // under the caller's engineMutex.withLock (see doWork);
+    // setActiveSpeakerId is a cheap reload-free index flip. Piper is
+    // per-voice (no shared speaker state) so its plugin ignores the type.
+    // Azure / System TTS are pre-filtered before this point (see doWork)
+    // and their plugins return null regardless.
     private fun generateAudioPCM(voice: UiVoiceInfo, text: String): ByteArray? =
-        when (voice.engineType) {
-            // Issue #1263 — re-assert OUR speaker before each synth. These
-            // engines are process-wide shared-model singletons: the foreground
-            // EnginePlayer now mutates the active speaker per sentence (its own
-            // #1263 fix), so a prerender that set its speaker only once at
-            // loadModel would render later sentences in the foreground's voice.
-            // Atomic with the generate under the caller's engineMutex.withLock
-            // (see doWork); setActiveSpeakerId is a cheap reload-free index flip.
-            is EngineType.Kokoro -> {
-                KokoroEngine.getInstance()
-                    .setActiveSpeakerId((voice.engineType as EngineType.Kokoro).speakerId)
-                KokoroEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            }
-            is EngineType.Kitten -> {
-                KittenEngine.getInstance()
-                    .setActiveSpeakerId((voice.engineType as EngineType.Kitten).speakerId)
-                KittenEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            }
-            is EngineType.Supertonic -> {
-                SupertonicEngine.getInstance()
-                    .setActiveSpeakerId((voice.engineType as EngineType.Supertonic).speakerId)
-                SupertonicEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            }
-            // Piper is per-voice (not a shared multi-speaker singleton) — no
-            // active-speaker state to re-assert.
-            else -> VoiceEngine.getInstance()
-                .generateAudioPCM(text, 1.0f, 1.0f)
-        }
+        voiceEngines.forType(voice.engineType)?.generateAudioPCM(voice.engineType, text, 1.0f, 1.0f)
 
     // ── foreground notification ─────────────────────────────────────────
 

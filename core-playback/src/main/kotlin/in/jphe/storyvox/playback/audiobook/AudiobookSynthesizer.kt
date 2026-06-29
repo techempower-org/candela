@@ -11,6 +11,7 @@ import `in`.jphe.storyvox.playback.tts.SentenceChunker
 import `in`.jphe.storyvox.playback.tts.detectLocale
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
+import `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry
 import `in`.jphe.storyvox.playback.voice.VoiceManager
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -45,6 +46,9 @@ class AudiobookSynthesizer @Inject constructor(
     private val voiceManager: VoiceManager,
     private val engineMutex: EngineMutex,
     private val chunker: SentenceChunker,
+    // #1372 — synthesis + export-capability dispatch goes through the
+    // VoiceEnginePlugin registry instead of a per-engine `when` here.
+    private val voiceEngines: VoiceEngineRegistry,
 ) {
 
     /** Raised when the chosen voice can't be rendered offline by this path. */
@@ -74,19 +78,31 @@ class AudiobookSynthesizer @Inject constructor(
      * @throws EngineLoadException when the native load fails.
      */
     suspend fun loadVoice(voice: UiVoiceInfo) {
-        when (voice.engineType) {
-            is EngineType.Azure -> throw UnsupportedVoiceException(
-                "Azure voices need a network round-trip and can't be used for " +
-                    "offline audiobook export — pick a downloaded voice.",
-            )
-            is EngineType.SystemTts -> throw UnsupportedVoiceException(
-                "System (device) voices can't be exported to a file — pick a " +
-                    "downloaded Piper, Kokoro, Kitten or Supertonic voice.",
-            )
-            else -> Unit
+        // #1372 — the can-export decision is data-driven off the plugin's
+        // supportsExport rather than a hardcoded Azure/SystemTts `when`, so
+        // any future non-export engine is rejected here automatically. The
+        // friendly per-engine copy is preserved by exportUnsupportedReason.
+        val plugin = voiceEngines.forType(voice.engineType)
+        if (plugin == null || !plugin.supportsExport) {
+            throw UnsupportedVoiceException(exportUnsupportedReason(voice.engineType))
         }
         val result = engineMutex.mutex.withLock { loadModel(voice) }
         if (result != "Success") throw EngineLoadException("Voice failed to load: $result")
+    }
+
+    /** User-facing reason a voice can't be rendered offline. The decision
+     *  is made in [loadVoice] via [VoiceEnginePlugin.supportsExport]; this
+     *  only chooses the wording. */
+    private fun exportUnsupportedReason(type: EngineType): String = when (type) {
+        is EngineType.Azure ->
+            "Azure voices need a network round-trip and can't be used for " +
+                "offline audiobook export — pick a downloaded voice."
+        is EngineType.SystemTts ->
+            "System (device) voices can't be exported to a file — pick a " +
+                "downloaded Piper, Kokoro, Kitten or Supertonic voice."
+        else ->
+            "This voice can't be exported offline — pick a downloaded " +
+                "Piper, Kokoro, Kitten or Supertonic voice."
     }
 
     /**
@@ -158,14 +174,15 @@ class AudiobookSynthesizer @Inject constructor(
             is EngineType.SystemTts -> "Error: System TTS not supported for export"
         }
 
+    // #1372 — synthesis routes through the VoiceEnginePlugin registry.
+    // The plugin re-asserts the shared-model speaker from voice.engineType
+    // before each synth (the #1263-correct pattern), which also fixes a
+    // latent gap here: this path released and re-acquired engineMutex
+    // per sentence, so a concurrent ChapterRenderJob could leave the
+    // singleton on another speaker between sentences. Azure / System TTS
+    // plugins return null, exactly as the old `when` did.
     private fun generateAudioPCM(voice: UiVoiceInfo, text: String): ByteArray? =
-        when (voice.engineType) {
-            is EngineType.Kokoro -> KokoroEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Kitten -> KittenEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Supertonic -> SupertonicEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-            is EngineType.Azure, is EngineType.SystemTts -> null
-            else -> VoiceEngine.getInstance().generateAudioPCM(text, 1.0f, 1.0f)
-        }
+        voiceEngines.forType(voice.engineType)?.generateAudioPCM(voice.engineType, text, 1.0f, 1.0f)
 
     /** A block of silence: 16-bit mono zero samples for [ms] milliseconds. */
     private fun silenceBytes(ms: Int, sampleRate: Int): ByteArray {
