@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.debug.DebugOverlay
 import `in`.jphe.storyvox.feature.debug.DebugViewModel
+import `in`.jphe.storyvox.feature.reader.script.ScriptGeneratorSheet
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.HybridReaderShell
@@ -114,6 +115,10 @@ fun HybridReaderScreen(
     val teleprompterEnabled by viewModel.teleprompterEnabled.collectAsStateWithLifecycle()
     val teleprompterPlaying by viewModel.teleprompterPlaying.collectAsStateWithLifecycle()
     val teleprompterWpm by viewModel.teleprompterWpm.collectAsStateWithLifecycle()
+    // Issue #1366 — AI script-writer sheet, opened from the teleprompter
+    // transport's "Write a script" button. Hosted here (not in ReaderTextView)
+    // so it can reach the Settings → AI nav for the unconfigured-provider path.
+    var scriptSheetOpen by remember { mutableStateOf(false) }
     val playback = state.playback
 
     // Chapter-completion celebration. The VM's confettiTrigger fires
@@ -419,6 +424,8 @@ fun HybridReaderScreen(
                 onSetTeleprompterPlaying = viewModel::setTeleprompterPlaying,
                 onSetTeleprompterWpm = viewModel::setTeleprompterWpm,
                 onResetTeleprompter = viewModel::resetTeleprompter,
+                // Issue #1366 — open the AI script-writer sheet (hosted below).
+                onWriteScript = { scriptSheetOpen = true },
             )
         },
     )
@@ -435,6 +442,20 @@ fun HybridReaderScreen(
         onResultClick = viewModel::openBookSearchResult,
         onClose = viewModel::closeBookSearch,
     )
+
+    // Issue #1366 — AI script writer. Self-gated so its own
+    // ModalBottomSheet state machine only spins up while open; the
+    // unconfigured-provider error routes to Settings → AI via the same
+    // nav the recap modal uses.
+    if (scriptSheetOpen) {
+        ScriptGeneratorSheet(
+            onDismiss = { scriptSheetOpen = false },
+            onOpenAiSettings = {
+                scriptSheetOpen = false
+                onOpenAiSettings()
+            },
+        )
+    }
 
     // Recap modal — overlays everything when not Hidden. Driven by
     // ReaderViewModel.requestRecap().
