@@ -118,6 +118,20 @@ internal class RadioSource @Inject constructor(
      * tags are user-added). Bake an autocomplete picker as a v2.
      */
     override fun filterDimensions(): List<FilterDimension> = listOf(
+        // Issue #1282 — directory sort. "Relevance" is the existing
+        // name/facet search; the other three route to Radio Browser's
+        // global top-N endpoints so the user can browse popular / voted
+        // / freshly-updated stations with no search term at all.
+        FilterDimension.Sort(
+            key = "sort",
+            label = "Sort by",
+            options = listOf(
+                FilterDimension.SortOption(SORT_RELEVANCE, "Relevance"),
+                FilterDimension.SortOption(SORT_TOP_CLICK, "Most popular"),
+                FilterDimension.SortOption(SORT_TOP_VOTE, "Most voted"),
+                FilterDimension.SortOption(SORT_LAST_CHANGE, "Recently updated"),
+            ),
+        ),
         FilterDimension.Text(
             key = "country",
             label = "Country",
@@ -152,6 +166,12 @@ internal class RadioSource @Inject constructor(
         }
         state.stringVal("tags")?.takeIf { it.isNotBlank() }?.let { t ->
             q = q.copy(tags = q.tags + "$TAG_PREFIX$t")
+        }
+        // Issue #1282 — stash the directory sort, except the default
+        // "relevance" (which IS the existing name/facet search, so it
+        // needs no sentinel).
+        state.stringVal("sort")?.takeIf { it.isNotBlank() && it != SORT_RELEVANCE }?.let { s ->
+            q = q.copy(tags = q.tags + "$SORT_PREFIX$s")
         }
         return q
     }
@@ -197,8 +217,8 @@ internal class RadioSource @Inject constructor(
     override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
         val term = query.term.trim()
         // Peel filter state back out of [SearchQuery]. [applyFilters]
-        // stashes country / language / tag under sentinel prefixes in
-        // tags.
+        // stashes country / language / tag / sort under sentinel prefixes
+        // in tags.
         val countryFilter = query.tags
             .firstOrNull { it.startsWith(COUNTRY_PREFIX) }
             ?.removePrefix(COUNTRY_PREFIX)
@@ -208,66 +228,76 @@ internal class RadioSource @Inject constructor(
         val tagFilter = query.tags
             .firstOrNull { it.startsWith(TAG_PREFIX) }
             ?.removePrefix(TAG_PREFIX)
+        // Issue #1282 — directory sort (topclick / topvote / lastchange).
+        val sortFilter = query.tags
+            .firstOrNull { it.startsWith(SORT_PREFIX) }
+            ?.removePrefix(SORT_PREFIX)
         val hasFilters = !countryFilter.isNullOrBlank() ||
             !languageFilter.isNullOrBlank() ||
             !tagFilter.isNullOrBlank()
+        val hasSort = !sortFilter.isNullOrBlank()
 
-        if (term.isEmpty() && !hasFilters) {
+        if (term.isEmpty() && !hasFilters && !hasSort) {
             // Match the popular() shape for empty-query so the Search
-            // tab feels populated rather than blank-on-arrival.
+            // tab feels populated rather than blank-on-arrival. A
+            // directory sort counts as "active" — it surfaces the top-N
+            // list even with no term/facets.
             return popular(page = 1)
         }
-        // Local match against the curated set + starred imports first
-        // (zero network, instant) — this is what kept the old
-        // :source-kvmr "search for kvmr" surface fast. Anything beyond
-        // the local matches comes from the Radio Browser API call.
-        // With filters active, narrow the local match using the same
-        // axes the remote call applies so the merged list stays
-        // coherent (don't show a US curated station when the filter
-        // says "country = France").
-        val lowered = term.lowercase()
-        val localMatches = (RadioStations.curated + config.snapshot())
-            .asSequence()
-            .filter { station ->
-                term.isEmpty() ||
-                    station.displayName.lowercase().contains(lowered) ||
-                    station.tags.any { it.lowercase().contains(lowered) } ||
-                    station.country.lowercase().contains(lowered)
-            }
-            .filter { station ->
-                countryFilter.isNullOrBlank() ||
-                    station.country.contains(countryFilter, ignoreCase = true)
-            }
-            .filter { station ->
-                languageFilter.isNullOrBlank() ||
-                    station.language.contains(languageFilter, ignoreCase = true)
-            }
-            .filter { station ->
-                tagFilter.isNullOrBlank() ||
-                    station.tags.any { it.contains(tagFilter, ignoreCase = true) }
-            }
-            .map { it.toSummary() }
-            .toList()
 
-        // Hit Radio Browser for the long-tail. Use the multi-facet
-        // `/search` endpoint when any filter is active, otherwise the
-        // original `byname` endpoint (preserves the legacy URL shape
-        // for term-only searches). Failures don't sink the whole
-        // result — local matches still come back even if the network
-        // call fails.
-        val remoteMatches = when (val result = if (hasFilters) {
-            api.search(
+        // Shared predicate: free-text term (name / tag / country) AND each
+        // active facet. Used both for the local roster and to narrow the
+        // global top-N sort endpoints client-side, so a US curated station
+        // never leaks past a "country = France" filter.
+        val lowered = term.lowercase()
+        fun RadioStation.matchesQuery(): Boolean {
+            val termOk = term.isEmpty() ||
+                displayName.lowercase().contains(lowered) ||
+                tags.any { it.lowercase().contains(lowered) } ||
+                country.lowercase().contains(lowered)
+            val countryOk = countryFilter.isNullOrBlank() ||
+                country.contains(countryFilter, ignoreCase = true)
+            val languageOk = languageFilter.isNullOrBlank() ||
+                language.contains(languageFilter, ignoreCase = true)
+            val tagOk = tagFilter.isNullOrBlank() ||
+                tags.any { it.contains(tagFilter, ignoreCase = true) }
+            return termOk && countryOk && languageOk && tagOk
+        }
+
+        // Local match against the curated set + starred imports first
+        // (zero network, instant).
+        val localMatches = (RadioStations.curated + config.snapshot())
+            .filter { it.matchesQuery() }
+            .map { it.toSummary() }
+
+        // Remote long-tail: a directory sort routes to the matching
+        // global top-N endpoint; otherwise the multi-facet `/search`
+        // (when facets active) or the legacy `byname`. Failures don't
+        // sink the result — local matches still come back.
+        val remoteResult = when {
+            hasSort -> when (sortFilter) {
+                SORT_TOP_CLICK -> api.topClick()
+                SORT_TOP_VOTE -> api.topVote()
+                SORT_LAST_CHANGE -> api.lastChange()
+                else -> api.byName(term)
+            }
+            hasFilters -> api.search(
                 name = term.ifBlank { null },
                 country = countryFilter,
                 language = languageFilter,
                 tag = tagFilter,
             )
-        } else {
-            api.byName(term)
-        }) {
-            is FictionResult.Success -> result.value.map { it.toSummary() }
+            else -> api.byName(term)
+        }
+        val remoteStations = when (remoteResult) {
+            is FictionResult.Success -> remoteResult.value
             is FictionResult.Failure -> emptyList()
         }
+        // The top-N endpoints are global (no facet params), so narrow them
+        // client-side to the active term/facets; the byname/search paths
+        // already filtered server-side.
+        val remoteMatches = (if (hasSort) remoteStations.filter { it.matchesQuery() } else remoteStations)
+            .map { it.toSummary() }
 
         // De-dupe by id so a starred Radio Browser station doesn't show
         // up twice when it also matches the live API call.
@@ -423,5 +453,19 @@ internal class RadioSource @Inject constructor(
         internal const val COUNTRY_PREFIX = "country:"
         internal const val LANGUAGE_PREFIX = "language:"
         internal const val TAG_PREFIX = "tag:"
+
+        /**
+         * Issue #1282 — directory sort. [SORT_PREFIX] smuggles the
+         * selected [FilterDimension.Sort] option through [SearchQuery.tags]
+         * (same sentinel trick as the facet prefixes above); [search]
+         * routes the popularity / vote / recency options to the matching
+         * Radio Browser top-N endpoint. "relevance" is the default and is
+         * NOT stashed — it stays the existing name/facet search path.
+         */
+        internal const val SORT_PREFIX = "sort:"
+        internal const val SORT_RELEVANCE = "relevance"
+        internal const val SORT_TOP_CLICK = "topclick"
+        internal const val SORT_TOP_VOTE = "topvote"
+        internal const val SORT_LAST_CHANGE = "lastchange"
     }
 }
