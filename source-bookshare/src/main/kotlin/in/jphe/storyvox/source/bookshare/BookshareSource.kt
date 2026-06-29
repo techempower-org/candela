@@ -8,40 +8,41 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
+import `in`.jphe.storyvox.data.source.model.map
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
+import `in`.jphe.storyvox.source.bookshare.net.BookshareApi
+import `in`.jphe.storyvox.source.bookshare.net.BookshareTitle
+import `in`.jphe.storyvox.source.bookshare.net.BookshareTitlesPage
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Issue #1002 — Bookshare / accessible-library (DAISY) source.
+ * Issue #1002 — Bookshare / accessible-library source.
  *
  * Bookshare (a Benetech program) is the largest accessible-book library for
  * people with print disabilities — 1M+ titles in DAISY format, free to
- * qualified users. This is the most mission-aligned source Candela could add.
+ * qualified users. The most mission-aligned source Candela could add.
  *
- * ## Why this is a guarded scaffold (not yet functional)
+ * ## What works now vs. what stays gated
  *
- * A working integration is gated on three things that need a partnership /
- * legal step, not engineering (full writeup in the #1002 research comment):
+ * **Discovery (search / browse / categories)** is wired to the Bookshare API
+ * v2 ([BookshareApi]). It activates as soon as a partner `api_key` is supplied
+ * through [BookshareConfig]; until then (the default in-memory config returns
+ * none) these calls return [FictionResult.AuthRequired] — the interface's
+ * graceful "no session" path.
  *
- *  1. **Partner `api_key`** — issued only by emailing
- *     `partner-support@bookshare.org`; required on every API v2 endpoint.
- *  2. **Per-user OAuth** — Authorization-Code grant against
- *     `auth.bookshare.org`; the user signs in with their *already
- *     disability-verified* Bookshare account (Bookshare verifies eligibility
- *     at signup, so Candela never collects proof-of-disability itself).
- *  3. **Protected DAISY (PDTB) decryption** — copyrighted downloads are
- *     encrypted per-user, fingerprinted, and watermarked; decryption needs
- *     Bookshare's scheme under partner terms and isn't publicly implementable.
+ * **Content (`fictionDetail` / `chapter`)** stays gated regardless of the key:
+ * Bookshare copyrighted downloads are Protected DAISY (PDTB) — encrypted
+ * per-user, fingerprinted, watermarked — and decryptable only under the
+ * partnership (see the #1002 research comment). When that lands, `chapter`
+ * will route an unprotected DAISY download through
+ * [`DaisyParser`][in.jphe.storyvox.source.bookshare.parse.DaisyParser] /
+ * [`Daisy202Parser`][in.jphe.storyvox.source.bookshare.parse.Daisy202Parser].
  *
- * Until those land, every call returns [FictionResult.AuthRequired] — the
- * interface's intended "no session" path, which surfaces a sign-in prompt
- * instead of throwing. The non-gated groundwork that DID ship in this PR is
- * the DAISY text parser
- * ([`DaisyParser`][in.jphe.storyvox.source.bookshare.parse.DaisyParser]):
- * once an `api_key` + OAuth land and an *unprotected* DAISY download is
- * available, [chapter] parses it via that parser into [ChapterContent].
+ * Bookshare verifies a user's print-disability eligibility at account signup,
+ * so Candela never collects proof-of-disability itself — it only forwards the
+ * user's `api_key`/OAuth token from [BookshareConfig].
  */
 @Singleton
 @SourcePlugin(
@@ -50,22 +51,41 @@ import javax.inject.Singleton
     defaultEnabled = false,
     category = SourceCategory.Ebook,
     supportsSearch = true,
-    description = "Accessible DAISY library · partner API (gated, see #1002)",
+    description = "Accessible DAISY library · partner API (see #1002)",
     sourceUrl = "https://www.bookshare.org",
 )
-class BookshareSource @Inject constructor() : FictionSource {
+class BookshareSource @Inject constructor(
+    private val api: BookshareApi,
+    private val config: BookshareConfig,
+) : FictionSource {
 
     override val id: String = SourceIds.BOOKSHARE
     override val displayName: String = "Bookshare"
 
-    override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> = gate()
+    override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> =
+        browse(page = page)
 
-    override suspend fun latestUpdates(page: Int): FictionResult<ListPage<FictionSummary>> = gate()
+    override suspend fun latestUpdates(page: Int): FictionResult<ListPage<FictionSummary>> =
+        // Bookshare's catalog API exposes no "newest" sort; fall back to browse.
+        browse(page = page)
 
-    override suspend fun byGenre(genre: String, page: Int): FictionResult<ListPage<FictionSummary>> = gate()
+    override suspend fun byGenre(genre: String, page: Int): FictionResult<ListPage<FictionSummary>> =
+        browse(category = genre, page = page)
 
-    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> = gate()
+    override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> =
+        browse(
+            title = query.term.takeIf { it.isNotBlank() },
+            category = query.genres.firstOrNull(),
+            page = query.page,
+        )
 
+    override suspend fun genres(): FictionResult<List<String>> {
+        val key = config.apiKey() ?: return gate()
+        return api.categories(key, config.accessToken())
+            .map { page -> page.categories.mapNotNull { it.name.takeIf(String::isNotBlank) } }
+    }
+
+    // ── Content download stays gated (Protected DAISY / PDTB — see #1002). ──
     override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> = gate()
 
     override suspend fun chapter(fictionId: String, chapterId: String): FictionResult<ChapterContent> = gate()
@@ -74,18 +94,42 @@ class BookshareSource @Inject constructor() : FictionSource {
 
     override suspend fun setFollowed(fictionId: String, followed: Boolean): FictionResult<Unit> = gate()
 
-    override suspend fun genres(): FictionResult<List<String>> = gate()
+    /** Shared discovery path: requires a configured `api_key`, else [gate]. */
+    private suspend fun browse(
+        title: String? = null,
+        author: String? = null,
+        category: String? = null,
+        page: Int = 1,
+    ): FictionResult<ListPage<FictionSummary>> {
+        val key = config.apiKey() ?: return gate()
+        return api.searchTitles(
+            apiKey = key,
+            accessToken = config.accessToken(),
+            title = title,
+            author = author,
+            category = category,
+        ).map { it.toListPage(page) }
+    }
 
-    /**
-     * Every network path is gated until the Bookshare partnership lands (see
-     * the class kdoc + #1002). [FictionResult.AuthRequired] is the interface's
-     * intended graceful "no session" return — never throw.
-     */
     private fun gate(): FictionResult.AuthRequired = FictionResult.AuthRequired(GATE_MESSAGE)
 
     companion object {
         private const val GATE_MESSAGE =
-            "Bookshare needs a partner API key and your verified Bookshare sign-in, " +
-                "plus Protected-DAISY support — not available yet (see #1002)."
+            "Bookshare needs a partner API key (and, for downloads, your verified " +
+                "Bookshare sign-in + Protected-DAISY support) — see #1002."
     }
 }
+
+/** Maps a Bookshare titles page → the source layer's [ListPage]. `internal` for unit tests. */
+internal fun BookshareTitlesPage.toListPage(page: Int): ListPage<FictionSummary> =
+    ListPage(items = titles.map { it.toSummary() }, page = page, hasNext = next != null)
+
+/** Maps one Bookshare title → [FictionSummary]. `internal` for unit tests. */
+internal fun BookshareTitle.toSummary(): FictionSummary =
+    FictionSummary(
+        id = bookshareId.toString(),
+        sourceId = SourceIds.BOOKSHARE,
+        title = title,
+        author = authorDisplay(),
+        tags = categories.mapNotNull { it.name.takeIf(String::isNotBlank) },
+    )

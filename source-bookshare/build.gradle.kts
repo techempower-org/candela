@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -39,6 +40,11 @@ dependencies {
     implementation(project(":core-data"))
 
     implementation(libs.kotlinx.coroutines.android)
+    // Issue #1002 — Bookshare API v2 client (JSON over OkHttp). Same stack
+    // as :source-gutenberg's Gutendex client.
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
