@@ -267,7 +267,7 @@ private fun SourceCard(
  * renders, plus the resolved enabled state.
  */
 @Immutable
-internal data class SourcePickRow(
+data class SourcePickRow(
     val id: String,
     val displayName: String,
     val description: String,
@@ -295,7 +295,7 @@ data class OnboardingSourceSection(
  * 20-row wall. A brand-new user thinks in "books vs. news vs. my own
  * stuff", not "Text vs. Ebook", so we re-bucket by intent.
  */
-internal enum class OnboardingSourceGroup(@StringRes val titleRes: Int) {
+enum class OnboardingSourceGroup(@StringRes val titleRes: Int) {
     Books(R.string.onboarding_sources_group_books),
     WebFiction(R.string.onboarding_sources_group_webfiction),
     News(R.string.onboarding_sources_group_news),
