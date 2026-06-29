@@ -6,24 +6,20 @@ import `in`.jphe.storyvox.data.source.SystemTtsVoiceDescriptor
 
 object VoiceCatalog {
     /**
-     * Issue #1202 — Supertonic 3 voices are gated OUT of the shipped
-     * catalog until #1191 wires the real engine.
+     * Single on/off gate for the Supertonic 3 voice family: read here to
+     * filter the catalog ([voices]) and by [VoiceFamilyRegistry] to show or
+     * hide the family card, so one flag controls both surfaces.
      *
-     * Supertonic is fully scaffolded (#1114 — [supertonicEntries], the
-     * [VoiceFamilyRegistry] descriptor, and the `EngineType.Supertonic`
-     * dispatch points) but VoxSherpa has no `SupertonicEngine` yet, so
-     * every synth path is a `TODO(#1114)` stub that returns
-     * `"Error: load returned null"`. v1.1.6 shipped the 10 Supertonic
-     * voices as *selectable* picker rows that produced no audio; this
-     * flag keeps them out of the catalog until the engine can actually
-     * synthesize.
-     *
-     * Flip to `true` (one line) as part of #1191, once VoxSherpa v2.9.0
-     * ships the `SupertonicEngine` wrapper and the EnginePlayer dispatch
-     * is wired. `internal` (not `private`) so [VoiceFamilyRegistry] reads
-     * the same single flag to hide the Supertonic family card too while
-     * gated (#1202) — an empty "coming" family card in a shipped app is
-     * confusing. One flag flip re-enables both the voices and the card.
+     * History: Supertonic was scaffolded under #1114 ([supertonicEntries],
+     * the [VoiceFamilyRegistry] descriptor, the `EngineType.Supertonic`
+     * dispatch points) and gated OUT (#1202) while VoxSherpa still lacked a
+     * `SupertonicEngine` and every synth path was a stub. The engine wrapper
+     * has since shipped and the dispatch is wired — `EnginePlayer`,
+     * `AudiobookSynthesizer`, `ChapterRenderJob`, and `EngineSampleRateCache`
+     * all synthesize / measure `EngineType.Supertonic` — so the flag is now
+     * `true` and the voices + family card ship live. Kept as a single
+     * `internal` constant so a future regression can re-gate both surfaces
+     * with one flip.
      */
     internal const val SUPERTONIC_ENABLED = true
 
@@ -35,7 +31,8 @@ object VoiceCatalog {
      * need a unified list.
      *
      * Supertonic ([supertonicEntries]) is appended only when
-     * [SUPERTONIC_ENABLED] — gated for #1202 until #1191 lands the engine.
+     * [SUPERTONIC_ENABLED], which is now `true` — the engine shipped, so the
+     * Supertonic voices are part of the shipped catalog.
      */
     val voices: List<CatalogEntry> =
         piperEntries() + kokoroEntries() + kittenEntries() +
@@ -879,8 +876,9 @@ object VoiceCatalog {
         val M = VoiceGender.Male
         // Speaker order follows the Kitten/Kokoro convention: female
         // embeddings at low indices, male embeddings at high indices.
-        // TODO(#1114): verify speaker index → gender mapping against
-        // the actual Supertonic 3 voices.bin layout.
+        // TODO: verify the speaker index → gender mapping against the actual
+        // Supertonic 3 voices.bin layout. (#1114 shipped the engine but left
+        // this mapping unverified; it is not tracked by a live issue.)
         return listOf(
             supertonic("supertonic_f1_en_US_0", "Supertonic F1", 0, F),
             supertonic("supertonic_f2_en_US_1", "Supertonic F2", 1, F),
