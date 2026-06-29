@@ -115,7 +115,7 @@ enum class HomeTab(val label: String, val filled: ImageVector, val outlined: Ima
  * and the unselected items' pills fading out. The visual effect reads
  * as a "pop"; this bar paints a single pill that slides between tabs.
  *
- * Issue #XXX (2026-05-12) — the first cut put the indicator pill in its
+ * Hit-testing history — the first cut put the indicator pill in its
  * own `Box(.offset(x).size(...).background(...))` sibling to the tab
  * Row inside `BoxWithConstraints`. Two layout children + a mid-animation
  * `.offset` made hit-testing flaky under playback's high recomposition

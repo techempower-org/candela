@@ -876,9 +876,9 @@ object VoiceCatalog {
         val M = VoiceGender.Male
         // Speaker order follows the Kitten/Kokoro convention: female
         // embeddings at low indices, male embeddings at high indices.
-        // TODO: verify the speaker index → gender mapping against the actual
-        // Supertonic 3 voices.bin layout. (#1114 shipped the engine but left
-        // this mapping unverified; it is not tracked by a live issue.)
+        // TODO(#1319): verify the speaker index → gender mapping against the
+        // actual Supertonic 3 voices.bin layout — #1114 shipped the engine but
+        // left this F/M assignment (Kitten/Kokoro convention) unverified.
         return listOf(
             supertonic("supertonic_f1_en_US_0", "Supertonic F1", 0, F),
             supertonic("supertonic_f2_en_US_1", "Supertonic F2", 1, F),

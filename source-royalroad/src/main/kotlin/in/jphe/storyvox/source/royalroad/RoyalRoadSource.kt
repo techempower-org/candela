@@ -26,7 +26,6 @@ import `in`.jphe.storyvox.source.royalroad.model.fictionUrl
 import `in`.jphe.storyvox.source.royalroad.net.RoyalRoadChallengeFetcher
 import `in`.jphe.storyvox.source.royalroad.net.FetchOutcome
 import `in`.jphe.storyvox.source.royalroad.net.RateLimitedClient
-import `in`.jphe.storyvox.source.royalroad.net.RoyalRoadCookieJar
 import `in`.jphe.storyvox.source.royalroad.parser.BrowseParser
 import `in`.jphe.storyvox.source.royalroad.parser.ChapterParser
 import `in`.jphe.storyvox.source.royalroad.parser.FictionDetailParser
@@ -62,8 +61,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 @Singleton
 class RoyalRoadSource @Inject internal constructor(
     private val fetcher: RoyalRoadChallengeFetcher,
-    @Suppress("unused") private val client: RateLimitedClient,
-    @Suppress("unused") private val cookieJar: RoyalRoadCookieJar,
+    private val client: RateLimitedClient,
     // #1243 — read-only session-presence check for the search() gate. The
     // shared auth store writes a row here on WebView sign-in
     // (AuthRepository.captureSession) and clears it on sign-out, so a

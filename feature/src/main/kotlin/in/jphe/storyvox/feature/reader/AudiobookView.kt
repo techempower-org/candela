@@ -2078,7 +2078,7 @@ private fun CoverTapFeedback(
  *  the upstream message lands, deriving the name from voiceLabel keeps
  *  the UX honest with zero coupling.
  *
- * TODO(audio-fidelity-fixer): once `EngineState.Warming(message, progress)`
+ * TODO(#1319): once `EngineState.Warming(message, progress)`
  *  publishes, plumb the upstream `message` through UiPlaybackState
  *  (new field) and prefer it over [warmingMessageForVoice] when present.
  *  Progress, when non-null, drives the thin progress bar described in
