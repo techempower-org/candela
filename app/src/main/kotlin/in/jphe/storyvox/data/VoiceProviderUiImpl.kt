@@ -81,25 +81,33 @@ class VoiceProviderUiImpl @Inject constructor(
      * is timeout-bounded and cancellation tears the instance down so a
      * stuck init can't leak the instance into that loop.
      */
-    private suspend fun bootTts(): TextToSpeech? = withTimeoutOrNull(INIT_TIMEOUT_MS) {
-        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-            var tts: TextToSpeech? = null
-            val onInit = TextToSpeech.OnInitListener { status ->
-                if (cont.isCompleted) return@OnInitListener
-                if (status == TextToSpeech.SUCCESS) {
-                    cont.resume(tts) { runCatching { tts?.shutdown() } }
-                } else {
-                    runCatching { tts?.shutdown() }
-                    cont.resume(null) {}
+    private suspend fun bootTts(): TextToSpeech? {
+        // #1392 — any TextToSpeech on Samsung triggers the infinite
+        // reconnect loop via the framework's internal private-engine
+        // probe. Skip entirely; system TTS voices are hidden on Samsung
+        // anyway (SystemTtsVoiceRoster returns empty), so nothing to
+        // boot for.
+        if (engineResolver.isSamsungDevice) return null
+        return withTimeoutOrNull(INIT_TIMEOUT_MS) {
+            kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                var tts: TextToSpeech? = null
+                val onInit = TextToSpeech.OnInitListener { status ->
+                    if (cont.isCompleted) return@OnInitListener
+                    if (status == TextToSpeech.SUCCESS) {
+                        cont.resume(tts) { runCatching { tts?.shutdown() } }
+                    } else {
+                        runCatching { tts?.shutdown() }
+                        cont.resume(null) {}
+                    }
                 }
+                val engine = engineResolver.preferredPublicEngine()
+                tts = if (engine.isNullOrBlank()) {
+                    TextToSpeech(context, onInit)
+                } else {
+                    TextToSpeech(context, onInit, engine)
+                }
+                cont.invokeOnCancellation { runCatching { tts?.shutdown() } }
             }
-            val engine = engineResolver.preferredPublicEngine()
-            tts = if (engine.isNullOrBlank()) {
-                TextToSpeech(context, onInit)
-            } else {
-                TextToSpeech(context, onInit, engine)
-            }
-            cont.invokeOnCancellation { runCatching { tts?.shutdown() } }
         }
     }
 

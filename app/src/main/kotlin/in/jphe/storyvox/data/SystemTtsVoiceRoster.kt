@@ -102,6 +102,16 @@ class SystemTtsVoiceRoster @Inject constructor(
      * others).
      */
     private suspend fun enumerate(): List<SystemTtsVoiceDescriptor> {
+        // #1392 — Samsung's modified framework disconnects ALL TTS
+        // instances when its internal private-engine check fires during
+        // connection setup, even with an explicit public engine target.
+        // Skip system TTS enumeration entirely on Samsung; Piper /
+        // Kokoro / Azure voices still populate the picker.
+        if (engineResolver.isSamsungDevice) {
+            Log.i(TAG, "Samsung device — skipping system TTS enumeration (#1392)")
+            return emptyList()
+        }
+
         // Step 1: list installed engines. #1384 — bind an explicit
         // public engine rather than the null/device-default target: on
         // Samsung the default is a private engine whose failed bind
