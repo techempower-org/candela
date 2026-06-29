@@ -10,7 +10,7 @@ The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlig
 
 Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Sign out and your cloud copy is deleted. Or stay fully offline; your call.
+Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Delete your cloud copy any time. Or stay fully offline; your call.
 
 FEATURES
 • 25 fiction & reference sources — enable only the ones you want

@@ -43,17 +43,24 @@ A few features collect or transmit data **only when you turn them on**:
 
 If you opt into cross-device sync (Settings → Sync), Candela prompts you
 for an email address and sends you a magic sign-in code. The address and
-your synced library state — what fictions you've added, current reading
-position, voice preferences, settings — are stored in
+your synced app data — the fictions you've added, reading positions,
+followed stories, bookmarks, highlights and notes, your pronunciation
+dictionary, and app settings — are stored in
 [InstantDB](https://instantdb.com), the third-party real-time database
-Candela uses for sync. Your email is the lookup key for your record. The
-content of fictions themselves is **not** synced — only the references
-(URLs / IDs) and the metadata (position, voice choice).
+Candela uses for sync. If you set a sync passphrase, your saved API keys
+and access tokens (Azure, AI providers, source logins) also sync, but are
+**end-to-end encrypted** on your device (AES-256-GCM with a PBKDF2-derived
+key, 600,000 iterations) before upload — InstantDB only ever sees
+ciphertext. Your email is the lookup key for your record. The content of
+fictions themselves is **not** synced — only the references (URLs / IDs)
+and the metadata.
 
-You can disable sync at any time and your record is deleted from InstantDB
-on next sync-off. Uninstalling the app also deletes the local cache; the
-InstantDB record remains until you sign out from another device or contact
-us to delete it (see _Your rights_ below).
+Signing out of sync **revokes your sync token and clears Candela's data on
+that device only — it does not by itself delete your cloud record.** To
+delete your synced data, use **Settings → Sync → Delete cloud data**, which
+removes every synced domain from InstantDB. Uninstalling the app deletes the
+local cache. To delete the email / identity record itself, contact us (see
+_Your rights_ below) and we'll remove it.
 
 ### 2.2 Fiction backends (your choice, per backend)
 
@@ -164,12 +171,14 @@ your gallery, which needs no permission.
 ## 4. Third-party services
 
 Candela connects directly to these third parties **only when you opt into a
-feature that uses them**. We don't share any data with them; you communicate
-with their servers from your device, the same way a web browser would.
+feature that uses them**. With one exception — InstantDB, the sync provider
+that processes your synced data on your behalf when you turn sync on —
+Candela doesn't hand your data to anyone; you communicate with each service's
+servers from your device, the same way a web browser would.
 
 | Service | When | What's sent | Their privacy policy |
 | --- | --- | --- | --- |
-| InstantDB | Sync enabled | Your email, your library state | [instantdb.com/privacy](https://instantdb.com/privacy) |
+| InstantDB | Sync enabled | Your email + synced app data (library, positions, follows, bookmarks, highlights/notes, pronunciation, settings); any synced API keys are end-to-end encrypted | [instantdb.com/privacy](https://instantdb.com/privacy) |
 | GitHub | Voice download, GitHub source, voice catalog fetch | HTTP request (IP visible) | [GitHub privacy](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) |
 | Royal Road / AO3 / etc. | When you browse those backends | Your browser-like request | Their respective policies |
 | Microsoft Azure | Only if you add an Azure key | Text-to-speak + your key | [Microsoft Privacy Statement](https://privacy.microsoft.com/en-us/privacystatement) |
@@ -179,8 +188,9 @@ with their servers from your device, the same way a web browser would.
 | Radio Browser API | Radio backend enabled (default off) | Station search queries | [radio-browser.info](https://www.radio-browser.info/) |
 | Palace Project (libraries) | Palace backend enabled | OPDS catalog queries | [thepalaceproject.org/privacy](https://thepalaceproject.org/privacy/) |
 
-We do not sell, share, or rent your data. We don't have your data to sell —
-it's on your device.
+We do not sell or rent your data, and the only third party that ever
+receives it is the sync backend (InstantDB) you choose to turn on. By
+default we don't have your data to share — it's all on your device.
 
 ---
 
@@ -191,7 +201,9 @@ it's on your device.
   persists until you uninstall the app or clear app data from Android
   Settings. Uninstalling deletes everything.
 - **Synced data** (only if sync is enabled) lives in InstantDB until you
-  sign out of sync. Signing out of sync deletes your record.
+  delete it with **Settings → Sync → Delete cloud data** (signing out only
+  revokes the token and clears this device). The email / identity record is
+  removed on request — contact us.
 - **Voice downloads** stay in Candela's cache until you delete them
   (Settings → Voices → Manage → Delete).
 
@@ -245,8 +257,10 @@ You have the right to:
 - **Know what's stored.** Everything is either on your device (you can
   inspect via Android's Settings → Apps → Candela → Storage) or in your
   InstantDB sync record (you can view via the sync settings screen).
-- **Delete your data.** Uninstall the app to delete on-device data; sign
-  out of sync to delete the InstantDB record.
+- **Delete your data.** Uninstall the app to delete on-device data; use
+  **Settings → Sync → Delete cloud data** to delete your synced data from
+  InstantDB; and contact us to delete the email / identity record. (Signing
+  out alone only revokes the token and clears this device.)
 - **Export your data.** Per-fiction EPUB and chaptered `.m4b` audiobook
   export shipped in the v1.x line; contact us if you need a full export
   of your account data.

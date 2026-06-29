@@ -314,7 +314,7 @@ The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlig
 
 Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Sign out and your cloud copy is deleted. Or stay fully offline; your call.
+Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Delete your cloud copy any time. Or stay fully offline; your call.
 
 FEATURES
 • 25 fiction &amp; reference sources — enable only the ones you want
@@ -370,7 +370,7 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
       <p class="intro">The honest story: with sync <b>off</b> — the default — Candela collects <span class="no">nothing</span>. A build-wide grep finds <b>zero</b> analytics, ads, or crash-reporting SDKs (the only third-party libraries are on-device ML Kit for OCR and the Compose fonts provider). Turn on optional sync and it stores your library and reading data on InstantDB; any saved API keys ride along <b>end-to-end encrypted</b> behind a passphrase only you hold.</p>
       <div class="tablewrap"><table>
         <tr><th>Data type</th><th>Collected?</th><th>Notes</th></tr>
-        <tr><td>Email address</td><td class="yes">Yes — sync only</td><td>Magic-code sign-in; HTTPS to InstantDB. Not required; sign-out deletes the cloud copy.</td></tr>
+        <tr><td>Email address</td><td class="yes">Yes — sync only</td><td>Magic-code sign-in; HTTPS to InstantDB. Not required; delete via Settings → Delete cloud data (#1248) — sign-out only revokes the token + clears this device.</td></tr>
         <tr><td>User ID</td><td class="yes">Yes — sync only</td><td>InstantDB record ID, internal — never exposed to other users.</td></tr>
         <tr><td>App activity <span class="why plain">(library, reading positions, follows, bookmarks, highlights &amp; notes, pronunciation dictionary, settings)</span></td><td class="yes">Yes — sync only</td><td>The sync payload — JSON over HTTPS. Deletable; sign-out purges it.</td></tr>
         <tr><td>API keys &amp; tokens <span class="why plain">(Azure / LLM / source logins)</span></td><td class="yes">Sync only · <b>E2E&nbsp;encrypted</b></td><td>AES-256-GCM, PBKDF2 600k, passphrase-derived — InstantDB never sees plaintext. Stored locally in Tink-encrypted prefs; excluded from device backup.</td></tr>
@@ -395,10 +395,10 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
       </table></div>
 
       <ul class="checks">
-        <li><input type="checkbox" id="c4a"><label for="c4a"><span class="what">“Data collected” → email, user ID &amp; app activity, <b>sync only</b>; “Data shared” → <b>None</b></span>
-          <span class="why">InstantDB is a data <i>processor</i>; BYOK keys &amp; channel sign-ins are user-initiated, not sharing. <i>(If you'd rather treat InstantDB as a third party, declare email + app activity as shared.)</i></span></label></li>
+        <li><input type="checkbox" id="c4a"><label for="c4a"><span class="what">“Data collected” → email, user ID &amp; app activity, <b>sync only</b>; “Data shared” → <b>Yes — with InstantDB</b></span>
+          <span class="why">Declare email + user ID + app activity as <b>shared with InstantDB</b>, the sync <i>data processor</i>. BYOK keys &amp; channel sign-ins stay user-initiated (not sharing); no other third parties.</span></label></li>
         <li><input type="checkbox" id="c4b"><label for="c4b"><span class="what">Security: encrypted in transit = <b>Yes</b>; secrets end-to-end encrypted; deletion = <b>Yes</b></span>
-          <span class="why">All HTTPS (<code>network_security_config.xml</code>); API keys AES-256-GCM behind a passphrase; sign-out purges the cloud copy, uninstall clears local data.</span></label></li>
+          <span class="why">All HTTPS (<code>network_security_config.xml</code>); API keys AES-256-GCM behind a passphrase; deletion = Settings → Delete cloud data (#1248, all 8 syncer domains) + email for the identity record; sign-out only revokes the token + clears this device.</span></label></li>
         <li><input type="checkbox" id="c4c"><label for="c4c"><span class="what">Independent security review = No · Families policy = No</span>
           <span class="why">13+ app with a UGC advisory (see <a href="#s5">V</a>); not a Families title.</span></label></li>
       </ul>
