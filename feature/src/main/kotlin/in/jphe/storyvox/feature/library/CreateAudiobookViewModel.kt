@@ -47,9 +47,7 @@ class CreateAudiobookViewModel @Inject constructor(
         .map { list ->
             list.filter { v ->
                 v.engineType !is EngineType.Azure &&
-                    v.engineType !is EngineType.SystemTts &&
-                    // TODO(#1114): remove this exclusion when SupertonicEngine ships.
-                    v.engineType !is EngineType.Supertonic
+                    v.engineType !is EngineType.SystemTts
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
