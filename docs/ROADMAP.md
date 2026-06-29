@@ -89,7 +89,7 @@ The v1.x line broadened sources, added a fourth voice family, and filled in the 
 - [x] **Supertonic 3 voice family** — the v1.2.0 headline, fourth in-process family (see _Sources & voices_ above; engine [#1191](https://github.com/techempower-org/candela/issues/1191), models hosted v1.2.4 [#1236](https://github.com/techempower-org/candela/issues/1236))
 - [x] **Collapsible headers on scroll** in Library & Browse ([#1195](https://github.com/techempower-org/candela/issues/1195))
 - [x] **Auto Do Not Disturb with the sleep timer** ([#1190](https://github.com/techempower-org/candela/issues/1190))
-- [x] **Safer sign-out** — confirm before a destructive sign-out ([#1197](https://github.com/techempower-org/candela/issues/1197)) + delete the InstantDB record on sign-out ([#1139](https://github.com/techempower-org/candela/issues/1139))
+- [x] **Safer sign-out** — confirm before sign-out ([#1197](https://github.com/techempower-org/candela/issues/1197)) + separate "Delete cloud data" action to purge the InstantDB record ([#1139](https://github.com/techempower-org/candela/issues/1139), [#1248](https://github.com/techempower-org/candela/issues/1248))
 - [x] **Report objectionable content** mailto in About ([#1140](https://github.com/techempower-org/candela/issues/1140))
 - [x] **Hotfix train** (v1.2.1–v1.2.5) — radio/LibriVox load race, false focus-lost on ExoPlayer streams, descriptive User-Agent centralized across sources, AO3 politeness gate, Supertonic XNNPACK crash
 
