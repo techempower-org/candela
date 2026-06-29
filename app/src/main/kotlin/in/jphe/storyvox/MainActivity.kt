@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Choreographer
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -393,8 +394,10 @@ class MainActivity : ComponentActivity() {
     /**
      * Issue #1000 / #1228 — ingest a document Uri received via "Open With"
      * (ACTION_VIEW) or "Share → Candela" (ACTION_SEND with EXTRA_STREAM)
-     * and return the fiction-detail route to navigate to, or null if the
-     * document type isn't one we can open.
+     * and return the fiction-detail route to navigate to, or null when there's
+     * nowhere to go: an unsupported type (silent), or a failed import — in which
+     * case we Toast the importer's user-facing reason first (#1264) so the
+     * external-intent path never silently no-ops.
      *
      * The resolve → classify → persist-grant → register work lives in
      * [DocumentImporterUiImpl] (#1228) so this path and the in-app
@@ -405,7 +408,21 @@ class MainActivity : ComponentActivity() {
     private suspend fun importDocument(uri: Uri): String? =
         when (val result = documentImporter.get().importLocalFile(uri.toString(), intent?.type)) {
             is ImportFileResult.Success -> StoryvoxRoutes.fictionDetail(result.fictionId)
-            ImportFileResult.Unsupported, is ImportFileResult.Error -> null
+            // #1264 — surface the importer's user-facing reason. Without this the
+            // "Open With" / Share path silently no-ops on a failed import: the
+            // user shares a file, the app opens to its default screen, and
+            // nothing explains why nothing happened. runOnUiThread guards the
+            // Toast because importDocument is a suspend fun — its internal IO hop
+            // can return on a non-main thread, and Toast must post from the UI thread.
+            is ImportFileResult.Error -> {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_LONG).show()
+                }
+                null
+            }
+            // Unsupported stays a silent, non-navigating fallback (issue #1264):
+            // a shared file of a type Candela doesn't handle shouldn't nag.
+            ImportFileResult.Unsupported -> null
         }
 
     /**
