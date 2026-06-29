@@ -14,6 +14,9 @@ import `in`.jphe.storyvox.data.db.entity.FictionMemoryEntry
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
 import `in`.jphe.storyvox.data.repository.FictionMemoryRepository
 import `in`.jphe.storyvox.data.repository.pronunciation.PronunciationDictRepository
+import `in`.jphe.storyvox.data.source.companion.CompanionMatch
+import `in`.jphe.storyvox.data.source.companion.CompanionResolver
+import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
@@ -77,6 +80,10 @@ data class FictionDetailUiState(
     /** Issue #999 — true while [ExportAnnotationsUseCase] writes the
      *  Markdown/TXT file. Surfaces a building chip, like [isExportingEpub]. */
     val isExportingAnnotations: Boolean = false,
+    /** Issue #1208 — the audio↔text companion (LibriVox↔Gutenberg), or null when
+     *  this fiction has no high-confidence counterpart. Drives the
+     *  "listen/read along" row. */
+    val companion: CompanionMatch? = null,
 )
 
 /**
@@ -127,6 +134,16 @@ sealed interface FictionDetailUiEvent {
 }
 
 @HiltViewModel
+/** Issue #1208 — identity key that re-triggers a companion resolve only when
+ *  the fiction's id/title actually changes (e.g. a placeholder hydrates), not
+ *  on every unrelated cache-state re-emission of the fiction flow. */
+private data class CompanionKey(
+    val id: String,
+    val sourceId: String,
+    val title: String,
+    val author: String,
+)
+
 class FictionDetailViewModel @Inject constructor(
     private val repo: FictionRepositoryUi,
     private val playback: PlaybackControllerUi,
@@ -159,6 +176,8 @@ class FictionDetailViewModel @Inject constructor(
     /** Issue #999 — builds the Markdown/TXT export file + FileProvider URI
      *  for the share-sheet. Injected like [exportEpub] (#117). */
     private val exportAnnotations: ExportAnnotationsUseCase,
+    /** Issue #1208 — cross-source audio↔text companion matcher (LibriVox↔Gutenberg). */
+    private val companionResolver: CompanionResolver,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -232,6 +251,35 @@ class FictionDetailViewModel @Inject constructor(
      *  this counter via `value++` re-fires the cache-state flow on
      *  demand without rebuilding the upstream chapter list. */
     private val cacheStateNudge = MutableStateFlow(0)
+
+    /**
+     * Issue #1208 — the audio↔text companion (LibriVox↔Gutenberg) for this
+     * fiction, resolved by [CompanionResolver] over the public source models.
+     * Re-resolves only when the [CompanionKey] changes (placeholder→hydrated),
+     * not on every cache-state re-emission. Best-effort: a network hiccup on
+     * the reverse LibriVox lookup degrades to null (no row), never an error.
+     */
+    private val companion: StateFlow<CompanionMatch?> =
+        repo.fictionById(fictionId)
+            .map { f -> f?.let { CompanionKey(it.id, it.sourceId, it.title, it.author) } }
+            .distinctUntilChanged()
+            .map { key ->
+                if (key == null) {
+                    null
+                } else {
+                    runCatching {
+                        companionResolver.companionFor(
+                            FictionSummary(
+                                id = key.id,
+                                sourceId = key.sourceId,
+                                title = key.title,
+                                author = key.author,
+                            ),
+                        )
+                    }.getOrNull()
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val uiState: StateFlow<FictionDetailUiState> = run {
         // Issue #217 — Notebook entries surface in the detail page's
@@ -319,7 +367,10 @@ class FictionDetailViewModel @Inject constructor(
                 annotationGroups = annotationGroups,
                 isExportingAnnotations = exportingAnnotations,
             )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FictionDetailUiState())
+        }
+            // Issue #1208 — fold in the lazily-resolved audio↔text companion.
+            .combine(companion) { state, companionMatch -> state.copy(companion = companionMatch) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FictionDetailUiState())
     }
 
     /**

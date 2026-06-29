@@ -23,6 +23,7 @@ class CompanionResolverTest {
         override val id: String,
         private val searchResults: List<FictionSummary> = emptyList(),
     ) : FictionSource {
+        override val displayName: String get() = id
         var lastSearchTerm: String? = null
 
         override suspend fun search(query: SearchQuery): FictionResult<ListPage<FictionSummary>> {
