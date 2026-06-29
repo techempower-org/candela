@@ -17,6 +17,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 - **Android Auto.** Browse your library, search by voice ("play Pride and Prejudice"), and resume where you left off — all from your car's head unit. (#1232 / #1292)
 - **Teleprompter & rehearsal mode.** A read-along view that auto-scrolls in time with the narration, with adjustable words-per-minute that persists across sessions, voice-paced line alignment, and a practice "pause-for-me" mode where Candela narrates and waits for you to voice the dialogue. (#1239 / #1286, #1291 / #1296, #1287 / #1304, #1287 / #1306)
+- **Wear OS teleprompter remote.** Drive the teleprompter from your watch — the Wear companion gains a remote-control protocol and matching UI. (#1308 / #1328)
 - **Google News source.** Read the news as a narrated feed — a browsable headline list, plus an opt-in mode that fetches and reads the full publisher article instead of just the headline. (#1238 / #1294, #1295 / #1309)
 - **Browsable radio directory.** Discover internet radio beyond the curated stations — sort the directory by most popular, most voted, or recently updated. (#1282 / #1316)
 - **LibriVox read-along.** Pair a LibriVox audiobook with its matching Project Gutenberg text and follow along, split section by section. (#1208 / #1300, #1224 / #1289)
