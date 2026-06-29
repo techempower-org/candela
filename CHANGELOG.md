@@ -9,6 +9,19 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.5.1] -- 2026-06-29
+
+**Samsung playback hotfix + Wear OS sideload.** Fixes Piper synthesis cancel loop and system TTS infinite reconnection on Samsung devices. First Wear OS APK in CI.
+
+### Fixed
+
+- Piper synthesis no longer gets cancelled in a tight loop on Samsung devices. Root cause: system TTS roster churn re-emitted the same voice ID, and EnginePlayer rebuilt the pipeline for each emission during the model-load window. Added `lastReactedVoiceId` dedup guard. (#1383)
+- System TTS infinite connect/disconnect loop on Samsung devices. The null-target `TextToSpeech` init hit Samsung's private engine, looping forever. New `TtsEngineResolver` resolves a public engine explicitly, with 8s timeout on init. (#1384)
+
+### Added
+
+- Wear OS APK now built in CI alongside the phone APK. Tag builds produce `candela-wear-<tag>.apk` in GitHub Releases, signed with the same key for Wearable Data Layer pairing.
+
 ## [1.5.0] -- 2026-06-29
 
 **Teleprompter studio + source discovery.** Recording mode, voice-paced scroll, AI script writer, script manager, source catalog, onboarding source picker, voice engine plugin architecture, and KSP-generated plugin routing.
