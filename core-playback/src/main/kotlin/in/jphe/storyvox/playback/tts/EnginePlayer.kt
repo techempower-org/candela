@@ -331,6 +331,11 @@ class EnginePlayer @AssistedInject constructor(
     @Assisted private val context: Context,
     private val chunker: SentenceChunker,
     private val chapterRepo: ChapterRepository,
+    /** Issue #1299 — per-fiction narrator-pin source. [loadAndPlay] reads
+     *  the fiction's `pinnedVoiceId` to narrate with the book's pinned voice,
+     *  falling back to the global active voice when unpinned or the pinned
+     *  voice isn't installed. */
+    private val fictionRepo: `in`.jphe.storyvox.data.repository.FictionRepository,
     private val positionRepo: PlaybackPositionRepository,
     /**
      * Issue #158 — reading-history breadcrumb. Written on every
@@ -1860,7 +1865,14 @@ class EnginePlayer @AssistedInject constructor(
             _observableState.update { it.copy(isLiveAudioChapter = false) }
         }
 
-        val active = voiceManager.activeVoice.first()
+        // Issue #1299 — per-fiction narrator pin. If this fiction has a pinned
+        // voice that's actually installed, narrate with it; otherwise fall back
+        // to the global active voice. Safe-by-default: no pin, or a pin whose
+        // voice isn't installed, behaves identically to pre-#1299.
+        val pinnedNarrator = fictionRepo.pinnedVoiceId(fictionId)
+            ?.let { voiceManager.voiceById(it) }
+            ?.takeIf { it.isInstalled }
+        val active = pinnedNarrator ?: voiceManager.activeVoice.first()
         if (active == null) {
             _observableState.update {
                 it.copy(isPlaying = false, error = PlaybackError.EngineUnavailable)

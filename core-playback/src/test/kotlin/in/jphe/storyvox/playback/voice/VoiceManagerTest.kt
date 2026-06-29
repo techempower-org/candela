@@ -28,7 +28,10 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -85,6 +88,27 @@ class VoiceManagerTest {
     @After
     fun tearDown() {
         voicesRoot.deleteRecursively()
+    }
+
+    // ===== Issue #1299 — voiceById roster-aware lookup =====
+
+    @Test
+    fun voiceById_resolvesKnownCatalogVoice() = runBlocking {
+        val vm = VoiceManager(context, EmptyAzureProvider, EmptySystemTtsProvider)
+        val knownId = VoiceCatalog.featuredIds.first()
+        val resolved = vm.voiceById(knownId)
+        assertNotNull(resolved)
+        assertEquals(knownId, resolved!!.id)
+        // Empty filesDir → a downloadable featured (Piper) voice resolves but
+        // reports not-installed. The loadAndPlay narrator-pin gate relies on
+        // this so an uninstalled pin falls back to the active voice.
+        assertFalse(resolved.isInstalled)
+    }
+
+    @Test
+    fun voiceById_unknownId_returnsNull() = runBlocking {
+        val vm = VoiceManager(context, EmptyAzureProvider, EmptySystemTtsProvider)
+        assertNull(vm.voiceById("not-a-real-voice-id"))
     }
 
     /**
