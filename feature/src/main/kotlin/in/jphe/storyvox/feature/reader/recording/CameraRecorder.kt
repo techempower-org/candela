@@ -7,7 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.camera.core.CameraSelector
-import androidx.camera.video.AudioConfig
+import androidx.camera.view.video.AudioConfig
 import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
