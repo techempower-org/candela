@@ -80,6 +80,8 @@ include(":source-radio")
 include(":source-librivox")
 include(":source-notion")
 include(":source-hackernews")
+// #1238 — Google News headline feed (Top stories + topic sections + search).
+include(":source-google-news")
 include(":source-arxiv")
 include(":source-plos")
 include(":source-discord")

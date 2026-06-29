@@ -583,6 +583,8 @@ dependencies {
     implementation(project(":source-librivox"))
     implementation(project(":source-notion"))
     implementation(project(":source-hackernews"))
+    // #1238 — Google News headline feed.
+    implementation(project(":source-google-news"))
     implementation(project(":source-arxiv"))
     implementation(project(":source-plos"))
     implementation(project(":source-discord"))

@@ -40,6 +40,7 @@
     <string name="source_tagline_techempower">Guides &amp; resources</string>
     <string name="source_tagline_notion">Your Notion</string>
     <string name="source_tagline_hackernews">Tech news</string>
+    <string name="source_tagline_google_news">Top headlines</string>
     <string name="source_tagline_arxiv">Research papers</string>
     <string name="source_tagline_plos">Open science</string>
     <string name="source_tagline_discord">Server channels</string>
