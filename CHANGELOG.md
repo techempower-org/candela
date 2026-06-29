@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.3] -- 2026-06-29
+
+**Cloud sync fix.** All CI runners were missing the InstantDB app ID in `local.properties`, causing release builds to ship with sync disabled (`PLACEHOLDER` app ID → `DisabledBackend`).
+
+### Fixed
+
+- Provision `INSTANTDB_APP_ID` on all four CI runners (familiar ×3 + ubox0) so release APKs ship with working cloud sync. (#1344)
+
 ## [1.4.2] -- 2026-06-29
 
 **Play Store readiness.** Fixes a fiction-not-found error on deep-linked books and wires testTag automation for on-device QA.
