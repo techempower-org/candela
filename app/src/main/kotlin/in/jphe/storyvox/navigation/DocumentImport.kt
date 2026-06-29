@@ -46,15 +46,19 @@ enum class ImportKind {
 object DocumentImportClassifier {
 
     /**
-     * #996 hook — flip to `true` once Somnia's PDF text-extraction path
-     * (`:source-pdf`) is merged and wired into the import store. While
-     * `false`, PDFs classify as [ImportKind.Unsupported] so the resolver
-     * declines them (the manifest still advertises the filter, behind
-     * the same gate, so we don't appear in the chooser for a type we
-     * can't yet open). Keeping the branch live + tested means #996 is a
-     * one-line flip + a store wire, not a re-derivation.
+     * #996 hook — now enabled (#1228). `:source-pdf`'s text-extraction
+     * path is merged and wired into the import store, and the in-app
+     * "Import a file…" picker (#1228) routes [ImportKind.Pdf] through
+     * [in.jphe.storyvox.data.PdfConfigImpl.importFile]. PDFs therefore
+     * classify as [ImportKind.Pdf] rather than [ImportKind.Unsupported].
+     *
+     * Note this gate governs *classification* only — it does not advertise
+     * the external "Open With" PDF intent-filter, which the manifest still
+     * intentionally withholds (a separate, deferred decision). In-app
+     * single-file PDF import works; file-manager "Open With → Candela" for
+     * PDFs remains opt-in for a future change.
      */
-    const val PDF_ENABLED: Boolean = false
+    const val PDF_ENABLED: Boolean = true
 
     private val EPUB_MIMES = setOf(
         "application/epub+zip",

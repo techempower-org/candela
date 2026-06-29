@@ -55,16 +55,19 @@ class DocumentImportClassifierTest {
         assertEquals(ImportKind.Text, classify("text/markdown", "doc"))
     }
 
-    // ── PDF (gated on #996) ──────────────────────────────────────────
+    // ── PDF (#996 landed, #1228 enabled the gate) ─────────────────────
 
     @Test
-    fun pdf_isUnsupportedWhileGated() {
-        // PDF_ENABLED is false until #996 lands — until then PDFs must
-        // NOT be opened (the EPUB parser would choke on the bytes).
-        assertEquals(false, DocumentImportClassifier.PDF_ENABLED)
-        assertEquals(ImportKind.Unsupported, classify("application/pdf", "report.pdf"))
-        assertEquals(ImportKind.Unsupported, classify(null, "report.pdf"))
-        assertEquals(ImportKind.Unsupported, classify("application/x-pdf", "report"))
+    fun pdf_classifiesPdf() {
+        // #1228 — :source-pdf (#996) is merged and wired into the import
+        // store, so the gate is open: PDFs route to the PDF text-extraction
+        // path (in-app "Import a file…" picker) instead of being declined.
+        assertEquals(true, DocumentImportClassifier.PDF_ENABLED)
+        assertEquals(ImportKind.Pdf, classify("application/pdf", "report.pdf"))
+        assertEquals(ImportKind.Pdf, classify(null, "report.pdf"))
+        assertEquals(ImportKind.Pdf, classify("application/x-pdf", "report"))
+        // Generic mime + .pdf extension (the common file-manager case).
+        assertEquals(ImportKind.Pdf, classify("application/octet-stream", "manual.PDF"))
     }
 
     // ── Unsupported / edge ───────────────────────────────────────────

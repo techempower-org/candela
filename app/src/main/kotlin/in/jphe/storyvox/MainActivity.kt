@@ -2,12 +2,10 @@ package `in`.jphe.storyvox
 
 import android.Manifest
 import android.content.Intent
-import android.database.Cursor
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.util.Log
 import android.view.Choreographer
 import androidx.activity.ComponentActivity
@@ -33,6 +31,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import dagger.Lazy
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.jphe.storyvox.feature.api.CoverStyle
+import `in`.jphe.storyvox.feature.api.ImportFileResult
 import `in`.jphe.storyvox.feature.api.ReadingDirection
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.api.SpeakChapterMode
@@ -55,13 +54,10 @@ import `in`.jphe.storyvox.ui.a11y.LocalIsTalkBackActive
 import `in`.jphe.storyvox.ui.component.CoverStyleLocal
 import `in`.jphe.storyvox.ui.component.LocalCoverStyle
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
-import `in`.jphe.storyvox.data.EpubConfigImpl
+import `in`.jphe.storyvox.data.DocumentImporterUiImpl
 import `in`.jphe.storyvox.navigation.DeepLinkResolver
-import `in`.jphe.storyvox.navigation.DocumentImportClassifier
-import `in`.jphe.storyvox.navigation.ImportKind
 import `in`.jphe.storyvox.navigation.StoryvoxNavHost
 import `in`.jphe.storyvox.navigation.StoryvoxRoutes
-import `in`.jphe.storyvox.source.epub.config.EpubEntryKind
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,15 +117,16 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var accessibilityStateBridge: Lazy<AccessibilityStateBridge>
 
     /**
-     * Issue #1000 — "Open With" file import. The EPUB config impl is
-     * the registry the import path writes into (a single inbound EPUB /
-     * TXT file becomes a standalone fiction, reusing the `:source-epub`
-     * read path). Wrapped in [Lazy] for the same cold-launch reason as
-     * the other injects (#409): the DataStore-backed graph isn't
-     * materialised during activity injection, only when an import
-     * intent actually arrives.
+     * Issue #1000 / #1228 — single-file document import. The shared
+     * [DocumentImporterUiImpl] owns the resolve → classify → persist-grant
+     * → register sequence; this "Open With" / share path and the in-app
+     * "Import a file…" picker both route through it (a single inbound
+     * EPUB / TXT / PDF file becomes a standalone fiction). Wrapped in
+     * [Lazy] for the same cold-launch reason as the other injects (#409):
+     * the DataStore-backed graph isn't materialised during activity
+     * injection, only when an import intent actually arrives.
      */
-    @Inject lateinit var epubConfig: Lazy<EpubConfigImpl>
+    @Inject lateinit var documentImporter: Lazy<DocumentImporterUiImpl>
 
     // testTagsAsResourceId is experimental Compose UI API. We opt in at
     // the function holding setContent {} because that's where the flag is
@@ -394,57 +391,22 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Issue #1000 — ingest a document Uri received via "Open With"
+     * Issue #1000 / #1228 — ingest a document Uri received via "Open With"
      * (ACTION_VIEW) or "Share → Candela" (ACTION_SEND with EXTRA_STREAM)
-     * and return the fiction-detail route to navigate to, or null if
-     * the document type isn't one we can open.
+     * and return the fiction-detail route to navigate to, or null if the
+     * document type isn't one we can open.
      *
-     * Steps:
-     *  1. Resolve the mime type (intent type → ContentResolver type) and
-     *     a human filename (OpenableColumns.DISPLAY_NAME → last path
-     *     segment) for the Uri.
-     *  2. [DocumentImportClassifier.classify] buckets it (Epub / Text /
-     *     Pdf / Unsupported). Unsupported (incl. PDF until #996 lands)
-     *     → return null; the resolver fall-through then declines too.
-     *  3. [takePersistableUriPermission] so re-opens from Library
-     *     survive a relaunch — content Uris from SAF / file managers
-     *     carry FLAG_GRANT_READ_URI_PERMISSION; persisting it converts
-     *     the one-shot grant into a durable one.
-     *  4. Register with the EPUB config and return its fictionId route.
+     * The resolve → classify → persist-grant → register work lives in
+     * [DocumentImporterUiImpl] (#1228) so this path and the in-app
+     * "Import a file…" picker share one implementation. The inbound
+     * intent's `type` is passed as the mime hint — a file manager's SEND
+     * intent often carries a better mime than `ContentResolver.getType`.
      */
-    private suspend fun importDocument(uri: Uri): String? {
-        val mime = intent?.type ?: contentResolver.getType(uri)
-        val displayName = queryDisplayName(uri) ?: uri.lastPathSegment.orEmpty()
-        val kind = DocumentImportClassifier.classify(mime, displayName)
-        val entryKind = when (kind) {
-            ImportKind.Epub -> EpubEntryKind.Epub
-            ImportKind.Text -> EpubEntryKind.Text
-            // PDF lands here once #996 flips DocumentImportClassifier
-            // .PDF_ENABLED and wires its extractor into the import store;
-            // until then classify() never returns Pdf, so this is the
-            // single hook to extend (don't import as EPUB — the parser
-            // would reject the bytes).
-            ImportKind.Pdf -> return null
-            ImportKind.Unsupported -> return null
+    private suspend fun importDocument(uri: Uri): String? =
+        when (val result = documentImporter.get().importLocalFile(uri.toString(), intent?.type)) {
+            is ImportFileResult.Success -> StoryvoxRoutes.fictionDetail(result.fictionId)
+            ImportFileResult.Unsupported, is ImportFileResult.Error -> null
         }
-        // Persist read access so Library re-opens work after relaunch.
-        // Best-effort: some providers grant only a one-shot read (no
-        // persistable flag) — the import still works for this session,
-        // and a failed persist shouldn't abort the open.
-        runCatching {
-            contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        }.onFailure { Log.w(TAG, "Could not persist URI permission for $uri", it) }
-
-        val fictionId = epubConfig.get().importFile(
-            uriString = uri.toString(),
-            displayName = displayName,
-            kind = entryKind,
-        )
-        return StoryvoxRoutes.fictionDetail(fictionId)
-    }
 
     /**
      * Debug-only deterministic reader seed (Layer 1 of the UI-test
@@ -475,33 +437,11 @@ class MainActivity : ComponentActivity() {
                 null
             }
         } ?: return null
-        // file:// to our own cacheDir — importDocument's
-        // openInputStream reads it directly (we own the file), and the
-        // takePersistableUriPermission call no-ops on a file Uri.
+        // file:// to our own cacheDir — the importer reads it directly
+        // (we own the file), and the takePersistableUriPermission call
+        // no-ops on a file Uri.
         return importDocument(Uri.fromFile(cached))
     }
-
-    /** Query the SAF [OpenableColumns.DISPLAY_NAME] for a content Uri.
-     *  Returns null for non-content Uris or when the provider doesn't
-     *  expose the column (the caller falls back to the last path
-     *  segment). Off the main thread — ContentResolver.query touches a
-     *  binder. */
-    private suspend fun queryDisplayName(uri: Uri): String? =
-        withContext(Dispatchers.IO) {
-            if (uri.scheme != "content") return@withContext null
-            runCatching {
-                contentResolver.query(
-                    uri,
-                    arrayOf(OpenableColumns.DISPLAY_NAME),
-                    null,
-                    null,
-                    null,
-                )?.use { cursor: Cursor ->
-                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
-                }
-            }.getOrNull()?.takeIf { it.isNotBlank() }
-        }
 
     private companion object {
         private const val TAG = "MainActivity"

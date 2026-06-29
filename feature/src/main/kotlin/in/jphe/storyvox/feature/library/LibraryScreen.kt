@@ -1,5 +1,8 @@
 package `in`.jphe.storyvox.feature.library
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -89,6 +92,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -186,6 +190,21 @@ fun LibraryScreen(
         androidx.compose.runtime.mutableStateOf(false)
     }
 
+    // Issue #1228 — in-app single-file import. The "Import a file…" entry
+    // in the add menu launches the SAF document picker filtered to the
+    // formats Candela can read; the picked Uri is handed to the ViewModel,
+    // which classifies + registers it (reusing the same #1000 import path
+    // as "Open With") and navigates to the new fiction, or emits a
+    // ShowMessage toast on failure. `text/*` rather than bare `text/plain`
+    // lets the picker surface .md / .markdown too — the importer's
+    // classifier buckets those as plaintext.
+    val context = LocalContext.current
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let { viewModel.importPickedFile(it.toString()) }
+    }
+
     // Issue #828 — confirm-before-remove dialog state for the
     // "Remove from library" row on ManageShelvesSheet. Holds the
     // (fictionId, title) the sheet asked to remove; null = no dialog.
@@ -214,6 +233,8 @@ fun LibraryScreen(
                 is LibraryUiEvent.OpenFiction -> onOpenFiction(event.fictionId)
                 is LibraryUiEvent.OpenReader -> onOpenReader(event.fictionId, event.chapterId)
                 is LibraryUiEvent.OpenInboxLink -> onOpenInboxLink(event.deepLinkUri)
+                is LibraryUiEvent.ShowMessage ->
+                    Toast.makeText(context, event.text, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -308,6 +329,22 @@ fun LibraryScreen(
                             onClick = {
                                 addMenuOpen = false
                                 createAudiobookOpen = true
+                            },
+                        )
+                        // Issue #1228 — import an EPUB / PDF / TXT off the
+                        // device. `text/*` widens the picker to .md /
+                        // .markdown too; the importer classifies the pick.
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Import a file…") },
+                            onClick = {
+                                addMenuOpen = false
+                                importLauncher.launch(
+                                    arrayOf(
+                                        "application/epub+zip",
+                                        "application/pdf",
+                                        "text/*",
+                                    ),
+                                )
                             },
                         )
                     }
