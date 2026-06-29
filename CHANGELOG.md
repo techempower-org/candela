@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.4.1] -- 2026-06-29
+
+**Wear teleprompter wiring.** Integrates the Wear OS teleprompter remote protocol that shipped as a standalone module in v1.4.0 into the main navigation and controller graph.
+
+### Fixed
+
+- Wire Wear teleprompter remote to the shared `TeleprompterController` and add navigation entry so the remote screen is reachable from the watch companion. (#1308 / #1329)
+
 ## [1.4.0] -- 2026-06-29
 
 **Read along and on the road.** A teleprompter and rehearsal mode, Android Auto playback with voice search, full Google News articles, a Bookshare DAISY importer, a browsable radio directory, LibriVox read-along, per-book narrator voices, and the groundwork for character voices.
