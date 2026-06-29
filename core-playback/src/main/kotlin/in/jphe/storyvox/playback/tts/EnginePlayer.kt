@@ -2136,7 +2136,23 @@ class EnginePlayer @AssistedInject constructor(
             // withLock here waits for the in-flight call to finish before
             // we tear the model down.
             engineMutex.withLock {
-                when (active.engineType) {
+                // Issue #1342 — gate the native loadModel on the voice's model
+                // files actually being present on disk. VoxSherpa's loadModel
+                // (OfflineTts.newFromFile et al.) SIGSEGVs on a missing/partial
+                // model file rather than erroring, so a voice that's marked
+                // installed in prefs but whose files were never fully downloaded
+                // (or were deleted) hard-crashes the app when it's loaded — the
+                // #1342 native SIGSEGV in OfflineTts.newFromFile. Refuse the JNI
+                // call and return a typed error; the `loadResult != "Success"`
+                // path below handles it gracefully (no crash).
+                if (!voiceManager.modelFilesPresent(active)) {
+                    android.util.Log.w(
+                        "EnginePlayer",
+                        "loadModel: model files missing for voice ${active.id} " +
+                            "(${active.engineType}); refusing native load — #1342",
+                    )
+                    "This voice isn't fully downloaded — re-download it in Voices, or pick another voice."
+                } else when (active.engineType) {
                     EngineType.Piper -> {
                         // Voice swap AWAY from Kokoro/Kitten → free
                         // their secondaries. Tier 3 (#88) honors the
@@ -5698,7 +5714,23 @@ class EnginePlayer @AssistedInject constructor(
 
         val loadResult: String = withContext(Dispatchers.IO) {
             engineMutex.withLock {
-                when (active.engineType) {
+                // Issue #1342 — gate the native loadModel on the voice's model
+                // files actually being present on disk. VoxSherpa's loadModel
+                // (OfflineTts.newFromFile et al.) SIGSEGVs on a missing/partial
+                // model file rather than erroring, so a voice that's marked
+                // installed in prefs but whose files were never fully downloaded
+                // (or were deleted) hard-crashes the app when it's loaded — the
+                // #1342 native SIGSEGV in OfflineTts.newFromFile. Refuse the JNI
+                // call and return a typed error; the `loadResult != "Success"`
+                // path below handles it gracefully (no crash).
+                if (!voiceManager.modelFilesPresent(active)) {
+                    android.util.Log.w(
+                        "EnginePlayer",
+                        "loadModel: model files missing for voice ${active.id} " +
+                            "(${active.engineType}); refusing native load — #1342",
+                    )
+                    "This voice isn't fully downloaded — re-download it in Voices, or pick another voice."
+                } else when (active.engineType) {
                     EngineType.Piper -> {
                         val voiceDir = voiceManager.voiceDirFor(active.id)
                         val onnx = File(voiceDir, "model.onnx").absolutePath
