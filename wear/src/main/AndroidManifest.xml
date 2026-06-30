@@ -29,6 +29,7 @@
 
         <activity
             android:name=".WearMainActivity"
+            android:ambientEnabled="true"
             android:exported="true"
             android:taskAffinity=""
             android:theme="@android:style/Theme.DeviceDefault">
