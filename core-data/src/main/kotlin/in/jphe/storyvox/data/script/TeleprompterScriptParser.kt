@@ -1,8 +1,15 @@
-package `in`.jphe.storyvox.feature.reader.recording
+package `in`.jphe.storyvox.data.script
 
 /**
  * Issue #1367 — teleprompter script model + parser, ported from the TechEmpower
  * Show web teleprompter (`techempower/show/ep2/teleprompter.html`).
+ *
+ * Issue #1369 follow-up — moved from `:feature` into `:core-data` so it is the
+ * **single** canonical teleprompter-script parser: the recording overlay
+ * (`TeleprompterOverlay`) renders from [ParsedScript], and the persisted
+ * [`in`.jphe.storyvox.data.db.entity.TeleprompterScript] computes its
+ * spoken-word duration estimate from the same [spokenWordCount] — no second,
+ * drifting word-count implementation.
  *
  * Production scripts (multi-speaker, section-structured, with production cues)
  * follow a plain-text convention the web prompter already parses:

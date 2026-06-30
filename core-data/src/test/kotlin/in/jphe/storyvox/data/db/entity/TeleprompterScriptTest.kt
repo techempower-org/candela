@@ -47,23 +47,18 @@ class TeleprompterScriptTest {
 
     // ── Show-script format parsing (#1369 / TechEmpower Show) ──────────────
 
-    @Test fun `spokenText passes plain freeform text through unchanged`() {
-        assertEquals("Just some plain words.", TeleprompterScript.spokenText("Just some plain words."))
+    @Test fun `spokenWordCount counts plain freeform text in full`() {
         assertEquals(4, TeleprompterScript.spokenWordCount("Just some plain words."))
     }
 
-    @Test fun `spokenText strips bracketed cues, inline and multi-line`() {
+    @Test fun `spokenWordCount excludes bracketed cues, inline and multi-line`() {
         assertEquals(5, TeleprompterScript.spokenWordCount("Glad to be here [chuckles] really."))
-        // Multi-line cue is removed whole — only "Before" + "after" remain.
+        // Multi-line cue is removed whole — only "Before" + "after" remain spoken.
         val multi = "Before [POST: jingle\nand logo] after"
         assertEquals(2, TeleprompterScript.spokenWordCount(multi))
-        assertTrue(
-            "bracketed cue content must be gone",
-            !TeleprompterScript.spokenText(multi).contains("jingle"),
-        )
     }
 
-    @Test fun `spokenText strips banner blocks, rules, and speaker labels`() {
+    @Test fun `spokenWordCount excludes banner blocks, rules, and speaker labels`() {
         val script = """
             ================================================================
             WAIT, I QUALIFY?!  --  EPISODE 1
@@ -100,6 +95,7 @@ class TeleprompterScriptTest {
     @Test fun `estimateDurationSecs counts spoken words only`() {
         val script = """
             [intro music plays for a while with many bracketed words here]
+
             SHAWNA:
             Hello there.
         """.trimIndent()

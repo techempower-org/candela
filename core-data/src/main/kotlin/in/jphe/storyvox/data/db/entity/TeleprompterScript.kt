@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.data.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import `in`.jphe.storyvox.data.script.parseTeleprompterScript
 
 /**
  * Issue #1369 — a user-authored teleprompter script.
@@ -59,8 +60,8 @@ data class TeleprompterScript(
      * Script format, persisted as a [ScriptFormat] enum *name* (string, not
      * ordinal — same forward-compat pattern as `FictionShelf.shelf`) so a new
      * format can be appended without a schema migration. Drives organization
-     * and (future) format-aware behavior; the spoken-text parser
-     * ([spokenText]) is format-agnostic so duration is correct regardless.
+     * and (future) format-aware behavior; the spoken-word count
+     * ([spokenWordCount]) is format-agnostic so duration is correct regardless.
      */
     val format: String = ScriptFormat.FREEFORM.name,
     /** Wall-clock millis the script was first created. */
@@ -79,21 +80,6 @@ data class TeleprompterScript(
          */
         const val WPM_BASELINE: Int = 150
 
-        /** A `[bracketed]` production cue — `[POST: JINGLE]`, `[pause]`, etc.
-         *  May span lines, so DOT_MATCHES_ALL. Not spoken. */
-        private val BRACKET_CUE = Regex("""\[[^\[\]]*]""", RegexOption.DOT_MATCHES_ALL)
-
-        /** A full-line `====` banner. Toggles in/out of a non-spoken block
-         *  (the top metadata block AND `====`-wrapped section headers). */
-        private val BANNER_LINE = Regex("""^\s*={3,}\s*$""")
-
-        /** A full-line `----` rule (metadata separator). Not spoken. */
-        private val RULE_LINE = Regex("""^\s*-{3,}\s*$""")
-
-        /** A speaker label alone on its line — `SHAWNA:`, `JEFF:`,
-         *  `SHAWNA AND JEFF:`. All-caps name(s) + colon. Not spoken. */
-        private val SPEAKER_LABEL = Regex("""^\s*[A-Z][A-Z0-9 .'&/()-]*:\s*$""")
-
         private val WHITESPACE = Regex("""\s+""")
 
         /** Total whitespace-delimited word count of [text] (markup included).
@@ -102,34 +88,13 @@ data class TeleprompterScript(
             if (text.isBlank()) 0 else text.trim().split(WHITESPACE).size
 
         /**
-         * The *spoken* portion of a show-format [body]: strips `[bracketed]`
-         * production cues, `====`-delimited banner blocks (the top metadata /
-         * "prompter notes" block AND `====`-wrapped section headers), `----`
-         * rule lines, and whole-line `SPEAKER:` labels. Plain freeform text
-         * (no markup) passes through unchanged. This is what the teleprompter
-         * actually reads aloud, so the duration estimate counts these words —
-         * not the cues/headers/labels (issue #1369, TechEmpower Show format).
+         * Word count of the *spoken* portion only — delegates to the single
+         * canonical [parseTeleprompterScript] (`:core-data` `data.script`) so the
+         * persisted duration estimate and the recording overlay's scroll pace
+         * never drift apart. `[bracketed]` cues, `====` section / metadata
+         * banners, and `SPEAKER:` labels are excluded (#1367/#1369).
          */
-        fun spokenText(body: String): String {
-            // 1. Remove [bracketed] cues first (they can span lines).
-            val noCues = BRACKET_CUE.replace(body, " ")
-            // 2. Line pass with a "inside ==== banner block" toggle. Each
-            //    banner line flips the toggle, so both the top metadata block
-            //    and every ====-wrapped section header fall inside it.
-            var inBanner = false
-            val kept = StringBuilder()
-            for (line in noCues.lineSequence()) {
-                if (BANNER_LINE.matches(line)) { inBanner = !inBanner; continue }
-                if (inBanner) continue
-                if (RULE_LINE.matches(line)) continue
-                if (SPEAKER_LABEL.matches(line)) continue
-                kept.append(line).append('\n')
-            }
-            return kept.toString().trim()
-        }
-
-        /** Word count of the spoken text only — see [spokenText]. */
-        fun spokenWordCount(body: String): Int = wordCount(spokenText(body))
+        fun spokenWordCount(body: String): Int = parseTeleprompterScript(body).spokenWordCount
 
         /**
          * Estimated read-aloud duration of [body] in whole seconds at the given
