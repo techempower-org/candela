@@ -14,7 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.AmbientMode
-import androidx.wear.compose.foundation.AmbientTickEffect
 import androidx.wear.compose.foundation.rememberAmbientModeManager
 import `in`.jphe.storyvox.playback.SleepTimerMode
 import `in`.jphe.storyvox.playback.wear.TeleprompterWpmPayload
@@ -48,9 +47,7 @@ fun WearAppRoot() {
         val ambient = ambientManager.currentAmbientMode as? AmbientMode.Ambient
         if (ambient != null) {
             val state by bridge.state.collectAsStateWithLifecycle()
-            var tick by remember { mutableStateOf(0) }
-            AmbientTickEffect(ambientManager) { tick++ }
-            AmbientNowPlaying(state = state, ambient = ambient, tick = tick)
+            AmbientNowPlaying(state = state, ambient = ambient, tick = 0)
         } else {
             InteractiveContent(bridge)
         }
