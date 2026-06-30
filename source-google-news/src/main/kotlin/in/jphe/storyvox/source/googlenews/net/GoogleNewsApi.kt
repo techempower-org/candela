@@ -30,10 +30,26 @@ internal class GoogleNewsApi(private val client: OkHttpClient) {
                 }
                 val body = resp.body?.string()
                     ?: return@withContext FictionResult.NetworkError("Empty Google News response")
+                if (looksLikeCfChallenge(body)) {
+                    return@withContext FictionResult.Cloudflare(
+                        challengeUrl = url,
+                        message = "Google News returned a Cloudflare challenge",
+                    )
+                }
                 FictionResult.Success(body)
             }
         } catch (e: IOException) {
             FictionResult.NetworkError("Google News fetch failed", e)
         }
     }
+
+    /**
+     * Inline Cloudflare challenge detection (#1446).
+     * Checks for the three markers present in CF's JS challenge page.
+     * Shared utility deferred to #1438.
+     */
+    private fun looksLikeCfChallenge(body: String): Boolean =
+        body.contains("/cdn-cgi/challenge-platform/") ||
+            body.contains("Just a moment...") ||
+            body.contains("cf-mitigated")
 }
