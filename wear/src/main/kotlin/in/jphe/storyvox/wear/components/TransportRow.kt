@@ -28,6 +28,11 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.wear.compose.material.Icon
 import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.theme.BrassMuted
@@ -65,8 +70,23 @@ fun TransportRow(
     onSkipBackLong: (() -> Unit)? = null,
     onSkipForwardLong: (() -> Unit)? = null,
 ) {
+    // #a11y — externalized play-state labels (resolved here; semantics{} below
+    // can't call stringResource directly).
+    val playingDesc = stringResource(R.string.wear_state_playing)
+    val pausedDesc = stringResource(R.string.wear_state_paused)
     Row(
-        modifier = modifier.fillMaxWidth(),
+        // #a11y — group the transport as one TalkBack traversal unit (each
+        // button keeps its own label + action; merging descendants would have
+        // flattened those away). Play state is exposed as a stateDescription on
+        // the group + a polite live region, so toggling play/pause is announced
+        // without the user re-focusing the button.
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics {
+                isTraversalGroup = true
+                stateDescription = if (isPlaying) playingDesc else pausedDesc
+                liveRegion = LiveRegionMode.Polite
+            },
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {

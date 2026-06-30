@@ -10,6 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.MaterialTheme
@@ -39,6 +41,10 @@ fun ChapterCover(
     author: String?,
     modifier: Modifier = Modifier,
 ) {
+    // #a11y — reuse #1412's externalized cover strings for the no-art monogram
+    // (resolved here since semantics{} can't call stringResource directly).
+    val coverDesc = title?.let { stringResource(R.string.wear_cd_cover_for, it) }
+        ?: stringResource(R.string.wear_cd_cover_generic)
     Box(
         modifier = modifier
             .clip(CircleShape)
@@ -63,6 +69,9 @@ fun ChapterCover(
                 fontSize = 36.sp,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.display1,
+                // #a11y — with no cover art the monogram is decorative; describe
+                // the cover so TalkBack announces it instead of spelling glyphs.
+                modifier = Modifier.semantics { contentDescription = coverDesc },
             )
         }
     }

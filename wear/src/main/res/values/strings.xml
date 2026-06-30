@@ -35,4 +35,11 @@
     <!-- Complications -->
     <string name="complication_now_playing_label">Candela — Now Playing</string>
     <string name="complication_stats_label">Candela — Listening Today</string>
+
+    <!-- Now-Playing a11y: live-region states + actions (#1421) -->
+    <string name="wear_state_playing">Playing</string>
+    <string name="wear_state_paused">Paused</string>
+    <string name="wear_state_buffering">Buffering</string>
+    <string name="wear_cd_chapter_progress">Chapter progress</string>
+    <string name="wear_cd_open_teleprompter">Open teleprompter remote</string>
 </resources>
