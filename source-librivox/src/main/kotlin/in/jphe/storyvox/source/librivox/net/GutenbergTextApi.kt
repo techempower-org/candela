@@ -84,6 +84,15 @@ internal class GutenbergTextApi @Inject constructor(
                             "Empty Project Gutenberg response for ebook $bookId",
                             IOException("empty body"),
                         )
+                    // #1442 — a Cloudflare challenge page served as
+                    // HTTP 200 would be silently stored as chapter text
+                    // and narrated by TTS. Detect it before it reaches
+                    // the text pipeline.
+                    looksLikeCfChallenge(body) ->
+                        FictionResult.Cloudflare(
+                            challengeUrl = url,
+                            message = "Cloudflare challenge on Gutenberg ebook $bookId",
+                        )
                     else -> FictionResult.Success(stripGutenbergBoilerplate(body))
                 }
             }
@@ -167,5 +176,16 @@ internal class GutenbergTextApi @Inject constructor(
             """\*\*\*\s*END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK.*""",
             RegexOption.IGNORE_CASE,
         )
+
+        /**
+         * Issue #1442 — detect a Cloudflare challenge page that arrived
+         * as HTTP 200. Without this check the challenge HTML would be
+         * stored as chapter text and narrated by TTS — the worst failure
+         * mode. Inlined per #1438 (no shared utility yet).
+         */
+        private fun looksLikeCfChallenge(body: String): Boolean =
+            body.contains("/cdn-cgi/challenge-platform/") ||
+                body.contains("Just a moment...") ||
+                body.contains("cf-mitigated")
     }
 }
