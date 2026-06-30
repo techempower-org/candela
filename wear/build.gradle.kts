@@ -1,8 +1,11 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt)
+    // #1408 — Hilt + KSP removed: :wear had the Hilt plugin, ksp(hilt.compiler)
+    // and hilt-android applied but used NONE of it (no @HiltAndroidApp /
+    // @AndroidEntryPoint / @Inject anywhere in wear/src). KSP had no other
+    // processor, so it goes too. See the dependencies block for why wear can't
+    // simply be made a Hilt root today.
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -151,9 +154,15 @@ dependencies {
     implementation(libs.androidx.wear.protolayout)
     implementation(libs.androidx.concurrent.futures)
 
-    // Hilt (optional in v1; wired so Hypnos can use @AndroidEntryPoint)
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    // #1408 — Hilt intentionally NOT applied here. It was wired but unused, so
+    // it ran on every build for zero benefit and was a latent footgun (adding
+    // @AndroidEntryPoint without a @HiltAndroidApp Application crashes at runtime).
+    // Re-adding it is not just a plugin flip: :wear depends on :core-playback,
+    // whose @AndroidEntryPoint services (e.g. StoryvoxPlaybackService) inject
+    // bindings provided only in :app (SleepTimerExtendConfig, BedtimeSleepConfig…).
+    // Rooting a Hilt graph here aggregates those entry points and fails to compile
+    // because wear can't supply :app's bindings. Decouple core-playback's entry
+    // points first, then re-introduce Hilt in :wear.
 
     // Media3 session controller — Wear connects to phone's MediaSession
     implementation(libs.androidx.media3.session)
