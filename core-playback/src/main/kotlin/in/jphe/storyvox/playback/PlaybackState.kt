@@ -55,6 +55,13 @@ data class PlaybackState(
     val recordingArmed: Boolean = false,
     val recording: Boolean = false,
     val recordingElapsedMs: Long = 0L,
+    /** Voice-paced teleprompter (#1368) — the line the speaker is currently on
+     *  and the upcoming one, derived from `VoicePacedScrollController.positionChar`
+     *  and published by `PhoneWearBridge` so the Wear remote can render the
+     *  current/next line without holding the chapter text. Empty when voice-paced
+     *  isn't active; defaults keep older watch builds unaffected. */
+    val teleprompterCurrentLine: String = "",
+    val teleprompterNextLine: String = "",
 )
 
 @Serializable
