@@ -108,6 +108,10 @@ dependencies {
     implementation(libs.bundles.wear.compose)
     implementation(libs.androidx.wear.tooling.preview)
 
+    // Wear watch-face complications — data-source services + update requester
+    // (the watch-face renders our Now Playing / Listening Stats complications).
+    implementation(libs.androidx.wear.watchface.complications.datasource.ktx)
+
     // Hilt (optional in v1; wired so Hypnos can use @AndroidEntryPoint)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

@@ -37,6 +37,53 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Wear watch-face complications (Now Playing + Listening Today).
+             Provider services are bound by the watch face; the listener service
+             refreshes them when the phone republishes the backing DataItems. -->
+        <service
+            android:name=".complication.NowPlayingComplicationService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_media_play"
+            android:label="@string/complication_now_playing_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <service
+            android:name=".complication.ListeningStatsComplicationService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_menu_recent_history"
+            android:label="@string/complication_stats_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <service
+            android:name=".complication.ComplicationUpdateListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/playback" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/stats" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
