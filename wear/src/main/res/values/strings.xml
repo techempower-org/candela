@@ -28,4 +28,8 @@
     <!-- Chapter cover -->
     <string name="wear_cd_cover_for">Cover for %1$s</string>
     <string name="wear_cd_cover_generic">Chapter cover</string>
+
+    <!-- Complications -->
+    <string name="complication_now_playing_label">Candela — Now Playing</string>
+    <string name="complication_stats_label">Candela — Listening Today</string>
 </resources>

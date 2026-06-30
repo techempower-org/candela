@@ -6,6 +6,7 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import dagger.hilt.android.qualifiers.ApplicationContext
+import `in`.jphe.storyvox.data.repository.stats.ListeningStatsRepository
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.RecordingController
@@ -19,6 +20,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.encodeToString
@@ -41,6 +44,7 @@ class PhoneWearBridge @Inject constructor(
     private val controller: PlaybackController,
     private val teleprompterController: TeleprompterController,
     private val recordingController: RecordingController,
+    private val statsRepository: ListeningStatsRepository,
 ) : MessageClient.OnMessageReceivedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -84,6 +88,19 @@ class PhoneWearBridge @Inject constructor(
                 )
             }.collectLatest { state -> publishState(state) }
         }
+        // Wear Listening Stats complication — publish today's estimated
+        // listening total + current streak to /stats/today. todayEstimatedMs is
+        // finished-chapter based, so it only moves at chapter boundaries:
+        // recompute when the current chapter id changes (distinctUntilChanged
+        // also fires once up front so the complication has data before the
+        // first playback of the session). publishStatsSnapshot dedupes the
+        // DataItem write on the (today, streak) value.
+        scope.launch {
+            controller.state
+                .map { it.currentChapterId }
+                .distinctUntilChanged()
+                .collectLatest { publishStatsSnapshot() }
+        }
     }
 
     fun stop() {
@@ -95,6 +112,28 @@ class PhoneWearBridge @Inject constructor(
         runCatching {
             val req = PutDataMapRequest.create(PATH_STATE).apply {
                 dataMap.putString("state", json.encodeToString(state))
+                dataMap.putLong("ts", System.currentTimeMillis())
+            }.asPutDataRequest().setUrgent()
+            dataClient.putDataItem(req).await()
+        }
+    }
+
+    /** Last published (todayEstimatedMs, currentStreakDays), to dedupe writes. */
+    private var lastStats: Pair<Long, Int>? = null
+
+    private suspend fun publishStatsSnapshot() {
+        val stats = runCatching { statsRepository.snapshot() }.getOrNull() ?: return
+        val pair = stats.todayEstimatedMs to stats.currentStreakDays
+        if (pair == lastStats) return
+        lastStats = pair
+        publishStats(todayMs = pair.first, streakDays = pair.second)
+    }
+
+    private suspend fun publishStats(todayMs: Long, streakDays: Int) {
+        runCatching {
+            val req = PutDataMapRequest.create(PATH_STATS_TODAY).apply {
+                dataMap.putLong("todayMs", todayMs)
+                dataMap.putInt("streakDays", streakDays)
                 dataMap.putLong("ts", System.currentTimeMillis())
             }.asPutDataRequest().setUrgent()
             dataClient.putDataItem(req).await()
@@ -143,6 +182,10 @@ class PhoneWearBridge @Inject constructor(
 
     companion object {
         const val PATH_STATE = "/playback/state"
+
+        /** DataItem path for the Wear Listening Stats complication —
+         *  today's estimated listening (ms) + current streak (days). */
+        const val PATH_STATS_TODAY = "/stats/today"
         const val CMD_PLAY = "/playback/cmd/play"
         const val CMD_PAUSE = "/playback/cmd/pause"
         const val CMD_TOGGLE = "/playback/cmd/toggle"
