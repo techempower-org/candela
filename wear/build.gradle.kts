@@ -6,6 +6,24 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// ── #1405: the watch APK tracks the phone app's version ─────────────────────
+// Library Nocturne is a wear-focused release, and a paired sideload must upgrade
+// phone + watch in lockstep — a version skew across the Wearable Data Layer
+// bridge is exactly the kind of mismatch that strands the watch on a stale
+// protocol. So rather than carry a second version literal here (which silently
+// drifted to 0.1.0 / versionCode 1 while :app advanced to 1.6.0 / 254), read
+// :app's version straight from its build file — the single place the release
+// pipeline bumps. A configuration-time file read is tracked as a build input,
+// so this stays configuration-cache correct (cache is on; see gradle.properties)
+// and a phone bump invalidates + refreshes this automatically.
+val appBuildScript = rootProject.file("app/build.gradle.kts").readText()
+val phoneVersionCode: Int =
+    Regex("""\bversionCode\s*=\s*(\d+)""").find(appBuildScript)?.groupValues?.get(1)?.toInt()
+        ?: error("wear/build.gradle.kts (#1405): could not read versionCode from app/build.gradle.kts")
+val phoneVersionName: String =
+    Regex("""\bversionName\s*=\s*"([^"]+)"""").find(appBuildScript)?.groupValues?.get(1)
+        ?: error("wear/build.gradle.kts (#1405): could not read versionName from app/build.gradle.kts")
+
 android {
     namespace = "in.jphe.storyvox.wear"
     compileSdk = 37
@@ -14,8 +32,8 @@ android {
         applicationId = "in.jphe.storyvox.wear"
         minSdk = 26
         targetSdk = 34   // Wear OS targets sdk 34 in 2026; bump alongside Wear platform support.
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = phoneVersionCode   // #1405 — shared with :app (see top of file)
+        versionName = phoneVersionName   // #1405 — shared with :app (see top of file)
     }
 
     signingConfigs {
