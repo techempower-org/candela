@@ -130,9 +130,13 @@ object PdfChapterBuilder {
 
     /** Join a chapter's pages into one plain-text body, separating
      *  pages with a blank line and dropping blank (image-only/no-OCR)
-     *  pages from the body. */
+     *  pages from the body. Each page is [reflowPdfText]-reflowed first
+     *  (#1428) so PdfBox's per-visual-line newlines don't survive as bad
+     *  mid-paragraph breaks in the narration / reader. Page boundaries
+     *  stay paragraph breaks — a paragraph that spills across a page
+     *  break is split there, matching the pre-existing page-join contract. */
     private fun joinPages(pages: List<PdfPage>): String =
-        pages.map { it.text.trim() }
+        pages.map { reflowPdfText(it.text) }
             .filter { it.isNotEmpty() }
             .joinToString("\n\n")
 
@@ -142,4 +146,104 @@ object PdfChapterBuilder {
     private fun List<PdfChapter>.filterBlankBodies(): List<PdfChapter> =
         filter { it.plainBody.isNotBlank() }
             .mapIndexed { idx, ch -> ch.copy(index = idx) }
+}
+
+/**
+ * Issue #1428 — reflow one PDF page's extracted text so that *soft* line
+ * breaks (the per-visual-line `\n`s PdfBox emits for every wrapped line of
+ * a paragraph) merge back into spaces, while *real* structural breaks are
+ * preserved.
+ *
+ * The app-side [PdfTextProvider] runs PdfBox's `PDFTextStripper` with
+ * default settings, which ends every laid-out line with `\n` — so a
+ * paragraph wrapped over five lines arrives as five lines glued by hard
+ * newlines. Fed straight to TTS (via `plainBody`) that narrates with broken
+ * cadence, and `toParagraphHtml` only splits on blank lines so the stray
+ * newlines linger inside each `<p>`. Reflowing here — the one place page
+ * text becomes a chapter body — fixes narration and reader in a single
+ * pure, unit-testable step.
+ *
+ * Breaks PRESERVED as paragraph boundaries:
+ *  - a blank line (PdfBox emits one where there's extra vertical leading,
+ *    i.e. between paragraphs);
+ *  - a line beginning a bullet / numbered list item;
+ *  - an indented line that follows a completed sentence (first-line-indent
+ *    paragraph style).
+ *
+ * Breaks MERGED to a single space: every other newline between two
+ * non-blank lines. A line ending in `-` after a letter is rejoined with the
+ * next line — the hyphen dropped when the next line starts lowercase
+ * (justified-wrap hyphenation), kept when it starts upper/digit (a real
+ * compound such as "Anglo-Saxon"). The rare compound that wraps exactly at
+ * its hyphen with a lowercase tail (e.g. "well-known") loses the hyphen —
+ * an accepted trade for fixing the common justified-wrap case.
+ *
+ * Prose-optimized: meaningful line breaks in poetry / tables / addresses
+ * are reflowed too. That is the intended direction for a TTS audiobook
+ * source where the reported defect is *too many* breaks, and the blank-line
+ * + list heuristics still preserve coarse structure.
+ */
+internal fun reflowPdfText(raw: String): String {
+    if (raw.isBlank()) return ""
+    val lines = raw.replace("\r\n", "\n").replace('\r', '\n').split('\n')
+    val paragraphs = mutableListOf<String>()
+    val buf = StringBuilder()
+
+    fun flush() {
+        if (buf.isNotBlank()) paragraphs += buf.toString()
+        buf.setLength(0)
+    }
+
+    for (rawLine in lines) {
+        val line = rawLine.trim()
+        if (line.isEmpty()) {
+            flush() // blank line → paragraph boundary (collapses runs of blanks)
+            continue
+        }
+        if (buf.isNotEmpty() && startsNewParagraph(rawLine, line, buf)) flush()
+        if (buf.isEmpty()) buf.append(line) else appendWrapped(buf, line)
+    }
+    flush()
+
+    return paragraphs.joinToString("\n\n") { it.replace(MULTI_SPACE, " ").trim() }
+}
+
+private val MULTI_SPACE = Regex("[ \\t]+")
+
+/** Bullet (•, ◦, ▪, ‣, *) or dash/en/em-dash list marker, or a numbered
+ *  item ("1.", "12)") at the very start of a (trimmed) line. */
+private val LIST_START = Regex("^([\\u2022\\u25E6\\u25AA\\u2023*]\\s*|[-\\u2013\\u2014]\\s+|\\d{1,3}[.)]\\s+)")
+
+/** A non-blank line begins a new paragraph (despite no preceding blank
+ *  line) when it opens a list item, or when it is indented and the text so
+ *  far ended a sentence — the first-line-indent paragraph convention. */
+private fun startsNewParagraph(rawLine: String, trimmed: String, buf: StringBuilder): Boolean {
+    if (LIST_START.containsMatchIn(trimmed)) return true
+    val indent = rawLine.length - rawLine.trimStart().length
+    return indent >= 2 && endsSentence(buf)
+}
+
+/** True when the buffered text's last visible character is sentence-final
+ *  (`.`/`!`/`?`), allowing one trailing closing quote or paren. */
+private fun endsSentence(buf: CharSequence): Boolean {
+    var i = buf.length - 1
+    while (i >= 0 && buf[i].isWhitespace()) i--
+    if (i >= 0 && (buf[i] == '"' || buf[i] == '\'' || buf[i] == '”' || buf[i] == '’' || buf[i] == ')' || buf[i] == ']')) i--
+    if (i < 0) return false
+    return buf[i] == '.' || buf[i] == '!' || buf[i] == '?'
+}
+
+/** Append a wrapped continuation line to the paragraph buffer, handling
+ *  end-of-line hyphenation (see [reflowPdfText] kdoc). */
+private fun appendWrapped(buf: StringBuilder, next: String) {
+    val n = buf.length
+    val endsHyphen = n >= 2 && buf[n - 1] == '-' && buf[n - 2].isLetter()
+    when {
+        endsHyphen && next.firstOrNull()?.isLowerCase() == true -> {
+            buf.setLength(n - 1) // soft hyphen from a line-wrap → de-hyphenate
+            buf.append(next)
+        }
+        endsHyphen -> buf.append(next) // keep the hyphen (compound/dash), no inserted space
+        else -> buf.append(' ').append(next)
+    }
 }
