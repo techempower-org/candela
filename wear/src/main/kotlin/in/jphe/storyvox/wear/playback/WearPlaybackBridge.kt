@@ -14,6 +14,7 @@ import `in`.jphe.storyvox.playback.extrapolatedScrubProgress
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
 import `in`.jphe.storyvox.playback.wear.SeekPayload
 import `in`.jphe.storyvox.playback.wear.SleepPayload
+import `in`.jphe.storyvox.playback.wear.SpeedPayload
 import `in`.jphe.storyvox.playback.wear.TeleprompterWpmPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -219,6 +220,15 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
 
     suspend fun sendSleepCancel(): SendResult =
         send(PhoneWearBridge.CMD_SLEEP_CANCEL)
+
+    /**
+     * Playback-speed remote — same absolute-value contract as [sendSeek] /
+     * [sendTeleprompterWpm]: the watch computes the next speed from the synced
+     * `PlaybackState.speed` via [SpeedPayload.step] and sends the absolute
+     * value. The phone routes it to the per-fiction speed store (#1231).
+     */
+    suspend fun sendSetSpeed(speed: Float): SendResult =
+        dispatch(PhoneWearBridge.CMD_SET_SPEED, SpeedPayload.encode(speed))
 
     /**
      * Single send path shared by every command. A successful send is the

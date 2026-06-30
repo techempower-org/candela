@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.wear.screens
 
+import android.content.Context
+import android.media.AudioManager
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -7,29 +9,39 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,10 +51,6 @@ import android.content.Context
 import android.media.AudioManager
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.focusable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
@@ -66,6 +74,7 @@ import `in`.jphe.storyvox.playback.isRetryable
 import `in`.jphe.storyvox.playback.scrubProgress
 import `in`.jphe.storyvox.playback.watchSummary
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
+import `in`.jphe.storyvox.playback.wear.SpeedPayload
 import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.components.ChapterCover
 import `in`.jphe.storyvox.wear.components.CircularScrubber
@@ -76,6 +85,7 @@ import `in`.jphe.storyvox.wear.theme.BrassPrimary
 import `in`.jphe.storyvox.wear.theme.BrassTint
 import `in`.jphe.storyvox.wear.theme.ParchmentOnMuted
 import `in`.jphe.storyvox.wear.theme.WearLibraryNocturneTheme
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /** Scroll-pixels per volume step — ~one Galaxy Watch4 bezel detent. Tuned in
@@ -146,8 +156,8 @@ fun NowPlayingScreen(
         onNextChapter = { scope.launch { bridge.send(PhoneWearBridge.CMD_NEXT_CH) } },
         // #1031 — tap the ring to scrub; duration comes from the synced state.
         onScrub = { fraction -> scope.launch { bridge.sendSeek(fraction, state.durationEstimateMs) } },
-        // Wear error surfacing — ask the phone to re-load the current chapter.
         onRetry = { scope.launch { bridge.sendRetry() } },
+        onSetSpeed = { newSpeed -> scope.launch { bridge.sendSetSpeed(newSpeed) } },
         onOpenTeleprompter = onOpenTeleprompter,
         // #1367 — recording remote. The phone gates these on `recordingArmed`
         // (only effective when it's on RecordingScreen); a Start sent otherwise
@@ -179,6 +189,7 @@ internal fun NowPlayingContent(
     onPrevChapter: () -> Unit = {},
     onNextChapter: () -> Unit = {},
     onRetry: () -> Unit = {},
+    onSetSpeed: (Float) -> Unit = {},
     onOpenTeleprompter: () -> Unit = {},
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
@@ -271,12 +282,6 @@ internal fun NowPlayingContent(
                     onReconnect = onReconnect,
                 )
             }
-            // Bottom-edge affordances, only when a phone is reachable AND we're
-            // not showing the error recovery surface (#1262/#1311 — the error
-            // surface replaces the content, so these controls must not show
-            // underneath it): the #1367 recording control stacked above the
-            // #1308 teleprompter + sleep-timer entries. Anchored off the bottom
-            // bezel so they don't crowd the centered transport controls.
             if (connected && err == null) {
                 Column(
                     modifier = Modifier
@@ -285,6 +290,12 @@ internal fun NowPlayingContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
+                    // Playback-speed chip → stepper. Hidden during an active
+                    // recording (like the teleprompter entry) so the Stop
+                    // affordance stays unambiguous on a tiny screen.
+                    if (!state.recording) {
+                        SpeedControl(speed = state.speed, onSetSpeed = onSetSpeed)
+                    }
                     // #1367 — record/stop, shown only while the phone is on
                     // RecordingScreen (recordingArmed). Pulsing dot + mm:ss
                     // while recording.
@@ -662,13 +673,7 @@ internal fun formatPlaybackTime(ms: Long): String {
 }
 
 /**
- * Error recovery surface — replaces the transport when the phone reports a
- * [PlaybackError]. Shows a compact [watchSummary] and, for a transient error
- * ([isRetryable]) with a reachable phone, a Retry chip that asks the phone to
- * re-load the current chapter. Terminal errors (auth rejected, no engine) show
- * the summary without a Retry — there's nothing the wrist can do about them.
- * Without this surface a #1262/#1311 error would leave the watch on a frozen
- * now-playing while the phone shows the failure.
+ * Error recovery surface.
  */
 @Composable
 private fun PlaybackErrorContent(
@@ -723,6 +728,73 @@ private fun PlaybackErrorContent(
             )
         }
     }
+}
+
+@Composable
+private fun SpeedControl(
+    speed: Float,
+    onSetSpeed: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = formatSpeed(speed)
+    if (!expanded) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.caption2,
+            color = BrassPrimary,
+            modifier = modifier
+                .clip(CircleShape)
+                .clickable { expanded = true }
+                .padding(horizontal = 10.dp, vertical = 2.dp),
+        )
+    } else {
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SpeedStep(symbol = "−", enabled = speed > SpeedPayload.MIN_SPEED) {
+                onSetSpeed(SpeedPayload.step(speed, -1))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.title3,
+                color = BrassPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { expanded = false }
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+            SpeedStep(symbol = "+", enabled = speed < SpeedPayload.MAX_SPEED) {
+                onSetSpeed(SpeedPayload.step(speed, 1))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeedStep(symbol: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colors.surface)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = symbol,
+            style = MaterialTheme.typography.title3,
+            color = if (enabled) BrassPrimary else ParchmentOnMuted,
+        )
+    }
+}
+
+private fun formatSpeed(speed: Float): String {
+    val tenths = (speed * 10f).roundToInt()
+    return "${tenths / 10}.${tenths % 10}×"
 }
 
 // region --- Previews ---

@@ -7,6 +7,7 @@ import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import dagger.hilt.android.qualifiers.ApplicationContext
+import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.repository.stats.ListeningStatsRepository
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
@@ -52,6 +53,7 @@ class PhoneWearBridge @Inject constructor(
     private val controller: PlaybackController,
     private val teleprompterController: TeleprompterController,
     private val recordingController: RecordingController,
+    private val fictionRepo: FictionRepository,
     private val statsRepository: ListeningStatsRepository,
     private val voicePaced: VoicePacedScrollController,
 ) : MessageClient.OnMessageReceivedListener {
@@ -231,6 +233,21 @@ class PhoneWearBridge @Inject constructor(
                 // i.e. recordingArmed); Stop finalizes the clip.
                 CMD_RECORDING_START -> recordingController.requestStart()
                 CMD_RECORDING_STOP -> recordingController.requestStop()
+                // Playback-speed remote (wrist). Carries an absolute 4-byte
+                // SpeedPayload (malformed → ignored, same guard as CMD_SEEK).
+                // Routes through the per-fiction store (#1231) — NOT the raw
+                // engine setSpeed — so a wrist change persists per-book and the
+                // auto-restore flow re-resolves the live engine speed, exactly
+                // like a phone-side change. controller.setSpeed applies it
+                // immediately for snappy audio; the persisted write re-emits the
+                // same value (a guarded no-op in PlaybackController.setSpeed).
+                CMD_SET_SPEED -> SpeedPayload.decode(event.data)?.let { raw ->
+                    val speed = SpeedPayload.clamp(raw)
+                    controller.setSpeed(speed)
+                    controller.state.value.currentFictionId?.let { fictionId ->
+                        fictionRepo.setPlaybackSpeed(fictionId, speed)
+                    }
+                }
             }
         }
     }
@@ -306,6 +323,14 @@ class PhoneWearBridge @Inject constructor(
          */
         const val CMD_RECORDING_START = "/playback/cmd/recordingStart"
         const val CMD_RECORDING_STOP = "/playback/cmd/recordingStop"
+
+        /**
+         * Playback-speed remote (wrist). Carries a 4-byte [SpeedPayload]
+         * (absolute multiplier). Routed to the per-fiction speed store (#1231)
+         * so a wrist change persists per-book + syncs back, exactly like a
+         * phone-side change — never the session-only engine setSpeed.
+         */
+        const val CMD_SET_SPEED = "/playback/cmd/setSpeed"
     }
 }
 
