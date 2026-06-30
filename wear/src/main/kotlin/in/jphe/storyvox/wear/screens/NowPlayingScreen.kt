@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,15 +51,20 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CompactChip
+import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import androidx.wear.tooling.preview.devices.WearDevices
+import `in`.jphe.storyvox.playback.PlaybackError
 import `in`.jphe.storyvox.playback.PlaybackState
+import `in`.jphe.storyvox.playback.isRetryable
 import `in`.jphe.storyvox.playback.scrubProgress
+import `in`.jphe.storyvox.playback.watchSummary
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
 import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.components.ChapterCover
@@ -133,6 +141,8 @@ fun NowPlayingScreen(
         onNextChapter = { scope.launch { bridge.send(PhoneWearBridge.CMD_NEXT_CH) } },
         // #1031 — tap the ring to scrub; duration comes from the synced state.
         onScrub = { fraction -> scope.launch { bridge.sendSeek(fraction, state.durationEstimateMs) } },
+        // Wear error surfacing — ask the phone to re-load the current chapter.
+        onRetry = { scope.launch { bridge.sendRetry() } },
         onOpenTeleprompter = onOpenTeleprompter,
         // #1367 — recording remote. The phone gates these on `recordingArmed`
         // (only effective when it's on RecordingScreen); a Start sent otherwise
@@ -160,6 +170,7 @@ internal fun NowPlayingContent(
     onScrub: ((fraction: Float) -> Unit)? = null,
     onPrevChapter: () -> Unit = {},
     onNextChapter: () -> Unit = {},
+    onRetry: () -> Unit = {},
     onOpenTeleprompter: () -> Unit = {},
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
@@ -218,8 +229,18 @@ internal fun NowPlayingContent(
                 .background(MaterialTheme.colors.background),
             contentAlignment = Alignment.Center,
         ) {
-            if (isRound) {
-                RoundNowPlaying(
+            // Error takes precedence over the transport (mirrors the phone
+            // reader, where the error band wins). #1262/#1311 now emit a
+            // retryable error instead of a silent skip; without this the watch
+            // would sit on a frozen now-playing while the phone shows the error.
+            val err = state.error
+            when {
+                err != null -> PlaybackErrorContent(
+                    error = err,
+                    connected = connected,
+                    onRetry = onRetry,
+                )
+                isRound -> RoundNowPlaying(
                     state = state,
                     progress = progress,
                     connected = connected,
@@ -231,8 +252,7 @@ internal fun NowPlayingContent(
                     onNextChapter = onNextChapter,
                     onReconnect = onReconnect,
                 )
-            } else {
-                SquareNowPlaying(
+                else -> SquareNowPlaying(
                     state = state,
                     progress = progress,
                     connected = connected,
@@ -244,11 +264,13 @@ internal fun NowPlayingContent(
                     onReconnect = onReconnect,
                 )
             }
-            // Bottom-edge affordances, only when a phone is reachable: the
-            // #1367 recording control stacked above the #1308 teleprompter +
-            // sleep-timer entries. Anchored off the bottom bezel so they don't
-            // crowd the centered transport controls.
-            if (connected) {
+            // Bottom-edge affordances, only when a phone is reachable AND we're
+            // not showing the error recovery surface (#1262/#1311 — the error
+            // surface replaces the content, so these controls must not show
+            // underneath it): the #1367 recording control stacked above the
+            // #1308 teleprompter + sleep-timer entries. Anchored off the bottom
+            // bezel so they don't crowd the centered transport controls.
+            if (connected && err == null) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -632,6 +654,70 @@ internal fun formatPlaybackTime(ms: Long): String {
     }
 }
 
+/**
+ * Error recovery surface — replaces the transport when the phone reports a
+ * [PlaybackError]. Shows a compact [watchSummary] and, for a transient error
+ * ([isRetryable]) with a reachable phone, a Retry chip that asks the phone to
+ * re-load the current chapter. Terminal errors (auth rejected, no engine) show
+ * the summary without a Retry — there's nothing the wrist can do about them.
+ * Without this surface a #1262/#1311 error would leave the watch on a frozen
+ * now-playing while the phone shows the failure.
+ */
+@Composable
+private fun PlaybackErrorContent(
+    error: PlaybackError,
+    connected: Boolean,
+    onRetry: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.ErrorOutline,
+            contentDescription = "Playback error",
+            tint = BrassPrimary,
+            modifier = Modifier.size(24.dp),
+        )
+        Text(
+            text = error.watchSummary(),
+            style = MaterialTheme.typography.caption1,
+            color = ParchmentOnMuted,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+        )
+        when {
+            error.isRetryable() && connected -> Chip(
+                onClick = onRetry,
+                label = {
+                    Text(text = "Retry", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(ChipDefaults.IconSize),
+                    )
+                },
+                colors = ChipDefaults.primaryChipColors(),
+            )
+            !connected -> Text(
+                text = "Phone not connected",
+                style = MaterialTheme.typography.caption2,
+                color = ParchmentOnMuted,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
 // region --- Previews ---
 
 private fun samplePlaying() = PlaybackState(
@@ -670,6 +756,16 @@ private fun sampleRecording() = samplePlaying().copy(
     recordingElapsedMs = 75_000L,
 )
 
+private fun sampleError() = PlaybackState(
+    isPlaying = false,
+    bookTitle = "The Brass Compendium",
+    chapterTitle = "Chapter 7 · The Long Stair",
+    error = PlaybackError.ChapterFetchFailed(
+        "This chapter couldn't be read aloud — no audio was produced. " +
+            "Tap retry, or skip to the next chapter.",
+    ),
+)
+
 @Composable
 private fun NowPlayingPreview(state: PlaybackState, connected: Boolean = true) {
     WearLibraryNocturneTheme {
@@ -694,6 +790,10 @@ private fun PreviewRoundPaused() = NowPlayingPreview(samplePaused())
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Buffering")
 @Composable
 private fun PreviewRoundBuffering() = NowPlayingPreview(sampleBuffering())
+
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Error (retryable)")
+@Composable
+private fun PreviewRoundError() = NowPlayingPreview(sampleError())
 
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Disconnected")
 @Composable

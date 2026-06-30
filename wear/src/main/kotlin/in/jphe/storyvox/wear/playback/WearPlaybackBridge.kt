@@ -110,6 +110,14 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
     suspend fun send(path: String): SendResult = dispatch(path, null)
 
     /**
+     * Wear companion — Retry after a surfaced playback error. Asks the phone to
+     * re-load the current chapter (clearing its error band). Payload-less; shares
+     * [dispatch] so a tap while disconnected flips [connected] and surfaces the
+     * same "Phone not connected" hint as the transport controls.
+     */
+    suspend fun sendRetry(): SendResult = send(PhoneWearBridge.CMD_RETRY)
+
+    /**
      * Issue #1031 — scrub from the wrist. Converts the 0..1 ring [fraction] to
      * an absolute position in ms against [durationMs] (the synced
      * `durationEstimateMs`) and sends it as a [SeekPayload] on
