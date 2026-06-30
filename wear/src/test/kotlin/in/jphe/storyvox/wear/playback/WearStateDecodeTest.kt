@@ -50,10 +50,6 @@ class WearStateDecodeTest {
 
     @Test
     fun `round-trips the voice-paced teleprompter lines`() {
-        // #1368 — the phone derives the current/next line from positionChar and
-        // ships them in PlaybackState so the wrist renders the hands-free
-        // teleprompter without holding the chapter text. Pin that the wire
-        // carries them (non-default Strings aren't omitted by the encoder).
         val published = PlaybackState(
             teleprompterEnabled = true,
             teleprompterCurrentLine = "Welcome back to the show.",
@@ -65,6 +61,17 @@ class WearStateDecodeTest {
         )
         assertEquals("Welcome back to the show.", decoded.teleprompterCurrentLine)
         assertEquals("Today we are talking about getting connected.", decoded.teleprompterNextLine)
+    }
+
+    @Test
+    fun `round-trips the beacon seq counter`() {
+        val published = PlaybackState(isPlaying = true, charOffset = 250, seq = 1_234L)
+        val raw = phoneJson.encodeToString(published)
+
+        val decoded = WearPlaybackBridge.decodeState(raw, PlaybackState())
+
+        assertEquals(1_234L, decoded.seq)
+        assertEquals(published, decoded)
     }
 
     @Test

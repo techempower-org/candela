@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.wear.playback
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEventBuffer
@@ -9,6 +10,7 @@ import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.SleepTimerMode
+import `in`.jphe.storyvox.playback.extrapolatedScrubProgress
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
 import `in`.jphe.storyvox.playback.wear.SeekPayload
 import `in`.jphe.storyvox.playback.wear.SleepPayload
@@ -17,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +51,31 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
     /**
+     * Scrubber progress (0..1), locally extrapolated between the phone's ~1Hz
+     * beacons so the ring animates smoothly instead of stepping once per push.
+     * Recomputed on every beacon and on a [DISPLAY_TICK_MS] cadence from the
+     * watch's own monotonic clock — see [recomputeDerived]. Collect this for the
+     * scrubber instead of [PlaybackState.scrubProgress] on [state].
+     */
+    private val _displayProgress = MutableStateFlow(0f)
+    val displayProgress: StateFlow<Float> = _displayProgress.asStateFlow()
+
+    /**
+     * True when the state says we're playing but no beacon has arrived for
+     * [STALE_THRESHOLD_MS] — the phone app went away mid-listen even though a
+     * node may still be nominally reachable. The UI surfaces this as
+     * "Reconnecting…". A paused/idle state never goes stale (it legitimately
+     * gets no beacons).
+     */
+    private val _stale = MutableStateFlow(false)
+    val stale: StateFlow<Boolean> = _stale.asStateFlow()
+
+    /** Watch-monotonic ([SystemClock.elapsedRealtime]) timestamp of the last
+     *  successfully-decoded beacon. The extrapolation/staleness clock — NEVER
+     *  the phone's publish time, which is on a different device's wall clock. */
+    private var lastBeaconElapsedMs: Long = SystemClock.elapsedRealtime()
+
+    /**
      * Whether a phone node is currently reachable. Starts `true` (optimistic, so
      * controls aren't greyed for the split second before the first node query
      * resolves) and is corrected by [refreshConnectivity] and every [send].
@@ -63,6 +91,15 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
                 dataClient.dataItems.await().forEach { item ->
                     if (item.uri.path == PhoneWearBridge.PATH_STATE) consume(item)
                 }
+            }
+        }
+        // Drive the smooth scrubber + staleness between beacons. Bound to the
+        // bridge scope, so it dies with [stop] when the watch screen goes away —
+        // no background ticking while the UI isn't visible.
+        scope.launch {
+            while (true) {
+                delay(DISPLAY_TICK_MS)
+                recomputeDerived()
             }
         }
         refreshConnectivity()
@@ -94,13 +131,32 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
 
     private fun consume(item: DataItem) {
         val map = DataMapItem.fromDataItem(item).dataMap
+        var decoded = true
         _state.value = decodeState(map.getString("state"), _state.value) { t ->
             // #1032 — was a bare runCatching that silently dropped the payload.
             // A dropped state on the watch shows as stale playback info, so make
             // it greppable when it happens (malformed blob, or version skew where
             // the phone shipped a PlaybackError subtype this build can't decode).
+            decoded = false
             Log.w(TAG, "wear: dropping undecodable PlaybackState payload", t)
         }
+        // Only a clean decode counts as a live beacon — a malformed payload
+        // mustn't reset the staleness clock and mask a real connection problem.
+        if (decoded) lastBeaconElapsedMs = SystemClock.elapsedRealtime()
+        recomputeDerived()
+    }
+
+    /**
+     * Re-extrapolate [displayProgress] and re-evaluate [stale] from the current
+     * [state] and the watch-local time since the last beacon. Called on every
+     * beacon and on the [DISPLAY_TICK_MS] ticker; both write from the bridge
+     * scope (Main), so no synchronisation is needed.
+     */
+    private fun recomputeDerived() {
+        val s = _state.value
+        val elapsed = SystemClock.elapsedRealtime() - lastBeaconElapsedMs
+        _displayProgress.value = s.extrapolatedScrubProgress(elapsed)
+        _stale.value = isWearStateStale(s.isPlaying, elapsed, STALE_THRESHOLD_MS)
     }
 
     /**
@@ -193,6 +249,16 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
     companion object {
         private const val TAG = "WearPlaybackBridge"
 
+        /** Local re-extrapolation cadence for the scrubber. 4Hz is smooth for a
+         *  slowly-advancing ring and trivial while the screen is on; the ticker
+         *  stops with the bridge when the screen turns off. */
+        private const val DISPLAY_TICK_MS = 250L
+
+        /** No beacon for this long while the state says playing ⇒ "Reconnecting…".
+         *  Comfortably above the phone's ~1Hz beacon so normal jitter doesn't
+         *  trip it, low enough to notice a real drop within a few seconds. */
+        private const val STALE_THRESHOLD_MS = 5_000L
+
         /**
          * Decode a phone-published [PlaybackState] JSON blob, falling back to the
          * last-good [current] state on any failure (#1032).
@@ -225,3 +291,21 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
         internal val DECODE_JSON = Json { ignoreUnknownKeys = true }
     }
 }
+
+/**
+ * Has the phone gone quiet mid-listen? True only when the state says we're
+ * [isPlaying] AND no beacon has landed for [staleThresholdMs] (both measured on
+ * the WATCH's own monotonic clock — see [WearPlaybackBridge.lastBeaconElapsedMs]).
+ *
+ * Gating on `isPlaying` is the whole point: a paused or idle chapter
+ * legitimately receives no beacons (the phone falls silent once playback stops
+ * — see [shouldPublishWearState]), so it must NOT read as "Reconnecting…".
+ *
+ * Extracted as a top-level function so the rule is unit-testable without GMS,
+ * matching [WearPlaybackBridge.decodeState] and `NodeSelection`.
+ */
+internal fun isWearStateStale(
+    isPlaying: Boolean,
+    elapsedSinceBeaconMs: Long,
+    staleThresholdMs: Long,
+): Boolean = isPlaying && elapsedSinceBeaconMs >= staleThresholdMs

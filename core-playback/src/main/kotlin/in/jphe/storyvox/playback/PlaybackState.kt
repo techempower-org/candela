@@ -55,13 +55,9 @@ data class PlaybackState(
     val recordingArmed: Boolean = false,
     val recording: Boolean = false,
     val recordingElapsedMs: Long = 0L,
-    /** Voice-paced teleprompter (#1368) — the line the speaker is currently on
-     *  and the upcoming one, derived from `VoicePacedScrollController.positionChar`
-     *  and published by `PhoneWearBridge` so the Wear remote can render the
-     *  current/next line without holding the chapter text. Empty when voice-paced
-     *  isn't active; defaults keep older watch builds unaffected. */
     val teleprompterCurrentLine: String = "",
     val teleprompterNextLine: String = "",
+    val seq: Long = 0L,
 )
 
 @Serializable
@@ -194,6 +190,36 @@ fun PlaybackState.scrubProgress(): Float {
         SPEED_BASELINE_CHARS_PER_SECOND
     if (totalChars <= 0f) return 0f
     return (charOffset / totalChars).coerceIn(0f, 1f)
+}
+
+/**
+ * Wear position extrapolation — the watch-side analog of [extrapolateFrames]
+ * (#974), on the char axis instead of the DAC-frame axis.
+ *
+ * The phone publishes [PlaybackState] as discrete events plus a ~1Hz position
+ * beacon ([in.jphe.storyvox.playback.wear.shouldPublishWearState]). Stepping the
+ * scrubber once per beacon looks janky, so between beacons the watch advances
+ * [charOffset] locally: text is consumed at [SPEED_BASELINE_CHARS_PER_SECOND] `*`
+ * [speed] chars/sec in WALL-CLOCK time (faster speed → more chars/sec, and the
+ * speed-invariant rail in [scrubProgress] turns that into a faster-moving
+ * fraction — correct, the book ends sooner at higher speed).
+ *
+ * [elapsedSinceBeaconMs] MUST be measured on the WATCH's own monotonic clock
+ * (`SystemClock.elapsedRealtime()` delta since the beacon was consumed), never
+ * the phone's publish timestamp — the two devices' clocks drift and a wall-clock
+ * delta would smear the position.
+ *
+ * Only advances while actively playing; a paused or buffering beacon (audio not
+ * draining) holds position. Result is clamped to 0..1, matching [scrubProgress].
+ */
+fun PlaybackState.extrapolatedScrubProgress(elapsedSinceBeaconMs: Long): Float {
+    if (!isPlaying || isBuffering || elapsedSinceBeaconMs <= 0L) return scrubProgress()
+    if (durationEstimateMs <= 0L) return 0f
+    val totalChars = (durationEstimateMs.toFloat() / 1000f) * SPEED_BASELINE_CHARS_PER_SECOND
+    if (totalChars <= 0f) return 0f
+    val extraChars = (elapsedSinceBeaconMs.toFloat() / 1000f) *
+        SPEED_BASELINE_CHARS_PER_SECOND * speed
+    return ((charOffset + extraChars) / totalChars).coerceIn(0f, 1f)
 }
 
 const val SPEED_BASELINE_WPM = 150f
