@@ -49,6 +49,10 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -311,8 +315,14 @@ internal fun NowPlayingContent(
                                 color = BrassPrimary,
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.caption1,
+                                // #a11y — announce as an actionable button with a
+                                // descriptive double-tap label, not bare text.
                                 modifier = Modifier
-                                    .clickable(onClick = onOpenTeleprompter)
+                                    .clickable(
+                                        onClickLabel = stringResource(R.string.wear_cd_open_teleprompter),
+                                        role = Role.Button,
+                                        onClick = onOpenTeleprompter,
+                                    )
                                     .padding(horizontal = 12.dp, vertical = 6.dp),
                             )
                             val sleepRemaining = state.sleepTimerRemainingMs
@@ -537,6 +547,8 @@ private fun ChapterMeta(state: PlaybackState) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+            // #a11y — announce chapter transitions politely as the title changes.
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
         val book = state.bookTitle
         if (!book.isNullOrBlank() && state.chapterTitle != null) {

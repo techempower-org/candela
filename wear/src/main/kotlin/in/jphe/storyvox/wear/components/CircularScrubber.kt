@@ -15,9 +15,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.CircularProgressIndicator
+import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.theme.BrassPrimary
 import `in`.jphe.storyvox.wear.theme.BrassRingTrack
 import kotlin.math.atan2
@@ -71,7 +78,29 @@ fun CircularScrubber(
         animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
         label = "ring-scrub-progress",
     )
-    Box(modifier = modifier.then(scrubModifier), contentAlignment = Alignment.Center) {
+    // #a11y — externalized progress/buffering labels (resolved here; semantics{}
+    // below can't call stringResource directly).
+    val progressDesc = stringResource(R.string.wear_cd_chapter_progress)
+    val bufferingDesc = stringResource(R.string.wear_state_buffering)
+    Box(
+        // #a11y — expose the ring as a progress bar so TalkBack announces the
+        // playback position ("Chapter progress, 45 percent"), or "Buffering"
+        // while indeterminate. Tap-to-seek stays a sighted-touch affordance
+        // (angle-tapping isn't screen-reader-usable), so we surface the value,
+        // not a seek action. Uses the raw (not animated) progress so the
+        // announced percentage matches the real position, not a mid-tween frame.
+        modifier = modifier
+            .then(scrubModifier)
+            .semantics {
+                contentDescription = progressDesc
+                if (indeterminate) {
+                    stateDescription = bufferingDesc
+                } else {
+                    progressBarRangeInfo = ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f)
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
         if (indeterminate) {
             CircularProgressIndicator(
                 modifier = Modifier.fillMaxSize(),
