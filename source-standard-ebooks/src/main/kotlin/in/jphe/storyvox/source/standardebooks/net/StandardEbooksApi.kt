@@ -154,6 +154,19 @@ internal open class StandardEbooksApi @Inject constructor(
             bytes[3] == 0x04.toByte()
 
     /**
+     * Cloudflare may serve a JS challenge page as HTTP 200, which would
+     * otherwise be silently parsed as (empty) content. Check for known
+     * markers before handing the body to the HTML parser. (#1444)
+     *
+     * Inlined here rather than shared — #1438 tracks a cross-source
+     * utility once more sources need the same check.
+     */
+    private fun looksLikeCfChallenge(body: String): Boolean =
+        body.contains("/cdn-cgi/challenge-platform/") ||
+            body.contains("Just a moment...") ||
+            body.contains("cf-mitigated")
+
+    /**
      * One catalog page. Composes the query string then parses the
      * resulting HTML into [SeListPage]. The HTML pagination block uses
      * `<a rel="next">` to advertise the next page; we surface that as
@@ -217,6 +230,13 @@ internal open class StandardEbooksApi @Inject constructor(
                                 "empty body",
                                 IOException("empty body"),
                             )
+                        if (looksLikeCfChallenge(text)) {
+                            return FictionResult.NetworkError(
+                                "Standard Ebooks returned a Cloudflare challenge page" +
+                                    " instead of content — try again later",
+                                IOException("Cloudflare challenge"),
+                            )
+                        }
                         FictionResult.Success(text)
                     }
                 }
