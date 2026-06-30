@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.wear.components
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -114,6 +116,7 @@ private fun TransportButton(
     val size = if (isPrimary) 52.dp else 48.dp
     val iconSize = if (isPrimary) 26.dp else 22.dp
     val haptic = LocalHapticFeedback.current
+    val view = LocalView.current
     val background = if (isPrimary) BrassPrimary else BrassMuted
     val content = if (isPrimary) WarmDarkSurface else BrassPrimary
     // Mirror the prior Wear Button's disabled treatment (#1030): a dimmed fill
@@ -132,7 +135,11 @@ private fun TransportButton(
                 enabled = enabled,
                 role = Role.Button,
                 onLongClickLabel = onLongClickLabel,
-                onClick = onClick,
+                onClick = {
+                    // Light tap so a short press registers without looking at the watch.
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    onClick()
+                },
                 onLongClick = onLongClick?.let { action ->
                     {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
