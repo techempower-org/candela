@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import android.content.Context
 import android.media.AudioManager
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.focusable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,6 +44,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -172,6 +174,7 @@ internal fun NowPlayingContent(
     val audioManager = remember(context) {
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
+    val view = LocalView.current
     val rotaryFocus = remember { FocusRequester() }
     var rotaryAccumPx by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) { runCatching { rotaryFocus.requestFocus() } }
@@ -192,12 +195,14 @@ internal fun NowPlayingContent(
                         audioManager.adjustStreamVolume(
                             AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0,
                         )
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         rotaryAccumPx -= ROTARY_VOLUME_STEP_PX
                     }
                     while (rotaryAccumPx <= -ROTARY_VOLUME_STEP_PX) {
                         audioManager.adjustStreamVolume(
                             AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0,
                         )
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         rotaryAccumPx += ROTARY_VOLUME_STEP_PX
                     }
                     true
