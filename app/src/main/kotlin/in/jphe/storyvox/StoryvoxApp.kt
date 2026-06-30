@@ -186,9 +186,7 @@ class StoryvoxApp : Application(), Configuration.Provider {
         initScope.launch {
             runCatching {
                 WorkManager.getInstance(this@StoryvoxApp)
-                    .cancelAllWorkByTag(
-                        `in`.jphe.storyvox.playback.cache.PcmRenderScheduler.TAG,
-                    )
+                    .cancelAllWorkByTag("pcm-render")
             }
         }
         // Issue #409 — every previous-eager step is now scheduled on
