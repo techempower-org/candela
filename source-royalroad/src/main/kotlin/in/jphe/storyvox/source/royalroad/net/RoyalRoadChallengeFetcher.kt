@@ -44,16 +44,18 @@ internal class RoyalRoadChallengeFetcher @Inject constructor(
             return FetchOutcome.RateLimited(retry)
         }
         val body = resp.body?.string().orEmpty()
+        if (looksLikeCfChallenge(body)) {
+            return FetchOutcome.CloudflareChallenge(resp.request.url.toString())
+        }
         if (resp.code == 403 || resp.code == 503) {
-            if (body.contains("/cdn-cgi/challenge-platform/") ||
-                body.contains("Just a moment...") ||
-                body.contains("cf-mitigated")
-            ) {
-                return FetchOutcome.CloudflareChallenge(resp.request.url.toString())
-            }
             return FetchOutcome.HttpError(resp.code, resp.message)
         }
         if (!resp.isSuccessful) return FetchOutcome.HttpError(resp.code, resp.message)
         return FetchOutcome.Body(body, resp.request.url.toString())
     }
+
+    private fun looksLikeCfChallenge(body: String): Boolean =
+        body.contains("/cdn-cgi/challenge-platform/") ||
+            body.contains("Just a moment...") ||
+            body.contains("cf-mitigated")
 }
