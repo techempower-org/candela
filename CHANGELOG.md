@@ -9,6 +9,15 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.5.4] -- 2026-06-29
+
+**Samsung Low Memory Killer fix.** Prevents the app from being killed on memory-constrained Samsung devices by deferring heavy native model loads at startup.
+
+### Fixed
+
+- Cancel stale PCM pre-render WorkManager jobs on cold start. When the app was killed mid-render, WorkManager immediately restarted the job on next launch, loading the ~120MB sherpa-onnx Piper model before the app stabilized — triggering Samsung's aggressive LMK (`ActivityManager_kpm`) within 15 seconds. (#1392)
+- New PCM pre-render jobs now start with a 30-second initial delay, preventing the native model load from overlapping with app startup memory pressure.
+
 ## [1.5.3] -- 2026-06-29
 
 **Samsung TTS startup bypass.** Skips all `TextToSpeech` creation on Samsung at startup, preventing the infinite reconnect loop caused by Samsung's internal private-engine probe.
