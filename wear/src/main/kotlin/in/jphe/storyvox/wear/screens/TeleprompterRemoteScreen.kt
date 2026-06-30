@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.Button
@@ -28,6 +31,7 @@ import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.theme.BrassMuted
 import `in`.jphe.storyvox.wear.theme.BrassPrimary
 import `in`.jphe.storyvox.wear.theme.WarmDarkSurface
@@ -78,7 +82,7 @@ fun TeleprompterRemoteScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Teleprompter",
+            text = stringResource(R.string.wear_teleprompter),
             color = BrassPrimary,
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.title3,
@@ -88,7 +92,9 @@ fun TeleprompterRemoteScreen(
         // Enable / disable the mode — always tappable while connected.
         RoundIconButton(
             icon = if (state.enabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-            contentDescription = if (state.enabled) "Teleprompter on, tap to turn off" else "Teleprompter off, tap to turn on",
+            contentDescription = stringResource(
+                if (state.enabled) R.string.wear_cd_teleprompter_on else R.string.wear_cd_teleprompter_off,
+            ),
             onClick = onToggleEnabled,
             isPrimary = state.enabled,
             enabled = state.connected,
@@ -103,38 +109,44 @@ fun TeleprompterRemoteScreen(
         ) {
             RoundIconButton(
                 icon = Icons.Filled.Remove,
-                contentDescription = "Slower",
+                contentDescription = stringResource(R.string.wear_cd_wpm_slower),
                 onClick = { onWpmDelta(-1) },
                 isPrimary = false,
                 enabled = transportEnabled,
             )
+            val wpmDescription = stringResource(R.string.wear_cd_wpm, state.wpm)
             Text(
                 text = "${state.wpm}",
                 color = if (transportEnabled) BrassPrimary else BrassMuted,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.title2,
-                modifier = Modifier.width(56.dp),
+                modifier = Modifier
+                    .width(56.dp)
+                    .clearAndSetSemantics { contentDescription = wpmDescription },
             )
             RoundIconButton(
                 icon = Icons.Filled.Add,
-                contentDescription = "Faster",
+                contentDescription = stringResource(R.string.wear_cd_wpm_faster),
                 onClick = { onWpmDelta(1) },
                 isPrimary = false,
                 enabled = transportEnabled,
             )
         }
         Text(
-            text = "wpm",
+            text = stringResource(R.string.wear_wpm_unit),
             color = BrassMuted,
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.caption2,
+            modifier = Modifier.clearAndSetSemantics { },
         )
         Spacer(Modifier.height(6.dp))
 
         // Run / pause the scroll.
         RoundIconButton(
             icon = if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (state.playing) "Pause scroll" else "Start scroll",
+            contentDescription = stringResource(
+                if (state.playing) R.string.wear_cd_scroll_pause else R.string.wear_cd_scroll_start,
+            ),
             onClick = onTogglePlay,
             isPrimary = true,
             enabled = transportEnabled,

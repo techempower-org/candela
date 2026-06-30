@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Devices
@@ -53,6 +54,7 @@ import androidx.wear.tooling.preview.devices.WearDevices
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.scrubProgress
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
+import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.components.ChapterCover
 import `in`.jphe.storyvox.wear.components.CircularScrubber
 import `in`.jphe.storyvox.wear.components.LinearScrubber
@@ -242,7 +244,7 @@ internal fun NowPlayingContent(
                     // screen. caption1 reads legibly at arm's length.
                     if (!state.recording) {
                         Text(
-                            text = "Teleprompter",
+                            text = stringResource(R.string.wear_teleprompter),
                             color = BrassPrimary,
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.caption1,
@@ -437,7 +439,7 @@ private fun ChapterMeta(state: PlaybackState) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
-            text = state.chapterTitle ?: state.bookTitle ?: "Candela",
+            text = state.chapterTitle ?: state.bookTitle ?: stringResource(R.string.wear_app_name),
             style = MaterialTheme.typography.title3,
             color = BrassPrimary,
             maxLines = 1,
@@ -467,7 +469,7 @@ private fun ChapterMeta(state: PlaybackState) {
 private fun DisconnectedHint(connected: Boolean) {
     if (connected) return
     Text(
-        text = "Phone not connected",
+        text = stringResource(R.string.wear_phone_not_connected),
         style = MaterialTheme.typography.caption2,
         color = ParchmentOnMuted,
         maxLines = 1,

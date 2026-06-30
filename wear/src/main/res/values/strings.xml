@@ -1,4 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="wear_app_name">Candela</string>
+
+    <!-- Now Playing -->
+    <string name="wear_teleprompter">Teleprompter</string>
+    <string name="wear_phone_not_connected">Phone not connected</string>
+
+    <!-- Transport controls (TalkBack content descriptions) -->
+    <string name="wear_cd_skip_back">Skip back 30 seconds</string>
+    <string name="wear_cd_play">Play</string>
+    <string name="wear_cd_pause">Pause</string>
+    <string name="wear_cd_skip_forward">Skip forward 30 seconds</string>
+
+    <!-- Teleprompter remote -->
+    <string name="wear_wpm_unit">wpm</string>
+    <string name="wear_cd_teleprompter_on">Teleprompter on, tap to turn off</string>
+    <string name="wear_cd_teleprompter_off">Teleprompter off, tap to turn on</string>
+    <string name="wear_cd_wpm_slower">Slower</string>
+    <string name="wear_cd_wpm_faster">Faster</string>
+    <string name="wear_cd_wpm">%1$d words per minute</string>
+    <string name="wear_cd_scroll_pause">Pause scroll</string>
+    <string name="wear_cd_scroll_start">Start scroll</string>
+
+    <!-- Chapter cover -->
+    <string name="wear_cd_cover_for">Cover for %1$s</string>
+    <string name="wear_cd_cover_generic">Chapter cover</string>
 </resources>
