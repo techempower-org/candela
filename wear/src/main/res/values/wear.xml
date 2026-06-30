@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+      Wear Data Layer capability advertised by the watch app. The Google Wearable
+      service reads `android_wear_capabilities` automatically to advertise each item,
+      so the phone can discover this node via CapabilityClient.
+
+      ⚠ DO NOT RENAME "storyvox_playback_controller" — it is a phone↔watch wire
+      contract, matched by literal string with no negotiation/alias layer. The
+      `storyvox_` prefix predates the candela rebrand and is deliberately frozen: it is
+      an opaque routing token (never shown to users), and renaming it would break
+      communication for any user whose phone and watch installs disagree.
+
+      Mirrored (and documented) in code as
+      PhoneWearBridge.CAPABILITY_PLAYBACK_CONTROLLER — keep the two byte-identical.
+      See issue #1409.
+    -->
     <string-array name="android_wear_capabilities">
         <item>storyvox_playback_controller</item>
     </string-array>
