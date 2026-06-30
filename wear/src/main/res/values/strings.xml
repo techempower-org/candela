@@ -5,6 +5,7 @@
     <!-- Now Playing -->
     <string name="wear_teleprompter">Teleprompter</string>
     <string name="wear_phone_not_connected">Phone not connected</string>
+    <string name="wear_reconnect">Reconnect</string>
     <string name="wear_chapter_nav_hint">Hold to change chapter</string>
 
     <!-- Transport controls (TalkBack content descriptions) -->

@@ -46,6 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.wear.compose.material.ChipDefaults
+import androidx.wear.compose.material.CompactChip
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
@@ -136,6 +138,9 @@ fun NowPlayingScreen(
         onStartRecording = { scope.launch { bridge.send(PhoneWearBridge.CMD_RECORDING_START) } },
         onStopRecording = { scope.launch { bridge.send(PhoneWearBridge.CMD_RECORDING_STOP) } },
         onOpenSleepTimer = onOpenSleepTimer,
+        // Reconnect re-queries reachable phone nodes — same path as the
+        // on-resume connectivity refresh above.
+        onReconnect = { bridge.refreshConnectivity() },
     )
 }
 
@@ -157,6 +162,7 @@ internal fun NowPlayingContent(
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
     onOpenSleepTimer: () -> Unit = {},
+    onReconnect: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val isRound = configuration.isScreenRound
@@ -218,6 +224,7 @@ internal fun NowPlayingContent(
                     onScrub = onScrub,
                     onPrevChapter = onPrevChapter,
                     onNextChapter = onNextChapter,
+                    onReconnect = onReconnect,
                 )
             } else {
                 SquareNowPlaying(
@@ -229,6 +236,7 @@ internal fun NowPlayingContent(
                     onSkipForward = onSkipForward,
                     onPrevChapter = onPrevChapter,
                     onNextChapter = onNextChapter,
+                    onReconnect = onReconnect,
                 )
             }
             // Bottom-edge affordances, only when a phone is reachable: the
@@ -386,6 +394,7 @@ private fun RoundNowPlaying(
     onScrub: ((fraction: Float) -> Unit)? = null,
     onPrevChapter: () -> Unit = {},
     onNextChapter: () -> Unit = {},
+    onReconnect: () -> Unit = {},
 ) {
     // Scale the cover+ring to the watch instead of a fixed 116dp — small round
     // faces were crowded (worse now the transport row honours the 48dp touch
@@ -427,7 +436,7 @@ private fun RoundNowPlaying(
             onSkipForwardLong = onNextChapter,
         )
         ChapterNavHint(connected = connected)
-        DisconnectedHint(connected = connected)
+        DisconnectedHint(connected = connected, onReconnect = onReconnect)
     }
 }
 
@@ -441,6 +450,7 @@ private fun SquareNowPlaying(
     onSkipForward: () -> Unit,
     onPrevChapter: () -> Unit = {},
     onNextChapter: () -> Unit = {},
+    onReconnect: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -472,7 +482,7 @@ private fun SquareNowPlaying(
             onSkipForwardLong = onNextChapter,
         )
         ChapterNavHint(connected = connected)
-        DisconnectedHint(connected = connected)
+        DisconnectedHint(connected = connected, onReconnect = onReconnect)
     }
 }
 
@@ -505,22 +515,57 @@ private fun ChapterMeta(state: PlaybackState) {
 }
 
 /**
- * Brief "Phone not connected" note shown beneath the (greyed) transport row
- * when no phone node is reachable. Reserves no space when connected — it simply
- * isn't composed — so the layout is unchanged in the common case.
+ * Disconnected affordance shown beneath the (greyed) transport row when no phone
+ * node is reachable. Reserves no space when connected — it simply isn't composed.
+ *
+ * Three parts: a pulsing brass dot signalling the watch is actively retrying, the
+ * "Phone not connected" label, and a Reconnect chip that re-queries reachable
+ * nodes via [WearPlaybackBridge.refreshConnectivity]. The last-known title/chapter
+ * stay visible above via [ChapterMeta] — the bridge retains the last synced
+ * [PlaybackState] — so the user still sees what was playing.
  */
 @Composable
-private fun DisconnectedHint(connected: Boolean) {
+private fun DisconnectedHint(connected: Boolean, onReconnect: () -> Unit) {
     if (connected) return
-    Text(
-        text = stringResource(R.string.wear_phone_not_connected),
-        style = MaterialTheme.typography.caption2,
-        color = ParchmentOnMuted,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
+    val transition = rememberInfiniteTransition(label = "reconnect")
+    val pulse by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 850),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "reconnect-pulse",
     )
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(BrassPrimary.copy(alpha = pulse)),
+            )
+            Text(
+                text = stringResource(R.string.wear_phone_not_connected),
+                style = MaterialTheme.typography.caption2,
+                color = ParchmentOnMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        CompactChip(
+            onClick = onReconnect,
+            label = { Text(text = stringResource(R.string.wear_reconnect), style = MaterialTheme.typography.caption1) },
+            colors = ChipDefaults.primaryChipColors(),
+        )
+    }
 }
 
 /**
