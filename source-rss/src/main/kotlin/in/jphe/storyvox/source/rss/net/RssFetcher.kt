@@ -54,6 +54,13 @@ class RssFetcher @Inject constructor(
                     else -> {
                         val body = response.body?.string()
                             ?: return@use FictionResult.NetworkError("empty body", IOException("empty body from $url"))
+                        // #1443 — Cloudflare challenge pages return 200
+                        // with an HTML interstitial instead of XML. Detect
+                        // before the XML parser sees it (inline check; a
+                        // shared utility is tracked in #1438).
+                        if (looksLikeCfChallenge(body)) {
+                            return@use FictionResult.Cloudflare(url)
+                        }
                         FictionResult.Success(
                             FetchResult.Body(
                                 xml = body,
@@ -68,6 +75,17 @@ class RssFetcher @Inject constructor(
             FictionResult.NetworkError(e.message ?: "fetch failed", e)
         }
     }
+
+    /**
+     * #1443 — heuristic: does the response body look like a Cloudflare
+     * challenge interstitial rather than XML? Same three markers used
+     * by [source-royalroad]'s `RoyalRoadChallengeFetcher`; inlined
+     * here pending a shared utility (#1438).
+     */
+    private fun looksLikeCfChallenge(body: String): Boolean =
+        body.contains("/cdn-cgi/challenge-platform/") ||
+            body.contains("Just a moment...") ||
+            body.contains("cf-mitigated")
 
     companion object {
         // Identifies storyvox in feed-server logs so feed authors can
