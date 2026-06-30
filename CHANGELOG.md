@@ -9,6 +9,41 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.6.0] -- 2026-06-30
+
+**Library Nocturne — Wear OS companion app.** The complete watch experience: control playback, browse chapters, adjust speed, set sleep timers, and read the teleprompter — all from your wrist.
+
+### Added
+
+- Glanceable "Now Playing" tile with title, progress ring, and one-tap play/pause via Protolayout. (#1419)
+- Watch-face complications: Now Playing (short text + ranged value) and Listening Today (stats). Auto-refresh on DataClient changes. (#1416)
+- Ambient (always-on) low-power display: dimmed monochrome layout with tick-based minute updates, preserving OLED burn-in protection. (#1426)
+- Ongoing Activity media chip: foreground service reflecting phone playback state on the watch face. (#1423)
+- Rotating-bezel / touch-ring volume control with haptic detents on NowPlayingScreen. (#1397)
+- Playback speed control per-fiction on the watch, synced via DataClient. (#1417)
+- Chapter navigation on long-press with elapsed/remaining time readout. (#1411)
+- Sleep timer control from the watch — set, extend, or cancel the phone's active timer. (#1414)
+- Recording controls on NowPlayingScreen — start/stop/pause recording from the wrist. (#1422)
+- Voice-paced teleprompter line display on the wrist, synced with phone playback. (#1399)
+- Haptic feedback for bezel volume adjustments and transport control taps. (#1415)
+- Accessibility: semantic groups with roles, live regions for state changes, content descriptions for all interactive elements. (#1421)
+
+### Fixed
+
+- Disconnect UX: pulsing retry dot animation and Reconnect chip when phone link drops. (#1425)
+- UI polish: 48dp minimum touch targets, adaptive cover art, teleprompter entry point. (#1398)
+- Smooth scrub arc with play/pause crossfade and proper buffering state rendering. (#1420)
+- Shared StatusTokens.ErrorDark color instead of inlined hex for error states. (#1418)
+- Rebrand storyvox → Candela in all Wear display strings. (#1395)
+- Candela adaptive launcher icon on the watch (replaced stock compass). (#1396)
+- Externalized all hardcoded UI strings for i18n readiness. (#1412)
+
+### Changed
+
+- RecordingController seam extracted for Wear record remote integration. (#1410)
+- Teleprompter script stores unified + reader consumer wired for cross-module access. (#1413)
+- Playback position extrapolated between phone beacons for smoother progress display. (#1424)
+
 ## [1.5.4] -- 2026-06-29
 
 **Samsung Low Memory Killer fix.** Prevents the app from being killed on memory-constrained Samsung devices by deferring heavy native model loads at startup.
