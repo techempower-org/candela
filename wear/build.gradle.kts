@@ -56,6 +56,18 @@ android {
             applicationIdSuffix = ".debug"
         }
         release {
+            // #1407 — this is an INTENTIONAL sideload/companion config, NOT a
+            // Play-Store-ready release build. Two deliberate choices:
+            //   • minify OFF — the watch APK is sideloaded, not shrunk. R8 is
+            //     deferred until a real Wear Play listing exists (it needs
+            //     baseline testing first). proguardFiles is declared so turning
+            //     R8 on later is a one-line flip, but it's inert while minify is off.
+            //   • signed with :app's checked-in DEBUG keystore (see signingConfigs
+            //     below) — the Wearable Data Layer bridge only pairs when phone +
+            //     watch share a signing cert, and an unsigned release APK can't be
+            //     adb-installed for sideload.
+            // Before any Play Store Wear submission: switch to a real upload key
+            // and evaluate enabling R8/minify. Until then this state is by design.
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // An unsigned release APK can't be adb-installed; sign the
