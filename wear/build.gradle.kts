@@ -111,6 +111,8 @@ dependencies {
     // Wear watch-face complications — data-source services + update requester
     // (the watch-face renders our Now Playing / Listening Stats complications).
     implementation(libs.androidx.wear.watchface.complications.datasource.ktx)
+    // Wear Ongoing Activity — watch-face media chip while the phone plays
+    implementation(libs.androidx.wear.ongoing)
 
     // Hilt (optional in v1; wired so Hypnos can use @AndroidEntryPoint)
     implementation(libs.hilt.android)

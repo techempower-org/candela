@@ -74,6 +74,7 @@ androidx-media = "1.8.0"
 wear-compose = "1.6.2"
 wear-tooling = "1.0.0"
 wear-watchface = "1.2.1"
+wear-ongoing = "1.0.0"
 play-services-wearable = "20.0.1"
 
 # Test
@@ -222,6 +223,7 @@ androidx-wear-compose-foundation = { module = "androidx.wear.compose:compose-fou
 androidx-wear-compose-navigation = { module = "androidx.wear.compose:compose-navigation", version.ref = "wear-compose" }
 androidx-wear-tooling-preview = { module = "androidx.wear:wear-tooling-preview", version.ref = "wear-tooling" }
 androidx-wear-watchface-complications-datasource-ktx = { module = "androidx.wear.watchface:watchface-complications-data-source-ktx", version.ref = "wear-watchface" }
+androidx-wear-ongoing = { module = "androidx.wear:wear-ongoing", version.ref = "wear-ongoing" }
 
 # Desugaring
 android-desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }

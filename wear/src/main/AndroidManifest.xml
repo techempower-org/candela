@@ -9,6 +9,11 @@
     <!-- Rotating-bezel / touch-ring volume control on NowPlayingScreen adjusts
          the watch's STREAM_MUSIC volume via AudioManager.adjustStreamVolume. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Ongoing Activity media chip — foreground service hosting the ongoing notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Wear 4 / Android 13+ requires this to post the ongoing notification. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -82,6 +87,27 @@
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/playback" />
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/stats" />
+            </intent-filter>
+        </service>
+
+        <!-- Ongoing Activity media chip — foreground service reflecting phone playback. -->
+        <service
+            android:name=".ongoing.WearOngoingPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Background driver: receives /playback/state changes (app open or not)
+             and starts/stops the chip service. WearableListenerService must be
+             exported so the GMS data layer can deliver DATA_CHANGED to it. -->
+        <service
+            android:name=".ongoing.PlaybackStateListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/playback" />
             </intent-filter>
         </service>
     </application>
