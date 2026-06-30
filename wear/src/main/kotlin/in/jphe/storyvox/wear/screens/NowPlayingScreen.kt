@@ -1,9 +1,17 @@
 package `in`.jphe.storyvox.wear.screens
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +23,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,6 +122,11 @@ fun NowPlayingScreen(
         // #1031 — tap the ring to scrub; duration comes from the synced state.
         onScrub = { fraction -> scope.launch { bridge.sendSeek(fraction, state.durationEstimateMs) } },
         onOpenTeleprompter = onOpenTeleprompter,
+        // #1367 — recording remote. The phone gates these on `recordingArmed`
+        // (only effective when it's on RecordingScreen); a Start sent otherwise
+        // is dropped phone-side, so the watch only shows the control when armed.
+        onStartRecording = { scope.launch { bridge.send(PhoneWearBridge.CMD_RECORDING_START) } },
+        onStopRecording = { scope.launch { bridge.send(PhoneWearBridge.CMD_RECORDING_STOP) } },
     )
 }
 
@@ -127,6 +143,8 @@ internal fun NowPlayingContent(
     onSkipForward: () -> Unit,
     onScrub: ((fraction: Float) -> Unit)? = null,
     onOpenTeleprompter: () -> Unit = {},
+    onStartRecording: () -> Unit = {},
+    onStopRecording: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val isRound = configuration.isScreenRound
@@ -197,27 +215,130 @@ internal fun NowPlayingContent(
                     onSkipForward = onSkipForward,
                 )
             }
-            // #1308 — entry to the teleprompter remote (a separate surface),
-            // only offered when a phone is reachable. Anchored at the bottom
-            // edge so it doesn't crowd the centered transport controls. Lifted
-            // off the bezel (was 2dp — clipped on round faces) and given a
-            // larger interior tap target (was bare caption2 text, too small to
-            // hit reliably); caption1 reads more legibly at arm's length.
+            // Bottom-edge affordances, only when a phone is reachable: the
+            // #1367 recording control stacked above the #1308 teleprompter
+            // entry. Anchored at the bottom so they don't crowd the centered
+            // transport controls.
             if (connected) {
-                Text(
-                    text = "Teleprompter",
-                    color = BrassPrimary,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.caption1,
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                        .clickable(onClick = onOpenTeleprompter)
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                )
+                        .padding(bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    // #1367 — record/stop, shown only while the phone is on
+                    // RecordingScreen (recordingArmed). Pulsing dot + mm:ss
+                    // while recording.
+                    RecordingControl(
+                        armed = state.recordingArmed,
+                        recording = state.recording,
+                        elapsedMs = state.recordingElapsedMs,
+                        onStart = onStartRecording,
+                        onStop = onStopRecording,
+                    )
+                    // #1308 — teleprompter remote entry. Hidden during an active
+                    // recording so the Stop affordance is unambiguous on a tiny
+                    // screen. caption1 reads legibly at arm's length.
+                    if (!state.recording) {
+                        Text(
+                            text = "Teleprompter",
+                            color = BrassPrimary,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.caption1,
+                            modifier = Modifier
+                                .clickable(onClick = onOpenTeleprompter)
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * Issue #1367 — wrist record/stop control, bound to the recording state synced
+ * from the phone ([PlaybackState.recordingArmed] / `recording` /
+ * `recordingElapsedMs`). The camera lives on the phone's RecordingScreen, so:
+ *  - **not [armed]** → render nothing (the phone isn't on RecordingScreen, so
+ *    there's nothing to drive — the watch shows only the teleprompter entry).
+ *  - **[armed], not [recording]** → a red "● Record" tap target.
+ *  - **[recording]** → a pulsing red dot + mm:ss elapsed and a "■ Stop" target.
+ *
+ * Styled as clickable text (matching the teleprompter entry) rather than a
+ * filled chip, to sit lightly at the screen's bottom edge.
+ */
+@Composable
+private fun RecordingControl(
+    armed: Boolean,
+    recording: Boolean,
+    elapsedMs: Long,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val recordColor = MaterialTheme.colors.error
+    when {
+        recording -> {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PulsingDot(recordColor)
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text(
+                        text = formatElapsed(elapsedMs),
+                        color = MaterialTheme.colors.onBackground,
+                        style = MaterialTheme.typography.caption1,
+                    )
+                }
+                Text(
+                    text = "■ Stop",
+                    color = recordColor,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.caption1,
+                    modifier = Modifier
+                        .clickable(onClick = onStop)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+        }
+        armed -> {
+            Text(
+                text = "● Record",
+                color = recordColor,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.caption1,
+                modifier = Modifier
+                    .clickable(onClick = onStart)
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+        // not armed → nothing (record UI hidden until the phone arms it).
+    }
+}
+
+/** A red dot that pulses while recording — the universal "REC" cue. */
+@Composable
+private fun PulsingDot(color: Color) {
+    val transition = rememberInfiniteTransition(label = "rec")
+    val pulse by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(animation = tween(700), repeatMode = RepeatMode.Reverse),
+        label = "recDotAlpha",
+    )
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .alpha(pulse)
+            .clip(CircleShape)
+            .background(color),
+    )
+}
+
+/** mm:ss from elapsed millis (phone sends this second-aligned). */
+private fun formatElapsed(elapsedMs: Long): String {
+    val totalSeconds = elapsedMs / 1_000
+    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
 
 @Composable
@@ -385,6 +506,15 @@ private fun sampleBuffering() = PlaybackState(
     charOffset = 0,
 )
 
+// #1367 — recording-mode states (phone on RecordingScreen).
+private fun sampleRecordingArmed() = samplePlaying().copy(recordingArmed = true)
+
+private fun sampleRecording() = samplePlaying().copy(
+    recordingArmed = true,
+    recording = true,
+    recordingElapsedMs = 75_000L,
+)
+
 @Composable
 private fun NowPlayingPreview(state: PlaybackState, connected: Boolean = true) {
     WearLibraryNocturneTheme {
@@ -413,6 +543,14 @@ private fun PreviewRoundBuffering() = NowPlayingPreview(sampleBuffering())
 @Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Disconnected")
 @Composable
 private fun PreviewRoundDisconnected() = NowPlayingPreview(samplePaused(), connected = false)
+
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Record armed")
+@Composable
+private fun PreviewRecordArmed() = NowPlayingPreview(sampleRecordingArmed())
+
+@Preview(device = WearDevices.LARGE_ROUND, showSystemUi = true, name = "Round · Recording")
+@Composable
+private fun PreviewRecording() = NowPlayingPreview(sampleRecording())
 
 @Preview(device = WearDevices.SMALL_ROUND, showSystemUi = true, name = "Small Round")
 @Composable
