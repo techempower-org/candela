@@ -114,6 +114,13 @@ dependencies {
     // Wear Ongoing Activity — watch-face media chip while the phone plays
     implementation(libs.androidx.wear.ongoing)
 
+    // Wear Tiles — glanceable "Now Playing" tile. Protolayout builds the layout;
+    // the tiles lib hosts the TileService; concurrent-futures' CallbackToFutureAdapter
+    // bridges the coroutine state read to the ListenableFuture the API returns.
+    implementation(libs.androidx.wear.tiles)
+    implementation(libs.androidx.wear.protolayout)
+    implementation(libs.androidx.concurrent.futures)
+
     // Hilt (optional in v1; wired so Hypnos can use @AndroidEntryPoint)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

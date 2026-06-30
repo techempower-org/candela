@@ -110,6 +110,34 @@
                     android:pathPrefix="/playback" />
             </intent-filter>
         </service>
+
+        <!-- Wear Tile — glanceable "Now Playing". Renders the PlaybackState synced
+             over the DataClient (same /playback/state DataItem WearPlaybackBridge
+             reads); play/pause routes through the command trampoline below. -->
+        <service
+            android:name=".tile.PlaybackTileService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_media_play"
+            android:label="@string/wear_tile_label"
+            android:description="@string/wear_tile_description"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@android:drawable/ic_media_play" />
+        </service>
+
+        <!-- Invisible trampoline: a Tile Clickable can only launch an Activity, so
+             this receives the chosen CMD_* path, sends it to the phone via
+             WearPlaybackBridge, requests a tile refresh, and finishes. -->
+        <activity
+            android:name=".tile.PlaybackTileCommandActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 
 </manifest>
