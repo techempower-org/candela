@@ -1918,6 +1918,17 @@ class EnginePlayer @AssistedInject constructor(
         charOffset: Int,
         autoPlay: Boolean = true,
     ) = loadAndPlayMutex.withLock {
+        // Issue #1382 ("app crashes on play") — defense-in-depth. This is the
+        // single chokepoint every play path funnels through, and it touches
+        // throw-capable surfaces that the guards below do NOT anticipate: Room
+        // reads (chapterRepo/fictionRepo), the native sherpa-onnx loadModel in
+        // startPlaybackPipeline, and the sentence chunker. `scope` is a
+        // SupervisorJob with NO CoroutineExceptionHandler, and SupervisorJob
+        // does not swallow exceptions — so pre-fix an unanticipated throw here
+        // reached the thread's default uncaught handler = hard crash on play.
+        // Wrap the body: log the full stacktrace (instruments the real trigger
+        // for the next occurrence) and surface a recoverable error instead.
+        try {
         DebugLog.i("EnginePlayer") { "loadAndPlay fiction=$fictionId chapter=$chapterId charOffset=$charOffset autoPlay=$autoPlay" }
         // Issue #944 / #956 — dedup double-fire (the second of a rapid
         // handleChapterDone + watchdog or user-tap + MediaSession-Next
@@ -2674,6 +2685,33 @@ class EnginePlayer @AssistedInject constructor(
             startPlaybackPipeline()
         }
         invalidateState()
+        } catch (t: Throwable) {
+            // #1382 — Cancellation MUST propagate: a newer loadAndPlay(), a
+            // stop, or a voice/speed rebuild cancels this coroutine via
+            // CancellationException; swallowing it would break structured
+            // concurrency. Rethrow before the catch-all.
+            if (t is kotlinx.coroutines.CancellationException) throw t
+            android.util.Log.e(
+                "EnginePlayer",
+                "loadAndPlay crashed (fiction=$fictionId chapter=$chapterId " +
+                    "charOffset=$charOffset) — surfacing a recoverable error " +
+                    "instead of crashing the app (#1382)",
+                t,
+            )
+            // Tear down any half-built pipeline so no orphan producer/consumer
+            // streams under a dead UI surface. Best-effort.
+            runCatching { stopPlaybackPipeline() }
+            _observableState.update {
+                it.copy(
+                    isPlaying = false,
+                    isBuffering = false,
+                    error = PlaybackError.ChapterFetchFailed(
+                        "Couldn't start playback — please try again.",
+                    ),
+                )
+            }
+            invalidateState()
+        }
     }
 
     /**
