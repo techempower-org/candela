@@ -61,6 +61,7 @@ import `in`.jphe.storyvox.wear.components.LinearScrubber
 import `in`.jphe.storyvox.wear.components.TransportRow
 import `in`.jphe.storyvox.wear.playback.WearPlaybackBridge
 import `in`.jphe.storyvox.wear.theme.BrassPrimary
+import `in`.jphe.storyvox.wear.theme.BrassTint
 import `in`.jphe.storyvox.wear.theme.ParchmentOnMuted
 import `in`.jphe.storyvox.wear.theme.WearLibraryNocturneTheme
 import kotlinx.coroutines.launch
@@ -100,6 +101,7 @@ private const val ROTARY_VOLUME_STEP_PX = 48f
 fun NowPlayingScreen(
     bridge: WearPlaybackBridge,
     onOpenTeleprompter: () -> Unit = {},
+    onOpenSleepTimer: () -> Unit = {},
 ) {
     val state by bridge.state.collectAsStateWithLifecycle()
     val connected by bridge.connected.collectAsStateWithLifecycle()
@@ -133,6 +135,7 @@ fun NowPlayingScreen(
         // is dropped phone-side, so the watch only shows the control when armed.
         onStartRecording = { scope.launch { bridge.send(PhoneWearBridge.CMD_RECORDING_START) } },
         onStopRecording = { scope.launch { bridge.send(PhoneWearBridge.CMD_RECORDING_STOP) } },
+        onOpenSleepTimer = onOpenSleepTimer,
     )
 }
 
@@ -153,6 +156,7 @@ internal fun NowPlayingContent(
     onOpenTeleprompter: () -> Unit = {},
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
+    onOpenSleepTimer: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val isRound = configuration.isScreenRound
@@ -228,9 +232,9 @@ internal fun NowPlayingContent(
                 )
             }
             // Bottom-edge affordances, only when a phone is reachable: the
-            // #1367 recording control stacked above the #1308 teleprompter
-            // entry. Anchored at the bottom so they don't crowd the centered
-            // transport controls.
+            // #1367 recording control stacked above the #1308 teleprompter +
+            // sleep-timer entries. Anchored off the bottom bezel so they don't
+            // crowd the centered transport controls.
             if (connected) {
                 Column(
                     modifier = Modifier
@@ -249,19 +253,37 @@ internal fun NowPlayingContent(
                         onStart = onStartRecording,
                         onStop = onStopRecording,
                     )
-                    // #1308 — teleprompter remote entry. Hidden during an active
-                    // recording so the Stop affordance is unambiguous on a tiny
-                    // screen. caption1 reads legibly at arm's length.
+                    // Teleprompter remote (#1308) + sleep timer entries. Hidden
+                    // during an active recording so the Stop affordance is
+                    // unambiguous on a tiny screen. caption1 reads at arm's
+                    // length; the Sleep label doubles as the live countdown when
+                    // a duration timer is running.
                     if (!state.recording) {
-                        Text(
-                            text = stringResource(R.string.wear_teleprompter),
-                            color = BrassPrimary,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.caption1,
-                            modifier = Modifier
-                                .clickable(onClick = onOpenTeleprompter)
-                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = stringResource(R.string.wear_teleprompter),
+                                color = BrassPrimary,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.caption1,
+                                modifier = Modifier
+                                    .clickable(onClick = onOpenTeleprompter)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                            val sleepRemaining = state.sleepTimerRemainingMs
+                            Text(
+                                text = if (sleepRemaining != null) {
+                                    "Sleep ${formatSleepRemaining(sleepRemaining)}"
+                                } else {
+                                    "Sleep"
+                                },
+                                color = if (sleepRemaining != null) BrassTint else BrassPrimary,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.caption1,
+                                modifier = Modifier
+                                    .clickable(onClick = onOpenSleepTimer)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        }
                     }
                 }
             }

@@ -113,6 +113,11 @@ class PhoneWearBridge @Inject constructor(
                 CMD_PREV_CH -> controller.previousChapter()
                 CMD_SLEEP_15 -> controller.startSleepTimer(SleepTimerMode.Duration(15))
                 CMD_SLEEP_OFF -> controller.cancelSleepTimer()
+                // Sleep timer from the wrist (15/30/45/end-of-chapter). CMD_SLEEP_SET
+                // carries a 4-byte SleepPayload (malformed → ignored, same guard as
+                // CMD_SEEK); CMD_SLEEP_CANCEL is payload-less.
+                CMD_SLEEP_SET -> SleepPayload.decode(event.data)?.let { controller.startSleepTimer(it) }
+                CMD_SLEEP_CANCEL -> controller.cancelSleepTimer()
                 // Issue #1031 — the circular scrubber sends a target position
                 // (ms) in the message payload. A malformed/absent payload
                 // decodes to null and is ignored (no blind seek-to-zero).
@@ -147,6 +152,16 @@ class PhoneWearBridge @Inject constructor(
         const val CMD_PREV_CH = "/playback/cmd/prevCh"
         const val CMD_SLEEP_15 = "/playback/cmd/sleep15"
         const val CMD_SLEEP_OFF = "/playback/cmd/sleepOff"
+
+        /**
+         * Sleep timer from the wrist. [CMD_SLEEP_SET] carries a 4-byte
+         * [SleepPayload] (a Duration in minutes, or `0` = end-of-chapter);
+         * [CMD_SLEEP_CANCEL] is payload-less. These generalize the older
+         * fixed-15-min [CMD_SLEEP_15]/[CMD_SLEEP_OFF] pair to the full
+         * 15/30/45/end-of-chapter option set the watch screen offers.
+         */
+        const val CMD_SLEEP_SET = "/playback/cmd/sleepSet"
+        const val CMD_SLEEP_CANCEL = "/playback/cmd/sleepCancel"
 
         /**
          * Issue #1031 — scrub from the wrist. Unlike the payload-less

@@ -8,8 +8,10 @@ import com.google.android.gms.wearable.DataItem
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 import `in`.jphe.storyvox.playback.PlaybackState
+import `in`.jphe.storyvox.playback.SleepTimerMode
 import `in`.jphe.storyvox.playback.wear.PhoneWearBridge
 import `in`.jphe.storyvox.playback.wear.SeekPayload
+import `in`.jphe.storyvox.playback.wear.SleepPayload
 import `in`.jphe.storyvox.playback.wear.TeleprompterWpmPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,6 +140,21 @@ class WearPlaybackBridge(private val context: Context) : DataClient.OnDataChange
 
     suspend fun sendTeleprompterWpm(wpm: Int): SendResult =
         dispatch(PhoneWearBridge.CMD_TELEPROMPTER_WPM, TeleprompterWpmPayload.encode(wpm))
+
+    /**
+     * Sleep timer from the wrist. [sendSleepSet] arms a 15/30/45-min or
+     * end-of-chapter timer (encoded via [SleepPayload]); [sendSleepCancel]
+     * clears it. The remaining time syncs back through
+     * `PlaybackState.sleepTimerRemainingMs` like any other playback state, so
+     * the now-playing countdown needs no separate channel. Both share
+     * [dispatch]/[send], so a tap while disconnected flips [connected] and
+     * surfaces the same "Phone not connected" hint as the transport controls.
+     */
+    suspend fun sendSleepSet(mode: SleepTimerMode): SendResult =
+        dispatch(PhoneWearBridge.CMD_SLEEP_SET, SleepPayload.encode(mode))
+
+    suspend fun sendSleepCancel(): SendResult =
+        send(PhoneWearBridge.CMD_SLEEP_CANCEL)
 
     /**
      * Single send path shared by every command. A successful send is the
