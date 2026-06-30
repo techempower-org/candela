@@ -193,11 +193,27 @@ internal class Ao3Api @Inject constructor(
                         "HTTP ${resp.code} downloading AO3 EPUB",
                         IOException("HTTP ${resp.code}"),
                     )
-                    // Archive-Warning-gated works return 200 with the
-                    // HTML "You must agree" interstitial instead of a
-                    // real EPUB. Detect by Content-Type and surface as
-                    // AuthRequired so the UI can show the right copy
-                    // (sign-in is the follow-up that will resolve it).
+                    // Cloudflare challenge on an EPUB download returns
+                    // 200 + text/html with the challenge page instead of
+                    // real EPUB bytes. Detect before the Archive-Warning
+                    // fallback so the UI shows "Cloudflare" not "sign in".
+                    ctype.contains("html", ignoreCase = true) -> {
+                        val body = resp.body?.string().orEmpty()
+                        if (looksLikeCfChallenge(body)) {
+                            FictionResult.Cloudflare(
+                                challengeUrl = url,
+                                message = "AO3 returned a Cloudflare challenge for EPUB download (work $workId)",
+                            )
+                        } else {
+                            // Archive-Warning-gated works return 200 with
+                            // the HTML "You must agree" interstitial.
+                            FictionResult.AuthRequired(
+                                "AO3 returned non-EPUB ($ctype) for work $workId — likely Archive-Warning gated; sign-in is a follow-up.",
+                            )
+                        }
+                    }
+                    // Other non-EPUB Content-Types (shouldn't happen, but
+                    // guard anyway).
                     !ctype.contains("epub", ignoreCase = true) &&
                         !ctype.contains("octet-stream", ignoreCase = true) &&
                         !ctype.contains("zip", ignoreCase = true) ->
@@ -295,16 +311,38 @@ internal class Ao3Api @Inject constructor(
             client.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 404 -> FictionResult.NotFound("AO3: $path not found")
-                    !resp.isSuccessful -> FictionResult.NetworkError(
-                        "HTTP ${resp.code} from $url",
-                        IOException("HTTP ${resp.code}"),
-                    )
+                    // CF challenges typically arrive as 403 or 503.
+                    // Peek at the body before falling through to the
+                    // generic NetworkError so the caller gets
+                    // FictionResult.Cloudflare (and can escalate to
+                    // the WebView resolver) instead of a dead-end
+                    // error toast.
+                    !resp.isSuccessful -> {
+                        val body = resp.body?.string().orEmpty()
+                        if (looksLikeCfChallenge(body)) {
+                            FictionResult.Cloudflare(
+                                challengeUrl = BASE_URL + path,
+                                message = "AO3 returned a Cloudflare challenge for $path (HTTP ${resp.code})",
+                            )
+                        } else {
+                            FictionResult.NetworkError(
+                                "HTTP ${resp.code} from $url",
+                                IOException("HTTP ${resp.code}"),
+                            )
+                        }
+                    }
                     else -> {
                         val text = resp.body?.string()
                             ?: return@withContext FictionResult.NetworkError(
                                 "empty body",
                                 IOException("empty body"),
                             )
+                        if (looksLikeCfChallenge(text)) {
+                            return@withContext FictionResult.Cloudflare(
+                                challengeUrl = BASE_URL + path,
+                                message = "AO3 returned a Cloudflare challenge for $path",
+                            )
+                        }
                         FictionResult.Success(text)
                     }
                 }
@@ -446,5 +484,22 @@ internal class Ao3Api @Inject constructor(
             body.contains("id=\"new_user\"") ||
                 body.contains("name=\"user[login]\"") ||
                 body.contains("class=\"new_user\"")
+
+        /**
+         * #1441 — Cheap signal that the response body is a Cloudflare
+         * challenge page rather than real AO3 content. AO3 sits behind
+         * Cloudflare; under elevated threat-score the CDN intercepts
+         * the request and returns a JS challenge / CAPTCHA page instead
+         * of the origin's HTML or EPUB bytes.
+         *
+         * Same three markers used by the Royal Road fetcher — these are
+         * stable Cloudflare platform strings that appear in every
+         * challenge variant (managed, JS, interactive). Inlined here
+         * rather than shared; extraction tracked in #1438.
+         */
+        internal fun looksLikeCfChallenge(body: String): Boolean =
+            body.contains("/cdn-cgi/challenge-platform/") ||
+                body.contains("Just a moment...") ||
+                body.contains("cf-mitigated")
     }
 }
