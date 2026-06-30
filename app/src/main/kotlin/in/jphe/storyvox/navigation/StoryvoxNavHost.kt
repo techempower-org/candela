@@ -1391,7 +1391,8 @@ private fun StoryvoxNavHostContent(
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 AccountSettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
+                    onOpenSyncSignIn = { navController.navigate(StoryvoxRoutes.SYNC) },
+                    onOpenRoyalRoadSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
                     onOpenGitHubSignIn = { navController.navigate(StoryvoxRoutes.GITHUB_SIGN_IN) },
                     onOpenGitHubRevoke = {
                         // Mirrors the SETTINGS legacy page's revoke handler:
