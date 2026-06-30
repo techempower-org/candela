@@ -107,6 +107,37 @@ sealed class PlaybackError {
     @Serializable data class AzureServerError(val httpCode: Int, val message: String) : PlaybackError()
 }
 
+/**
+ * Wear companion — single source of truth for "is this error worth a Retry?"
+ * Shared by the phone's reader error banner (via [PlaybackController]) and the
+ * Wear NowPlaying error chip so the two surfaces never disagree. Auth failure
+ * (re-paste a key) and a missing engine (install one) are terminal; every
+ * other failure is transient and a re-load can clear it.
+ */
+fun PlaybackError.isRetryable(): Boolean = when (this) {
+    PlaybackError.AzureAuthFailed -> false
+    PlaybackError.EngineUnavailable -> false
+    else -> true
+}
+
+/**
+ * Wear companion — compact, resource-free error copy for the glanceable Wear
+ * NowPlaying surface. The phone uses string resources
+ * ([PlaybackController.errorMessage]); the watch is offline-simple, so the
+ * errors that already carry their own message reuse it and the rest get a
+ * short fixed label. Kept here next to [isRetryable] so the watch's error
+ * presentation stays in lock-step with the typed error model.
+ */
+fun PlaybackError.watchSummary(): String = when (this) {
+    is PlaybackError.ChapterFetchFailed -> message
+    is PlaybackError.AzureThrottled -> message
+    is PlaybackError.AzureNetworkUnavailable -> message
+    is PlaybackError.AzureServerError -> message
+    PlaybackError.EngineUnavailable -> "Voice engine not installed on phone"
+    PlaybackError.AzureAuthFailed -> "Cloud voice key rejected"
+    is PlaybackError.TtsSpeakFailed -> "Couldn't read this chapter aloud"
+}
+
 sealed class SleepTimerMode {
     data class Duration(val minutes: Int) : SleepTimerMode()
     data object EndOfChapter : SleepTimerMode()

@@ -150,6 +150,18 @@ class PhoneWearBridge @Inject constructor(
                 CMD_SKIP_BACK -> controller.skipBack30s()
                 CMD_NEXT_CH -> controller.nextChapter()
                 CMD_PREV_CH -> controller.previousChapter()
+                // Wear companion — Retry after a surfaced playback error. Re-loads
+                // the current chapter; loadAndPlay clears the error band, mirroring
+                // the phone reader banner's onRetry (playback.play()). No-op if there
+                // is no current chapter to reload (e.g. the error nulled the pointer).
+                CMD_RETRY -> {
+                    val s = controller.state.value
+                    val fictionId = s.currentFictionId
+                    val chapterId = s.currentChapterId
+                    if (fictionId != null && chapterId != null) {
+                        controller.play(fictionId, chapterId, s.charOffset)
+                    }
+                }
                 CMD_SLEEP_15 -> controller.startSleepTimer(SleepTimerMode.Duration(15))
                 CMD_SLEEP_OFF -> controller.cancelSleepTimer()
                 // Sleep timer from the wrist (15/30/45/end-of-chapter). CMD_SLEEP_SET
@@ -193,6 +205,10 @@ class PhoneWearBridge @Inject constructor(
         const val CMD_SKIP_BACK = "/playback/cmd/skipBack"
         const val CMD_NEXT_CH = "/playback/cmd/nextCh"
         const val CMD_PREV_CH = "/playback/cmd/prevCh"
+
+        /** Wear companion — re-load the current chapter after a surfaced
+         *  playback error (the watch's NowPlaying Retry chip). Payload-less. */
+        const val CMD_RETRY = "/playback/cmd/retry"
         const val CMD_SLEEP_15 = "/playback/cmd/sleep15"
         const val CMD_SLEEP_OFF = "/playback/cmd/sleepOff"
 

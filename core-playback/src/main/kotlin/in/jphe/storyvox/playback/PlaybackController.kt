@@ -673,11 +673,10 @@ class DefaultPlaybackController @Inject constructor(
     }
 
     /** #530 — which errors should surface a Retry button. */
-    private fun isRetryable(err: PlaybackError): Boolean = when (err) {
-        PlaybackError.AzureAuthFailed -> false // user has to re-paste key
-        is PlaybackError.EngineUnavailable -> false // install required
-        else -> true
-    }
+    // Delegates to the shared [PlaybackError.isRetryable] (PlaybackState.kt) so
+    // the phone's reader banner and the Wear NowPlaying error chip can never
+    // diverge on which errors offer a Retry.
+    private fun isRetryable(err: PlaybackError): Boolean = err.isRetryable()
 
     override suspend fun play(fictionId: String, chapterId: String, charOffset: Int) {
         DebugLog.i("PlaybackController") { "play fiction=$fictionId chapter=$chapterId charOffset=$charOffset" }
