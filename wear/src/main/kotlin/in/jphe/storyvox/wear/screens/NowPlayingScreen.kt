@@ -117,6 +117,10 @@ fun NowPlayingScreen(
 ) {
     val state by bridge.state.collectAsStateWithLifecycle()
     val connected by bridge.connected.collectAsStateWithLifecycle()
+    // Locally-extrapolated progress (smooth between the phone's ~1Hz beacons),
+    // driven by the bridge's ticker off the watch clock. Disconnect/reconnect UI
+    // is owned by #1425, which consumes the bridge's `stale` flow directly.
+    val progress by bridge.displayProgress.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     // Re-check reachability whenever the watch face comes back to the
@@ -130,6 +134,7 @@ fun NowPlayingScreen(
     NowPlayingContent(
         state = state,
         connected = connected,
+        progress = progress,
         onPlayPause = {
             val cmd = if (state.isPlaying) PhoneWearBridge.CMD_PAUSE else PhoneWearBridge.CMD_PLAY
             scope.launch { bridge.send(cmd) }
@@ -164,6 +169,9 @@ fun NowPlayingScreen(
 internal fun NowPlayingContent(
     state: PlaybackState,
     connected: Boolean,
+    // Defaulted so previews (and any caller without a live bridge) fall back to
+    // the raw per-state progress; NowPlayingScreen passes the extrapolated value.
+    progress: Float = state.scrubProgress(),
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
@@ -179,7 +187,6 @@ internal fun NowPlayingContent(
 ) {
     val configuration = LocalConfiguration.current
     val isRound = configuration.isScreenRound
-    val progress = state.scrubProgress()
 
     // Rotating bezel (Galaxy Watch4 Classic) / touch-ring → media volume.
     // Both arrive as RotaryScrollEvent; we accumulate the scroll delta and step

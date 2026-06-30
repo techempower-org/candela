@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.playback.wear
 
 import android.content.Context
+import android.os.SystemClock
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.PutDataMapRequest
@@ -10,6 +11,7 @@ import `in`.jphe.storyvox.data.repository.stats.ListeningStatsRepository
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.RecordingController
+import `in`.jphe.storyvox.playback.SPEED_BASELINE_CHARS_PER_SECOND
 import `in`.jphe.storyvox.playback.SleepTimerMode
 import `in`.jphe.storyvox.playback.TeleprompterController
 import `in`.jphe.storyvox.playback.transcribe.VoicePacedScrollController
@@ -19,10 +21,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.encodeToString
@@ -59,8 +66,7 @@ class PhoneWearBridge @Inject constructor(
         scope.launch {
             // #1308 — fold the teleprompter state (separate TeleprompterController
             // singleton, #1320) into the published PlaybackState so the watch
-            // reflects it over the existing /playback/state sync. Any teleprompter
-            // change re-publishes, same as a playback change.
+            // reflects it over the /playback/state sync.
             // #1367 (Wear PR1) — also fold RecordingController state in, so the
             // watch reflects recording over the same /playback/state sync.
             // #1368 — the voice-paced wristLines rides the first combine.
@@ -84,7 +90,7 @@ class PhoneWearBridge @Inject constructor(
                     teleprompterNextLine = lines.next,
                 )
             }
-            combine(
+            val structural = combine(
                 withTeleprompter,
                 recordingController.armed,
                 recordingController.recording,
@@ -95,7 +101,35 @@ class PhoneWearBridge @Inject constructor(
                     recording = recActive,
                     recordingElapsedMs = recElapsed,
                 )
-            }.collectLatest { state -> publishState(state) }
+            }.stateIn(this, SharingStarted.Eagerly, PlaybackState())
+
+            // Gate the publish cadence (see [shouldPublishWearState]): every
+            // structural change ships immediately, plus a ~1Hz position beacon
+            // WHILE PLAYING. controller.state only moves charOffset per-sentence,
+            // and the truthful position feed (controller.playbackPositionMs) runs
+            // at ~20Hz — far too chatty for the DataLayer. So we sample that feed
+            // at the beacon and stamp it into charOffset, giving the watch an
+            // accurate anchor to extrapolate from between pushes instead of a
+            // once-per-sentence step (or a 20Hz radio flood). seq makes each
+            // beacon byte-unique so DataClient actually redelivers it. Recording
+            // state rides the structural path (recordingElapsedMs is unmasked, so
+            // its timer ticks reach the watch as discrete changes).
+            var lastPublished: PlaybackState? = null
+            var lastPublishElapsedMs = 0L
+            var seq = 0L
+            merge(
+                structural,
+                flow { while (true) { delay(BEACON_INTERVAL_MS); emit(structural.value) } },
+            ).collect { state ->
+                val nowMs = SystemClock.elapsedRealtime()
+                if (shouldPublishWearState(lastPublished, state, lastPublishElapsedMs, nowMs, BEACON_INTERVAL_MS)) {
+                    seq += 1
+                    lastPublished = state
+                    lastPublishElapsedMs = nowMs
+                    val positionCharOffset = positionMsToWearCharOffset(controller.playbackPositionMs.value)
+                    publishState(state.copy(charOffset = positionCharOffset, seq = seq))
+                }
+            }
         }
         // Wear Listening Stats complication — publish today's estimated
         // listening total + current streak to /stats/today. todayEstimatedMs is
@@ -202,6 +236,11 @@ class PhoneWearBridge @Inject constructor(
     }
 
     companion object {
+        /** Minimum gap between position beacons while playing (~1Hz). Discrete
+         *  state changes still publish immediately; this only rate-limits the
+         *  position-drift refresh the watch extrapolates between. */
+        const val BEACON_INTERVAL_MS = 1_000L
+
         const val PATH_STATE = "/playback/state"
 
         /** DataItem path for the Wear Listening Stats complication —
@@ -269,3 +308,58 @@ class PhoneWearBridge @Inject constructor(
         const val CMD_RECORDING_STOP = "/playback/cmd/recordingStop"
     }
 }
+
+/**
+ * Decides whether the phone should push a `/playback/state` beacon for [next].
+ *
+ * Two publish triggers:
+ *  - **Structural change**: any field the watch renders discretely (play/pause,
+ *    buffering, chapter/title/cover, error, teleprompter, …) differs from the
+ *    last push → publish now, so transport taps reflect on the wrist instantly.
+ *  - **Position beacon**: while playing, at most once per [beaconIntervalMs].
+ *
+ * The position-bearing fields — [PlaybackState.charOffset],
+ * [PlaybackState.currentSentenceRange], [PlaybackState.sleepTimerRemainingMs] —
+ * are masked from the structural compare: they advance continuously during
+ * normal playback and would otherwise force a push on every upstream tick. The
+ * watch reconstructs position by extrapolating from the beacon
+ * ([PlaybackState.extrapolatedScrubProgress]), so a ~1Hz refresh is plenty.
+ *
+ * Beaconing is gated on `next.isPlaying`: a paused position doesn't move, so we
+ * fall silent rather than re-publishing an unchanging position every second.
+ * That silence is also what lets the watch treat "no beacon while the state says
+ * playing" as a connection drop ("Reconnecting…") without a paused chapter
+ * tripping the same signal.
+ *
+ * Extracted as a top-level function so the cadence rule is unit-testable without
+ * GMS `DataClient` — the same seam pattern as the watch-side `decodeState` and
+ * `NodeSelection`.
+ */
+internal fun shouldPublishWearState(
+    last: PlaybackState?,
+    next: PlaybackState,
+    lastPublishElapsedMs: Long,
+    nowElapsedMs: Long,
+    beaconIntervalMs: Long,
+): Boolean {
+    if (last == null) return true
+    val structuralChanged = next.maskPosition() != last.maskPosition()
+    if (structuralChanged) return true
+    return next.isPlaying && (nowElapsedMs - lastPublishElapsedMs) >= beaconIntervalMs
+}
+
+/** Zero the continuously-advancing position fields so [shouldPublishWearState]
+ *  compares only the discrete, watch-visible state. */
+private fun PlaybackState.maskPosition(): PlaybackState =
+    copy(charOffset = 0, currentSentenceRange = null, sleepTimerRemainingMs = null)
+
+/**
+ * Convert a truthful playback position in ms to the speed-invariant char offset
+ * the watch's [PlaybackState.scrubProgress] rail expects. Mirrors
+ * `PlaybackControllerImpl.positionMsToCharOffset`: the rail lives on the
+ * media-time axis, so the conversion is speed-independent — `posMs/1000 *`
+ * [SPEED_BASELINE_CHARS_PER_SECOND]. Stamped into each beacon's
+ * [PlaybackState.charOffset] so the watch anchors on the real current position.
+ */
+internal fun positionMsToWearCharOffset(positionMs: Long): Int =
+    ((positionMs.coerceAtLeast(0L) / 1000.0) * SPEED_BASELINE_CHARS_PER_SECOND).toInt()
