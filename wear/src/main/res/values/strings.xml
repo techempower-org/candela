@@ -42,4 +42,8 @@
     <string name="wear_state_buffering">Buffering</string>
     <string name="wear_cd_chapter_progress">Chapter progress</string>
     <string name="wear_cd_open_teleprompter">Open teleprompter remote</string>
+
+    <!-- Now Playing tile -->
+    <string name="wear_tile_label">Now Playing</string>
+    <string name="wear_tile_description">Resume your audiobook — play/pause and progress at a glance.</string>
 </resources>
