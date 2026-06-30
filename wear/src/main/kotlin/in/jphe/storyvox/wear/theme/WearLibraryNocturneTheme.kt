@@ -13,6 +13,7 @@ import androidx.wear.compose.material.Colors
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Typography
 import `in`.jphe.storyvox.ui.R as CoreUiR
+import `in`.jphe.storyvox.ui.theme.StatusTokens
 
 /**
  * Wear OS port of the phone/tablet Library Nocturne palette.
@@ -39,6 +40,10 @@ internal val WarmDarkContainerHigh = Color(0xFF1B1822) // SurfaceTokens.SurfaceC
 internal val ParchmentOn = Color(0xFFE8DFD1)         // SurfaceTokens.OnSurfaceDark
 internal val ParchmentOnMuted = Color(0xFFB8AE9F)    // SurfaceTokens.OnSurfaceVariantDark
 internal val BrassRingTrack = Color(0xFF3A3530)      // SurfaceTokens.OutlineVariantDark
+// Semantic status color: referenced from the shared token rather than
+// duplicated by value (the brass/surface tokens above mirror :core-ui by
+// literal; the one error role stays single-source via StatusTokens.ErrorDark).
+internal val ErrorTerracotta = StatusTokens.ErrorDark
 
 private val WearNocturneColors = Colors(
     primary = BrassPrimary,
@@ -47,7 +52,7 @@ private val WearNocturneColors = Colors(
     secondaryVariant = BrassMuted,
     background = WarmDarkSurface,
     surface = WarmDarkContainer,
-    error = Color(0xFFE07A6A),
+    error = ErrorTerracotta,
     onPrimary = WarmDarkSurface,
     onSecondary = WarmDarkSurface,
     onBackground = ParchmentOn,
