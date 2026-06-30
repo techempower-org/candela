@@ -231,13 +231,17 @@ private fun CueCard(text: String, fontSize: Int, opacity: Float) {
 
 @Composable
 private fun ScriptLineRow(line: ScriptBlock.Line, fontSize: Int, opacity: Float) {
-    val speakerColor = line.speaker?.let {
+    // #1369 — `ScriptSpeaker` moved to :core-data, so `line.speaker` is now a
+    // public property declared in a different module; Kotlin won't smart-cast
+    // it. Bind it to a local val, which CAN be smart-cast after the null check.
+    val speaker = line.speaker
+    val speakerColor = speaker?.let {
         SpeakerPalette[it.colorIndex % SpeakerPalette.size].copy(alpha = opacity)
     }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        if (line.showLabel && line.speaker != null && speakerColor != null) {
+        if (line.showLabel && speaker != null && speakerColor != null) {
             Text(
-                text = line.speaker.name,
+                text = speaker.name,
                 color = speakerColor,
                 fontSize = (fontSize * 0.5f).sp,
                 fontWeight = FontWeight.ExtraBold,
