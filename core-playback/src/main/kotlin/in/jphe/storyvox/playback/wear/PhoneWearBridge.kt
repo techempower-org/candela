@@ -8,6 +8,7 @@ import com.google.android.gms.wearable.Wearable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
+import `in`.jphe.storyvox.playback.RecordingController
 import `in`.jphe.storyvox.playback.SleepTimerMode
 import `in`.jphe.storyvox.playback.TeleprompterController
 import javax.inject.Inject
@@ -39,6 +40,7 @@ class PhoneWearBridge @Inject constructor(
     @ApplicationContext private val context: Context,
     private val controller: PlaybackController,
     private val teleprompterController: TeleprompterController,
+    private val recordingController: RecordingController,
 ) : MessageClient.OnMessageReceivedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -53,7 +55,11 @@ class PhoneWearBridge @Inject constructor(
             // singleton, #1320) into the published PlaybackState so the watch
             // reflects it over the existing /playback/state sync. Any teleprompter
             // change re-publishes, same as a playback change.
-            combine(
+            // #1367 (Wear PR1) — also fold RecordingController state in, so the
+            // watch reflects recording over the same /playback/state sync.
+            // Two nested 4-arg combines keep each within the typed overload
+            // limit (a single 7-flow combine would fall to the untyped vararg).
+            val withTeleprompter = combine(
                 controller.state,
                 teleprompterController.enabled,
                 teleprompterController.playing,
@@ -63,6 +69,18 @@ class PhoneWearBridge @Inject constructor(
                     teleprompterEnabled = tpEnabled,
                     teleprompterPlaying = tpPlaying,
                     teleprompterWpm = tpWpm,
+                )
+            }
+            combine(
+                withTeleprompter,
+                recordingController.armed,
+                recordingController.recording,
+                recordingController.elapsedMs,
+            ) { state, recArmed, recActive, recElapsed ->
+                state.copy(
+                    recordingArmed = recArmed,
+                    recording = recActive,
+                    recordingElapsedMs = recElapsed,
                 )
             }.collectLatest { state -> publishState(state) }
         }
@@ -108,6 +126,12 @@ class PhoneWearBridge @Inject constructor(
                     teleprompterController.setPlaying(!teleprompterController.playing.value)
                 CMD_TELEPROMPTER_WPM ->
                     TeleprompterWpmPayload.decode(event.data)?.let { teleprompterController.setWpm(it) }
+                // Issue #1367 (Wear PR1) — recording remote. Payload-less: the
+                // controller turns Start into the phone's 3-2-1 countdown +
+                // record (only effective when a RecordingScreen is collecting,
+                // i.e. recordingArmed); Stop finalizes the clip.
+                CMD_RECORDING_START -> recordingController.requestStart()
+                CMD_RECORDING_STOP -> recordingController.requestStop()
             }
         }
     }
@@ -146,5 +170,19 @@ class PhoneWearBridge @Inject constructor(
         const val CMD_TELEPROMPTER_TOGGLE = "/playback/cmd/teleprompterToggle"
         const val CMD_TELEPROMPTER_PLAY_PAUSE = "/playback/cmd/teleprompterPlayPause"
         const val CMD_TELEPROMPTER_WPM = "/playback/cmd/teleprompterWpm"
+
+        /**
+         * Issue #1367 (Wear PR1) — recording remote (wrist) commands. Both are
+         * payload-less: the watch knows recording / armed state from the synced
+         * [PlaybackState] (`recordingArmed` / `recording` / `recordingElapsedMs`),
+         * and should gate its record button on `recordingArmed` — Start reaches
+         * no collector and is dropped if the phone isn't on RecordingScreen.
+         *
+         * The watch-side UI that sends these is built separately on top of this
+         * contract; the constants + dispatch ship here so the phone seam is
+         * complete.
+         */
+        const val CMD_RECORDING_START = "/playback/cmd/recordingStart"
+        const val CMD_RECORDING_STOP = "/playback/cmd/recordingStop"
     }
 }
