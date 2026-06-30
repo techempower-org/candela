@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId = "in.jphe.storyvox.wear"
         minSdk = 26
-        targetSdk = 34   // Wear OS targets sdk 34 in 2026; bump alongside Wear platform support.
+        targetSdk = 36   // #1406 — match :app's targetSdk (Android 16); compileSdk 37 ≥ 36.
         versionCode = phoneVersionCode   // #1405 — shared with :app (see top of file)
         versionName = phoneVersionName   // #1405 — shared with :app (see top of file)
     }
