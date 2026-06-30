@@ -45,7 +45,8 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 @Composable
 fun AccountSettingsScreen(
     onBack: () -> Unit,
-    onOpenSignIn: () -> Unit,
+    onOpenSyncSignIn: () -> Unit,
+    onOpenRoyalRoadSignIn: () -> Unit,
     onOpenGitHubSignIn: () -> Unit,
     onOpenGitHubRevoke: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -126,7 +127,7 @@ fun AccountSettingsScreen(
                         trailing = {
                             BrassButton(
                                 label = stringResource(R.string.settings_sign_in),
-                                onClick = onOpenSignIn,
+                                onClick = onOpenSyncSignIn,
                                 variant = BrassButtonVariant.Primary,
                             )
                         },
@@ -160,7 +161,7 @@ fun AccountSettingsScreen(
                         trailing = {
                             BrassButton(
                                 label = stringResource(R.string.settings_sign_in),
-                                onClick = onOpenSignIn,
+                                onClick = onOpenRoyalRoadSignIn,
                                 variant = BrassButtonVariant.Primary,
                             )
                         },
