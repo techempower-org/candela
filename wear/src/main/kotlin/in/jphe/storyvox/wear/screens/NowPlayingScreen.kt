@@ -20,6 +20,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
+import android.content.Context
+import android.media.AudioManager
+import androidx.compose.foundation.focusable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,6 +51,11 @@ import `in`.jphe.storyvox.wear.theme.BrassPrimary
 import `in`.jphe.storyvox.wear.theme.ParchmentOnMuted
 import `in`.jphe.storyvox.wear.theme.WearLibraryNocturneTheme
 import kotlinx.coroutines.launch
+
+/** Scroll-pixels per volume step — ~one Galaxy Watch4 bezel detent. Tuned in
+ *  the 30–50px detent range so a single physical click steps volume once, while
+ *  a smooth touch-ring spin accumulates to the same threshold. */
+private const val ROTARY_VOLUME_STEP_PX = 48f
 
 /**
  * Now-playing surface — Library Nocturne styled, circular scrubber on round
@@ -116,6 +132,20 @@ internal fun NowPlayingContent(
     val isRound = configuration.isScreenRound
     val progress = state.scrubProgress()
 
+    // Rotating bezel (Galaxy Watch4 Classic) / touch-ring → media volume.
+    // Both arrive as RotaryScrollEvent; we accumulate the scroll delta and step
+    // the watch's STREAM_MUSIC volume once per detent's worth of travel (so a
+    // discrete bezel click steps once, and a smooth touch-ring spin accumulates
+    // to the same threshold). Rotary input requires explicit focus on Wear, so
+    // we hold a FocusRequester and grab focus once the content is laid out.
+    val context = LocalContext.current
+    val audioManager = remember(context) {
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    val rotaryFocus = remember { FocusRequester() }
+    var rotaryAccumPx by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) { runCatching { rotaryFocus.requestFocus() } }
+
     Scaffold(
         timeText = { TimeText() },
         modifier = Modifier.fillMaxSize(),
@@ -123,6 +153,27 @@ internal fun NowPlayingContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onRotaryScrollEvent { event ->
+                    // Clockwise (positive scroll) raises, counter-clockwise lowers.
+                    // while-loops so a fast spin (one large delta) steps more than
+                    // once; the sub-detent remainder carries to the next event.
+                    rotaryAccumPx += event.verticalScrollPixels
+                    while (rotaryAccumPx >= ROTARY_VOLUME_STEP_PX) {
+                        audioManager.adjustStreamVolume(
+                            AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0,
+                        )
+                        rotaryAccumPx -= ROTARY_VOLUME_STEP_PX
+                    }
+                    while (rotaryAccumPx <= -ROTARY_VOLUME_STEP_PX) {
+                        audioManager.adjustStreamVolume(
+                            AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0,
+                        )
+                        rotaryAccumPx += ROTARY_VOLUME_STEP_PX
+                    }
+                    true
+                }
+                .focusRequester(rotaryFocus)
+                .focusable()
                 .background(MaterialTheme.colors.background),
             contentAlignment = Alignment.Center,
         ) {
