@@ -251,7 +251,7 @@ private fun ChapterMeta(state: PlaybackState) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
-            text = state.chapterTitle ?: state.bookTitle ?: "storyvox",
+            text = state.chapterTitle ?: state.bookTitle ?: "Candela",
             style = MaterialTheme.typography.title3,
             color = BrassPrimary,
             maxLines = 1,
