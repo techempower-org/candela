@@ -283,7 +283,11 @@ private fun SquareNowPlaying(
             modifier = Modifier.size(72.dp),
         )
         ChapterMeta(state = state)
-        LinearScrubber(progress = progress, modifier = Modifier.fillMaxWidth())
+        LinearScrubber(
+            progress = progress,
+            indeterminate = state.isBuffering,
+            modifier = Modifier.fillMaxWidth(),
+        )
         TransportRow(
             isPlaying = state.isPlaying,
             enabled = connected,
@@ -407,5 +411,9 @@ private fun PreviewSmallRound() = NowPlayingPreview(samplePlaying())
 @Preview(device = WearDevices.SQUARE, showSystemUi = true, name = "Square")
 @Composable
 private fun PreviewSquare() = NowPlayingPreview(samplePlaying())
+
+@Preview(device = WearDevices.SQUARE, showSystemUi = true, name = "Square · Buffering")
+@Composable
+private fun PreviewSquareBuffering() = NowPlayingPreview(sampleBuffering())
 
 // endregion

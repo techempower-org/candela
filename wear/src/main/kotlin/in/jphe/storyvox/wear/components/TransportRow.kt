@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.wear.components
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -101,10 +103,19 @@ private fun TransportButton(
             )
         },
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(iconSize),
-        )
+        // ~150ms crossfade so the play↔pause icon swap dissolves instead of
+        // snapping. The skip buttons pass a constant icon, so Crossfade renders
+        // them statically (it never animates its initial / unchanged state).
+        Crossfade(
+            targetState = icon,
+            animationSpec = tween(durationMillis = 150),
+            label = "transport-icon",
+        ) { fadedIcon ->
+            Icon(
+                imageVector = fadedIcon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(iconSize),
+            )
+        }
     }
 }

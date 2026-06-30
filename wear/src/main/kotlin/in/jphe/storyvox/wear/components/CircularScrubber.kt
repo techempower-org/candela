@@ -1,11 +1,15 @@
 package `in`.jphe.storyvox.wear.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +63,14 @@ fun CircularScrubber(
     } else {
         Modifier
     }
+    // Smooth the brass sweep so discrete position pushes from the phone bridge
+    // glide instead of jumping. Only consumed by the determinate branch; the
+    // indeterminate branch uses CircularProgressIndicator's built-in spin.
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        label = "ring-scrub-progress",
+    )
     Box(modifier = modifier.then(scrubModifier), contentAlignment = Alignment.Center) {
         if (indeterminate) {
             CircularProgressIndicator(
@@ -69,7 +81,7 @@ fun CircularScrubber(
             )
         } else {
             CircularProgressIndicator(
-                progress = progress.coerceIn(0f, 1f),
+                progress = animatedProgress,
                 modifier = Modifier.fillMaxSize(),
                 indicatorColor = BrassPrimary,
                 trackColor = BrassRingTrack,
