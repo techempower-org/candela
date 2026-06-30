@@ -44,6 +44,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import `in`.jphe.storyvox.data.script.LineSegment
+import `in`.jphe.storyvox.data.script.ScriptBlock
+import `in`.jphe.storyvox.data.script.parseTeleprompterScript
 import `in`.jphe.storyvox.feature.reader.teleprompterScrollDeltaPx
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.isActive

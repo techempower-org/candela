@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.feature.reader.script
 
+import `in`.jphe.storyvox.playback.PendingTeleprompterScript
+import `in`.jphe.storyvox.playback.TeleprompterScriptStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -177,19 +179,19 @@ class ScriptGeneratorLogicTest {
         assertEquals(listOf(30, 60, 90), SCRIPT_DURATION_OPTIONS)
     }
 
-    // ===== ScriptDraftStore =====
+    // ===== TeleprompterScriptStore (canonical hand-off seam, #1369 unify) =====
 
     @Test
-    fun `draft store starts empty`() {
-        assertNull(ScriptDraftStore().activeScript.value)
+    fun `script store starts empty`() {
+        assertNull(TeleprompterScriptStore().pending.value)
     }
 
     @Test
-    fun `draft store load then clear round-trips the script`() {
-        val store = ScriptDraftStore()
-        store.load("Hook them in five words.")
-        assertEquals("Hook them in five words.", store.activeScript.value)
+    fun `script store load then clear round-trips the script`() {
+        val store = TeleprompterScriptStore()
+        store.load(PendingTeleprompterScript(title = "Hook", body = "Hook them in five words."))
+        assertEquals("Hook them in five words.", store.pending.value?.body)
         store.clear()
-        assertNull(store.activeScript.value)
+        assertNull(store.pending.value)
     }
 }

@@ -1,4 +1,4 @@
-package `in`.jphe.storyvox.feature.reader.recording
+package `in`.jphe.storyvox.data.script
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
