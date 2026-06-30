@@ -7,7 +7,9 @@ import `in`.jphe.storyvox.llm.LlmConfig
 import `in`.jphe.storyvox.llm.LlmError
 import `in`.jphe.storyvox.llm.LlmMessage
 import `in`.jphe.storyvox.llm.LlmRepository
+import `in`.jphe.storyvox.playback.PendingTeleprompterScript
 import `in`.jphe.storyvox.playback.TeleprompterController
+import `in`.jphe.storyvox.playback.TeleprompterScriptStore
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -30,16 +32,16 @@ import kotlinx.coroutines.launch
  * into pure top-level helpers below so they're unit-testable without Hilt,
  * coroutines, or a live provider.
  *
- * The finished script is handed to the teleprompter via [ScriptDraftStore]
- * (the cross-scope seam) plus [TeleprompterController.setEnabled] — see
- * [loadIntoTeleprompter].
+ * The finished script is handed to the teleprompter via the shared
+ * [TeleprompterScriptStore] (the cross-scope seam) plus
+ * [TeleprompterController.setEnabled] — see [loadIntoTeleprompter].
  */
 @HiltViewModel
 class ScriptGeneratorViewModel @Inject constructor(
     private val llm: LlmRepository,
     private val configFlow: Flow<LlmConfig>,
     private val teleprompter: TeleprompterController,
-    private val draftStore: ScriptDraftStore,
+    private val store: TeleprompterScriptStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ScriptGeneratorState>(ScriptGeneratorState.Idle)
@@ -120,14 +122,19 @@ class ScriptGeneratorViewModel @Inject constructor(
     }
 
     /**
-     * Hand the finished script to the teleprompter: park it in
-     * [ScriptDraftStore] for the reader to pick up and flip the transport on.
-     * No-op unless a non-blank [ScriptGeneratorState.Done] script is ready.
+     * Hand the finished script to the teleprompter: park it in the shared
+     * [TeleprompterScriptStore] for the reader to pick up and flip the transport
+     * on. No-op unless a non-blank [ScriptGeneratorState.Done] script is ready.
+     *
+     * Issue #1369 follow-up — unified onto [TeleprompterScriptStore]
+     * (core-playback) so the AI writer (#1366) and the script manager (#1369)
+     * feed the same seam, and the reader consumes one store. AI drafts carry no
+     * title yet (the editor/manager is where a script gets named).
      */
     fun loadIntoTeleprompter() {
         val script = (_state.value as? ScriptGeneratorState.Done)?.script?.trim().orEmpty()
         if (script.isEmpty()) return
-        draftStore.load(script)
+        store.load(PendingTeleprompterScript(title = "", body = script))
         teleprompter.setEnabled(true)
     }
 

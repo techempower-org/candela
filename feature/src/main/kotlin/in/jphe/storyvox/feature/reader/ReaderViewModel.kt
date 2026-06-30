@@ -27,7 +27,9 @@ import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
 import `in`.jphe.storyvox.feature.api.UiSleepTimerMode
 import `in`.jphe.storyvox.ui.theme.ReaderColors
 import `in`.jphe.storyvox.playback.PlaybackUiEvent
+import `in`.jphe.storyvox.playback.PendingTeleprompterScript
 import `in`.jphe.storyvox.playback.TeleprompterController
+import `in`.jphe.storyvox.playback.TeleprompterScriptStore
 import `in`.jphe.storyvox.playback.transcribe.AsrModelProvider
 import `in`.jphe.storyvox.playback.transcribe.VoicePacedScrollController
 import `in`.jphe.storyvox.llm.LlmError
@@ -306,6 +308,14 @@ class ReaderViewModel @Inject constructor(
      */
     private val voicePaced: VoicePacedScrollController,
     private val asrModel: AsrModelProvider,
+    /**
+     * Issue #1369 — the cross-scope hand-off seam for "Load into Teleprompter".
+     * When a [PendingTeleprompterScript] is parked here (by the script manager
+     * or the AI writer, #1366), the reader scrolls that script's body instead
+     * of the chapter body — see the [uiState] `chapterText` substitution and
+     * [resetTeleprompter]/[setTeleprompterEnabled] which clear it.
+     */
+    private val teleprompterScriptStore: TeleprompterScriptStore,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -570,6 +580,9 @@ class ReaderViewModel @Inject constructor(
         // swipes away the banner, we record the message; same message =
         // suppressed; new/different message = re-armed.
         _dismissedErrorMessage,
+        // Issue #1369 — "Load into Teleprompter" parks a script here; when
+        // present, the reader scrolls its body instead of the chapter body.
+        teleprompterScriptStore.pending,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val state = values[0] as UiPlaybackState
@@ -585,10 +598,14 @@ class ReaderViewModel @Inject constructor(
         val bookFinished = values[6] as Boolean
         val engineState = values[7] as `in`.jphe.storyvox.playback.EngineState
         val dismissedMsg = values[8] as? String
+        // Issue #1369 — a parked teleprompter script overrides the chapter body
+        // as the reader's scroll content (null = normal chapter reading).
+        val pendingScript = values[9] as? PendingTeleprompterScript
         val error = engineState as? `in`.jphe.storyvox.playback.EngineState.Error
         ReaderUiState(
             playback = state,
-            chapterText = text,
+            // Issue #1369 — show the parked script when one is loaded, else the chapter.
+            chapterText = pendingScript?.body ?: text,
             activePane = pane,
             loadingPhase = phase,
             punctuationPauseMultiplier = settingsSnapshot.punctuationPauseMultiplier,
@@ -1196,6 +1213,10 @@ class ReaderViewModel @Inject constructor(
             viewModelScope.launch {
                 teleprompter.setWpm(settings.settings.first().teleprompterWpm)
             }
+        } else {
+            // Issue #1369 — turning the teleprompter off ends the rehearsal
+            // session, so drop any parked script and revert to the chapter body.
+            teleprompterScriptStore.clear()
         }
     }
 
@@ -1218,6 +1239,7 @@ class ReaderViewModel @Inject constructor(
         teleprompter.setEnabled(false)
         teleprompter.setPlaying(false)
         voicePaced.stop() // #1368 — never leave the mic capturing after the reader closes
+        teleprompterScriptStore.clear() // #1369 — drop any parked script when the reader closes
     }
 
     // ── Voice-paced teleprompter (issue #1368) ─────────────────────────
