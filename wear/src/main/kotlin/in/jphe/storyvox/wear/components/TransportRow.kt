@@ -2,10 +2,15 @@ package `in`.jphe.storyvox.wear.components
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -14,11 +19,13 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.wear.compose.material.Button
-import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Icon
 import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.theme.BrassMuted
@@ -33,13 +40,17 @@ import `in`.jphe.storyvox.wear.theme.WarmDarkSurface
  * on play/pause first. This mirrors the phone reader pattern where the active
  * sentence carries the brass underline and surrounding text is muted.
  *
- * Skip buttons map to `CMD_SKIP_BACK` / `CMD_SKIP_FWD` (30s seek) rather than
- * chapter nav — same defaults as the phone notification controls.
+ * Skip buttons are dual-action (#1404): a short press is a ±30s seek
+ * (`CMD_SKIP_BACK` / `CMD_SKIP_FWD`, the phone-notification default), and a
+ * long press jumps a whole chapter ([onSkipBackLong] / [onSkipForwardLong] →
+ * `CMD_PREV_CH` / `CMD_NEXT_CH`). Long press fires a haptic so the chapter
+ * jump is confirmed eyes-free. When a long handler is null the button is
+ * tap-only (the center play/pause never has one).
  *
  * When [enabled] is `false` (no phone node reachable, #1030) the buttons are
- * greyed and non-clickable — Wear's [Button] applies its disabled colours
- * automatically and TalkBack announces them as disabled — so a tap can't
- * silently no-op the way it did before.
+ * greyed and non-clickable — [combinedClickable]'s `enabled` flag drops the
+ * gesture and marks the node disabled for TalkBack — so a tap can't silently
+ * no-op the way it did before.
  */
 @Composable
 fun TransportRow(
@@ -49,6 +60,8 @@ fun TransportRow(
     onSkipForward: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    onSkipBackLong: (() -> Unit)? = null,
+    onSkipForwardLong: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -61,6 +74,8 @@ fun TransportRow(
             onClick = onSkipBack,
             isPrimary = false,
             enabled = enabled,
+            onLongClick = onSkipBackLong,
+            onLongClickLabel = stringResource(R.string.wear_cd_prev_chapter),
         )
         TransportButton(
             icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -75,10 +90,13 @@ fun TransportRow(
             onClick = onSkipForward,
             isPrimary = false,
             enabled = enabled,
+            onLongClick = onSkipForwardLong,
+            onLongClickLabel = stringResource(R.string.wear_cd_next_chapter),
         )
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TransportButton(
     icon: ImageVector,
@@ -86,6 +104,8 @@ private fun TransportButton(
     onClick: () -> Unit,
     isPrimary: Boolean,
     enabled: Boolean,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     // Wear OS requires a ≥48dp touch target. These were 44/36dp — both under
     // the minimum, the muted skip buttons egregiously so, which made the
@@ -93,21 +113,34 @@ private fun TransportButton(
     // presence so the eye (and thumb) still land on play/pause first.
     val size = if (isPrimary) 52.dp else 48.dp
     val iconSize = if (isPrimary) 26.dp else 22.dp
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.size(size),
-        colors = if (isPrimary) {
-            ButtonDefaults.primaryButtonColors(
-                backgroundColor = BrassPrimary,
-                contentColor = WarmDarkSurface,
-            )
-        } else {
-            ButtonDefaults.secondaryButtonColors(
-                backgroundColor = BrassMuted,
-                contentColor = BrassPrimary,
-            )
-        },
+    val haptic = LocalHapticFeedback.current
+    val background = if (isPrimary) BrassPrimary else BrassMuted
+    val content = if (isPrimary) WarmDarkSurface else BrassPrimary
+    // Mirror the prior Wear Button's disabled treatment (#1030): a dimmed fill
+    // + icon so the greyed, non-clickable state still reads as a button.
+    val disabledAlpha = 0.38f
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(if (enabled) background else background.copy(alpha = disabledAlpha))
+            // Wear Button has no long-press, so the dual-action skip buttons
+            // (#1404) use combinedClickable; its `enabled` flag preserves the
+            // #1030 greyed/non-clickable + TalkBack-disabled behavior.
+            .combinedClickable(
+                enabled = enabled,
+                role = Role.Button,
+                onLongClickLabel = onLongClickLabel,
+                onClick = onClick,
+                onLongClick = onLongClick?.let { action ->
+                    {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        action()
+                    }
+                },
+            ),
+        contentAlignment = Alignment.Center,
     ) {
         // ~150ms crossfade so the play↔pause icon swap dissolves instead of
         // snapping. The skip buttons pass a constant icon, so Crossfade renders
@@ -120,6 +153,7 @@ private fun TransportButton(
             Icon(
                 imageVector = fadedIcon,
                 contentDescription = contentDescription,
+                tint = if (enabled) content else content.copy(alpha = disabledAlpha),
                 modifier = Modifier.size(iconSize),
             )
         }

@@ -5,12 +5,15 @@
     <!-- Now Playing -->
     <string name="wear_teleprompter">Teleprompter</string>
     <string name="wear_phone_not_connected">Phone not connected</string>
+    <string name="wear_chapter_nav_hint">Hold to change chapter</string>
 
     <!-- Transport controls (TalkBack content descriptions) -->
     <string name="wear_cd_skip_back">Skip back 30 seconds</string>
     <string name="wear_cd_play">Play</string>
     <string name="wear_cd_pause">Pause</string>
     <string name="wear_cd_skip_forward">Skip forward 30 seconds</string>
+    <string name="wear_cd_prev_chapter">Previous chapter</string>
+    <string name="wear_cd_next_chapter">Next chapter</string>
 
     <!-- Teleprompter remote -->
     <string name="wear_wpm_unit">wpm</string>

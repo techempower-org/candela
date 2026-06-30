@@ -91,9 +91,10 @@ private const val ROTARY_VOLUME_STEP_PX = 48f
  *
  * On square faces the ring becomes a horizontal brass track at the bottom.
  *
- * Audio plumbing — MediaSession state + transport — is unchanged; we still
- * read from [WearPlaybackBridge] and send `PhoneWearBridge.CMD_*` over
- * MessageClient. This PR is pure UI polish per the #192 spec.
+ * Audio plumbing — MediaSession state + transport — reads from
+ * [WearPlaybackBridge] and sends `PhoneWearBridge.CMD_*` over MessageClient.
+ * #1404 added dual-action skip buttons (long-press = chapter jump via
+ * `CMD_PREV_CH` / `CMD_NEXT_CH`) and the elapsed/remaining time readout.
  */
 @Composable
 fun NowPlayingScreen(
@@ -121,6 +122,9 @@ fun NowPlayingScreen(
         },
         onSkipBack = { scope.launch { bridge.send(PhoneWearBridge.CMD_SKIP_BACK) } },
         onSkipForward = { scope.launch { bridge.send(PhoneWearBridge.CMD_SKIP_FWD) } },
+        // #1404 — long-press the skip buttons to jump a whole chapter.
+        onPrevChapter = { scope.launch { bridge.send(PhoneWearBridge.CMD_PREV_CH) } },
+        onNextChapter = { scope.launch { bridge.send(PhoneWearBridge.CMD_NEXT_CH) } },
         // #1031 — tap the ring to scrub; duration comes from the synced state.
         onScrub = { fraction -> scope.launch { bridge.sendSeek(fraction, state.durationEstimateMs) } },
         onOpenTeleprompter = onOpenTeleprompter,
@@ -144,6 +148,8 @@ internal fun NowPlayingContent(
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     onScrub: ((fraction: Float) -> Unit)? = null,
+    onPrevChapter: () -> Unit = {},
+    onNextChapter: () -> Unit = {},
     onOpenTeleprompter: () -> Unit = {},
     onStartRecording: () -> Unit = {},
     onStopRecording: () -> Unit = {},
@@ -206,6 +212,8 @@ internal fun NowPlayingContent(
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
                     onScrub = onScrub,
+                    onPrevChapter = onPrevChapter,
+                    onNextChapter = onNextChapter,
                 )
             } else {
                 SquareNowPlaying(
@@ -215,6 +223,8 @@ internal fun NowPlayingContent(
                     onPlayPause = onPlayPause,
                     onSkipBack = onSkipBack,
                     onSkipForward = onSkipForward,
+                    onPrevChapter = onPrevChapter,
+                    onNextChapter = onNextChapter,
                 )
             }
             // Bottom-edge affordances, only when a phone is reachable: the
@@ -352,6 +362,8 @@ private fun RoundNowPlaying(
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
     onScrub: ((fraction: Float) -> Unit)? = null,
+    onPrevChapter: () -> Unit = {},
+    onNextChapter: () -> Unit = {},
 ) {
     // Scale the cover+ring to the watch instead of a fixed 116dp — small round
     // faces were crowded (worse now the transport row honours the 48dp touch
@@ -382,13 +394,17 @@ private fun RoundNowPlaying(
             )
         }
         ChapterMeta(state = state)
+        TimeReadout(progress = progress, durationMs = state.durationEstimateMs)
         TransportRow(
             isPlaying = state.isPlaying,
             enabled = connected,
             onPlayPause = onPlayPause,
             onSkipBack = onSkipBack,
             onSkipForward = onSkipForward,
+            onSkipBackLong = onPrevChapter,
+            onSkipForwardLong = onNextChapter,
         )
+        ChapterNavHint(connected = connected)
         DisconnectedHint(connected = connected)
     }
 }
@@ -401,6 +417,8 @@ private fun SquareNowPlaying(
     onPlayPause: () -> Unit,
     onSkipBack: () -> Unit,
     onSkipForward: () -> Unit,
+    onPrevChapter: () -> Unit = {},
+    onNextChapter: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -421,13 +439,17 @@ private fun SquareNowPlaying(
             indeterminate = state.isBuffering,
             modifier = Modifier.fillMaxWidth(),
         )
+        TimeReadout(progress = progress, durationMs = state.durationEstimateMs)
         TransportRow(
             isPlaying = state.isPlaying,
             enabled = connected,
             onPlayPause = onPlayPause,
             onSkipBack = onSkipBack,
             onSkipForward = onSkipForward,
+            onSkipBackLong = onPrevChapter,
+            onSkipForwardLong = onNextChapter,
         )
+        ChapterNavHint(connected = connected)
         DisconnectedHint(connected = connected)
     }
 }
@@ -477,6 +499,65 @@ private fun DisconnectedHint(connected: Boolean) {
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/**
+ * Elapsed / remaining readout under the scrubber (#1404). Position is derived
+ * from [scrubProgress] × duration — the watch never receives an absolute
+ * position field, only the char-offset progress fraction the phone publishes.
+ * Hidden when there's no duration estimate yet (e.g. a live-audio chapter),
+ * where a time pair would be meaningless.
+ */
+@Composable
+private fun TimeReadout(progress: Float, durationMs: Long) {
+    if (durationMs <= 0L) return
+    val elapsedMs = (progress.coerceIn(0f, 1f) * durationMs).toLong()
+    Text(
+        text = "${formatPlaybackTime(elapsedMs)} / ${formatPlaybackTime(durationMs)}",
+        style = MaterialTheme.typography.caption2,
+        color = ParchmentOnMuted,
+        textAlign = TextAlign.Center,
+    )
+}
+
+/**
+ * One-line discoverability cue for the skip buttons' long-press chapter jump
+ * (#1404) — the gesture is otherwise invisible. Shown only when a phone is
+ * reachable (the buttons are disabled otherwise, so the hint would mislead);
+ * mutually exclusive with [DisconnectedHint].
+ */
+@Composable
+private fun ChapterNavHint(connected: Boolean) {
+    if (!connected) return
+    Text(
+        text = stringResource(R.string.wear_chapter_nav_hint),
+        style = MaterialTheme.typography.caption2,
+        color = ParchmentOnMuted,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/**
+ * Format a millisecond duration as a compact wall-clock string: `m:ss` under
+ * an hour, `h:mm:ss` at or above one (e.g. `12:30`, `1:00:00`). Built by hand
+ * rather than via String.format so it's locale-independent and trivially
+ * unit-testable. Negative inputs clamp to zero. (Distinct from [formatElapsed],
+ * which is recording-only and never needs the hours field.)
+ */
+internal fun formatPlaybackTime(ms: Long): String {
+    val totalSeconds = (ms / 1000L).coerceAtLeast(0L)
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    val ss = seconds.toString().padStart(2, '0')
+    return if (hours > 0) {
+        "$hours:${minutes.toString().padStart(2, '0')}:$ss"
+    } else {
+        "$minutes:$ss"
+    }
 }
 
 // region --- Previews ---
