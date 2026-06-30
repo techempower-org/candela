@@ -85,8 +85,12 @@ private fun TransportButton(
     isPrimary: Boolean,
     enabled: Boolean,
 ) {
-    val size = if (isPrimary) 44.dp else 36.dp
-    val iconSize = if (isPrimary) 24.dp else 20.dp
+    // Wear OS requires a ≥48dp touch target. These were 44/36dp — both under
+    // the minimum, the muted skip buttons egregiously so, which made the
+    // transport row hard to hit on the wrist. Primary keeps a little more
+    // presence so the eye (and thumb) still land on play/pause first.
+    val size = if (isPrimary) 52.dp else 48.dp
+    val iconSize = if (isPrimary) 26.dp else 22.dp
     Button(
         onClick = onClick,
         enabled = enabled,

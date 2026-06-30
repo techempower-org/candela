@@ -197,19 +197,23 @@ internal fun NowPlayingContent(
                     onSkipForward = onSkipForward,
                 )
             }
-            // #1308 — entry to the teleprompter remote (a separate surface).
-            // Bottom-edge label so it doesn't crowd the transport controls;
-            // only offered when a phone is reachable.
+            // #1308 — entry to the teleprompter remote (a separate surface),
+            // only offered when a phone is reachable. Anchored at the bottom
+            // edge so it doesn't crowd the centered transport controls. Lifted
+            // off the bezel (was 2dp — clipped on round faces) and given a
+            // larger interior tap target (was bare caption2 text, too small to
+            // hit reliably); caption1 reads more legibly at arm's length.
             if (connected) {
                 Text(
                     text = "Teleprompter",
                     color = BrassPrimary,
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.caption2,
+                    style = MaterialTheme.typography.caption1,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 2.dp)
-                        .clickable(onClick = onOpenTeleprompter),
+                        .padding(bottom = 8.dp)
+                        .clickable(onClick = onOpenTeleprompter)
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
                 )
             }
         }
@@ -226,6 +230,12 @@ private fun RoundNowPlaying(
     onSkipForward: () -> Unit,
     onScrub: ((fraction: Float) -> Unit)? = null,
 ) {
+    // Scale the cover+ring to the watch instead of a fixed 116dp — small round
+    // faces were crowded (worse now the transport row honours the 48dp touch
+    // minimum). ~40% of the face diameter, clamped to a sane range so it stays
+    // generous on large faces without pushing the transport off small ones.
+    val coverSize = (LocalConfiguration.current.screenWidthDp * 0.40f).dp
+        .coerceIn(80.dp, 108.dp)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -238,7 +248,7 @@ private fun RoundNowPlaying(
             indeterminate = state.isBuffering,
             onScrub = onScrub,
             modifier = Modifier
-                .size(116.dp)
+                .size(coverSize)
                 .aspectRatio(1f),
         ) {
             ChapterCover(

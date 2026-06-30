@@ -83,7 +83,7 @@ fun TeleprompterRemoteScreen(
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.title3,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
 
         // Enable / disable the mode — always tappable while connected.
         RoundIconButton(
@@ -93,7 +93,7 @@ fun TeleprompterRemoteScreen(
             isPrimary = state.enabled,
             enabled = state.connected,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
 
         // WPM stepper: − [ value ] +
         Row(
@@ -129,7 +129,7 @@ fun TeleprompterRemoteScreen(
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.caption2,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
 
         // Run / pause the scroll.
         RoundIconButton(
@@ -155,8 +155,9 @@ private fun RoundIconButton(
     isPrimary: Boolean,
     enabled: Boolean,
 ) {
-    val size = if (isPrimary) 44.dp else 36.dp
-    val iconSize = if (isPrimary) 24.dp else 20.dp
+    // Wear OS ≥48dp touch target (mirrors TransportRow). Were 44/36dp.
+    val size = if (isPrimary) 52.dp else 48.dp
+    val iconSize = if (isPrimary) 26.dp else 22.dp
     Button(
         onClick = onClick,
         enabled = enabled,

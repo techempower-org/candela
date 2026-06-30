@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
+import `in`.jphe.storyvox.playback.RecordingController
+import `in`.jphe.storyvox.playback.RecordingRequest
 import `in`.jphe.storyvox.playback.TeleprompterController
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -46,6 +49,11 @@ import kotlinx.coroutines.launch
 class RecordingViewModel @Inject constructor(
     playback: PlaybackControllerUi,
     teleprompter: TeleprompterController,
+    /** Issue #1367 (Wear PR1) — shared recording control state so the Wear
+     *  remote can start/stop and mirror the REC timer. This VM is the phone-side
+     *  owner: it acts on inbound [RecordingController.requests] and writes back
+     *  `armed` / `recording` / `elapsedMs`. */
+    private val recordingController: RecordingController,
 ) : ViewModel() {
 
     /** The chapter text to read — the same script the reader's teleprompter
@@ -95,6 +103,51 @@ class RecordingViewModel @Inject constructor(
 
     private var countdownJob: Job? = null
     private var elapsedJob: Job? = null
+
+    init {
+        // This VM's lifetime ≈ the RecordingScreen being on-screen with the
+        // camera bound, so `armed` tells the Wear remote when its record button
+        // is live ("open Recording on your phone first" otherwise).
+        recordingController.setArmed(true)
+
+        // Inbound remote intents (watch): Start only begins a fresh take from
+        // Preview; Stop defers to stopRecording()'s own Recording-only guard.
+        viewModelScope.launch {
+            recordingController.requests.collect { request ->
+                when (request) {
+                    RecordingRequest.Start ->
+                        if (_uiState.value is RecordingState.Preview) startCountdown()
+                    RecordingRequest.Stop -> stopRecording()
+                }
+            }
+        }
+
+        // Write recording state back to the controller for the watch to mirror.
+        // elapsedMs is pushed only when the whole-second changes (the phone UI
+        // ticks at 100ms for smoothness, but a 10Hz Wear DataItem sync would be
+        // wasteful — the wrist timer is mm:ss).
+        viewModelScope.launch {
+            var lastSecond = -1L
+            uiState.collect { state ->
+                val elapsed = (state as? RecordingState.Recording)?.elapsedMs ?: 0L
+                recordingController.setRecording(state is RecordingState.Recording)
+                val second = elapsed / 1_000
+                if (second != lastSecond) {
+                    lastSecond = second
+                    recordingController.setElapsedMs(second * 1_000)
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Leaving RecordingScreen → the camera is gone; tell the watch it can no
+        // longer drive a recording.
+        recordingController.setArmed(false)
+        recordingController.setRecording(false)
+        recordingController.setElapsedMs(0L)
+    }
 
     /**
      * The record/stop button. Context-sensitive:
