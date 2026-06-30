@@ -49,6 +49,25 @@ class WearStateDecodeTest {
     }
 
     @Test
+    fun `round-trips the voice-paced teleprompter lines`() {
+        // #1368 — the phone derives the current/next line from positionChar and
+        // ships them in PlaybackState so the wrist renders the hands-free
+        // teleprompter without holding the chapter text. Pin that the wire
+        // carries them (non-default Strings aren't omitted by the encoder).
+        val published = PlaybackState(
+            teleprompterEnabled = true,
+            teleprompterCurrentLine = "Welcome back to the show.",
+            teleprompterNextLine = "Today we are talking about getting connected.",
+        )
+        val decoded = WearPlaybackBridge.decodeState(
+            phoneJson.encodeToString(published),
+            PlaybackState(),
+        )
+        assertEquals("Welcome back to the show.", decoded.teleprompterCurrentLine)
+        assertEquals("Today we are talking about getting connected.", decoded.teleprompterNextLine)
+    }
+
+    @Test
     fun `round-trips a sealed PlaybackError subtype`() {
         val published = PlaybackState(error = PlaybackError.AzureThrottled("F0 quota exhausted"))
         val raw = phoneJson.encodeToString(published)

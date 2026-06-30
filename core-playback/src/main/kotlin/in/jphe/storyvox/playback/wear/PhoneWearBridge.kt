@@ -12,6 +12,7 @@ import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.RecordingController
 import `in`.jphe.storyvox.playback.SleepTimerMode
 import `in`.jphe.storyvox.playback.TeleprompterController
+import `in`.jphe.storyvox.playback.transcribe.VoicePacedScrollController
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +46,7 @@ class PhoneWearBridge @Inject constructor(
     private val teleprompterController: TeleprompterController,
     private val recordingController: RecordingController,
     private val statsRepository: ListeningStatsRepository,
+    private val voicePaced: VoicePacedScrollController,
 ) : MessageClient.OnMessageReceivedListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -61,18 +63,25 @@ class PhoneWearBridge @Inject constructor(
             // change re-publishes, same as a playback change.
             // #1367 (Wear PR1) — also fold RecordingController state in, so the
             // watch reflects recording over the same /playback/state sync.
-            // Two nested 4-arg combines keep each within the typed overload
-            // limit (a single 7-flow combine would fall to the untyped vararg).
+            // #1368 — the voice-paced wristLines rides the first combine.
+            // Two nested combines (a 5-arg teleprompter+lines stage, then a
+            // 4-arg recording stage) keep each within combine's typed-overload
+            // limit — a single 8-flow combine would fall to the untyped vararg.
             val withTeleprompter = combine(
                 controller.state,
                 teleprompterController.enabled,
                 teleprompterController.playing,
                 teleprompterController.wpm,
-            ) { state, tpEnabled, tpPlaying, tpWpm ->
+                voicePaced.wristLines,
+            ) { state, tpEnabled, tpPlaying, tpWpm, lines ->
                 state.copy(
                     teleprompterEnabled = tpEnabled,
                     teleprompterPlaying = tpPlaying,
                     teleprompterWpm = tpWpm,
+                    // #1368 — voice-paced current/next line for the wrist; empty
+                    // (and the watch hides the strip) unless voice-paced is live.
+                    teleprompterCurrentLine = lines.current,
+                    teleprompterNextLine = lines.next,
                 )
             }
             combine(

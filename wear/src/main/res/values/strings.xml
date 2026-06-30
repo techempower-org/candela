@@ -25,6 +25,8 @@
     <string name="wear_cd_wpm">%1$d words per minute</string>
     <string name="wear_cd_scroll_pause">Pause scroll</string>
     <string name="wear_cd_scroll_start">Start scroll</string>
+    <!-- Voice-paced follow (#1368) -->
+    <string name="wear_cd_voice_follow_on">Voice follow on, tap to turn off</string>
 
     <!-- Chapter cover -->
     <string name="wear_cd_cover_for">Cover for %1$s</string>

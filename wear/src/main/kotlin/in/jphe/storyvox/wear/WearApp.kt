@@ -70,6 +70,8 @@ private fun InteractiveContent(bridge: WearPlaybackBridge) {
                     playing = state.teleprompterPlaying,
                     wpm = state.teleprompterWpm,
                     connected = connected,
+                    currentLine = state.teleprompterCurrentLine,
+                    nextLine = state.teleprompterNextLine,
                 ),
                 onToggleEnabled = { scope.launch { bridge.toggleTeleprompter() } },
                 onTogglePlay = { scope.launch { bridge.toggleTeleprompterScroll() } },

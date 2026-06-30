@@ -56,6 +56,22 @@ class VoicePacedScrollController @Inject constructor(
     /** True between [start] and [stop] — the mic session is active. */
     val listening: StateFlow<Boolean> = _listening.asStateFlow()
 
+    private val _wristLines = MutableStateFlow(WristLines.EMPTY)
+
+    /**
+     * The current + next display line the speaker is on, derived from
+     * [positionChar]. Surface-agnostic *text* (not pixels) — the phone ships it
+     * to the Wear teleprompter remote so the watch can render the line without
+     * holding the whole chapter. Empty between sessions; a [StateFlow] dedups,
+     * so it only changes when the speaker crosses into a new line, not on every
+     * recognized word.
+     */
+    val wristLines: StateFlow<WristLines> = _wristLines.asStateFlow()
+
+    /** Display-line spans of the current chapter (original text, so spans line
+     *  up with the source-space [positionChar]). Rebuilt each [start]. */
+    private var lineSpans: List<LineSpan> = emptyList()
+
     /**
      * Begin a voice-paced session over [chapterText]: build the aligner, start
      * capture, and stream recognized words into it. Idempotent while already
@@ -68,13 +84,19 @@ class VoicePacedScrollController @Inject constructor(
         // displayed (un-stripped) chapter text.
         val spoken = ScriptCueFilter.spokenText(chapterText)
         val aligner = ForcedAligner(spoken.text)
+        // Display lines are split from the ORIGINAL text so their spans align
+        // with the source-space offset published below.
+        lineSpans = splitTeleprompterLines(chapterText)
         _positionChar.value = 0
+        _wristLines.value = wristLinesAt(lineSpans, 0)
         _listening.value = true
         wordSource.start()
         job = scope.launch {
             wordSource.words.collect { word ->
                 val spokenOffset = aligner.onWord(word.text, word.confidence)
-                _positionChar.value = spoken.toSourceOffset(spokenOffset)
+                val sourceOffset = spoken.toSourceOffset(spokenOffset)
+                _positionChar.value = sourceOffset
+                _wristLines.value = wristLinesAt(lineSpans, sourceOffset)
             }
         }
     }
@@ -85,5 +107,6 @@ class VoicePacedScrollController @Inject constructor(
         job = null
         wordSource.stop()
         _listening.value = false
+        _wristLines.value = WristLines.EMPTY
     }
 }

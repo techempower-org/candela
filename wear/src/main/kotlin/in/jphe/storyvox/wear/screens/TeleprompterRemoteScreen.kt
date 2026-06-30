@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
@@ -45,12 +46,20 @@ import `in`.jphe.storyvox.wear.theme.WarmDarkSurface
  * @property wpm current words-per-minute (`TeleprompterController.wpm`).
  * @property connected a phone node is reachable; when false, all controls grey
  *   out (mirrors the transport controls' disconnected handling).
+ * @property currentLine the line the speaker is currently on in voice-paced
+ *   mode (#1368), pushed from the phone's `VoicePacedScrollController`. Empty
+ *   unless a voice-paced session is live — its non-emptiness is what switches
+ *   the screen into the hands-free line display (the watch never holds the
+ *   chapter text; the phone ships only these two lines).
+ * @property nextLine the upcoming line, shown dimmed beneath [currentLine].
  */
 data class TeleprompterRemoteUiState(
     val enabled: Boolean = false,
     val playing: Boolean = false,
     val wpm: Int = 0,
     val connected: Boolean = true,
+    val currentLine: String = "",
+    val nextLine: String = "",
 )
 
 /**
@@ -89,68 +98,105 @@ fun TeleprompterRemoteScreen(
         )
         Spacer(Modifier.height(6.dp))
 
-        // Enable / disable the mode — always tappable while connected.
-        RoundIconButton(
-            icon = if (state.enabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-            contentDescription = stringResource(
-                if (state.enabled) R.string.wear_cd_teleprompter_on else R.string.wear_cd_teleprompter_off,
-            ),
-            onClick = onToggleEnabled,
-            isPrimary = state.enabled,
-            enabled = state.connected,
-        )
-        Spacer(Modifier.height(6.dp))
-
-        // WPM stepper: − [ value ] +
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RoundIconButton(
-                icon = Icons.Filled.Remove,
-                contentDescription = stringResource(R.string.wear_cd_wpm_slower),
-                onClick = { onWpmDelta(-1) },
-                isPrimary = false,
-                enabled = transportEnabled,
-            )
-            val wpmDescription = stringResource(R.string.wear_cd_wpm, state.wpm)
+        if (state.currentLine.isNotEmpty()) {
+            // Issue #1368 — voice-paced line display. The phone follows the
+            // speaker's voice (mic + on-device STT) and pushes the current +
+            // next line; the wrist just renders them, advancing hands-free. WPM
+            // is irrelevant here (the voice sets the pace), so only the lines +
+            // an off toggle show. A non-empty currentLine IS the "voice mode
+            // active" signal — see TeleprompterRemoteUiState.
             Text(
-                text = "${state.wpm}",
-                color = if (transportEnabled) BrassPrimary else BrassMuted,
+                text = state.currentLine,
+                color = BrassPrimary,
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.title2,
-                modifier = Modifier
-                    .width(56.dp)
-                    .clearAndSetSemantics { contentDescription = wpmDescription },
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
             )
+            if (state.nextLine.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = state.nextLine,
+                    color = BrassMuted,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.body2,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            // Turn voice follow (the whole teleprompter) off from the wrist.
             RoundIconButton(
-                icon = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.wear_cd_wpm_faster),
-                onClick = { onWpmDelta(1) },
-                isPrimary = false,
+                icon = Icons.Filled.Visibility,
+                contentDescription = stringResource(R.string.wear_cd_voice_follow_on),
+                onClick = onToggleEnabled,
+                isPrimary = true,
+                enabled = state.connected,
+            )
+        } else {
+            // Enable / disable the mode — always tappable while connected.
+            RoundIconButton(
+                icon = if (state.enabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                contentDescription = stringResource(
+                    if (state.enabled) R.string.wear_cd_teleprompter_on else R.string.wear_cd_teleprompter_off,
+                ),
+                onClick = onToggleEnabled,
+                isPrimary = state.enabled,
+                enabled = state.connected,
+            )
+            Spacer(Modifier.height(6.dp))
+
+            // WPM stepper: − [ value ] +
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoundIconButton(
+                    icon = Icons.Filled.Remove,
+                    contentDescription = stringResource(R.string.wear_cd_wpm_slower),
+                    onClick = { onWpmDelta(-1) },
+                    isPrimary = false,
+                    enabled = transportEnabled,
+                )
+                val wpmDescription = stringResource(R.string.wear_cd_wpm, state.wpm)
+                Text(
+                    text = "${state.wpm}",
+                    color = if (transportEnabled) BrassPrimary else BrassMuted,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.title2,
+                    modifier = Modifier
+                        .width(56.dp)
+                        .clearAndSetSemantics { contentDescription = wpmDescription },
+                )
+                RoundIconButton(
+                    icon = Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.wear_cd_wpm_faster),
+                    onClick = { onWpmDelta(1) },
+                    isPrimary = false,
+                    enabled = transportEnabled,
+                )
+            }
+            Text(
+                text = stringResource(R.string.wear_wpm_unit),
+                color = BrassMuted,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.caption2,
+                modifier = Modifier.clearAndSetSemantics { },
+            )
+            Spacer(Modifier.height(6.dp))
+
+            // Run / pause the scroll.
+            RoundIconButton(
+                icon = if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = stringResource(
+                    if (state.playing) R.string.wear_cd_scroll_pause else R.string.wear_cd_scroll_start,
+                ),
+                onClick = onTogglePlay,
+                isPrimary = true,
                 enabled = transportEnabled,
             )
         }
-        Text(
-            text = stringResource(R.string.wear_wpm_unit),
-            color = BrassMuted,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.caption2,
-            modifier = Modifier.clearAndSetSemantics { },
-        )
-        Spacer(Modifier.height(6.dp))
-
-        // Run / pause the scroll.
-        RoundIconButton(
-            icon = if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = stringResource(
-                if (state.playing) R.string.wear_cd_scroll_pause else R.string.wear_cd_scroll_start,
-            ),
-            onClick = onTogglePlay,
-            isPrimary = true,
-            enabled = transportEnabled,
-        )
     }
 }
 
