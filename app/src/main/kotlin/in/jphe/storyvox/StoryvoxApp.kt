@@ -23,6 +23,7 @@ import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.playback.VoiceEngineQualityBridge
 import `in`.jphe.storyvox.sync.coordinator.SyncCoordinator
 import `in`.jphe.storyvox.widget.WidgetStateObserver
+import androidx.work.WorkManager
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -175,6 +176,19 @@ class StoryvoxApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // #1392 — cancel stale PCM pre-render jobs BEFORE WorkManager
+        // restarts them. On memory-constrained Samsung devices, the
+        // sherpa-onnx model load (~120MB native heap) from a restarted
+        // ChapterRenderJob triggers the Low Memory Killer within 15s of
+        // app launch. Cancelling is safe: pre-renders are speculative
+        // and re-enqueue naturally on the next library-add / chapter-
+        // complete / Mode-C flip.
+        initScope.launch {
+            runCatching {
+                WorkManager.getInstance(this@StoryvoxApp)
+                    .cancelAllWorkByTag("pcm-render")
+            }
+        }
         // Issue #409 — every previous-eager step is now scheduled on
         // [Dispatchers.IO] via the [Lazy] accessors. The main thread
         // returns from onCreate as fast as the Hilt component-injection

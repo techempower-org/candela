@@ -93,6 +93,10 @@ class WorkManagerPcmRenderScheduler @Inject constructor(
         val request = OneTimeWorkRequestBuilder<ChapterRenderJob>()
             .setConstraints(constraints)
             .setInputData(input)
+            // #1392 — delay so the model load doesn't overlap with app
+            // startup. On memory-constrained Samsung devices, an
+            // immediate sherpa-onnx load triggers the Low Memory Killer.
+            .setInitialDelay(Duration.ofSeconds(30))
             // Long backoff — a render that fails (model load failure,
             // OOM mid-generate) is unlikely to succeed on a quick retry.
             // Give the device time to clean up; if it keeps failing, the
