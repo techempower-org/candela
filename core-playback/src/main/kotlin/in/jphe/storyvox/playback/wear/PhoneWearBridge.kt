@@ -253,11 +253,40 @@ class PhoneWearBridge @Inject constructor(
     }
 
     companion object {
+        /**
+         * **Wear Data Layer contract — DO NOT RENAME the identifiers below.**
+         *
+         * [CAPABILITY_PLAYBACK_CONTROLLER] plus the `PATH_*` / `CMD_*` paths form the wire
+         * contract between the phone ([PhoneWearBridge]) and the watch
+         * ([in.jphe.storyvox.wear.playback.WearPlaybackBridge]). Both installs hardcode the
+         * exact same strings and the Google Wearable Data Layer routes purely by literal
+         * match — there is no negotiation, versioning, or alias layer. Renaming any of them
+         * silently breaks phone↔watch communication for every user whose two installs
+         * disagree (e.g. updated phone, not-yet-updated watch).
+         *
+         * The `storyvox_` prefix predates the candela rebrand and is **deliberately frozen**:
+         * it is an opaque routing token, never shown to users, so it carries no branding cost
+         * — while changing it would split old/new installs. See issue #1409.
+         */
+
+        /**
+         * Wear Data Layer **capability** the watch advertises so the phone can discover the
+         * playback-controller node. Its source of truth is the literal in
+         * `wear/src/main/res/values/wear.xml` (`<string-array name="android_wear_capabilities">`),
+         * which the Google Wearable service reads to advertise the capability; a resource
+         * array cannot reference this constant, so the two MUST be kept byte-identical. This
+         * constant is the documented home + the value any phone-side `CapabilityClient`
+         * lookup must use. **DO NOT RENAME** — see the contract note above and issue #1409.
+         */
+        const val CAPABILITY_PLAYBACK_CONTROLLER = "storyvox_playback_controller"
+
         /** Minimum gap between position beacons while playing (~1Hz). Discrete
          *  state changes still publish immediately; this only rate-limits the
          *  position-drift refresh the watch extrapolates between. */
         const val BEACON_INTERVAL_MS = 1_000L
 
+        /** DataItem path the watch reads to hydrate playback state on boot.
+         *  Wire contract (see the DO-NOT-RENAME note above) — #1409. */
         const val PATH_STATE = "/playback/state"
 
         /** DataItem path for the Wear Listening Stats complication —
