@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.data.repository
 
+import `in`.jphe.storyvox.data.db.StoryvoxDatabase
 import `in`.jphe.storyvox.data.db.dao.ChapterDao
 import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.entity.Chapter
@@ -17,6 +18,7 @@ import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -212,6 +214,10 @@ class FictionRepositoryImpl @Inject constructor(
     private val sources: Map<String, @JvmSuppressWildcards FictionSource>,
     private val fictionDao: FictionDao,
     private val chapterDao: ChapterDao,
+    /** Issue #1437 — the database handle, used only for
+     *  [withTransaction] in [upsertDetail]. Nullable so
+     *  pure-unit-test callers (no real Room DB) keep compiling. */
+    private val db: StoryvoxDatabase? = null,
     /** Issue #472 — magic-link resolver. Walks every registered
      *  plugin's [in.jphe.storyvox.data.source.UrlMatcher] capability
      *  to route a pasted URL to the best backend. Optional in
@@ -599,7 +605,16 @@ class FictionRepositoryImpl @Inject constructor(
         return result
     }
 
+    // #1437 — wrap both DB writes in a Room transaction so a process
+    // kill between the fiction upsert and the chapter upsert cannot
+    // orphan chapters. Falls back to non-transactional for unit tests
+    // that construct the repo without a real Room database.
     private suspend fun upsertDetail(detail: FictionDetail) {
+        if (db != null) db.withTransaction { upsertDetailInner(detail) }
+        else upsertDetailInner(detail)
+    }
+
+    private suspend fun upsertDetailInner(detail: FictionDetail) {
         val now = System.currentTimeMillis()
         val existing = fictionDao.get(detail.summary.id)
         fictionDao.upsert(detail.toEntity(existing, now))
