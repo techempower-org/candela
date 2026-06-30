@@ -9,12 +9,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import coil3.compose.AsyncImage
 import `in`.jphe.storyvox.ui.component.fictionMonogram
+import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.theme.BrassMuted
 import `in`.jphe.storyvox.wear.theme.BrassPrimary
 
@@ -46,7 +48,8 @@ fun ChapterCover(
         if (!coverUri.isNullOrBlank()) {
             AsyncImage(
                 model = coverUri,
-                contentDescription = title?.let { "Cover for $it" } ?: "Chapter cover",
+                contentDescription = title?.let { stringResource(R.string.wear_cd_cover_for, it) }
+                    ?: stringResource(R.string.wear_cd_cover_generic),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )

@@ -15,10 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Icon
+import `in`.jphe.storyvox.wear.R
 import `in`.jphe.storyvox.wear.theme.BrassMuted
 import `in`.jphe.storyvox.wear.theme.BrassPrimary
 import `in`.jphe.storyvox.wear.theme.WarmDarkSurface
@@ -55,21 +57,21 @@ fun TransportRow(
     ) {
         TransportButton(
             icon = Icons.Filled.SkipPrevious,
-            contentDescription = "Skip back 30 seconds",
+            contentDescription = stringResource(R.string.wear_cd_skip_back),
             onClick = onSkipBack,
             isPrimary = false,
             enabled = enabled,
         )
         TransportButton(
             icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (isPlaying) "Pause" else "Play",
+            contentDescription = stringResource(if (isPlaying) R.string.wear_cd_pause else R.string.wear_cd_play),
             onClick = onPlayPause,
             isPrimary = true,
             enabled = enabled,
         )
         TransportButton(
             icon = Icons.Filled.SkipNext,
-            contentDescription = "Skip forward 30 seconds",
+            contentDescription = stringResource(R.string.wear_cd_skip_forward),
             onClick = onSkipForward,
             isPrimary = false,
             enabled = enabled,
