@@ -45,6 +45,16 @@ data class PlaybackState(
     val teleprompterEnabled: Boolean = false,
     val teleprompterPlaying: Boolean = false,
     val teleprompterWpm: Int = 0,
+    /** Issue #1367 (Wear PR1) — recording-mode state mirrored from
+     *  `RecordingController` so the Wear remote can reflect it + gate its
+     *  record button. [recordingArmed] is true only while the phone is on the
+     *  RecordingScreen with the camera ready (watch shows "open Recording on
+     *  your phone first" when false). Populated by `PhoneWearBridge` at publish
+     *  time; the controller stays the source of truth. Defaults keep older
+     *  watch builds + the non-recording sync path unaffected. */
+    val recordingArmed: Boolean = false,
+    val recording: Boolean = false,
+    val recordingElapsedMs: Long = 0L,
 )
 
 @Serializable
