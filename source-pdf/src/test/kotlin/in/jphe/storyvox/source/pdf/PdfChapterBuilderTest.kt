@@ -109,6 +109,23 @@ class PdfChapterBuilderTest {
     }
 
     @Test
+    fun `page bodies are reflowed so wrapped lines do not survive as breaks`() {
+        // #1428 — a single page whose paragraph PdfBox split across visual
+        // lines must come back as flowing text, with the real (blank-line)
+        // paragraph break preserved.
+        val input = pages(
+            "This sentence was wrapped\nacross three visual lines\nby the PDF layout.\n\nThis is a separate paragraph.",
+        )
+        val chapters = PdfChapterBuilder.build(input, pagesPerChapter = 5)
+        assertEquals(1, chapters.size)
+        assertEquals(
+            "This sentence was wrapped across three visual lines by the PDF layout.\n\n" +
+                "This is a separate paragraph.",
+            chapters[0].plainBody,
+        )
+    }
+
+    @Test
     fun `chapter ids are stable and unique by first page`() {
         // 2 heading pages out of 4 (fraction 0.5 <= 0.6) -> heading split.
         val input = pages(
