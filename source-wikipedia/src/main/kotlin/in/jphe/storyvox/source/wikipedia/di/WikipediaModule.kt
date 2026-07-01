@@ -5,11 +5,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.wikipedia.WikipediaSource
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -65,20 +61,14 @@ internal object WikipediaHttpModule {
 }
 
 /**
- * Issue #377 — contributes [WikipediaSource] into the multi-source
- * `Map<String, FictionSource>`. Adds a "Wikipedia" entry to the
- * segmented source picker; persisted fictions with sourceId="wikipedia"
- * route through this source.
+ * `:source-wikipedia` public-visibility DI. Wikipedia's repository
+ * routing and registry descriptor are both generated from the
+ * `@SourcePlugin` annotation on [WikipediaSource] (#1400); this module
+ * now only exposes the [WikipediaBrowseSource] seam (see below).
  */
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class WikipediaBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.WIKIPEDIA)
-    abstract fun bindFictionSource(impl: WikipediaSource): FictionSource
 
     /**
      * Issue #796 — expose the same [WikipediaSource] singleton through

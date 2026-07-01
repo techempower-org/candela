@@ -5,10 +5,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.slack.SlackSource
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
@@ -56,24 +52,18 @@ internal object SlackHttpModule {
 }
 
 /**
- * Issue #454 — contributes [SlackSource] into the multi-source
- * `Map<String, FictionSource>` so the repository can route
- * `sourceId = "slack"` fictions to it. Legacy Phase-2 dual-wire
- * binding — the matching `@SourcePlugin` annotation on
- * [SlackSource] adds the registry-driven descriptor binding
- * alongside it. Phase 3 removes this Module once all backends
- * migrate; until then, both bindings coexist (matches
- * `:source-discord`, `:source-telegram` pattern).
+ * Public-visibility DI for `:source-slack`: exposes
+ * [SlackWorkspaceDirectory][in.jphe.storyvox.source.slack.SlackWorkspaceDirectory]
+ * so `:app` can render the authentication probe + channel list without
+ * depending on the module's internal wire types.
+ *
+ * Slack's repository routing and registry descriptor are both generated
+ * from the `@SourcePlugin` annotation on [SlackSource] (#1400); this
+ * module no longer hand-writes an `@IntoMap` binding.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class SlackBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.SLACK)
-    abstract fun bindFictionSource(impl: SlackSource): FictionSource
 
     /** Public-visibility wrapper around the internal SlackApi so
      *  :app can render the Settings authentication probe + channel

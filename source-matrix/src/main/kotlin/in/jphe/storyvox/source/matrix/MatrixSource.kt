@@ -94,6 +94,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Federated open-standard chat · room = fiction, message = chapter (with same-sender coalescing)",
     sourceUrl = "https://matrix.org",
+    generateRouting = true,
 )
 @Singleton
 internal class MatrixSource @Inject constructor(

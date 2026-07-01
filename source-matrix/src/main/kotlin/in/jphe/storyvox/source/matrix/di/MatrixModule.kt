@@ -5,10 +5,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.matrix.MatrixSource
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
@@ -64,24 +60,18 @@ internal object MatrixHttpModule {
 }
 
 /**
- * Issue #457 — contributes [MatrixSource] into the multi-source
- * `Map<String, FictionSource>` so the repository can route
- * `sourceId = "matrix"` fictions to it. Legacy Phase-2 dual-wire
- * binding — the matching `@SourcePlugin` annotation on
- * [MatrixSource] adds the registry-driven descriptor binding
- * alongside it. Phase 3 removes this Module once all backends
- * migrate; until then both bindings coexist (matches `:source-discord`
- * + `:source-telegram` pattern).
+ * Public-visibility DI for `:source-matrix`: exposes
+ * [MatrixJoinedRoomsDirectory][in.jphe.storyvox.source.matrix.MatrixJoinedRoomsDirectory]
+ * so `:app` can render the room picker / whoami confirmation without
+ * depending on the module's internal wire types.
+ *
+ * Matrix's repository routing and registry descriptor are both
+ * generated from the `@SourcePlugin` annotation on [MatrixSource]
+ * (#1400); this module no longer hand-writes an `@IntoMap` binding.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class MatrixBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.MATRIX)
-    abstract fun bindFictionSource(impl: MatrixSource): FictionSource
 
     /** Public-visibility wrapper around the internal MatrixApi so
      *  :app can render the room-picker / whoami confirmation in a

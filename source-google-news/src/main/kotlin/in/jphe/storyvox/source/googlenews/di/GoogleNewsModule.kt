@@ -5,11 +5,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.googlenews.GoogleNewsSource
 import `in`.jphe.storyvox.source.googlenews.article.ArticleResolver
 import `in`.jphe.storyvox.source.googlenews.article.GoogleNewsArticleResolver
@@ -58,23 +54,17 @@ internal object GoogleNewsHttpModule {
 }
 
 /**
- * Contributes [GoogleNewsSource] into the multi-source
- * `Map<String, FictionSource>` (legacy routing) alongside the
- * plugin-seam descriptor KSP emits from the `@SourcePlugin` annotation —
- * both coexist, the same pattern as `:source-rss` / `:source-hackernews`.
  * Binds the #1295 [GoogleNewsArticleResolver] for full-article text (opt-in,
  * default OFF via [GoogleNewsConfig][in.jphe.storyvox.data.repository.GoogleNewsConfig]);
  * when disabled it returns null and the source falls back to the digest.
+ *
+ * Google News's repository routing and registry descriptor are both
+ * generated from the `@SourcePlugin` annotation on [GoogleNewsSource]
+ * (#1400); this module no longer hand-writes an `@IntoMap` binding.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class GoogleNewsBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.GOOGLE_NEWS)
-    abstract fun bindFictionSource(impl: GoogleNewsSource): FictionSource
 
     @Binds
     @Singleton

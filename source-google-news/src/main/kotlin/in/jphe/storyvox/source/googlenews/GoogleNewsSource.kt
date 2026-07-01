@@ -58,6 +58,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Top stories, topic sections & search · headlines and related coverage as listenable briefings",
     sourceUrl = "https://news.google.com",
+    generateRouting = true,
 )
 @Singleton
 internal class GoogleNewsSource @Inject constructor(
