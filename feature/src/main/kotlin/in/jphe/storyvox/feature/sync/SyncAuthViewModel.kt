@@ -287,39 +287,50 @@ internal fun isLikelyEmail(raw: String): Boolean {
 }
 
 /**
- * Issue #583 — sanitize server-side auth errors before showing them
- * to the user. The InstantDB endpoint returns its parser error
- * verbatim on malformed payloads (e.g. `Malformed parameter: [\`),
- * and that raw string contains JSON-path tokens (`[`, `]`, `\`, `"`)
- * that confuse users and look like a bug, not a validation failure.
+ * Issue #583 / #1452 — sanitize server-side auth errors before showing
+ * them to the user. The InstantDB endpoint returns its parser error
+ * verbatim on malformed payloads (e.g. `Malformed parameter: [\`), full
+ * of JSON-path tokens (`[`, `]`, `\`, `"`) that look like a bug.
  *
- * Strategy:
- *  1. Drop trailing dangling JSON-path tokens (`[`, `]`, `\`, `,`).
- *  2. If the truncated string is now empty / all-punctuation / looks
- *     like a JSON fragment, fall back to a friendly generic message
- *     keyed off the most common cases (malformed parameter → email
- *     issue, otherwise generic).
- *  3. Cap length at 140 chars so a paragraph-long server message
- *     doesn't blow out the field caption row.
+ * #1452 — a *malformed parameter* can be the `app-id` OR the `email`.
+ * The old code mapped every "malformed parameter" to an email error, so a
+ * bad shipped `INSTANTDB_APP_ID` told users "your email doesn't look right"
+ * — sending them to fix a non-problem. `InstantClient.parseError` now
+ * surfaces parameter errors as `"<type>: <field>"` (e.g.
+ * "param-malformed: app-id"); we branch on the field:
+ *  - `app-id` → a build/config fault → tell the user to update, don't
+ *    blame the email.
+ *  - `email` (or an explicit "invalid email") → the user's to fix.
+ *  - any other / unattributable malformed param → stay neutral.
+ * Also drops trailing JSON-path tokens and caps length at 140 chars.
  *
  * Pure / no Android deps so the unit test can pin every branch
  * without a Robolectric harness.
  */
 internal fun sanitizeAuthError(raw: String?): String {
-    val fallback = "Couldn't send the sign-in code. Please check the email address and try again."
+    val fallback = "Couldn't send the sign-in code. Please try again in a moment."
     if (raw.isNullOrBlank()) return fallback
     var msg = raw.trim()
     // Trim trailing JSON-structure punctuation that leaks parser state.
     msg = msg.trimEnd(' ', '[', ']', '\\', ',', ':', '"', '\'')
-    // If the message is now empty or starts to look like JSON noise,
-    // map to a friendly equivalent.
     if (msg.isBlank()) return fallback
     val lower = msg.lowercase()
+    val isParamError = lower.startsWith("param-malformed") ||
+        lower.startsWith("param-missing") ||
+        lower.startsWith("malformed parameter")
     return when {
-        lower.startsWith("malformed parameter") ||
+        // A malformed/missing *app-id* means this build shipped a bad
+        // INSTANTDB_APP_ID (#1452) — a config fault, never the user's email.
+        isParamError && (lower.contains("app-id") || lower.contains("app_id")) ->
+            "Cloud Sync isn't set up correctly in this version of the app. " +
+                "Please update to the latest version — and let us know if it keeps happening."
+        // Only an actual email problem gets the email message.
+        (isParamError && lower.contains("email")) ||
             lower.contains("invalid email") ||
             lower.contains("not a valid email") ->
             "That email address doesn't look right. Please double-check and try again."
+        // Malformed some other/unattributable param — don't blame the email.
+        isParamError -> fallback
         lower.contains("rate limit") || lower.contains("too many requests") ->
             "Too many attempts. Wait a minute and try again."
         lower.contains("network") || lower.contains("unable to resolve") || lower.contains("timeout") ->

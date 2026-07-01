@@ -6,6 +6,7 @@ import `in`.jphe.storyvox.sync.client.SyncAuthResult
 import `in`.jphe.storyvox.sync.client.TransportResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -95,5 +96,32 @@ class InstantClientTest {
         // than letting the UI advance to the code-entry screen with no
         // code in the user's inbox.
         check(r is SyncAuthResult.Err)
+    }
+
+    @Test fun `param-malformed surfaces the app-id field, not the truncated message`() = runTest {
+        // #1452 — InstantDB rejects a bad app-id with a param error whose
+        // free-text message truncates to "Malformed parameter: [\" at the
+        // first embedded quote. parseError must read the structured hint.in
+        // field so the UI can tell it's the app-id (a config fault), not the
+        // user's email.
+        val body = """{"type":"param-malformed","message":"Malformed parameter: [\"body\" \"app-id\"]","hint":{"in":["body","app-id"]}}"""
+        val transport = FakeTransport(mapOf(
+            "/runtime/auth/send_magic_code" to TransportResult(400, body),
+        ))
+        val r = InstantClient("test-app", transport).sendMagicCode("user@example.com")
+        check(r is SyncAuthResult.Err)
+        assertTrue("expected app-id field, got: ${r.message}", r.message.contains("app-id"))
+        assertTrue("expected param-malformed type, got: ${r.message}", r.message.contains("param-malformed"))
+    }
+
+    @Test fun `param-malformed surfaces the email field distinctly from app-id`() = runTest {
+        val body = """{"type":"param-malformed","message":"Malformed parameter: [\"body\" \"email\"]","hint":{"in":["body","email"]}}"""
+        val transport = FakeTransport(mapOf(
+            "/runtime/auth/send_magic_code" to TransportResult(400, body),
+        ))
+        val r = InstantClient("test-app", transport).sendMagicCode("bad")
+        check(r is SyncAuthResult.Err)
+        assertTrue("expected email field, got: ${r.message}", r.message.contains("email"))
+        assertFalse("must not report app-id, got: ${r.message}", r.message.contains("app-id"))
     }
 }
