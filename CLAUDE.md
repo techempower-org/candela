@@ -1,6 +1,6 @@
-# storyvox
+# Candela
 
-Android app that turns text from 20+ sources into narrated audiobooks via TTS. Kotlin, Jetpack Compose, Hilt, Room, OkHttp.
+Android app that turns text from 27 sources into narrated audiobooks via TTS. Kotlin, Jetpack Compose, Hilt, Room, OkHttp.
 
 ## Build
 
@@ -31,7 +31,7 @@ Wait ~60s for boot, then CI picks up automatically. Never compile locally on kat
 - **core-plugin-ksp** — `@SourcePlugin` annotation processor → Hilt `@IntoSet` factories
 - **wear** — Wear OS companion app (Library Nocturne on the watch)
 - **baselineprofile** — Macrobenchmark module that generates the R8 baseline profile
-- **source-*** — 28 source modules; 25 implement `FictionSource`. The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
+- **source-*** — 30 source modules; 27 implement `FictionSource`. The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
 
 ## Key patterns
 
@@ -45,11 +45,11 @@ Wait ~60s for boot, then CI picks up automatically. Never compile locally on kat
 
 ## Large files (read with offset/limit)
 
-- `EnginePlayer.kt` — ~5500 lines
+- `EnginePlayer.kt` — ~6300 lines
 - `SettingsScreen.kt` — ~4100 lines (legacy long-scroll, being replaced by hub)
-- `SettingsRepositoryUiImpl.kt` — ~3600 lines
-- `AudiobookView.kt` — ~2550 lines
-- `UiContracts.kt` — ~2550 lines
+- `SettingsRepositoryUiImpl.kt` — ~3700 lines
+- `UiContracts.kt` — ~2600 lines
+- `AudiobookView.kt` — ~2600 lines
 
 ## Versioning
 

@@ -2,7 +2,7 @@
 
 Candela is [TechEmpower](https://techempower.org)'s accessible resource
 app, built on a Library Nocturne brass-on-warm-dark engine. Every
-release announcement to `#storyvox` leads with TechEmpower's mission
+release announcement to `#candela` leads with TechEmpower's mission
 framing first ("Technology for All. Access Made Easy.") and the
 engineering capability framing second — the brass + candle visual
 voice stays, the copy emphasis shifts so the announcement reads as a
@@ -21,7 +21,7 @@ Source of truth for the deterministic sigil name lives at
 
 Mustache-style `{{VARS}}` get filled in per release. The output goes via
 `mcp__claude_ai_Slack__slack_send_message_draft` to channel
-`#storyvox` (id `C0B2SGPERE0`) — drafted, not sent, so JP can review
+`#candela` (id `C0B2SGPERE0`) — drafted, not sent, so JP can review
 the wording before broadcasting.
 
 ```
@@ -65,9 +65,9 @@ sit underneath that anchor.
 | `{{POETIC_LINE}}` | one-line theme — borrows from past milestone style. Optional but encouraged. | `Cloud-bound at last, with the right places to put a book and the right way to find it again.` |
 | `{{FEATURES_BLOCK}}` | bullets — one feature per line, with curated emoji (see palette below) | see worked example |
 | `{{ENGINEERING_BLOCK}}` | bullets — schema bumps, infra, migrations, security work | see worked example |
-| `{{APK_URL}}` | from `gh release view {{VERSION}} --json assets` | `https://github.com/techempower-org/storyvox/releases/download/v0.5.12/storyvox-v0.5.12.apk` |
-| `{{RELEASE_URL}}` | `https://github.com/techempower-org/storyvox/releases/tag/{{VERSION}}` | — |
-| `{{COMPARE_URL}}` | `https://github.com/techempower-org/storyvox/compare/{{PREV}}...{{VERSION}}` | — |
+| `{{APK_URL}}` | from `gh release view {{VERSION}} --json assets` | `https://github.com/techempower-org/candela/releases/download/v0.5.12/storyvox-v0.5.12.apk` |
+| `{{RELEASE_URL}}` | `https://github.com/techempower-org/candela/releases/tag/{{VERSION}}` | — |
+| `{{COMPARE_URL}}` | `https://github.com/techempower-org/candela/compare/{{PREV}}...{{VERSION}}` | — |
 | `{{TABLET_VERIFICATION_LINE}}` | states which device verified — empty if not installed yet | `_Installed on R83W80CAFZB · clean launch, no migration crash._` |
 | `{{REALM}}` | from `BuildConfig.SIGIL_REALM` | `fantasy` |
 | `{{BUILT_LOCAL}}` | from `BuildConfig.SIGIL_BUILT`, formatted local | `2026-05-13 06:50 PDT` |
@@ -137,9 +137,9 @@ _TechEmpower — Technology for All. Access Made Easy._ (techempower.org · disc
 :tools: Self-hosted runner on katana still doing the CI work while jphein's hosted Actions remain capped through 2026-06-01.
 
 *Install*
-:tablet: Direct APK → https://github.com/techempower-org/storyvox/releases/download/v0.5.12/storyvox-v0.5.12.apk
-:scroll: Release notes → https://github.com/techempower-org/storyvox/releases/tag/v0.5.12
-:fast_forward: Diff → https://github.com/techempower-org/storyvox/compare/v0.5.11...v0.5.12
+:tablet: Direct APK → https://github.com/techempower-org/candela/releases/download/v0.5.12/storyvox-v0.5.12.apk
+:scroll: Release notes → https://github.com/techempower-org/candela/releases/tag/v0.5.12
+:fast_forward: Diff → https://github.com/techempower-org/candela/compare/v0.5.11...v0.5.12
 
 _Installed on R83W80CAFZB · clean launch, no migration crash._
 
