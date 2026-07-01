@@ -141,16 +141,52 @@ class SyncAuthValidationTest {
     }
 
     @Test
-    fun `malformed parameter leaks are remapped to friendly message`() {
-        // The exact stress-test capture: the trailing `[\` is the JSON
-        // path leak the server forgot to filter. We sanitize → friendly.
+    fun `ambiguous malformed-parameter leak is sanitized without blaming the email`() {
+        // #1452 — a bare truncated leak (parseError couldn't extract the
+        // hint.in field) is ambiguous: it could be app-id or email. We must
+        // sanitize the JSON noise AND must NOT claim the email is wrong.
         val sanitized = sanitizeAuthError("Malformed parameter: [\\")
         assertFalse(sanitized.contains('['))
         assertFalse(sanitized.contains('\\'))
-        assertTrue(
-            "expected friendly email-shaped message, got: $sanitized",
-            sanitized.lowercase().contains("email"),
+        assertFalse(
+            "ambiguous param error must not blame the email, got: $sanitized",
+            sanitized.lowercase().contains("look right"),
         )
+    }
+
+    @Test
+    fun `malformed app-id is a config error, not an email error`() {
+        // #1452 root cause — a bad shipped INSTANTDB_APP_ID makes InstantDB
+        // reject the app-id; the user's email is fine.
+        val sanitized = sanitizeAuthError("param-malformed: app-id")
+        assertFalse(
+            "app-id error must not blame the email, got: $sanitized",
+            sanitized.lowercase().contains("look right"),
+        )
+        assertTrue(
+            "expected an update/config hint, got: $sanitized",
+            sanitized.lowercase().contains("update") || sanitized.lowercase().contains("set up"),
+        )
+    }
+
+    @Test
+    fun `missing app-id is also a config error, not an email error`() {
+        val sanitized = sanitizeAuthError("param-missing: app-id")
+        assertFalse(sanitized.lowercase().contains("look right"))
+    }
+
+    @Test
+    fun `malformed email parameter still maps to the email message`() {
+        val sanitized = sanitizeAuthError("param-malformed: email")
+        assertTrue(
+            "expected email guidance, got: $sanitized",
+            sanitized.lowercase().contains("look right"),
+        )
+    }
+
+    @Test
+    fun `explicit invalid-email server message maps to the email message`() {
+        assertTrue(sanitizeAuthError("Invalid email address").lowercase().contains("look right"))
     }
 
     @Test

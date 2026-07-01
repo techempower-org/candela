@@ -114,9 +114,24 @@ class InstantClient internal constructor(
 
     /** Pull a server-readable error string out of a non-2xx body. The
      *  Instant runtime returns `{ message: "..." }` for errors; we fall
-     *  back to the raw body otherwise. */
+     *  back to the raw body otherwise.
+     *
+     *  #1452 — parameter errors also structure the offending field in
+     *  `hint.in`, e.g. `{"type":"param-malformed","hint":{"in":["body","app-id"]}}`.
+     *  The [MESSAGE_REGEX] extractor truncates the free-text message at the
+     *  first embedded quote (`Malformed parameter: [\`), which dropped the
+     *  field name and made a bad *app-id* (a shipped-config bug) look
+     *  identical to a bad *email* (the user's problem). So for parameter
+     *  errors we prefer the structured field and return `"<type>: <field>"`
+     *  (e.g. "param-malformed: app-id"); the UI's `sanitizeAuthError` keys
+     *  off that to avoid blaming the email for a config fault. */
     private fun parseError(res: TransportResult, op: String): String {
         if (res.body.isBlank()) return "$op failed (HTTP ${res.code})"
+        val type = TYPE_REGEX.find(res.body)?.groupValues?.get(1)
+        val field = PARAM_FIELD_REGEX.find(res.body)?.groupValues?.get(1)
+        if (type != null && field != null && type.startsWith("param-")) {
+            return "$type: $field"
+        }
         // Quick-extract `"message":"..."` without a full DTO — the
         // server's error shape isn't part of the documented contract so
         // we treat it as opaque.
@@ -132,6 +147,14 @@ class InstantClient internal constructor(
         const val DEFAULT_API_URI: String = "https://api.instantdb.com"
 
         private val MESSAGE_REGEX = """"message"\s*:\s*"([^"]*)"""".toRegex()
+
+        /** #1452 — InstantDB error discriminators: the error `"type"`
+         *  (`param-malformed` / `param-missing`) and the offending field as
+         *  the second element of `hint.in` (`"in":["body","app-id"]` →
+         *  `app-id`). Regex, not a DTO, since the error shape is undocumented. */
+        private val TYPE_REGEX = """"type"\s*:\s*"([^"]*)"""".toRegex()
+        private val PARAM_FIELD_REGEX =
+            """"in"\s*:\s*\[\s*"body"\s*,\s*"([^"]+)"""".toRegex()
 
         internal val DEFAULT_JSON: Json = Json {
             ignoreUnknownKeys = true

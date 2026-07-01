@@ -153,6 +153,22 @@ jobs:
               echo "::warning::INSTANTDB_APP_ID is unset on runner '$(hostname)' — this release APK will ship with cloud sync DISABLED. Set the INSTANTDB_APP_ID Actions secret, or run the tag build on katana."
             fi
           fi
+          # 4b. #1452 — a *malformed* app-id (present but not a UUID: quotes,
+          #     whitespace, or a wrong value) passes the app's `isConfigured`
+          #     gate, so sync isn't "disabled" — instead InstantDB rejects it
+          #     as "Malformed parameter: app-id", which the sign-in UI once
+          #     mislabeled as a bogus "email doesn't look right" error. Hard-
+          #     fail a tagged build so a corrupt secret can never ship again.
+          #     Mirrors the gradle read (value trimmed; PLACEHOLDER is the
+          #     disabled sentinel handled by the warn above).
+          if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
+            appid="$(grep -m1 '^INSTANTDB_APP_ID=' ./local.properties 2>/dev/null | sed 's/^INSTANTDB_APP_ID=//' | tr -d '[:space:]' || true)"
+            if [ -n "$appid" ] && [ "$appid" != "PLACEHOLDER" ] && \
+               ! printf '%s' "$appid" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+              echo "::error::INSTANTDB_APP_ID on runner '$(hostname)' is not a valid UUID. A malformed app-id ships broken Cloud Sync that surfaces as a false 'email doesn't look right' error (#1452). Fix the Actions secret — no quotes or whitespace."
+              exit 1
+            fi
+          fi
 
       - name: Assemble release APK
         # Issue #529 — was `:app:assembleDebug` through v0.5.57. Flipped
