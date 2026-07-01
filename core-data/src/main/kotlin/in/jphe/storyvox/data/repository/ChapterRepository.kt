@@ -65,6 +65,14 @@ interface ChapterRepository {
         requireUnmetered: Boolean = true,
     )
 
+    /**
+     * Issue #1461 — cancel an in-flight bulk download for [fictionId]. Cancels
+     * the fiction's pending WorkManager chapter jobs and resets its QUEUED /
+     * DOWNLOADING rows back to NOT_DOWNLOADED so the per-chapter status UI
+     * clears. Already-downloaded bodies and prior FAILED rows are left intact.
+     */
+    suspend fun cancelDownloads(fictionId: String)
+
     suspend fun markRead(chapterId: String, read: Boolean = true)
 
     /** Courtesy alias for the playback layer. Same effect as `markRead(true)`. */
@@ -215,6 +223,16 @@ class ChapterRepositoryImpl @Inject constructor(
         for (chapter in missing) {
             queueChapterDownload(fictionId, chapter.id, requireUnmetered)
         }
+    }
+
+    override suspend fun cancelDownloads(fictionId: String) {
+        // Stop the WorkManager side first, then reset the DB rows. Order matters
+        // only loosely: a chapter that slips from QUEUED into DOWNLOADING between
+        // these two calls is caught either by the reset's IN ('QUEUED',
+        // 'DOWNLOADING') filter or by the worker's own stuck-reaper — never left
+        // dangling in the UI as "downloading" after a cancel.
+        scheduler.cancelForFiction(fictionId)
+        dao.resetActiveDownloadsForFiction(fictionId)
     }
 
     override suspend fun markRead(chapterId: String, read: Boolean) {

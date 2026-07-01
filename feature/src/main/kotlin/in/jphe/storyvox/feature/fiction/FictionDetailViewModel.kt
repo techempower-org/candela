@@ -552,6 +552,17 @@ class FictionDetailViewModel @Inject constructor(
     }
 
     /**
+     * Issue #1461 — cancel an in-flight bulk download for this fiction. Wired to
+     * the "Cancel downloads" affordance the screen shows while any chapter is
+     * QUEUED/DOWNLOADING. Stops the WorkManager jobs and resets those rows; the
+     * per-chapter badges + the "Downloading N…" chip clear via the observed
+     * download-state flow, so no explicit UI event is needed.
+     */
+    fun cancelDownloads() {
+        viewModelScope.launch { repo.cancelDownloads(fictionId) }
+    }
+
+    /**
      * Issue #117 — build a `.epub` of the current fiction in the cache dir
      * and emit [FictionDetailUiEvent.EpubExported] so the screen can fire
      * the share-sheet / SAF flow. Takes [context] because the use case

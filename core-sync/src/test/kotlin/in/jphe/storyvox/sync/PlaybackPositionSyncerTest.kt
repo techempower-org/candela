@@ -256,6 +256,7 @@ class PlaybackPositionSyncerTest {
         override suspend fun insertAll(chapters: List<Chapter>) = error("not used")
         override suspend fun setDownloadState(id: String, state: ChapterDownloadState, now: Long, error: String?) = error("not used")
         override suspend fun reapStuckDownloads(now: Long, cutoff: Long): Int = error("not used")
+        override suspend fun resetActiveDownloadsForFiction(fictionId: String): Int = error("not used")
         override suspend fun setBody(
             id: String, html: String, plain: String, checksum: String,
             notesAuthor: String?, notesAuthorPosition: String?, now: Long,

@@ -236,5 +236,13 @@ class ChapterDownloadWorker @AssistedInject constructor(
         const val STUCK_CUTOFF_MS: Long = 5 * 60 * 1000L
 
         fun uniqueName(chapterId: String): String = "download:$chapterId"
+
+        /**
+         * Issue #1461 — per-fiction WorkManager tag applied to every chapter
+         * download so a bulk download can be cancelled fiction-at-a-time via
+         * [androidx.work.WorkManager.cancelAllWorkByTag]. Distinct from [TAG]
+         * (which spans all fictions and backs the app-wide [WorkScheduler.cancelAll]).
+         */
+        fun fictionTag(fictionId: String): String = "download:fiction:$fictionId"
     }
 }

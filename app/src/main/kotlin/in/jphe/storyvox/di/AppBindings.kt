@@ -675,20 +675,29 @@ private class RealFictionRepositoryUi(
         // a cached body, so the map is empty until the user reads/downloads
         // and grows from there; a chapter absent from the map renders with
         // no preview line.
+        // Issue #1461 — fold in a fourth sibling flow: per-chapter download
+        // state (chapterId → ChapterDownloadState). Room-backed like the others;
+        // drives both the accurate `isDownloaded` flag (was hard-coded false) and
+        // the new in-progress/failed badge on the chapter row.
         kotlinx.coroutines.flow.combine(
             repo.observeFiction(fictionId),
             chapters.observePlayedChapterIds(fictionId),
             chapters.observeChapterPreviews(fictionId),
-        ) { detail, playedIds, previews ->
+            chapters.observeDownloadState(fictionId),
+        ) { detail, playedIds, previews, downloadStates ->
             detail?.chapters.orEmpty().map { ch ->
+                val downloadState = downloadStates[ch.id]
+                    ?: `in`.jphe.storyvox.data.db.entity.ChapterDownloadState.NOT_DOWNLOADED
                 UiChapter(
                     id = ch.id,
                     number = ch.index + 1,
                     title = ch.title,
                     publishedRelative = relativeTime(ch.publishedAt),
                     durationLabel = ch.wordCount?.let { "${(it / 250).coerceAtLeast(1)} min" } ?: "",
-                    isDownloaded = false,
+                    isDownloaded =
+                        downloadState == `in`.jphe.storyvox.data.db.entity.ChapterDownloadState.DOWNLOADED,
                     isFinished = ch.id in playedIds,
+                    downloadState = downloadState,
                     preview = previews[ch.id],
                 )
             }
@@ -705,6 +714,13 @@ private class RealFictionRepositoryUi(
      *  the WorkManager `NetworkType` constraint. */
     override suspend fun downloadWholeBook(fictionId: String, requireUnmetered: Boolean) {
         chapters.queueAllMissing(fictionId, requireUnmetered)
+    }
+
+    /** Issue #1461 — cancel an in-flight bulk download; forwards to
+     *  [ChapterRepository.cancelDownloads] (cancels WorkManager jobs + resets
+     *  QUEUED/DOWNLOADING rows). */
+    override suspend fun cancelDownloads(fictionId: String) {
+        chapters.cancelDownloads(fictionId)
     }
 
     override suspend fun follow(fictionId: String, follow: Boolean) {
