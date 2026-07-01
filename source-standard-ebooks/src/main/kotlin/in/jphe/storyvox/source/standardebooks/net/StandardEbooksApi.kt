@@ -161,10 +161,13 @@ internal open class StandardEbooksApi @Inject constructor(
      * Inlined here rather than shared — #1438 tracks a cross-source
      * utility once more sources need the same check.
      */
-    private fun looksLikeCfChallenge(body: String): Boolean =
-        body.contains("/cdn-cgi/challenge-platform/") ||
-            body.contains("Just a moment...") ||
-            body.contains("cf-mitigated")
+    private fun looksLikeCfChallenge(body: String): Boolean {
+        if (body.contains("cf-mitigated")) return true
+        val hasChallengeTitle = "<title>" in body &&
+            body.substringAfter("<title>").substringBefore("</title>")
+                .contains("Just a moment", ignoreCase = true)
+        return hasChallengeTitle && body.length < 20_000
+    }
 
     /**
      * One catalog page. Composes the query string then parses the
