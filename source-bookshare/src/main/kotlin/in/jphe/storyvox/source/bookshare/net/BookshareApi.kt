@@ -42,12 +42,12 @@ internal class BookshareApi(
             json.decodeFromString<BookshareTitlesPage>(it)
         }
 
-    /** `GET /v2/titles/categories` — subject list for the genre picker. */
+    /** `GET /v2/categories` — subject list for the genre picker. */
     suspend fun categories(
         apiKey: String,
         accessToken: String?,
     ): FictionResult<BookshareCategoriesPage> =
-        request("/v2/titles/categories?api_key=${enc(apiKey)}", accessToken) {
+        request(categoriesPath(apiKey), accessToken) {
             json.decodeFromString<BookshareCategoriesPage>(it)
         }
 
@@ -119,6 +119,15 @@ internal class BookshareApi(
             val qs = params.joinToString("&") { (k, v) -> "$k=${enc(v)}" }
             return "/v2/titles?$qs"
         }
+
+        /**
+         * Build `/v2/categories?api_key=…` — the v2 subject list. (v1's
+         * `/reference/category/list` maps to v2 `/v2/categories`, **not**
+         * `/v2/titles/categories`, per the official V1→V2 migration guide.)
+         * Exposed package-internal for unit-test pinning.
+         */
+        internal fun categoriesPath(apiKey: String): String =
+            "/v2/categories?api_key=${enc(apiKey)}"
     }
 }
 

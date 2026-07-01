@@ -38,6 +38,13 @@ class BookshareApiTest {
     }
 
     @Test
+    fun `categoriesPath targets v2 categories not v2 titles categories`() {
+        // v1 /reference/category/list maps to v2 /v2/categories (NOT
+        // /v2/titles/categories) per the official V1->V2 migration guide.
+        assertEquals("/v2/categories?api_key=KEY", BookshareApi.categoriesPath("KEY"))
+    }
+
+    @Test
     fun `decodes a titles search response`() {
         val body = """
             {"totalResults":179,"limit":10,"next":"abcde","titles":[
