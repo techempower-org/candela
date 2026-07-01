@@ -1605,6 +1605,18 @@ object DeepLinkResolver {
     const val EXTRA_OPEN_READER_FICTION_ID = "storyvox.open_reader.fiction_id"
     const val EXTRA_OPEN_READER_CHAPTER_ID = "storyvox.open_reader.chapter_id"
 
+    /**
+     * Issue #1455 — set only by the new-chapter notification
+     * ([in.jphe.storyvox.data.work.NewChapterNotifier]), which deep-links a
+     * brand-new chapter the PlaybackController has never loaded. Signals
+     * MainActivity to `startListening` that chapter before navigating; the
+     * playback notification and now-playing widget carry the ids above but
+     * point at the already-playing chapter, so they omit this flag and stay
+     * navigate-only. Kept in sync by string with the mirror in
+     * NewChapterNotifier.
+     */
+    const val EXTRA_OPEN_READER_PRELOAD = "storyvox.open_reader.preload"
+
     /** Issue #472 — query-string carried on the Library route when a
      *  shared URL needs to land in the Magic-add sheet. The Library
      *  screen pulls this off the nav arguments on first composition
@@ -1651,7 +1663,12 @@ object DeepLinkResolver {
     }
 
     fun resolve(intent: Intent): String? {
-        // Notification tap → reader for the currently-playing chapter.
+        // open_reader deep link → the reader route. Three emitters share
+        // these extras: the playback notification and now-playing widget
+        // (the currently-playing chapter) and the new-chapter notification
+        // (#1455, a brand-new chapter — which additionally sets
+        // EXTRA_OPEN_READER_PRELOAD so MainActivity loads it first; see
+        // [readerPreload]).
         val rf = intent.getStringExtra(EXTRA_OPEN_READER_FICTION_ID)
         val rc = intent.getStringExtra(EXTRA_OPEN_READER_CHAPTER_ID)
         if (!rf.isNullOrBlank() && !rc.isNullOrBlank()) {
@@ -1692,6 +1709,46 @@ object DeepLinkResolver {
         val id = match.groupValues[1]
         return StoryvoxRoutes.fictionDetail(id)
     }
+
+    /** Issue #1455 — the (fictionId, chapterId) a deep link asks us to LOAD
+     *  into the PlaybackController before opening the reader. */
+    data class ReaderPreload(val fictionId: String, val chapterId: String)
+
+    /**
+     * Issue #1455 — pure decision (no Android types, so it runs as a plain
+     * JUnit test): should the deep-link handler preload a chapter into the
+     * PlaybackController before navigating?
+     *
+     * The reader is a passive view of the controller — navigating to
+     * `reader/{fid}/{cid}` without a matching *loaded* chapter leaves it stuck
+     * on "loading chapter" (then a 30s timeout). The playback notification and
+     * now-playing widget carry the open_reader ids for the *already-playing*
+     * chapter, so they must NOT preload — a `startListening(autoPlay=false)`
+     * there would pause the audio in progress. Only the new-chapter
+     * notification sets [preloadRequested] (it deep-links a brand-new,
+     * never-loaded chapter), and only then do we return a non-null target.
+     */
+    fun shouldPreloadReader(
+        fictionId: String?,
+        chapterId: String?,
+        preloadRequested: Boolean,
+    ): ReaderPreload? {
+        // Positive `&&` form mirrors resolve()'s proven smart-cast above:
+        // both ids narrow to non-null String inside the branch.
+        if (preloadRequested && !fictionId.isNullOrBlank() && !chapterId.isNullOrBlank()) {
+            return ReaderPreload(fictionId, chapterId)
+        }
+        return null
+    }
+
+    /** Intent-reading wrapper for [shouldPreloadReader] — the Android Intent
+     *  extraction isn't unit-testable without Robolectric, so MainActivity
+     *  calls this glue and the pure decision above carries the logic. */
+    fun readerPreload(intent: Intent): ReaderPreload? = shouldPreloadReader(
+        fictionId = intent.getStringExtra(EXTRA_OPEN_READER_FICTION_ID),
+        chapterId = intent.getStringExtra(EXTRA_OPEN_READER_CHAPTER_ID),
+        preloadRequested = intent.getBooleanExtra(EXTRA_OPEN_READER_PRELOAD, false),
+    )
 
     /** Lightweight URL sniffer — accepts http(s) URLs only. Apps that
      *  share plaintext frequently emit "title\nURL" or "URL extra
