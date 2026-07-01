@@ -162,4 +162,82 @@ class DaisyParserVariantsTest {
         assertEquals(1, book.chapters.size)
         assertEquals("Linked", book.chapters[0].title)
     }
+
+    @Test fun `ncc href targeting a smil par resolves via the par's first text`() {
+        // The DAISY 2.02 spec RECOMMENDS pointing the ncc anchor at the <par> id
+        // (not the <text> id). Regression guard for the silent-empty-body bug:
+        // findContentSrc previously matched only <text> ids, so every <par>-
+        // targeted book produced a correct TOC with blank chapter bodies. Our
+        // vendored WIPO sample only uses <text> targets, which masked this.
+        val ncc = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html><head><meta name="dc:title" content="Par Book"/></head><body>
+              <h1 id="h1"><a href="ch.smil#par_1">Chapter One</a></h1>
+              <h1 id="h2"><a href="ch.smil#par_2">Chapter Two</a></h1>
+            </body></html>
+        """.trimIndent()
+        val smil = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <smil><body><seq>
+              <par id="par_1"><text id="txt_1" src="content.html#c1"/></par>
+              <par id="par_2"><text id="txt_2" src="content.html#c2"/></par>
+            </seq></body></smil>
+        """.trimIndent()
+        val content = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html><body>
+              <p id="c1">Body of chapter one.</p>
+              <p id="c2">Body of chapter two.</p>
+            </body></html>
+        """.trimIndent()
+        val book = Daisy202Parser.parsePackage(
+            pkg("ncc.html" to ncc, "ch.smil" to smil, "content.html" to content),
+        )
+        assertEquals(2, book.chapters.size)
+        assertEquals("Chapter One", book.chapters[0].title)
+        assertTrue(
+            "par-targeted body was empty (findContentSrc missed the <par> anchor): " +
+                book.chapters[0].plainBody,
+            book.chapters[0].plainBody.contains("Body of chapter one."),
+        )
+        assertTrue(
+            "second par-targeted body was empty: ${book.chapters[1].plainBody}",
+            book.chapters[1].plainBody.contains("Body of chapter two."),
+        )
+    }
+
+    @Test fun `named html entities in content are decoded, not blanked to spaces`() {
+        // XHTML content docs use HTML entities the strict XML parser doesn't know.
+        // They must resolve to their real characters (not collapse to spaces), or
+        // accented / typographic text is silently corrupted (café -> "caf ").
+        val ncc = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html><head><meta name="dc:title" content="Entities"/></head><body>
+              <h1 id="h1"><a href="c.smil#t1">Ch</a></h1>
+            </body></html>
+        """.trimIndent()
+        val smil = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <smil><body><par id="p1"><text id="t1" src="c.html#c1"/></par></body></smil>
+        """.trimIndent()
+        val content = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html><body><p id="c1">caf&eacute;&mdash;na&iuml;ve&nbsp;r&eacute;sum&eacute; &OElig;uvre &oelig;uvre &Scaron;i&scaron; &Zcaron;i&zcaron;ek &Yuml;</p></body></html>
+        """.trimIndent()
+        val book = Daisy202Parser.parsePackage(
+            pkg("ncc.html" to ncc, "c.smil" to smil, "c.html" to content),
+        )
+        val body = book.chapters.single().plainBody
+        assertTrue("é lost: $body", body.contains("café"))
+        assertTrue("mdash lost: $body", body.contains("—"))
+        assertTrue("ï lost: $body", body.contains("naïve"))
+        assertTrue("résumé lost: $body", body.contains("résumé"))
+        assertFalse("entity leaked verbatim: $body", body.contains("&eacute;"))
+        // Latin Extended-A ligatures / carons (per review): must decode, not blank.
+        assertTrue("OElig lost: $body", body.contains("Œuvre"))
+        assertTrue("oelig lost: $body", body.contains("œuvre"))
+        assertTrue("Scaron/scaron lost: $body", body.contains("Šiš"))
+        assertTrue("Zcaron/zcaron lost: $body", body.contains("Žižek"))
+        assertTrue("Yuml lost: $body", body.contains("Ÿ"))
+    }
 }

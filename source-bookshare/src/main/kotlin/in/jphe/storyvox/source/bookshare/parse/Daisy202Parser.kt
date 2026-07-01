@@ -17,26 +17,29 @@ import java.util.zip.ZipInputStream
  *    (`<hN id="ncc_N"><a href="file.smil#frag">Title</a>`) plus
  *    `<span class="page-*">` page markers. `<head>` carries `dc:title` /
  *    `dc:creator`.
- *  - `*.smil` — sync: `<par><text src="content.html#frag" id="txt_N"/></par>`.
- *    The heading's `#frag` is a SMIL `<text id>`, whose `src` points into a
- *    content document.
+ *  - `*.smil` — sync: `<par id="par_N"><text src="content.html#frag" id="txt_N"/></par>`.
+ *    The heading's `#frag` is a SMIL anchor — per the 2.02 spec it may target a
+ *    `<text id>` **or** a `<par id>` (the recommended form); either way it
+ *    resolves to a `<text src>` that points into a content document.
  *  - content `*.html` — the actual prose (text lives inside `<a>` link text),
  *    every block carrying an id.
  *
  * For a TTS app we only need the text (we re-narrate), so the algorithm is:
  *  1. parse `ncc.html` → ordered headings (title + `smil#frag`); skip page spans.
- *  2. per heading, follow `smil#frag` → its `<text src>` → the chapter's START
- *     content-document fragment id (one lookup, no full par-sequence walk).
+ *  2. per heading, resolve `smil#frag` (a `<par>` or `<text>` anchor) → a
+ *     `<text src>` → the chapter's START content-document fragment id.
  *  3. walk the content document ONCE, capturing all text (block boundaries split
  *     paragraphs; unknown tags are inline so text is never dropped; `page-*`
  *     class spans + `pagenum`/`noteref` are skipped), switching chapters when an
  *     element's id is a chapter-start id.
  *
  * Mirrors [`EpubParser`][in.jphe.storyvox.source.epub.parse.EpubParser]'s
- * XmlPullParser + zip-walk posture. Named non-predefined entities (`&nbsp;`,
- * `&mdash;`, …) are neutralised to spaces up front so XHTML content doesn't
- * throw on the strict XML pull-parser; the five predefined XML entities are
- * preserved. NOT handled: protected (PDTB) packages (the #1002 partnership).
+ * XmlPullParser + zip-walk posture. Named HTML entities (`&nbsp;`, `&mdash;`,
+ * `&eacute;`, …) are resolved to their literal characters up front so XHTML
+ * content doesn't throw on the strict XML pull-parser and non-ASCII text isn't
+ * lost; the five predefined XML entities are preserved for the parser and
+ * unknown entities fall back to a space. NOT handled: protected (PDTB) packages
+ * (the #1002 partnership).
  */
 object Daisy202Parser {
 
@@ -164,16 +167,40 @@ object Daisy202Parser {
         return NccDoc(title, author, headings)
     }
 
-    /** In a SMIL doc, find `<text id=[textId] src="…">` and return its `src`. */
-    private fun findContentSrc(xml: String, textId: String): String? {
+    /**
+     * In a SMIL doc, resolve a fragment id (from an ncc `href="file.smil#frag"`)
+     * to the content `src` it points at.
+     *
+     * The DAISY 2.02 spec requires the destination anchor to reside within a SMIL
+     * `<par>` **or** a `<text>` element — and **recommends the `<par>` form**. So
+     * `frag` may be either:
+     *  - a `<text id=frag src="…">` → return its `src` directly, or
+     *  - a `<par id=frag>` → descend to that par's first `<text>` child and return
+     *    its `src` (the spec says the text should be the par's first element).
+     *
+     * Handling only the `<text>` case silently produced empty chapter bodies for
+     * every `<par>`-targeted book (the recommended, and very common, form). The
+     * bundled WIPO sample happens to use `<text>` targets, which masked the gap.
+     */
+    private fun findContentSrc(xml: String, frag: String): String? {
         val parser = Xml.newPullParser()
         parser.setInput(StringReader(xml))
+        var inTargetPar = false
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
-            if (event == XmlPullParser.START_TAG && parser.name?.lowercase() == "text") {
-                if (parser.getAttributeValue(null, "id") == textId) {
-                    return parser.getAttributeValue(null, "src")
+            when (event) {
+                XmlPullParser.START_TAG -> when (parser.name?.lowercase()) {
+                    "text" ->
+                        // Direct <text id=frag>, or the first <text> inside a matched <par>.
+                        if (inTargetPar || parser.getAttributeValue(null, "id") == frag) {
+                            return parser.getAttributeValue(null, "src")
+                        }
+                    "par" ->
+                        if (parser.getAttributeValue(null, "id") == frag) inTargetPar = true
                 }
+                XmlPullParser.END_TAG ->
+                    // Matched par closed before yielding a <text> → stop treating it as the target.
+                    if (inTargetPar && parser.name?.lowercase() == "par") inTargetPar = false
             }
             event = parser.next()
         }
@@ -269,11 +296,77 @@ object Daisy202Parser {
     private val NAMED_ENTITY = Regex("&([a-zA-Z][a-zA-Z0-9]*);")
     private val PREDEFINED = setOf("amp", "lt", "gt", "quot", "apos")
 
-    /** Decode UTF-8 + neutralise named non-predefined entities to spaces so the
-     *  strict XML pull-parser doesn't throw on XHTML's `&nbsp;` etc. */
+    /**
+     * Common HTML named entities → their literal character. DAISY 2.02 content is
+     * XHTML and uses these freely, but Android's strict XML pull-parser only knows
+     * the five predefined XML entities — a bare `&mdash;` throws. We pre-resolve
+     * the common HTML entities to their actual characters (so `caf&eacute;` stays
+     * "café" instead of collapsing to "caf "), keep the five predefined ones as
+     * entities for the parser to decode, and fall back to a space for anything
+     * unmapped (safe: still never breaks the parse). Numeric refs (`&#8212;`,
+     * `&#x2014;`) are valid XML and pass through untouched for the parser.
+     */
+    private val HTML_ENTITIES: Map<String, String> = mapOf(
+        // spacing / dashes / typographic punctuation
+        "nbsp" to " ", "ensp" to " ", "emsp" to " ", "thinsp" to " ", "shy" to "",
+        "ndash" to "–", "mdash" to "—", "hellip" to "…",
+        "middot" to "·", "bull" to "•",
+        "lsquo" to "‘", "rsquo" to "’", "sbquo" to "‚",
+        "ldquo" to "“", "rdquo" to "”", "bdquo" to "„",
+        "laquo" to "«", "raquo" to "»", "lsaquo" to "‹", "rsaquo" to "›",
+        "prime" to "′", "Prime" to "″", "dagger" to "†", "Dagger" to "‡",
+        "permil" to "‰",
+        // currency / symbols
+        "copy" to "©", "reg" to "®", "trade" to "™", "deg" to "°",
+        "plusmn" to "±", "times" to "×", "divide" to "÷", "minus" to "−",
+        "frac14" to "¼", "frac12" to "½", "frac34" to "¾",
+        "sup1" to "¹", "sup2" to "²", "sup3" to "³",
+        "sect" to "§", "para" to "¶", "micro" to "µ",
+        "cent" to "¢", "pound" to "£", "yen" to "¥", "euro" to "€", "curren" to "¤",
+        "iexcl" to "¡", "iquest" to "¿", "brvbar" to "¦", "not" to "¬",
+        "acute" to "´", "cedil" to "¸", "uml" to "¨", "macr" to "¯",
+        "ordf" to "ª", "ordm" to "º",
+        // Latin-1 accented letters (upper)
+        "Agrave" to "À", "Aacute" to "Á", "Acirc" to "Â", "Atilde" to "Ã",
+        "Auml" to "Ä", "Aring" to "Å", "AElig" to "Æ", "Ccedil" to "Ç",
+        "Egrave" to "È", "Eacute" to "É", "Ecirc" to "Ê", "Euml" to "Ë",
+        "Igrave" to "Ì", "Iacute" to "Í", "Icirc" to "Î", "Iuml" to "Ï",
+        "ETH" to "Ð", "Ntilde" to "Ñ",
+        "Ograve" to "Ò", "Oacute" to "Ó", "Ocirc" to "Ô", "Otilde" to "Õ",
+        "Ouml" to "Ö", "Oslash" to "Ø",
+        "Ugrave" to "Ù", "Uacute" to "Ú", "Ucirc" to "Û", "Uuml" to "Ü",
+        "Yacute" to "Ý", "THORN" to "Þ", "szlig" to "ß",
+        // Latin-1 accented letters (lower)
+        "agrave" to "à", "aacute" to "á", "acirc" to "â", "atilde" to "ã",
+        "auml" to "ä", "aring" to "å", "aelig" to "æ", "ccedil" to "ç",
+        "egrave" to "è", "eacute" to "é", "ecirc" to "ê", "euml" to "ë",
+        "igrave" to "ì", "iacute" to "í", "icirc" to "î", "iuml" to "ï",
+        "eth" to "ð", "ntilde" to "ñ",
+        "ograve" to "ò", "oacute" to "ó", "ocirc" to "ô", "otilde" to "õ",
+        "ouml" to "ö", "oslash" to "ø",
+        "ugrave" to "ù", "uacute" to "ú", "ucirc" to "û", "uuml" to "ü",
+        "yacute" to "ý", "thorn" to "þ", "yuml" to "ÿ",
+        // Latin Extended-A + HTML "special" letters (ligatures, carons, …) —
+        // common in French / Slavic / Baltic names and text.
+        "OElig" to "Œ", "oelig" to "œ",
+        "Scaron" to "Š", "scaron" to "š",
+        "Zcaron" to "Ž", "zcaron" to "ž",
+        "Yuml" to "Ÿ", "fnof" to "ƒ",
+        "circ" to "ˆ", "tilde" to "˜",
+    )
+
+    /** Decode UTF-8, then resolve named HTML entities so the strict XML pull-parser
+     *  doesn't throw on (or silently lose) XHTML's `&nbsp;` / `&mdash;` / `&eacute;`
+     *  etc. The five predefined XML entities are kept for the parser to decode;
+     *  known HTML entities become their literal character; unknown named entities
+     *  fall back to a space (never breaks the parse). */
     private fun decode(bytes: ByteArray): String =
         NAMED_ENTITY.replace(String(bytes, Charsets.UTF_8)) { m ->
-            if (m.groupValues[1] in PREDEFINED) m.value else " "
+            val name = m.groupValues[1]
+            when {
+                name in PREDEFINED -> m.value           // keep for the XML parser to decode
+                else -> HTML_ENTITIES[name] ?: " "      // resolve known HTML entities; space-fallback unknowns
+            }
         }
 
     private fun String.collapseWhitespace(): String = replace(Regex("\\s+"), " ").trim()
