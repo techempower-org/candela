@@ -205,4 +205,33 @@ class DaisyParserVariantsTest {
             book.chapters[1].plainBody.contains("Body of chapter two."),
         )
     }
+
+    @Test fun `named html entities in content are decoded, not blanked to spaces`() {
+        // XHTML content docs use HTML entities the strict XML parser doesn't know.
+        // They must resolve to their real characters (not collapse to spaces), or
+        // accented / typographic text is silently corrupted (café -> "caf ").
+        val ncc = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html><head><meta name="dc:title" content="Entities"/></head><body>
+              <h1 id="h1"><a href="c.smil#t1">Ch</a></h1>
+            </body></html>
+        """.trimIndent()
+        val smil = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <smil><body><par id="p1"><text id="t1" src="c.html#c1"/></par></body></smil>
+        """.trimIndent()
+        val content = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <html><body><p id="c1">caf&eacute;&mdash;na&iuml;ve&nbsp;r&eacute;sum&eacute;</p></body></html>
+        """.trimIndent()
+        val book = Daisy202Parser.parsePackage(
+            pkg("ncc.html" to ncc, "c.smil" to smil, "c.html" to content),
+        )
+        val body = book.chapters.single().plainBody
+        assertTrue("é lost: $body", body.contains("café"))
+        assertTrue("mdash lost: $body", body.contains("—"))
+        assertTrue("ï lost: $body", body.contains("naïve"))
+        assertTrue("résumé lost: $body", body.contains("résumé"))
+        assertFalse("entity leaked verbatim: $body", body.contains("&eacute;"))
+    }
 }
