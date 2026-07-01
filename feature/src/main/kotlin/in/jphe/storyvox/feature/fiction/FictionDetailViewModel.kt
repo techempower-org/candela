@@ -139,6 +139,15 @@ sealed interface FictionDetailUiEvent {
 
     /** Issue #999 — non-fatal export failure (disk write error). Toasted. */
     data class AnnotationsExportFailed(val message: String) : FictionDetailUiEvent
+
+    /**
+     * Issue #1461 — fired after a bulk "Download all chapters" tap queues the
+     * download jobs. [wifiOnly] carries the data-saver decision so the screen
+     * can surface the WiFi-only-vs-any-network behaviour in a snackbar (the
+     * whole point of the feature — the user needs to know downloads will wait
+     * for Wi-Fi). One-shot via the event channel, like the export events.
+     */
+    data class DownloadQueued(val wifiOnly: Boolean) : FictionDetailUiEvent
 }
 
 /** Issue #1208 — identity key that re-triggers a companion resolve only when
@@ -156,7 +165,7 @@ class FictionDetailViewModel @Inject constructor(
     private val repo: FictionRepositoryUi,
     private val playback: PlaybackControllerUi,
     private val exportEpub: ExportFictionToEpubUseCase,
-    settings: SettingsRepositoryUi,
+    private val settings: SettingsRepositoryUi,
     /** Issue #217 — cross-fiction memory repo. Backs the Notebook
      *  sub-section showing which characters/places/concepts the AI
      *  has recorded for this book, plus the user's manual notes. */
@@ -520,6 +529,26 @@ class FictionDetailViewModel @Inject constructor(
 
     fun setMode(mode: DownloadMode) {
         viewModelScope.launch { repo.setDownloadMode(fictionId, mode) }
+    }
+
+    /**
+     * Issue #1461 — bulk "Download all chapters" for offline listening. Reads
+     * the user's "download over Wi-Fi only" data-saver preference and queues
+     * every not-yet-downloaded chapter into the existing offline cache via
+     * [FictionRepositoryUi.downloadWholeBook], which carries the WiFi-only
+     * decision through to the WorkManager `NetworkType` constraint.
+     *
+     * The highest-ROI move for the app's digital-divide audience: a user on a
+     * library/public Wi-Fi can pull a whole book down for the metered ride home.
+     * We emit [FictionDetailUiEvent.DownloadQueued] with the WiFi-only flag so
+     * the screen can tell the user whether downloads will wait for Wi-Fi.
+     */
+    fun downloadWholeBook() {
+        viewModelScope.launch {
+            val wifiOnly = settings.settings.first().downloadOnWifiOnly
+            repo.downloadWholeBook(fictionId, requireUnmetered = wifiOnly)
+            _events.send(FictionDetailUiEvent.DownloadQueued(wifiOnly))
+        }
     }
 
     /**

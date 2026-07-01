@@ -13,6 +13,7 @@ import `in`.jphe.storyvox.data.db.dao.FictionDao
 import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
 import `in`.jphe.storyvox.data.db.entity.DownloadMode
 import `in`.jphe.storyvox.data.repository.ChapterRepository
+import `in`.jphe.storyvox.data.repository.DownloadNetworkConfig
 import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.repository.InboxNotificationGate
 import `in`.jphe.storyvox.data.repository.InboxRepository
@@ -56,6 +57,12 @@ class NewChapterPollWorker @AssistedInject constructor(
      *  chapters land on a followed fiction. Gated by the same per-source
      *  [inboxGate] toggle as the Inbox feed write. */
     private val newChapterNotifier: NewChapterNotifier,
+    /** Issue #1461 — the user's "download over Wi-Fi only" preference.
+     *  Governs whether EAGER auto-downloads queued below carry a
+     *  `NetworkType.UNMETERED` constraint. Before #1461 this path
+     *  hardcoded `requireUnmetered = true`, so a user who turned the
+     *  data-saver toggle OFF still couldn't auto-download on mobile data. */
+    private val downloadNetworkConfig: DownloadNetworkConfig,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -65,6 +72,13 @@ class NewChapterPollWorker @AssistedInject constructor(
         // NOT_DOWNLOADED backlog. This is the count the user is told
         // about, and what KEY_NEW_CHAPTERS reports.
         var newChapterDelta = 0
+
+        // Issue #1461 — snapshot the data-saver preference once for the whole
+        // poll. EAGER auto-downloads below inherit it: Wi-Fi-only (the default)
+        // pins them to an unmetered transport; turning the toggle off lets them
+        // run on mobile data. The preference can't meaningfully change mid-poll,
+        // so a single read keeps every fiction in this pass consistent.
+        val requireUnmetered = downloadNetworkConfig.requireUnmeteredForDownloads()
 
         // Issue #907 — poll every fiction the user follows on the source
         // (followedRemotely) as well as the in-library subscribe/eager set.
@@ -198,7 +212,9 @@ class NewChapterPollWorker @AssistedInject constructor(
                             chapterRepository.queueChapterDownload(
                                 fictionId = fiction.id,
                                 chapterId = m.id,
-                                requireUnmetered = true,
+                                // Issue #1461 — honour the data-saver toggle
+                                // instead of the old hardcoded `true`.
+                                requireUnmetered = requireUnmetered,
                             )
                         }
                     } else {
