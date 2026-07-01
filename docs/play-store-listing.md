@@ -1,10 +1,10 @@
 ---
 layout: default
 title: Candela · Play Store Listing (Draft)
-description: Draft Play Store listing copy and assets for Candela v1.4.5.
+description: Draft Play Store listing copy and assets for Candela v1.6.3.
 ---
 
-# Play Store Listing — v1.4.5 (Draft)
+# Play Store Listing — v1.6.3 (Draft)
 
 This is the draft copy + asset inventory for Candela's Play Store
 submission. **All copy is draft.** JP reviews and picks final wording before
@@ -144,7 +144,7 @@ candela.techempower.org/privacy/
 ## What's new (500 char max)
 
 Shown in the "What's new" listing field; refresh every release to track the
-latest `versionName`. **v1.4.5:**
+latest `versionName`. **v1.4.5:** _(⚠️ stale — the copy below is the v1.4.5 what's-new; refresh for v1.6.3 before the next submission. Final wording is JP's call.)_
 
 ```text
 A stability release. Tapping a new chapter in your Inbox — or an entry in

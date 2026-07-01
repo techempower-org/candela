@@ -1,7 +1,7 @@
 # Candela — Backend Source Test Results
 
 **Device:** Samsung Galaxy Z Flip3 (SM-F711U), serial `R5CRB0W66MK`
-**Build:** Candela **v1.4.5** · versionCode **247** _(verified via `dumpsys package org.techempower.candela`)_
+**Build:** Candela **v1.4.5** · versionCode **247** _(verified via `dumpsys package org.techempower.candela`)_ · _historical record of a v1.4.5 test run; current release is now v1.6.3 / vc257_
 **App id:** `org.techempower.candela` · launcher `in.jphe.storyvox.MainActivity`
 **Screen:** 1080×2640 @ 480dpi · **Date:** 2026-06-29 · **Active voice during test:** Azure "Adam Multilingual"
 

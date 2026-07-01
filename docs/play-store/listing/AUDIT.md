@@ -6,7 +6,7 @@ description: Audit of existing Play Store listing copy and corrected, limit-comp
 
 # Play Store listing — audit + corrected drafts
 
-Audited 2026-06-26 against app **v1.1.5** (versionCode 233, `org.techempower.candela`).
+Audited 2026-06-26 against app **v1.1.5** (versionCode 233, `org.techempower.candela`). Current release: **v1.6.3 / vc257** — this audit predates it; copy may need a refresh.
 Drafts in this folder are **publish-ready text** for the gradle-play-publisher
 layout; ranked alternates + rationale live here.
 

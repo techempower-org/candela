@@ -1,6 +1,6 @@
 # App Signing — Play Store Readiness Assessment
 
-_Assessed 2026-06-29 against `app/build.gradle.kts` (versionCode 247 / v1.4.5) and `.github/workflows/android.yml`._
+_Assessed 2026-06-29 against `app/build.gradle.kts` (versionCode 247 / v1.4.5) and `.github/workflows/android.yml`. Current release: **v1.6.3 / vc257** — re-verify if the signing config changed._
 
 ## TL;DR
 

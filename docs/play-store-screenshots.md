@@ -64,7 +64,7 @@ If trimming to fewer than 8, the minimum compelling set is **1, 2, 3, 4, 5** (he
 
 ## Execution checklist (once phone is free)
 
-1. Confirm Z Flip3 serial + `org.techempower.candela` (v1.4.1) installed.
+1. Confirm Z Flip3 serial + `org.techempower.candela` (v1.6.3) installed.
 2. Pre-stage content (above); dark theme; debug overlay off.
 3. Enter status-bar demo mode.
 4. Capture shots 1–8 (raw 1080×2640).
