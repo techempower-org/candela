@@ -43,6 +43,9 @@
     <string name="wear_cd_chapter_progress">Chapter progress</string>
     <string name="wear_cd_open_teleprompter">Open teleprompter remote</string>
 
+    <!-- Volume indicator (#1401) — bezel/touch-ring level feedback -->
+    <string name="wear_cd_volume_level">Volume %1$d of %2$d</string>
+
     <!-- Now Playing tile -->
     <string name="wear_tile_label">Now Playing</string>
     <string name="wear_tile_description">Resume your audiobook — play/pause and progress at a glance.</string>

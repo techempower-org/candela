@@ -4,9 +4,11 @@ import android.content.Context
 import android.media.AudioManager
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -24,10 +26,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,7 +42,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -79,16 +88,22 @@ import `in`.jphe.storyvox.wear.components.LinearScrubber
 import `in`.jphe.storyvox.wear.components.TransportRow
 import `in`.jphe.storyvox.wear.playback.WearPlaybackBridge
 import `in`.jphe.storyvox.wear.theme.BrassPrimary
+import `in`.jphe.storyvox.wear.theme.BrassRingTrack
 import `in`.jphe.storyvox.wear.theme.BrassTint
 import `in`.jphe.storyvox.wear.theme.ParchmentOnMuted
 import `in`.jphe.storyvox.wear.theme.WearLibraryNocturneTheme
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Scroll-pixels per volume step — ~one Galaxy Watch4 bezel detent. Tuned in
  *  the 30–50px detent range so a single physical click steps volume once, while
  *  a smooth touch-ring spin accumulates to the same threshold. */
 private const val ROTARY_VOLUME_STEP_PX = 48f
+
+/** How long the transient volume indicator (#1401) lingers after the last
+ *  bezel/touch-ring step before it fades away. */
+private const val VOLUME_INDICATOR_TIMEOUT_MS = 1_500L
 
 /**
  * Now-playing surface — Library Nocturne styled, circular scrubber on round
@@ -211,6 +226,30 @@ internal fun NowPlayingContent(
     var rotaryAccumPx by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) { runCatching { rotaryFocus.requestFocus() } }
 
+    // #1401 — transient on-screen feedback for the bezel/touch-ring volume
+    // control added in #1397. `volumeLevel`/`volumeMax` mirror STREAM_MUSIC; each
+    // rotary step bumps `volumeNudge`, which (re)arms the show-then-fade timer so
+    // the brass arc stays up while turning and fades ~1.5s after the last change.
+    val volumeMax = remember(audioManager) {
+        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    }
+    var volumeLevel by remember {
+        mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+    }
+    var volumeNudge by remember { mutableIntStateOf(0) }
+    var volumeVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(volumeNudge) {
+        if (volumeNudge == 0) return@LaunchedEffect
+        volumeVisible = true
+        delay(VOLUME_INDICATOR_TIMEOUT_MS)
+        volumeVisible = false
+    }
+    val volumeAlpha by animateFloatAsState(
+        targetValue = if (volumeVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = if (volumeVisible) 120 else 480),
+        label = "volumeIndicatorAlpha",
+    )
+
     Scaffold(
         timeText = { TimeText() },
         modifier = Modifier.fillMaxSize(),
@@ -223,12 +262,14 @@ internal fun NowPlayingContent(
                     // while-loops so a fast spin (one large delta) steps more than
                     // once; the sub-detent remainder carries to the next event.
                     rotaryAccumPx += event.verticalScrollPixels
+                    var stepped = false
                     while (rotaryAccumPx >= ROTARY_VOLUME_STEP_PX) {
                         audioManager.adjustStreamVolume(
                             AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0,
                         )
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         rotaryAccumPx -= ROTARY_VOLUME_STEP_PX
+                        stepped = true
                     }
                     while (rotaryAccumPx <= -ROTARY_VOLUME_STEP_PX) {
                         audioManager.adjustStreamVolume(
@@ -236,6 +277,13 @@ internal fun NowPlayingContent(
                         )
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         rotaryAccumPx += ROTARY_VOLUME_STEP_PX
+                        stepped = true
+                    }
+                    if (stepped) {
+                        // #1401 — reflect the level the system actually settled on
+                        // (it clamps at 0/max) and (re)arm the fade-out timer.
+                        volumeLevel = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        volumeNudge++
                     }
                     true
                 }
@@ -277,6 +325,18 @@ internal fun NowPlayingContent(
                     onPrevChapter = onPrevChapter,
                     onNextChapter = onNextChapter,
                     onReconnect = onReconnect,
+                )
+            }
+            // #1401 — transient volume arc, painted above the now-playing/error
+            // content and below the bottom controls. Non-interactive (no pointer
+            // modifiers), so taps fall through to whatever sits beneath it.
+            if (volumeAlpha > 0.01f) {
+                VolumeIndicator(
+                    level = volumeLevel,
+                    max = volumeMax,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(volumeAlpha),
                 )
             }
             if (connected && err == null) {
@@ -801,6 +861,78 @@ private fun formatSpeed(speed: Float): String {
     val tenths = (speed * 10f).roundToInt()
     return "${tenths / 10}.${tenths % 10}×"
 }
+
+/**
+ * #1401 — transient volume feedback for the bezel/touch-ring control (#1397).
+ *
+ * A right-edge brass arc that echoes the [CircularScrubber] ring: a warm-dark
+ * track with a brass fill that grows bottom→top with the STREAM_MUSIC level, so
+ * the level reads at a glance without the system volume panel. Purely visual —
+ * the exact value is surfaced to screen readers via a polite live region rather
+ * than drawn as text (the arc is too small to render a legible number on the
+ * wrist). The caller fades this in/out via a wrapping alpha; here we just paint
+ * one frame at the given [level].
+ */
+@Composable
+private fun VolumeIndicator(level: Int, max: Int, modifier: Modifier = Modifier) {
+    val fraction = volumeFraction(level, max)
+    val cd = stringResource(R.string.wear_cd_volume_level, level, max)
+    Box(
+        modifier = modifier.semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = cd
+        },
+    ) {
+        // Full-size Canvas so the arc radius tracks the watch face; a ~110° span
+        // centred on 3-o'clock hugs the right bezel, clear of the top TimeText.
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = 6.dp.toPx()
+            val inset = stroke / 2f + 2.dp.toPx()
+            val topLeft = Offset(inset, inset)
+            val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
+            val sweep = 110f
+            val top = -sweep / 2f // upper end of the right-side arc (from 3 o'clock)
+            drawArc(
+                color = BrassRingTrack,
+                startAngle = top,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+            if (fraction > 0f) {
+                // Fill grows from the bottom end upward (counter-clockwise sweep).
+                drawArc(
+                    color = BrassPrimary,
+                    startAngle = top + sweep,
+                    sweepAngle = -sweep * fraction,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+            }
+        }
+        Icon(
+            imageVector = Icons.Outlined.VolumeUp,
+            contentDescription = null, // level announced via the live region above
+            tint = BrassTint,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp)
+                .size(18.dp),
+        )
+    }
+}
+
+/**
+ * STREAM_MUSIC [level] as a 0f..1f fraction of [max], guarding the divide (the
+ * caller coerces [max] ≥ 1) and clamping. Pure logic, so it's unit-tested rather
+ * than verified through a Compose render.
+ */
+internal fun volumeFraction(level: Int, max: Int): Float =
+    if (max <= 0) 0f else (level.toFloat() / max.toFloat()).coerceIn(0f, 1f)
 
 // region --- Previews ---
 
