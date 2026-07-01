@@ -1,6 +1,6 @@
 # Play Console Upload Prerequisites
 
-_Assessed 2026-06-29 against `app/build.gradle.kts` (v1.4.5 / vc247), `app/src/main/play/`._
+_Assessed 2026-06-29 against `app/build.gradle.kts` (v1.4.5 / vc247), `app/src/main/play/`. Current release: **v1.6.3 / vc257** — re-verify if the build/publish config changed._
 
 ## TL;DR
 
