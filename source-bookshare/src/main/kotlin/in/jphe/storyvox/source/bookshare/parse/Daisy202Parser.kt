@@ -346,6 +346,13 @@ object Daisy202Parser {
         "ouml" to "ö", "oslash" to "ø",
         "ugrave" to "ù", "uacute" to "ú", "ucirc" to "û", "uuml" to "ü",
         "yacute" to "ý", "thorn" to "þ", "yuml" to "ÿ",
+        // Latin Extended-A + HTML "special" letters (ligatures, carons, …) —
+        // common in French / Slavic / Baltic names and text.
+        "OElig" to "Œ", "oelig" to "œ",
+        "Scaron" to "Š", "scaron" to "š",
+        "Zcaron" to "Ž", "zcaron" to "ž",
+        "Yuml" to "Ÿ", "fnof" to "ƒ",
+        "circ" to "ˆ", "tilde" to "˜",
     )
 
     /** Decode UTF-8, then resolve named HTML entities so the strict XML pull-parser

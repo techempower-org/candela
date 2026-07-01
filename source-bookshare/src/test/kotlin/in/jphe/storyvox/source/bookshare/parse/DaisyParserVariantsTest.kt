@@ -222,7 +222,7 @@ class DaisyParserVariantsTest {
         """.trimIndent()
         val content = """
             <?xml version="1.0" encoding="UTF-8"?>
-            <html><body><p id="c1">caf&eacute;&mdash;na&iuml;ve&nbsp;r&eacute;sum&eacute;</p></body></html>
+            <html><body><p id="c1">caf&eacute;&mdash;na&iuml;ve&nbsp;r&eacute;sum&eacute; &OElig;uvre &oelig;uvre &Scaron;i&scaron; &Zcaron;i&zcaron;ek &Yuml;</p></body></html>
         """.trimIndent()
         val book = Daisy202Parser.parsePackage(
             pkg("ncc.html" to ncc, "c.smil" to smil, "c.html" to content),
@@ -233,5 +233,11 @@ class DaisyParserVariantsTest {
         assertTrue("ï lost: $body", body.contains("naïve"))
         assertTrue("résumé lost: $body", body.contains("résumé"))
         assertFalse("entity leaked verbatim: $body", body.contains("&eacute;"))
+        // Latin Extended-A ligatures / carons (per review): must decode, not blank.
+        assertTrue("OElig lost: $body", body.contains("Œuvre"))
+        assertTrue("oelig lost: $body", body.contains("œuvre"))
+        assertTrue("Scaron/scaron lost: $body", body.contains("Šiš"))
+        assertTrue("Zcaron/zcaron lost: $body", body.contains("Žižek"))
+        assertTrue("Yuml lost: $body", body.contains("Ÿ"))
     }
 }
