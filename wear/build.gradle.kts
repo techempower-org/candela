@@ -28,11 +28,25 @@ val phoneVersionName: String =
         ?: error("wear/build.gradle.kts (#1405): could not read versionName from app/build.gradle.kts")
 
 android {
+    // #1403 — `namespace` (the frozen CODE package: R class, BuildConfig,
+    // source tree, and the target of the manifest's relative component names
+    // like `.WearMainActivity`) stays `in.jphe.storyvox.wear`. Only the
+    // `applicationId` (install identity on the device) is rebranded below.
+    // This mirrors :app, which kept namespace `in.jphe.storyvox` while its
+    // applicationId became `org.techempower.candela`.
     namespace = "in.jphe.storyvox.wear"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "in.jphe.storyvox.wear"
+        // #1403 — install identity rebranded to match the phone app
+        // (org.techempower.candela). The watch app is now
+        // org.techempower.candela.wear (debug: .wear.debug). The phone↔watch
+        // Wearable Data Layer bridge pairs by capability string
+        // (`storyvox_playback_controller`, see wear.xml + PhoneWearBridge) and
+        // shared signing cert, NOT by package name, so this rename does not
+        // touch pairing. Install side-effect: the old in.jphe.storyvox.wear
+        // install is a distinct app that lingers until manually uninstalled.
+        applicationId = "org.techempower.candela.wear"
         minSdk = 26
         targetSdk = 36   // #1406 — match :app's targetSdk (Android 16); compileSdk 37 ≥ 36.
         versionCode = phoneVersionCode   // #1405 — shared with :app (see top of file)
