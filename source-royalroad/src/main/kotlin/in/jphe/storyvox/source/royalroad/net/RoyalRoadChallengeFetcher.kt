@@ -54,8 +54,11 @@ internal class RoyalRoadChallengeFetcher @Inject constructor(
         return FetchOutcome.Body(body, resp.request.url.toString())
     }
 
-    private fun looksLikeCfChallenge(body: String): Boolean =
-        body.contains("/cdn-cgi/challenge-platform/") ||
-            body.contains("Just a moment...") ||
-            body.contains("cf-mitigated")
+    private fun looksLikeCfChallenge(body: String): Boolean {
+        if (body.contains("cf-mitigated")) return true
+        val hasChallengeTitle = "<title>" in body &&
+            body.substringAfter("<title>").substringBefore("</title>")
+                .contains("Just a moment", ignoreCase = true)
+        return hasChallengeTitle && !body.contains("chapter-row")
+    }
 }
