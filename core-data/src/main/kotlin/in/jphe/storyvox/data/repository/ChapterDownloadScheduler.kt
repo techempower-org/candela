@@ -29,6 +29,14 @@ import javax.inject.Singleton
  */
 interface ChapterDownloadScheduler {
     fun schedule(fictionId: String, chapterId: String, requireUnmetered: Boolean)
+
+    /**
+     * Issue #1461 — cancel every not-yet-finished chapter download for one
+     * fiction (bulk-download cancel). Cancels the WorkManager side only; the
+     * caller ([ChapterRepository.cancelDownloads]) resets the DB rows so the
+     * UI reflects the cancellation (WorkManager cancel doesn't touch Room).
+     */
+    fun cancelForFiction(fictionId: String)
 }
 
 @Singleton
@@ -54,6 +62,9 @@ class WorkManagerChapterDownloadScheduler @Inject constructor(
             .setInputData(input)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, Duration.ofSeconds(30))
             .addTag(ChapterDownloadWorker.TAG)
+            // Issue #1461 — per-fiction tag so a bulk download can be cancelled
+            // fiction-at-a-time via cancelForFiction below.
+            .addTag(ChapterDownloadWorker.fictionTag(fictionId))
             .build()
 
         android.util.Log.i("ChapterDownload", "schedule: chapter=$chapterId fiction=$fictionId unmetered=$requireUnmetered")
@@ -65,5 +76,10 @@ class WorkManagerChapterDownloadScheduler @Inject constructor(
             ExistingWorkPolicy.REPLACE,
             request,
         )
+    }
+
+    override fun cancelForFiction(fictionId: String) {
+        DebugLog.i("ChapterDownloadScheduler") { "cancelForFiction fiction=$fictionId" }
+        workManager.cancelAllWorkByTag(ChapterDownloadWorker.fictionTag(fictionId))
     }
 }

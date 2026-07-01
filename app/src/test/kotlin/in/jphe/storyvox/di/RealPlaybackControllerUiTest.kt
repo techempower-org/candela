@@ -371,6 +371,7 @@ class RealPlaybackControllerUiTest {
             requireUnmetered: Boolean,
         ) = Unit
         override suspend fun queueAllMissing(fictionId: String, requireUnmetered: Boolean) = Unit
+        override suspend fun cancelDownloads(fictionId: String) = Unit
         override suspend fun markRead(chapterId: String, read: Boolean) = Unit
         override suspend fun markChapterPlayed(chapterId: String) = Unit
         override suspend fun trimDownloadedBodies(fictionId: String, keepLast: Int) = Unit

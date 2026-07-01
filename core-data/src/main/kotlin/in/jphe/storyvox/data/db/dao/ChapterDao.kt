@@ -376,6 +376,28 @@ interface ChapterDao {
     )
     suspend fun reapStuckDownloads(now: Long, cutoff: Long): Int
 
+    /**
+     * Issue #1461 — cancel-bulk-download reset. Flips this fiction's
+     * still-pending rows (QUEUED or DOWNLOADING) back to NOT_DOWNLOADED and
+     * clears the error tag, so a cancelled bulk download disappears from the
+     * per-chapter status UI immediately. Already-DOWNLOADED and FAILED rows are
+     * left untouched — cancel stops pending work, it doesn't discard finished
+     * bodies or hide prior failures. Paired with
+     * [`ChapterDownloadScheduler.cancelForFiction`][in.jphe.storyvox.data.repository.ChapterDownloadScheduler.cancelForFiction],
+     * which stops the WorkManager side; WorkManager cancel doesn't touch Room,
+     * hence this companion write. Returns the number of rows reset.
+     */
+    @Query(
+        """
+        UPDATE chapter
+           SET downloadState = 'NOT_DOWNLOADED',
+               lastDownloadError = NULL
+         WHERE fictionId = :fictionId
+           AND downloadState IN ('QUEUED', 'DOWNLOADING')
+        """,
+    )
+    suspend fun resetActiveDownloadsForFiction(fictionId: String): Int
+
     @Query(
         """
         UPDATE chapter

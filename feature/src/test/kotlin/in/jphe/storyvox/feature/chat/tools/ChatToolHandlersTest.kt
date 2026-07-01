@@ -376,6 +376,7 @@ private class FakeChapterRepo : ChapterRepository {
     override fun observeChapterPreviews(fictionId: String): Flow<Map<String, String>> = flowOf(emptyMap())
     override suspend fun queueChapterDownload(fictionId: String, chapterId: String, requireUnmetered: Boolean) = Unit
     override suspend fun queueAllMissing(fictionId: String, requireUnmetered: Boolean) = Unit
+    override suspend fun cancelDownloads(fictionId: String) = Unit
     override suspend fun markRead(chapterId: String, read: Boolean) {
         readMarks += chapterId to read
     }

@@ -353,6 +353,52 @@ class ChapterDaoTest {
         assertEquals(1L, row.lastDownloadAttemptAt)
     }
 
+    // ----- resetActiveDownloadsForFiction (issue #1461) ------------------------
+
+    @Test
+    fun resetActiveDownloads_flipsQueuedAndDownloadingToNotDownloaded() = runTest {
+        fictionDao.upsert(fiction)
+        dao.upsertAll(
+            listOf(
+                chapter("c1", index = 0, downloadState = ChapterDownloadState.QUEUED),
+                chapter("c2", index = 1, downloadState = ChapterDownloadState.DOWNLOADING),
+                chapter("c3", index = 2, downloadState = ChapterDownloadState.DOWNLOADED),
+                chapter("c4", index = 3, downloadState = ChapterDownloadState.FAILED),
+            ),
+        )
+        dao.setDownloadState("c4", ChapterDownloadState.FAILED, now = 1L, error = "boom")
+
+        val reset = dao.resetActiveDownloadsForFiction("f1")
+
+        assertEquals(2, reset)
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, dao.get("c1")!!.downloadState)
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, dao.get("c2")!!.downloadState)
+        // DOWNLOADED body kept; FAILED row + its error tag preserved.
+        assertEquals(ChapterDownloadState.DOWNLOADED, dao.get("c3")!!.downloadState)
+        assertEquals(ChapterDownloadState.FAILED, dao.get("c4")!!.downloadState)
+        assertEquals("boom", dao.get("c4")!!.lastDownloadError)
+    }
+
+    @Test
+    fun resetActiveDownloads_scopesToTheGivenFiction() = runTest {
+        val other = fiction.copy(id = "f2", title = "Other Book")
+        fictionDao.upsert(fiction)
+        fictionDao.upsert(other)
+        dao.upsertAll(
+            listOf(
+                chapter("a1", index = 0, downloadState = ChapterDownloadState.QUEUED, fictionId = "f1"),
+                chapter("b1", index = 0, downloadState = ChapterDownloadState.QUEUED, fictionId = "f2"),
+            ),
+        )
+
+        val reset = dao.resetActiveDownloadsForFiction("f1")
+
+        assertEquals(1, reset)
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, dao.get("a1")!!.downloadState)
+        // Sibling fiction's queued download is untouched.
+        assertEquals(ChapterDownloadState.QUEUED, dao.get("b1")!!.downloadState)
+    }
+
     // ----- reapStuckDownloads (issue #705) -------------------------------------
 
     @Test

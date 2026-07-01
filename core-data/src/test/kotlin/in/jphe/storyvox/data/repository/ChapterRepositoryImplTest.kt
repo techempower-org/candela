@@ -198,6 +198,26 @@ class ChapterRepositoryImplTest {
             return stuck.size
         }
 
+        // Issue #1461 — cancel-bulk-download reset. Mirror the live SQL: flip
+        // this fiction's QUEUED/DOWNLOADING rows back to NOT_DOWNLOADED and clear
+        // the error tag, publishing so the download-state feed re-emits.
+        override suspend fun resetActiveDownloadsForFiction(fictionId: String): Int {
+            callLog += "resetActiveDownloadsForFiction($fictionId)"
+            val active = rows.values.filter {
+                it.fictionId == fictionId &&
+                    (it.downloadState == ChapterDownloadState.QUEUED ||
+                        it.downloadState == ChapterDownloadState.DOWNLOADING)
+            }
+            active.forEach { r ->
+                rows[r.id] = r.copy(
+                    downloadState = ChapterDownloadState.NOT_DOWNLOADED,
+                    lastDownloadError = null,
+                )
+                publishRow(r.id)
+            }
+            return active.size
+        }
+
         override suspend fun setBody(
             id: String,
             html: String,
@@ -329,8 +349,15 @@ class ChapterRepositoryImplTest {
 
         val calls = mutableListOf<ScheduleCall>()
 
+        /** Issue #1461 — fictionIds passed to [cancelForFiction], in call order. */
+        val cancelledFictions = mutableListOf<String>()
+
         override fun schedule(fictionId: String, chapterId: String, requireUnmetered: Boolean) {
             calls += ScheduleCall(fictionId, chapterId, requireUnmetered)
+        }
+
+        override fun cancelForFiction(fictionId: String) {
+            cancelledFictions += fictionId
         }
     }
 
@@ -544,6 +571,39 @@ class ChapterRepositoryImplTest {
         assertEquals(ChapterDownloadState.QUEUED, dao.rows["c0"]?.downloadState)
         assertEquals(ChapterDownloadState.QUEUED, dao.rows["c1"]?.downloadState)
         assertEquals(2, sched.calls.size)
+    }
+
+    // -- cancelDownloads --------------------------------------------------------
+
+    @Test fun `cancelDownloads cancels the fiction's WorkManager jobs`() = runTest {
+        val (r, dao, sched) = repo()
+        dao.upsert(chapter("c0", index = 0, downloadState = ChapterDownloadState.QUEUED))
+
+        r.cancelDownloads("f1")
+
+        assertEquals(listOf("f1"), sched.cancelledFictions)
+    }
+
+    @Test fun `cancelDownloads resets QUEUED and DOWNLOADING rows to NOT_DOWNLOADED`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, downloadState = ChapterDownloadState.QUEUED))
+        dao.upsert(chapter("c1", index = 1, downloadState = ChapterDownloadState.DOWNLOADING))
+
+        r.cancelDownloads("f1")
+
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, dao.rows["c0"]?.downloadState)
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, dao.rows["c1"]?.downloadState)
+    }
+
+    @Test fun `cancelDownloads leaves DOWNLOADED and FAILED rows untouched`() = runTest {
+        val (r, dao, _) = repo()
+        dao.upsert(chapter("c0", index = 0, downloadState = ChapterDownloadState.DOWNLOADED))
+        dao.upsert(chapter("c1", index = 1, downloadState = ChapterDownloadState.FAILED))
+
+        r.cancelDownloads("f1")
+
+        assertEquals(ChapterDownloadState.DOWNLOADED, dao.rows["c0"]?.downloadState)
+        assertEquals(ChapterDownloadState.FAILED, dao.rows["c1"]?.downloadState)
     }
 
     // -- markRead / markChapterPlayed ------------------------------------------

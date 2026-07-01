@@ -414,6 +414,9 @@
     <string name="fiction_download_book">Download all chapters</string>
     <string name="fiction_download_queued_wifi">Downloading all chapters — will wait for Wi-Fi</string>
     <string name="fiction_download_queued_any">Downloading all chapters</string>
+    <!-- Issue #1461 — download-management UI: live progress chip + cancel action. -->
+    <string name="fiction_downloading_count">Downloading %1$d…</string>
+    <string name="fiction_cancel_downloads">Cancel downloads</string>
     <string name="fiction_clear_cache">Clear fiction cache…</string>
     <!-- Issue #999 — highlights + notes list + export. -->
     <string name="fiction_highlights_title">Highlights &amp; notes</string>

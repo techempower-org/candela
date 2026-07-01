@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.OfflineBolt
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +38,20 @@ import `in`.jphe.storyvox.ui.a11y.LocalA11ySpeakChapterMode
 import `in`.jphe.storyvox.ui.a11y.LocalAccessibleTouchTargets
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
+/**
+ * Issue #1461 — per-chapter *body-download* status for the ChapterCard badge.
+ * Distinct from [ChapterCacheState] (which is PCM/TTS audio-cache state) and from
+ * [ChapterCardState.isDownloaded] (the terminal "body is on disk" flag, rendered
+ * as the OfflineBolt icon). This enum covers only the in-progress / failed
+ * download states so the card can show a spinner while a bulk download runs and
+ * an error affordance when a chapter fails.
+ *
+ * A UI-local enum rather than core-data's `ChapterDownloadState` because `:core-ui`
+ * deliberately doesn't depend on `:core-data`; the feature layer maps between them.
+ * [Downloaded] has no entry here — it's already expressed by `isDownloaded`.
+ */
+enum class ChapterDownloadBadge { None, Queued, Downloading, Failed }
+
 @Immutable
 data class ChapterCardState(
     val number: Int,
@@ -52,6 +69,11 @@ data class ChapterCardState(
      *  `FictionDetailScreen.toCardState` forwards the real value from
      *  the view-model's per-fiction cache-state flow. */
     val cacheState: ChapterCacheState = ChapterCacheState.None,
+    /** Issue #1461 — in-progress / failed body-download status. Defaults to
+     *  [ChapterDownloadBadge.None] so every existing call site (previews, tests,
+     *  Library card path) renders exactly as before; `FictionDetailScreen.
+     *  toCardState` forwards the real value mapped from the download-state flow. */
+    val downloadBadge: ChapterDownloadBadge = ChapterDownloadBadge.None,
     /** Issue #1189 — ~100-char snippet of the chapter's opening prose,
      *  rendered under the title to disambiguate generically-numbered
      *  chapters. Null / blank hides the line entirely (the common case for
@@ -105,6 +127,14 @@ fun ChapterCard(
             ChapterCacheState.Complete -> ", cached, plays instantly"
             ChapterCacheState.Partial -> ", caching in progress"
             ChapterCacheState.None -> ""
+        } +
+        // Issue #1461 — download-status segment, ordered between cache and
+        // downloaded to match the visual sweep. None reads as no clause.
+        when (state.downloadBadge) {
+            ChapterDownloadBadge.Queued -> ", download queued"
+            ChapterDownloadBadge.Downloading -> ", downloading"
+            ChapterDownloadBadge.Failed -> ", download failed"
+            ChapterDownloadBadge.None -> ""
         } +
         if (state.isDownloaded) ", downloaded" else ""
 
@@ -215,6 +245,12 @@ fun ChapterCard(
             // parent Row.spacedBy) so the layout matches the pre-PR-H
             // card for the common-case empty-cache chapter.
             ChapterCacheBadge(state = state.cacheState)
+            // Issue #1461 — in-progress / failed download badge. Sits between
+            // the cache badge and the downloaded (OfflineBolt) icon. Invisible
+            // for None so a not-downloading chapter is visually unchanged; the
+            // terminal Downloaded state is shown by the OfflineBolt below, not
+            // here, so the two never render at once.
+            DownloadStatusBadge(badge = state.downloadBadge)
             if (state.isDownloaded) {
                 Icon(
                     imageVector = Icons.Filled.OfflineBolt,

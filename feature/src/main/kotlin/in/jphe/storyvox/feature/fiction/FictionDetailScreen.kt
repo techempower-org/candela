@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.annotation.AnnotationExportFormatter
+import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
 import `in`.jphe.storyvox.data.share.FictionShareLink
 import `in`.jphe.storyvox.data.source.companion.CompanionMatch
 import `in`.jphe.storyvox.feature.R
@@ -91,6 +92,7 @@ import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.TestTags
 import `in`.jphe.storyvox.ui.component.ChapterCard
 import `in`.jphe.storyvox.ui.component.ChapterCardState
+import `in`.jphe.storyvox.ui.component.ChapterDownloadBadge
 import `in`.jphe.storyvox.ui.component.MagicCircularProgress
 import `in`.jphe.storyvox.ui.component.coverSourceFamilyFor
 import `in`.jphe.storyvox.ui.component.ErrorBlock
@@ -360,6 +362,39 @@ fun FictionDetailScreen(
                     // export until the detail row exists. The skeleton
                     // / first-load error states render no overflow.
                     if (fiction != null) {
+                        // Issue #1461 — how many chapters are mid-download right
+                        // now (queued or actively fetching). Drives the inline
+                        // "Downloading N…" chip below and gates the "Cancel
+                        // downloads" overflow item. Derived from the same
+                        // download-state flow the per-chapter badges read, so it
+                        // clears automatically when the bulk download finishes or
+                        // is cancelled.
+                        val activeDownloadCount = state.chapters.count {
+                            it.downloadState == ChapterDownloadState.QUEUED ||
+                                it.downloadState == ChapterDownloadState.DOWNLOADING
+                        }
+                        if (activeDownloadCount > 0) {
+                            val downloadingCd = stringResource(
+                                R.string.fiction_downloading_count,
+                                activeDownloadCount,
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .padding(end = 4.dp)
+                                    .semantics(mergeDescendants = true) {
+                                        contentDescription = downloadingCd
+                                        liveRegion = LiveRegionMode.Polite
+                                    },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                MagicCircularProgress(modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = downloadingCd,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
                         if (state.isExportingEpub) {
                             // Inline progress chip replaces the More icon
                             // while the export runs — gives the user a
@@ -440,6 +475,19 @@ fun FictionDetailScreen(
                                         viewModel.downloadWholeBook()
                                     },
                                 )
+                                // Issue #1461 — cancel an in-flight bulk download.
+                                // Only shown while chapters are actually queued /
+                                // downloading, so the menu isn't cluttered with a
+                                // dead action the rest of the time.
+                                if (activeDownloadCount > 0) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.fiction_cancel_downloads)) },
+                                        onClick = {
+                                            menuOpen = false
+                                            viewModel.cancelDownloads()
+                                        },
+                                    )
+                                }
                                 // Issue #1313 — share a deep link to this
                                 // fiction (candela://fiction/<id>); the
                                 // recipient's app opens straight to detail.
@@ -1738,6 +1786,17 @@ private fun UiChapter.toCardState(currentId: String?) = ChapterCardState(
     // flow's first emission), so the badge silently no-ops in that
     // window instead of flickering bogus state.
     cacheState = cacheState,
+    // Issue #1461 — map the body-download state onto the card's in-progress /
+    // failed badge. DOWNLOADED + NOT_DOWNLOADED map to None: DOWNLOADED is shown
+    // by the card's OfflineBolt (isDownloaded), and NOT_DOWNLOADED is the resting
+    // state with no badge.
+    downloadBadge = when (downloadState) {
+        ChapterDownloadState.QUEUED -> ChapterDownloadBadge.Queued
+        ChapterDownloadState.DOWNLOADING -> ChapterDownloadBadge.Downloading
+        ChapterDownloadState.FAILED -> ChapterDownloadBadge.Failed
+        ChapterDownloadState.NOT_DOWNLOADED,
+        ChapterDownloadState.DOWNLOADED -> ChapterDownloadBadge.None
+    },
     // Issue #1189 — content-preview snippet (null until the body is
     // cached); the card hides the line when absent.
     preview = preview,

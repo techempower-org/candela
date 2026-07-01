@@ -361,6 +361,7 @@ class FictionRepositoryImplTest {
         // Issue #705 — DAO interface adds a reaper; this test fake
         // doesn't exercise downloads so a no-op is sufficient.
         override suspend fun reapStuckDownloads(now: Long, cutoff: Long): Int = 0
+        override suspend fun resetActiveDownloadsForFiction(fictionId: String): Int = 0
         override suspend fun setBody(
             id: String,
             html: String,

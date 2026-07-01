@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.feature.api
 
+import `in`.jphe.storyvox.data.db.entity.ChapterDownloadState
 import `in`.jphe.storyvox.playback.cache.ChapterCacheState
 import `in`.jphe.storyvox.ui.theme.ReaderColors
 import `in`.jphe.storyvox.ui.theme.ReaderTheme
@@ -54,6 +55,13 @@ data class UiChapter(
     val durationLabel: String,
     val isDownloaded: Boolean,
     val isFinished: Boolean,
+    /** Issue #1461 — body-download state for this chapter (queued / downloading
+     *  / downloaded / failed). Composed in `AppBindings.chaptersFor` from
+     *  `ChapterRepository.observeDownloadState`. Defaults to `NOT_DOWNLOADED` so
+     *  the many lightweight `UiChapter` construction sites (tests, previews) stay
+     *  source-compatible; `FictionDetailScreen.toCardState` maps it to the
+     *  `ChapterCard`'s in-progress/failed badge. */
+    val downloadState: ChapterDownloadState = ChapterDownloadState.NOT_DOWNLOADED,
     /** PR-H (#86) — PCM cache state for this chapter under the user's
      *  currently-active voice at 1.0× speed / 1.0× pitch. Default
      *  `None` keeps every UiChapter construction site (today only
@@ -195,6 +203,16 @@ interface FictionRepositoryUi {
      * / [setPlaybackSpeed] above); the real adapter overrides it.
      */
     suspend fun downloadWholeBook(fictionId: String, requireUnmetered: Boolean) {}
+    /**
+     * Issue #1461 — cancel an in-flight bulk download for [fictionId]: stops the
+     * pending WorkManager chapter jobs and resets QUEUED/DOWNLOADING chapters so
+     * the per-chapter status UI clears. Downloaded bodies + prior failures stay.
+     *
+     * Defaulted to a no-op (same rationale as [downloadWholeBook]) so lightweight
+     * [FictionRepositoryUi] test fakes don't have to implement it; the real
+     * adapter overrides it.
+     */
+    suspend fun cancelDownloads(fictionId: String) {}
     suspend fun follow(fictionId: String, follow: Boolean)
     /**
      * Issue #211 — push a follow/unfollow to the *source* (Royal Road's
