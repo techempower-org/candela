@@ -182,6 +182,19 @@ interface FictionRepositoryUi {
      */
     suspend fun chapterTextById(chapterId: String): String?
     suspend fun setDownloadMode(fictionId: String, mode: DownloadMode)
+    /**
+     * Issue #1461 — bulk "download this whole book". Queues every
+     * not-yet-downloaded chapter of [fictionId] into the existing offline
+     * cache via the WorkManager per-chapter download pipeline. When
+     * [requireUnmetered] is true (the data-saver default) each job carries a
+     * `NetworkType.UNMETERED` constraint and defers until the device is on an
+     * unmetered (typically Wi-Fi) transport; false lets it run on mobile data.
+     *
+     * Defaulted to a no-op so the many lightweight [FictionRepositoryUi] fakes
+     * in tests don't have to implement it (same pattern as [observePlaybackSpeed]
+     * / [setPlaybackSpeed] above); the real adapter overrides it.
+     */
+    suspend fun downloadWholeBook(fictionId: String, requireUnmetered: Boolean) {}
     suspend fun follow(fictionId: String, follow: Boolean)
     /**
      * Issue #211 — push a follow/unfollow to the *source* (Royal Road's

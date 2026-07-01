@@ -406,6 +406,14 @@ object AppBindings {
     fun provideNetworkPatienceConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig = impl
 
+    /** Issue #1461 — "download over Wi-Fi only" data-saver bridge. Same
+     *  singleton; consumed by `:core-data`'s `NewChapterPollWorker` so EAGER
+     *  auto-downloads honour the toggle instead of a hardcoded unmetered
+     *  constraint. */
+    @Provides @Singleton
+    fun provideDownloadNetworkConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.DownloadNetworkConfig = impl
+
     /**
      * Issue #135 — pronunciation dictionary contract for `core-playback`'s
      * EnginePlayer + the Settings UI. Same singleton instance as the rest;
@@ -688,6 +696,15 @@ private class RealFictionRepositoryUi(
 
     override suspend fun setDownloadMode(fictionId: String, mode: DownloadMode) {
         repo.setDownloadMode(fictionId, mode.toData())
+    }
+
+    /** Issue #1461 — bulk "download this whole book". Forwards to the existing
+     *  [ChapterRepository.queueAllMissing] pipeline (WorkManager, one job per
+     *  chapter into the shared offline cache). [requireUnmetered] is read from
+     *  the data-saver setting by the ViewModel and passed straight through as
+     *  the WorkManager `NetworkType` constraint. */
+    override suspend fun downloadWholeBook(fictionId: String, requireUnmetered: Boolean) {
+        chapters.queueAllMissing(fictionId, requireUnmetered)
     }
 
     override suspend fun follow(fictionId: String, follow: Boolean) {

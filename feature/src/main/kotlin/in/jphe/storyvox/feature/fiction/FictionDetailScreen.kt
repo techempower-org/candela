@@ -230,6 +230,16 @@ fun FictionDetailScreen(
                 FictionDetailUiEvent.OpenRoyalRoadSignIn -> onOpenRoyalRoadSignIn()
                 is FictionDetailUiEvent.FollowFailed ->
                     snackbarHostState.showSnackbar(event.message)
+                // Issue #1461 — confirm the bulk download, and (crucially)
+                // tell the user whether it will wait for Wi-Fi. Resolved in
+                // the composable so the message is localizable.
+                is FictionDetailUiEvent.DownloadQueued ->
+                    snackbarHostState.showSnackbar(
+                        context.getString(
+                            if (event.wifiOnly) R.string.fiction_download_queued_wifi
+                            else R.string.fiction_download_queued_any,
+                        ),
+                    )
             }
         }
     }
@@ -416,6 +426,18 @@ fun FictionDetailScreen(
                                     onClick = {
                                         menuOpen = false
                                         viewModel.exportToAudiobook()
+                                    },
+                                )
+                                // Issue #1461 — bulk "download this whole book"
+                                // for offline listening. Queues every missing
+                                // chapter into the offline cache, honouring the
+                                // "download over Wi-Fi only" data-saver setting
+                                // (the VM reads it and the snackbar reports it).
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.fiction_download_book)) },
+                                    onClick = {
+                                        menuOpen = false
+                                        viewModel.downloadWholeBook()
                                     },
                                 )
                                 // Issue #1313 — share a deep link to this

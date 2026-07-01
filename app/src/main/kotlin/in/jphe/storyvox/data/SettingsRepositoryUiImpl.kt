@@ -1130,6 +1130,7 @@ class SettingsRepositoryUiImpl(
     AutoBrowserConfig,
     GoogleNewsConfig,
     NetworkPatienceConfig,
+    `in`.jphe.storyvox.data.repository.DownloadNetworkConfig,
     PronunciationDictRepository,
     LlmConfigProvider,
     GitHubScopePreferences,
@@ -1731,6 +1732,14 @@ class SettingsRepositoryUiImpl(
     override suspend fun setDownloadOnWifiOnly(enabled: Boolean) {
         store.edit { it[Keys.DOWNLOAD_WIFI_ONLY] = enabled }
     }
+
+    /** Issue #1461 — [`in`.jphe.storyvox.data.repository.DownloadNetworkConfig]
+     *  bridge: expose the same `pref_download_wifi_only` key that backs the
+     *  Settings toggle to `:core-data`'s download plumbing. Defaults to `true`
+     *  (Wi-Fi only) when unset, matching the [UiSettings.downloadOnWifiOnly]
+     *  default read in the settings flow. */
+    override suspend fun requireUnmeteredForDownloads(): Boolean =
+        store.data.first()[Keys.DOWNLOAD_WIFI_ONLY] ?: true
 
     override suspend fun setPollIntervalHours(hours: Int) {
         store.edit { it[Keys.POLL_INTERVAL_HOURS] = hours.coerceIn(1, 24) }
