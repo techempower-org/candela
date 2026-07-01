@@ -141,9 +141,12 @@ val hasReleaseKeystore: Boolean = releaseStoreFilePath != null &&
  * task-graph check ships the same fix in one place. The cost is that a
  * mixed invocation like `./gradlew :app:assembleRelease :app:bundleRelease`
  * signs BOTH artifacts with the release keystore, but no automation
- * (CI, release runbook) issues that pair — CI only runs
- * `:app:assembleRelease` (see .github/workflows/android.yml), and the
- * Play path runs `:app:publishReleaseBundle` separately.
+ * (CI, release runbook) issues that pair in ONE invocation — CI runs
+ * `:app:assembleRelease` and (on tag builds) `:app:bundleRelease` as
+ * SEPARATE steps / gradle invocations (#1456; see
+ * .github/workflows/android.yml), so each keeps its own task graph and
+ * the APK is never release-signed, and the Play path runs
+ * `:app:publishReleaseBundle` separately.
  *
  * When [hasReleaseKeystore] is false (fresh checkout, contributor without
  * the Play keystore configured), the bundle path falls back to the debug

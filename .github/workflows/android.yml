@@ -181,6 +181,25 @@ jobs:
         # existing sideload installs upgrade in place).
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
+      - name: Bundle release AAB (Play Store)
+        # Issue #1456 — Android App Bundle for Play Store distribution.
+        # Tag-only: the AAB is a release artifact; PR / main pushes stay
+        # APK-only so PR CI stays fast (assembleRelease above is the compile
+        # gate, and bundleRelease shares its compile graph — a bundle-only
+        # break is near-impossible if the APK assembled).
+        #
+        # MUST stay a SEPARATE gradle invocation from assembleRelease above —
+        # never `./gradlew :app:assembleRelease :app:bundleRelease`. The
+        # signing split in app/build.gradle.kts (#952, isBundleOrPublishBuild)
+        # release-signs any invocation whose task graph contains "bundle";
+        # a combined call would release-sign the *APK* too and break sideload
+        # upgrade continuity (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Separate
+        # steps = separate task graphs → the APK stays debug-signed and the
+        # AAB gets the Play release keystore (on a runner with the
+        # storyvox.release* props; otherwise a harmless debug-signed AAB).
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:bundleRelease --no-daemon --stacktrace
+
       - name: Assemble Wear release APK
         # Companion watch app ("Library Nocturne"). Signed with the same
         # checked-in keystore as :app (see wear/build.gradle.kts) so the
@@ -206,7 +225,7 @@ jobs:
         # itself is skipped without a device.
         run: ./scripts/check-cold-launch.sh
 
-      - name: Rename APKs with tag
+      - name: Rename release artifacts with tag
         # Only runs on tag builds — for PR / main pushes we just
         # verify the build compiles and stop. The local-build path
         # in `app/build.gradle.kts` (applicationVariants.all) already
@@ -237,6 +256,19 @@ jobs:
           # its output is always wear-release.apk. Copy to the tag name.
           WEAR_DIR=wear/build/outputs/apk/release
           cp "$WEAR_DIR/wear-release.apk" "$WEAR_DIR/candela-wear-${TAG}.apk"
+          # AAB (#1456): the applicationVariants rename fires for APK outputs
+          # only, so the bundle output stays app-release.aab. Copy it to the
+          # git-tag name for the Play Store upload asset (prefer a branded
+          # name if a bundle rename ever starts firing, else app-release.aab).
+          AAB_DIR=app/build/outputs/bundle/release
+          AAB_SRC=$(ls "$AAB_DIR"/candela-v*.aab 2>/dev/null | head -1)
+          if [ -z "$AAB_SRC" ]; then
+            AAB_SRC="$AAB_DIR/app-release.aab"
+          fi
+          AAB_DST="$AAB_DIR/candela-${TAG}.aab"
+          if [ "$AAB_SRC" != "$AAB_DST" ]; then
+            cp "$AAB_SRC" "$AAB_DST"
+          fi
 
       - name: Create GitHub release
         # Used to be a separate `release:` job that pulled the APK
@@ -255,12 +287,14 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
-            Release APK build for `${{ github.ref_name }}`.
+            Release build for `${{ github.ref_name }}`.
 
-            - `candela-${{ github.ref_name }}.apk` — phone / tablet
+            - `candela-${{ github.ref_name }}.apk` — phone / tablet (sideload)
             - `candela-wear-${{ github.ref_name }}.apk` — Wear OS companion ("Library Nocturne"), sideload to the watch
+            - `candela-${{ github.ref_name }}.aab` — Android App Bundle for Play Store upload (#1456)
 
-            > Both signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs. Sideload-only distribution today.
+            > The two APKs are signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs — sideload-only distribution today. The `.aab` is release-signed for Play upload **only when built on a runner that has the `storyvox.release*` keystore props** (katana); on any other runner it is debug-signed and Play will reject it. Upload to Play Console is still manual (no publisher automation yet).
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
+            app/build/outputs/bundle/release/candela-${{ github.ref_name }}.aab
