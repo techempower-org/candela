@@ -1,15 +1,10 @@
 package `in`.jphe.storyvox.source.plos.di
 
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.plos.PlosSource
 import `in`.jphe.storyvox.source.plos.net.PlosApi
 import okhttp3.Interceptor
@@ -54,26 +49,4 @@ internal object PlosHttpModule {
     @Provides
     @Singleton
     fun providePlosApi(@PlosHttp client: OkHttpClient): PlosApi = PlosApi(client)
-}
-
-/**
- * Issue #380 — contributes [PlosSource] into the multi-source
- * `Map<String, FictionSource>`. Adds a "PLOS" entry to the
- * segmented source picker; persisted fictions with sourceId="plos"
- * route through this source.
- *
- * The parallel `@SourcePlugin`-driven `@IntoSet` binding (Phase 2 of
- * #384) is emitted by the KSP processor alongside this legacy
- * `@IntoMap` binding. Phase 3 collapses to the registry-only shape;
- * until then both bind sites coexist.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class PlosBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.PLOS)
-    abstract fun bindFictionSource(impl: PlosSource): FictionSource
 }

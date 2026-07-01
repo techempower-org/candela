@@ -1,17 +1,12 @@
 package `in`.jphe.storyvox.source.gutenberg.di
 
 import android.content.Context
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.gutenberg.GutenbergSource
 import `in`.jphe.storyvox.source.gutenberg.net.GutendexApi
 import okhttp3.Interceptor
@@ -78,21 +73,4 @@ internal object GutenbergHttpModule {
     fun provideCacheDir(@ApplicationContext ctx: Context): File =
         File(ctx.cacheDir, "gutenberg").apply { mkdirs() }
 
-}
-
-/**
- * Contributes [GutenbergSource] into the multi-source
- * `Map<String, FictionSource>`. Adds a "Project Gutenberg" entry to
- * the segmented source picker; persisted fictions with
- * sourceId="gutenberg" route through this source.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class GutenbergBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.GUTENBERG)
-    abstract fun bindFictionSource(impl: GutenbergSource): FictionSource
 }

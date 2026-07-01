@@ -75,6 +75,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Open-access peer-reviewed science · abstract + first sections as single-chapter fictions · Solr search",
     sourceUrl = "https://plos.org",
+    generateRouting = true,
 )
 @Singleton
 internal class PlosSource @Inject constructor(

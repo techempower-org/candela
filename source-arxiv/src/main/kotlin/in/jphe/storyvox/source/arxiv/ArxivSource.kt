@@ -74,6 +74,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Open-access academic papers · abstract + author byline as single-chapter fictions · default cs.AI",
     sourceUrl = "https://arxiv.org",
+    generateRouting = true,
 )
 @Singleton
 internal class ArxivSource @Inject constructor(
