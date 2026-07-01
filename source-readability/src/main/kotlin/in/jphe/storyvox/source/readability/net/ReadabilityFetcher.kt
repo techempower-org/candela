@@ -62,6 +62,8 @@ class ReadabilityFetcher @Inject constructor(
                             val body = response.body?.string()
                             if (body.isNullOrBlank()) {
                                 FictionResult.NetworkError("Article body was empty")
+                            } else if (looksLikeCfChallenge(body)) {
+                                FictionResult.Cloudflare(url)
                             } else {
                                 FictionResult.Success(body)
                             }
@@ -72,6 +74,15 @@ class ReadabilityFetcher @Inject constructor(
         } catch (e: IOException) {
             FictionResult.NetworkError("Article fetch IO error: ${e.message}", cause = e)
         }
+    }
+
+    /** Detect Cloudflare managed-challenge interstitials (#1440, tightened #1453). */
+    private fun looksLikeCfChallenge(body: String): Boolean {
+        if (body.contains("cf-mitigated")) return true
+        val hasChallengeTitle = "<title>" in body &&
+            body.substringAfter("<title>").substringBefore("</title>")
+                .contains("Just a moment", ignoreCase = true)
+        return hasChallengeTitle && body.length < 20_000
     }
 
     private companion object {
