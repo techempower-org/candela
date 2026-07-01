@@ -45,11 +45,21 @@ internal class GoogleNewsApi(private val client: OkHttpClient) {
 
     /**
      * Inline Cloudflare challenge detection (#1446).
-     * Checks for the three markers present in CF's JS challenge page.
+     *
+     * `cf-mitigated` is an unambiguous signal (CF sets it only on blocked
+     * responses). The `<title>Just a moment</title>` pattern identifies
+     * the JS challenge interstitial — combined with a body-length cap to
+     * avoid false-positives on legitimate pages that happen to contain
+     * that substring. `/cdn-cgi/challenge-platform/` was removed because
+     * Turnstile injects it on every CF-fronted page.
+     *
      * Shared utility deferred to #1438.
      */
-    private fun looksLikeCfChallenge(body: String): Boolean =
-        body.contains("/cdn-cgi/challenge-platform/") ||
-            body.contains("Just a moment...") ||
-            body.contains("cf-mitigated")
+    private fun looksLikeCfChallenge(body: String): Boolean {
+        if (body.contains("cf-mitigated")) return true
+        val hasChallengeTitle = "<title>" in body &&
+            body.substringAfter("<title>").substringBefore("</title>")
+                .contains("Just a moment", ignoreCase = true)
+        return hasChallengeTitle && body.length < 20_000
+    }
 }
