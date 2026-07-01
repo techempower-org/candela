@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -369,35 +371,29 @@ internal fun NowPlayingContent(
                     // length; the Sleep label doubles as the live countdown when
                     // a duration timer is running.
                     if (!state.recording) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = stringResource(R.string.wear_teleprompter),
+                        // #1402 — Teleprompter/Sleep rendered as ≥48dp touch
+                        // targets (the Wear/Material minimum) on a subtle brass
+                        // surface, so they're easy to hit and hard to fat-finger
+                        // against the transport row above. Previously sub-48dp
+                        // bottom-edge text (#1398 improved the padding; this makes
+                        // the target itself compliant).
+                        val sleepRemaining = state.sleepTimerRemainingMs
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SecondaryAction(
+                                label = stringResource(R.string.wear_teleprompter),
                                 color = BrassPrimary,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.caption1,
-                                // #a11y — announce as an actionable button with a
-                                // descriptive double-tap label, not bare text.
-                                modifier = Modifier
-                                    .clickable(
-                                        onClickLabel = stringResource(R.string.wear_cd_open_teleprompter),
-                                        role = Role.Button,
-                                        onClick = onOpenTeleprompter,
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                onClick = onOpenTeleprompter,
+                                onClickLabel = stringResource(R.string.wear_cd_open_teleprompter),
                             )
-                            val sleepRemaining = state.sleepTimerRemainingMs
-                            Text(
-                                text = if (sleepRemaining != null) {
+                            SecondaryAction(
+                                label = if (sleepRemaining != null) {
                                     "Sleep ${formatSleepRemaining(sleepRemaining)}"
                                 } else {
                                     "Sleep"
                                 },
                                 color = if (sleepRemaining != null) BrassTint else BrassPrimary,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.caption1,
-                                modifier = Modifier
-                                    .clickable(onClick = onOpenSleepTimer)
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                onClick = onOpenSleepTimer,
+                                onClickLabel = stringResource(R.string.wear_cd_open_sleep_timer),
                             )
                         }
                     }
@@ -860,6 +856,43 @@ private fun SpeedStep(symbol: String, enabled: Boolean, onClick: () -> Unit) {
 private fun formatSpeed(speed: Float): String {
     val tenths = (speed * 10f).roundToInt()
     return "${tenths / 10}.${tenths % 10}×"
+}
+
+/**
+ * #1402 — a bottom-edge secondary action (Teleprompter / Sleep timer). Keeps the
+ * light brass-label look but wraps it in a ≥48dp touch target (the Wear/Material
+ * minimum) with a subtle rounded surface, so the tappable area is visible and
+ * hard to fat-finger against the transport row above — a motor-accessibility fix.
+ *
+ * Modifier order is deliberate: `defaultMinSize` and `padding` sit *inside* the
+ * `clickable`, so the ripple and background fill the whole 48dp target rather
+ * than just the text glyphs. Announced to TalkBack as a button via [onClickLabel].
+ */
+@Composable
+private fun SecondaryAction(
+    label: String,
+    color: Color,
+    onClick: () -> Unit,
+    onClickLabel: String? = null,
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colors.surface)
+            .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = color,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.caption1,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 /**

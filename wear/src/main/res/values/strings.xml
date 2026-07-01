@@ -42,6 +42,7 @@
     <string name="wear_state_buffering">Buffering</string>
     <string name="wear_cd_chapter_progress">Chapter progress</string>
     <string name="wear_cd_open_teleprompter">Open teleprompter remote</string>
+    <string name="wear_cd_open_sleep_timer">Open sleep timer</string>
 
     <!-- Volume indicator (#1401) — bezel/touch-ring level feedback -->
     <string name="wear_cd_volume_level">Volume %1$d of %2$d</string>
