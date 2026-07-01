@@ -492,14 +492,23 @@ internal class Ao3Api @Inject constructor(
          * the request and returns a JS challenge / CAPTCHA page instead
          * of the origin's HTML or EPUB bytes.
          *
-         * Same three markers used by the Royal Road fetcher — these are
-         * stable Cloudflare platform strings that appear in every
-         * challenge variant (managed, JS, interactive). Inlined here
-         * rather than shared; extraction tracked in #1438.
+         * `cf-mitigated` is conclusive — Cloudflare only emits it on
+         * actively-mitigated responses. "Just a moment" in the page
+         * `<title>` is the other reliable signal; we pair it with a
+         * body-length cap because real AO3 pages (even short ones)
+         * are far larger than the ~5 KB challenge stub.
+         *
+         * Notably absent: `/cdn-cgi/challenge-platform/` — Cloudflare
+         * Turnstile embeds that path in passive bot-detection scripts
+         * on every legitimate page, causing false positives (#1433).
+         * Shared extraction tracked in #1438.
          */
-        internal fun looksLikeCfChallenge(body: String): Boolean =
-            body.contains("/cdn-cgi/challenge-platform/") ||
-                body.contains("Just a moment...") ||
-                body.contains("cf-mitigated")
+        internal fun looksLikeCfChallenge(body: String): Boolean {
+            if (body.contains("cf-mitigated")) return true
+            val hasChallengeTitle = "<title>" in body &&
+                body.substringAfter("<title>").substringBefore("</title>")
+                    .contains("Just a moment", ignoreCase = true)
+            return hasChallengeTitle && body.length < 20_000
+        }
     }
 }
