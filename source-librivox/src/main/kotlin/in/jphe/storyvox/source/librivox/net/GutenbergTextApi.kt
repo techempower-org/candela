@@ -182,10 +182,20 @@ internal class GutenbergTextApi @Inject constructor(
          * as HTTP 200. Without this check the challenge HTML would be
          * stored as chapter text and narrated by TTS — the worst failure
          * mode. Inlined per #1438 (no shared utility yet).
+         *
+         * The `/cdn-cgi/challenge-platform/` marker is NOT checked: it
+         * appears on every legitimate Cloudflare Turnstile-instrumented
+         * page (false-positive confirmed in #1453). Instead: `cf-mitigated`
+         * is definitive, and "Just a moment" in `<title>` plus a small
+         * body size distinguishes an interstitial from a real ebook
+         * (Gutenberg texts are typically 100K+ characters).
          */
-        private fun looksLikeCfChallenge(body: String): Boolean =
-            body.contains("/cdn-cgi/challenge-platform/") ||
-                body.contains("Just a moment...") ||
-                body.contains("cf-mitigated")
+        private fun looksLikeCfChallenge(body: String): Boolean {
+            if (body.contains("cf-mitigated")) return true
+            val hasChallengeTitle = "<title>" in body &&
+                body.substringAfter("<title>").substringBefore("</title>")
+                    .contains("Just a moment", ignoreCase = true)
+            return hasChallengeTitle && body.length < 20_000
+        }
     }
 }
