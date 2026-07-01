@@ -17,16 +17,17 @@ import java.util.zip.ZipInputStream
  *    (`<hN id="ncc_N"><a href="file.smil#frag">Title</a>`) plus
  *    `<span class="page-*">` page markers. `<head>` carries `dc:title` /
  *    `dc:creator`.
- *  - `*.smil` — sync: `<par><text src="content.html#frag" id="txt_N"/></par>`.
- *    The heading's `#frag` is a SMIL `<text id>`, whose `src` points into a
- *    content document.
+ *  - `*.smil` — sync: `<par id="par_N"><text src="content.html#frag" id="txt_N"/></par>`.
+ *    The heading's `#frag` is a SMIL anchor — per the 2.02 spec it may target a
+ *    `<text id>` **or** a `<par id>` (the recommended form); either way it
+ *    resolves to a `<text src>` that points into a content document.
  *  - content `*.html` — the actual prose (text lives inside `<a>` link text),
  *    every block carrying an id.
  *
  * For a TTS app we only need the text (we re-narrate), so the algorithm is:
  *  1. parse `ncc.html` → ordered headings (title + `smil#frag`); skip page spans.
- *  2. per heading, follow `smil#frag` → its `<text src>` → the chapter's START
- *     content-document fragment id (one lookup, no full par-sequence walk).
+ *  2. per heading, resolve `smil#frag` (a `<par>` or `<text>` anchor) → a
+ *     `<text src>` → the chapter's START content-document fragment id.
  *  3. walk the content document ONCE, capturing all text (block boundaries split
  *     paragraphs; unknown tags are inline so text is never dropped; `page-*`
  *     class spans + `pagenum`/`noteref` are skipped), switching chapters when an
@@ -164,16 +165,40 @@ object Daisy202Parser {
         return NccDoc(title, author, headings)
     }
 
-    /** In a SMIL doc, find `<text id=[textId] src="…">` and return its `src`. */
-    private fun findContentSrc(xml: String, textId: String): String? {
+    /**
+     * In a SMIL doc, resolve a fragment id (from an ncc `href="file.smil#frag"`)
+     * to the content `src` it points at.
+     *
+     * The DAISY 2.02 spec requires the destination anchor to reside within a SMIL
+     * `<par>` **or** a `<text>` element — and **recommends the `<par>` form**. So
+     * `frag` may be either:
+     *  - a `<text id=frag src="…">` → return its `src` directly, or
+     *  - a `<par id=frag>` → descend to that par's first `<text>` child and return
+     *    its `src` (the spec says the text should be the par's first element).
+     *
+     * Handling only the `<text>` case silently produced empty chapter bodies for
+     * every `<par>`-targeted book (the recommended, and very common, form). The
+     * bundled WIPO sample happens to use `<text>` targets, which masked the gap.
+     */
+    private fun findContentSrc(xml: String, frag: String): String? {
         val parser = Xml.newPullParser()
         parser.setInput(StringReader(xml))
+        var inTargetPar = false
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
-            if (event == XmlPullParser.START_TAG && parser.name?.lowercase() == "text") {
-                if (parser.getAttributeValue(null, "id") == textId) {
-                    return parser.getAttributeValue(null, "src")
+            when (event) {
+                XmlPullParser.START_TAG -> when (parser.name?.lowercase()) {
+                    "text" ->
+                        // Direct <text id=frag>, or the first <text> inside a matched <par>.
+                        if (inTargetPar || parser.getAttributeValue(null, "id") == frag) {
+                            return parser.getAttributeValue(null, "src")
+                        }
+                    "par" ->
+                        if (parser.getAttributeValue(null, "id") == frag) inTargetPar = true
                 }
+                XmlPullParser.END_TAG ->
+                    // Matched par closed before yielding a <text> → stop treating it as the target.
+                    if (inTargetPar && parser.name?.lowercase() == "par") inTargetPar = false
             }
             event = parser.next()
         }
