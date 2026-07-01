@@ -26,7 +26,6 @@ exclude:
   - superpowers/
   - ROADMAP.md
   - compose-gotchas.md
-  - VOICES.md  # consolidated into voices.md, kept in repo for legacy links
   - README.md
   - Gemfile
   - Gemfile.lock

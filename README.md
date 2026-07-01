@@ -85,7 +85,7 @@ Candela links a local TTS engine in-process via the [VoxSherpa-TTS](https://gith
 
 For users who want studio-grade narration on slow devices, **Azure Cognitive Services HD voices** are wired in as an optional remote backend (BYOK). Add your key and region in **Settings → Voice & Playback → Azure** and pick from the full Azure HD voice roster. If your key fails or the network drops, Candela falls back to your selected local voice for the rest of the chapter — playback never just stops on you.
 
-Voice model weights for the local engine are downloaded on demand by `VoiceManager` from the `voices-v2` GitHub release; the in-app picker shows what's installed and what's available. See [`docs/VOICES.md`](docs/VOICES.md) for the catalog and refresh workflow.
+Voice model weights for the local engine are downloaded on demand by `VoiceManager` from the `voices-v2` GitHub release; the in-app picker shows what's installed and what's available. See [`docs/voices.md`](docs/voices.md) for the catalog and refresh workflow.
 
 ## Install (sideload)
 
