@@ -232,6 +232,7 @@
     <a href="#s5">V · Content rating</a>
     <a href="#s6">VI · First release</a>
     <a href="#s7">VII · Automation</a>
+    <a href="#s8">VIII · Beta track</a>
     <a href="#tshoot">Troubleshooting</a>
   </nav>
 
@@ -502,6 +503,117 @@ git push origin main v1.4.5
     </div>
   </section>
 
+  <!-- ===================== VIII. BETA TRACK ===================== -->
+  <section class="step" id="s8">
+    <div class="head">
+      <span class="seal">VIII</span>
+      <div><h2>Beta testing track</h2><div class="sub">closed → open → production · testers before the world</div></div>
+      <span class="secprog" data-secprog></span>
+    </div>
+    <div class="body">
+      <p class="intro">Before going to Production, run the build through a <b>Closed</b> or <b>Open</b> testing track.
+        Closed testing targets an invite list (up to 2,000 per group); Open testing is anyone with the link. Both
+        give you crash reports, feedback, and a staged rollout before the public sees it.</p>
+
+      <div class="note"><span class="t">Track vocabulary</span>Play Console calls them <b>Internal</b>, <b>Closed</b>, and <b>Open</b> testing.
+        GPP uses the legacy names: <code>internal</code>, <code>alpha</code> (Closed), <code>beta</code> (Open).
+        The <code>promoteArtifact</code> task accepts either naming style, but the <code>track</code> property in <code>build.gradle.kts</code> must use the legacy names.</div>
+
+      <div class="tablewrap"><table>
+        <tr><th>Track</th><th>GPP name</th><th>Audience</th><th>Review?</th><th>Best for</th></tr>
+        <tr><td>Internal</td><td><code>internal</code></td><td>Up to 100 · email list</td><td>No</td><td>CI drafts, smoke-test builds</td></tr>
+        <tr><td>Closed</td><td><code>alpha</code></td><td>Up to 2,000 per group</td><td class="yes">Yes (first time)</td><td>Beta testers, org members, trusted users</td></tr>
+        <tr><td>Open</td><td><code>beta</code></td><td>Anyone with opt-in link</td><td class="yes">Yes (first time)</td><td>Public beta, wide feedback before GA</td></tr>
+        <tr><td>Production</td><td><code>production</code></td><td>Everyone</td><td class="yes">Yes (first time)</td><td>General availability</td></tr>
+      </table></div>
+
+      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">A · Create a Closed testing track</h3>
+      <p class="intro">The fastest path: promote the already-tested Internal build to Closed, share the opt-in link with your testers.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c8a"><label for="c8a"><span class="what">Play Console → Testing → Closed testing → Create track</span><span class="pill once">once</span>
+          <span class="why">Name it something memorable ("Beta" or "Candela Beta"). Google creates the track and asks for a release.</span></label></li>
+        <li><input type="checkbox" id="c8b"><label for="c8b"><span class="what">Create a testers list</span><span class="pill once">once</span>
+          <span class="why">Closed testing → Manage track → Testers tab → Create email list. Add individual emails or a <b>Google Group</b> address. Google Group is easier to manage — add/remove members from Groups, not Play Console.</span></label></li>
+        <li><input type="checkbox" id="c8c"><label for="c8c"><span class="what">Set feedback URL or email</span><span class="pill once">once</span>
+          <span class="why">Testers tab → Feedback URL/email. Point it at a form, GitHub issue template, or an email you monitor. Testers see this on the opt-in page.</span></label></li>
+        <li><input type="checkbox" id="c8d"><label for="c8d"><span class="what">Copy the opt-in link</span>
+          <span class="why">Testers tab → Copy link. Share this with your testers — it's a <code>play.google.com/apps/testing/...</code> URL. Testers click it, accept, then the app appears in their Play Store as a beta version. The link stays the same across releases.</span></label></li>
+      </ul>
+      <div class="note safe"><span class="t">No store listing needed</span>Closed testing inherits your main store listing — you don't need separate screenshots or descriptions. The track is invisible to non-testers.</div>
+
+      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">B · Promote a build to the beta track</h3>
+      <p class="intro">Two paths: promote from Internal (recommended — the build is already tested) or upload directly.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c8e"><label for="c8e"><span class="what">Option 1 — Promote from Internal via GPP</span><span class="pill auto">repeat</span>
+          <span class="why">The cleanest path: the same binary that passed your Internal smoke test gets promoted, no re-upload.</span></label></li>
+      </ul>
+      <pre><span class="c"># promote the current internal build → closed testing</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track alpha</pre>
+      <ul class="checks">
+        <li><input type="checkbox" id="c8f"><label for="c8f"><span class="what">Option 2 — Upload directly to Closed</span>
+          <span class="why">If you want to skip Internal and go straight to testers, change the <code>track</code> in <code>build.gradle.kts</code> or override on the command line.</span></label></li>
+      </ul>
+      <pre><span class="c"># upload AAB directly to closed testing (override track)</span>
+<span class="k">./gradlew :app:publishReleaseBundle</span> -Pplay.track=alpha</pre>
+      <ul class="checks">
+        <li><input type="checkbox" id="c8g"><label for="c8g"><span class="what">Click "Release" in Play Console → Closed testing</span>
+          <span class="why">Same as Internal: GPP stages a <b>draft</b>; you bless it with one click. First closed release goes through Google review (~hours to days).</span></label></li>
+      </ul>
+      <div class="note"><span class="t">Review timeline</span>The <b>first</b> Closed testing release triggers a Google review (content rating, policy compliance). This typically takes <b>a few hours to a couple of days</b>. Subsequent releases to the same track usually clear within minutes.</div>
+
+      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">C · Open testing (wider beta)</h3>
+      <p class="intro">Optional step — skip if your Closed beta gives enough coverage. Open testing lets <i>anyone</i> opt in via a public link; no email list required.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c8h"><label for="c8h"><span class="what">Play Console → Testing → Open testing → Create track</span>
+          <span class="why">Like Closed, but no email list — anyone with the link can join. You can set a tester cap (e.g., 1,000) or leave it unlimited.</span></label></li>
+        <li><input type="checkbox" id="c8i"><label for="c8i"><span class="what">Promote from Closed → Open</span>
+          <span class="why">Same binary, wider audience. Or promote directly from Internal.</span></label></li>
+      </ul>
+      <pre><span class="c"># promote closed → open</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track beta
+
+<span class="c"># or skip closed, go internal → open</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track beta</pre>
+
+      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">D · Promote to Production</h3>
+      <p class="intro">After the beta cycle is solid, promote the tested build to Production — same command from §VII, but now you have confidence from real tester feedback.</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="c8j"><label for="c8j"><span class="what">Review tester feedback + crash reports</span><span class="pill manual">check</span>
+          <span class="why">Play Console → Quality → Android vitals shows crash-free rates. Check the feedback channel you set in step A. Fix anything critical before promoting.</span></label></li>
+        <li><input type="checkbox" id="c8k"><label for="c8k"><span class="what">Promote to Production</span><span class="pill auto">repeat</span>
+          <span class="why">The final step. Use staged rollout (10% → 50% → 100%) for extra safety on big releases.</span></label></li>
+      </ul>
+      <pre><span class="c"># promote from beta (open) → production</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track beta --promote-track production
+
+<span class="c"># or from closed → production (if you skipped open)</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production
+
+<span class="c"># staged rollout: promote to 10% of production users first</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production --user-fraction 0.1</pre>
+      <div class="note safe"><span class="t">Staged rollout</span>Pass <code>--user-fraction 0.1</code> to roll out to 10% first. Monitor vitals for a day, then promote to 100% with <code>--user-fraction 1.0</code>. If something breaks, halt the rollout from Play Console → Production → Halt.</div>
+
+      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">E · Typical release flow</h3>
+      <p class="intro">Once the tracks are set up, a per-release beta cycle looks like this:</p>
+      <pre><span class="c"># 1 · tag + push → CI builds AAB</span>
+git tag -a v1.7.0 -m "v1.7.0 — new feature"
+git push origin main v1.7.0
+
+<span class="c"># 2 · upload to Internal Test (current default)</span>
+<span class="k">./gradlew :app:publishReleaseBundle</span>
+
+<span class="c"># 3 · smoke-test on Internal, then promote to Closed beta</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track alpha
+
+<span class="c"># 4 · click "Release" in Play Console → Closed testing</span>
+
+<span class="c"># 5 · wait for tester feedback (hours/days) → fix if needed</span>
+
+<span class="c"># 6 · promote to Production (staged rollout optional)</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production</pre>
+    </div>
+  </section>
+
   <!-- ===================== TROUBLESHOOTING ===================== -->
   <section class="step" id="tshoot">
     <div class="head">
@@ -516,6 +628,9 @@ git push origin main v1.4.5
         <tr><td><code>version code X has already been used</code></td><td>A prior tag used that <code>versionCode</code> → bump it in <code>app/build.gradle.kts</code> and re-tag.</td></tr>
         <tr><td><code>Signed Bundle's package name does not match</code></td><td>AAB signed with the wrong keystore → point <code>storyvox.releaseStoreFile</code> at <code>storyvox-release.keystore</code> (SHA256 <code>38:9F:BD:AA…85:E0:16</code>).</td></tr>
         <tr><td><code>signing key … is not registered</code></td><td>Play App Signing not enrolled / different upload key → Play Console → Setup → App integrity, re-confirm the upload key.</td></tr>
+        <tr><td><code>No track found for "alpha"</code></td><td>Closed testing track doesn't exist yet → create it in Play Console → Testing → Closed testing first.</td></tr>
+        <tr><td>Testers can't see the app</td><td>Check: (1) tester is on the email list, (2) they accepted the opt-in link, (3) the release is published (not still draft), (4) Google review is complete. Propagation can take up to <b>24 hours</b> after first publish.</td></tr>
+        <tr><td><code>promoteArtifact</code> "no releases found"</td><td>The source track has no published release (only a draft) → click "Release" in Play Console on the source track first, then promote.</td></tr>
       </table></div>
     </div>
   </section>
