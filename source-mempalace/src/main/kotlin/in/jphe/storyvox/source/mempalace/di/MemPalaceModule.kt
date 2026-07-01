@@ -1,14 +1,9 @@
 package `in`.jphe.storyvox.source.mempalace.di
 
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.mempalace.MemPalaceSource
 import okhttp3.OkHttpClient
 import javax.inject.Qualifier
@@ -46,21 +41,4 @@ internal object PalaceHttpModule {
             .followSslRedirects(false)
             .retryOnConnectionFailure(true)
             .build()
-}
-
-/**
- * Contributes [MemPalaceSource] into the multi-source `Map<String,
- * FictionSource>`. With this binding active, the segmented source
- * picker in Browse gets a "Memory Palace" entry, and any persisted
- * fiction with sourceId="mempalace" routes through this source.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class MemPalaceBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.MEMPALACE)
-    abstract fun bindFictionSource(impl: MemPalaceSource): FictionSource
 }

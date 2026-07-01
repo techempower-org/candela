@@ -53,6 +53,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Accessible DAISY library · partner API (see #1002)",
     sourceUrl = "https://www.bookshare.org",
+    generateRouting = true,
 )
 internal class BookshareSource @Inject constructor(
     private val api: BookshareApi,

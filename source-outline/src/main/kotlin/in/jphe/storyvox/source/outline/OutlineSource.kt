@@ -46,6 +46,7 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Self-hosted Outline wiki · collections = fictions, documents = chapters",
     sourceUrl = "https://www.getoutline.com",
+    generateRouting = true,
 )
 @Singleton
 internal class OutlineSource @Inject constructor(

@@ -1,15 +1,10 @@
 package `in`.jphe.storyvox.source.outline.di
 
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.outline.OutlineSource
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -56,21 +51,4 @@ internal object OutlineHttpModule {
         config: `in`.jphe.storyvox.source.outline.config.OutlineConfig,
     ): `in`.jphe.storyvox.source.outline.net.OutlineApi =
         `in`.jphe.storyvox.source.outline.net.OutlineApi(client, config)
-}
-
-/**
- * Contributes [OutlineSource] into the multi-source `Map<String,
- * FictionSource>` (#245). Adds an "Outline" entry to the segmented
- * source picker; persisted fictions with sourceId="outline" route
- * through this source.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class OutlineBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.OUTLINE)
-    abstract fun bindFictionSource(impl: OutlineSource): FictionSource
 }

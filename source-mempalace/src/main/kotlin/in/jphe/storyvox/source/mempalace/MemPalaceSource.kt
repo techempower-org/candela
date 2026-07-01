@@ -60,6 +60,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Your local mempalace daemon · LAN-only · wings + rooms become fictions",
     sourceUrl = "http://mempalace.realm.watch",
+    generateRouting = true,
 )
 @Singleton
 internal class MemPalaceSource @Inject constructor(

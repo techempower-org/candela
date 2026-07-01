@@ -5,11 +5,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.FictionSource
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.bookshare.BookshareConfig
 import `in`.jphe.storyvox.source.bookshare.BookshareSource
 import `in`.jphe.storyvox.source.bookshare.InMemoryBookshareConfig
@@ -65,21 +61,4 @@ internal abstract class BookshareConfigBindings {
     @Binds
     @Singleton
     abstract fun bindConfig(impl: InMemoryBookshareConfig): BookshareConfig
-}
-
-/**
- * Issue #1002 — contributes [BookshareSource] into the multi-source
- * `Map<String, FictionSource>` so persisted rows with `sourceId="bookshare"`
- * resolve through it. Runs in parallel with the auto-generated `@SourcePlugin`
- * descriptor binding (Phase 2 pattern, #384).
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class BookshareBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.BOOKSHARE)
-    abstract fun bindFictionSource(impl: BookshareSource): FictionSource
 }
