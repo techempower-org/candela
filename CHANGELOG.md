@@ -9,6 +9,28 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.7.0] -- 2026-07-01
+
+**Offline for the road.** Bulk book downloads with a Wi-Fi-only data saver — built for metered-data users.
+
+### Added
+
+- "Download all chapters" on any book — one tap queues every missing chapter into the offline cache. (#1461, #1473)
+- Per-chapter download badges (queued / downloading / failed) and a "Downloading N…" progress chip on the book screen. (#1474)
+- "Cancel downloads" action to stop an in-flight bulk download. (#1474)
+- The "download over Wi-Fi only" data-saver setting now genuinely governs automatic chapter downloads (it was previously inert). (#1473)
+- CI: tagged releases now build and attach an Android App Bundle (`.aab`) for Play Store upload. (#1456, #1457)
+
+### Fixed
+
+- DAISY 2.02 books using the spec-recommended `<par>` navigation no longer show empty chapter bodies (Bookshare). (#1472)
+- HTML entities in DAISY content (é, œ, š, em-dashes) decode to real characters instead of blanking to spaces. (#1472)
+- Bookshare categories endpoint corrected to API v2's `/v2/categories`. (#1472)
+
+### Docs
+
+- Play Store beta-track walkthrough (§VIII), README + repo-metadata refresh, stale-version sweep. (#1458–#1460)
+
 ## [1.6.0] -- 2026-06-30
 
 **Library Nocturne — Wear OS companion app.** The complete watch experience: control playback, browse chapters, adjust speed, set sleep timers, and read the teleprompter — all from your wrist.
