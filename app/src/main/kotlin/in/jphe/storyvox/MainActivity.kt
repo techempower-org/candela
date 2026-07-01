@@ -33,6 +33,7 @@ import dagger.Lazy
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.jphe.storyvox.feature.api.CoverStyle
 import `in`.jphe.storyvox.feature.api.ImportFileResult
+import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.ReadingDirection
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.api.SpeakChapterMode
@@ -128,6 +129,17 @@ class MainActivity : ComponentActivity() {
      * injection, only when an import intent actually arrives.
      */
     @Inject lateinit var documentImporter: Lazy<DocumentImporterUiImpl>
+
+    /**
+     * Issue #1455 — the new-chapter notification deep-links a brand-new
+     * chapter the PlaybackController has never loaded; the reader is a passive
+     * view of the controller, so the tap must `startListening` before
+     * navigating or the reader hangs on "loading chapter". [Lazy] for the same
+     * cold-launch reason as the other injects (#409): only resolved when a
+     * preload-carrying intent actually arrives, so a normal cold start never
+     * materialises the playback graph during activity injection.
+     */
+    @Inject lateinit var playback: Lazy<PlaybackControllerUi>
 
     // testTagsAsResourceId is experimental Compose UI API. We opt in at
     // the function holding setContent {} because that's where the flag is
@@ -280,6 +292,31 @@ class MainActivity : ComponentActivity() {
                                 // could swap it before importDocument reads it).
                                 ?.let { uri -> importDocument(uri, i.type) }
                         val route = importRoute ?: DeepLinkResolver.resolve(i)
+                        // Issue #1455 — the new-chapter notification deep-links
+                        // a brand-new chapter the PlaybackController has never
+                        // loaded. The reader is a passive view of the
+                        // controller, so navigating alone leaves it stuck on
+                        // "loading chapter" (then the 30s timeout) — the same
+                        // navigate-without-load bug fixed for the inbox (#1343)
+                        // and history (#1350) paths. Load it here BEFORE
+                        // navigating, mirroring those fixes. autoPlay=false: a
+                        // notification tap is a browse action, not "play now".
+                        // runCatching so a startForegroundService hiccup can't
+                        // swallow the navigation below. Only the new-chapter
+                        // notifier sets the preload extra — the playback
+                        // notification and now-playing widget carry the same
+                        // open_reader ids but point at the already-playing
+                        // chapter, so [readerPreload] returns null for them and
+                        // they stay navigate-only.
+                        DeepLinkResolver.readerPreload(i)?.let { preload ->
+                            runCatching {
+                                playback.get().startListening(
+                                    fictionId = preload.fictionId,
+                                    chapterId = preload.chapterId,
+                                    autoPlay = false,
+                                )
+                            }
+                        }
                         route?.let { navController.navigate(it) }
                         intentFlow.value = null
                     }
