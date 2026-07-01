@@ -184,8 +184,8 @@ android {
         applicationId = "org.techempower.candela"
         minSdk = 26
         targetSdk = 36
-        versionCode = 256
-        versionName = "1.6.2"
+        versionCode = 257
+        versionName = "1.6.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
