@@ -161,6 +161,9 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // epic/plugin-dx B3 — VoiceEnginePluginContractTest (the voice twin
+    // of the FictionSource contract kit) + its six engine retrofits.
+    testImplementation(project(":core-source-testkit"))
     // Robolectric supplies a JVM-resident ApplicationContext (filesDir +
     // DataStore) for VoiceManagerTest, which exercises the #28 partial-file
     // cleanup policy without needing an emulator.

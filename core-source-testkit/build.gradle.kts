@@ -26,6 +26,13 @@ dependencies {
     // OkHttpClient, MockWebServer, JUnit annotations — is therefore `api`, so
     // subclasses in other modules compile without re-declaring these deps.
     api(project(":core-data"))
+    // epic/plugin-dx B3 — the voice-engine contract kit (testkit/voice)
+    // references VoiceEnginePlugin/EngineKey. Plain `implementation`: the
+    // only consumer of that kit class is core-playback's own test
+    // sourceset, which has these types on its classpath already. (If this
+    // edge ever forces a Gradle cycle, the spec's fallback is splitting
+    // to :core-voice-testkit.)
+    implementation(project(":core-playback"))
     api(libs.junit)
     api(libs.okhttp)
     api("com.squareup.okhttp3:mockwebserver:4.12.0") // no version-catalog alias; matches source-plos/-github/-azure/core-llm
