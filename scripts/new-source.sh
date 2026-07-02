@@ -51,7 +51,7 @@ if [[ -e "$MODDIR" ]]; then
     exit 1
 fi
 
-mkdir -p "$MAIN/net" "$TEST"
+mkdir -p "$MAIN/net" "$MAIN/di" "$TEST"
 
 # ── build.gradle.kts ─────────────────────────────────────────────────────────
 cat > "$MODDIR/build.gradle.kts" <<'GRADLE'
@@ -251,6 +251,59 @@ internal open class __PASCAL__Api @Inject constructor(
     }
 }
 API
+
+# ── di/<Pascal>Module.kt ─────────────────────────────────────────────────────
+# @SourcePlugin makes KSP emit the FictionSource multibindings, but the source's
+# OkHttpClient + Api still need a provider (there is no global unqualified
+# OkHttpClient — each source owns a qualified client with the shared UA
+# interceptor). Mirrors source-hackernews/di/HackerNewsHttpModule.kt.
+cat > "$MAIN/di/${PASCAL}Module.kt" <<'DIMOD'
+package `in`.jphe.storyvox.source.__PKG__.di
+
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import `in`.jphe.storyvox.data.network.UserAgentHeader
+import `in`.jphe.storyvox.source.__PKG__.net.__PASCAL__Api
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
+import javax.inject.Singleton
+
+/** Dedicated OkHttp client qualifier for the __DISPLAY__ backend. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class __PASCAL__Http
+
+@Module
+@InstallIn(SingletonComponent::class)
+internal object __PASCAL__HttpModule {
+
+    @Provides
+    @Singleton
+    @__PASCAL__Http
+    fun provideClient(
+        @UserAgentHeader userAgent: Interceptor,
+    ): OkHttpClient =
+        OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(10, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .retryOnConnectionFailure(true)
+            // #1204 — shared descriptive User-Agent on every request.
+            .addInterceptor(userAgent)
+            .build()
+
+    @Provides
+    @Singleton
+    fun provide__PASCAL__Api(
+        @__PASCAL__Http client: OkHttpClient,
+    ): __PASCAL__Api = __PASCAL__Api(client)
+}
+DIMOD
 
 # ── src/test/<Pascal>ContractTest.kt ─────────────────────────────────────────
 cat > "$TEST/${PASCAL}ContractTest.kt" <<'CTEST'
