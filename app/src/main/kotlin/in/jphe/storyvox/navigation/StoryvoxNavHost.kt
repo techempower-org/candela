@@ -55,6 +55,7 @@ import `in`.jphe.storyvox.feature.settings.AccountSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AdvancedSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AppearanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AiSettingsScreen
+import `in`.jphe.storyvox.feature.settings.BookshareSettingsScreen
 import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
@@ -179,6 +180,8 @@ object StoryvoxRoutes {
     const val SETTINGS_ACCOUNT = "settings/account"
     /** Settings → Memory Palace. Daemon host, API key, test probe. */
     const val SETTINGS_MEMORY_PALACE = "settings/memory-palace"
+    /** Settings → Bookshare. Partner API key entry (#1471). */
+    const val SETTINGS_BOOKSHARE = "settings/bookshare"
     /** Settings → About. Version + sigil name + build hash + the
      *  v0.5.00 milestone pill. */
     const val SETTINGS_ABOUT = "settings/about"
@@ -1121,6 +1124,7 @@ private fun StoryvoxNavHostContent(
                     onOpenAppearance = { navController.navigate(StoryvoxRoutes.SETTINGS_APPEARANCE) },
                     onOpenAccount = { navController.navigate(StoryvoxRoutes.SETTINGS_ACCOUNT) },
                     onOpenMemoryPalace = { navController.navigate(StoryvoxRoutes.SETTINGS_MEMORY_PALACE) },
+                    onOpenBookshare = { navController.navigate(StoryvoxRoutes.SETTINGS_BOOKSHARE) },
                     onOpenAbout = { navController.navigate(StoryvoxRoutes.SETTINGS_ABOUT) },
                     onOpenAdvanced = { navController.navigate(StoryvoxRoutes.SETTINGS_ADVANCED) },
                     onOpenStats = { navController.navigate(StoryvoxRoutes.STATS) },
@@ -1419,6 +1423,17 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 MemoryPalaceSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                StoryvoxRoutes.SETTINGS_BOOKSHARE,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                BookshareSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

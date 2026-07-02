@@ -144,6 +144,7 @@ fun SettingsHubScreen(
     onOpenAppearance: () -> Unit,
     onOpenAccount: () -> Unit,
     onOpenMemoryPalace: () -> Unit,
+    onOpenBookshare: () -> Unit,
     onOpenAbout: () -> Unit,
     /**
      * v1 settings-bundle-7 — Advanced subscreen. Default no-op so
@@ -324,6 +325,15 @@ fun SettingsHubScreen(
                     title = stringResource(R.string.settings_hub_memory_palace_title),
                     subtitle = stringResource(R.string.settings_hub_memory_palace_subtitle),
                     onClick = onOpenMemoryPalace,
+                )
+                // Issue #1471 — Bookshare partner-key entry. Source-
+                // credential subscreen, adjacent to Memory Palace (both
+                // configure a source's access).
+                SettingsHubRow(
+                    icon = Icons.AutoMirrored.Outlined.LibraryBooks,
+                    title = stringResource(R.string.settings_hub_bookshare_title),
+                    subtitle = stringResource(R.string.settings_hub_bookshare_subtitle),
+                    onClick = onOpenBookshare,
                 )
                 // v1 settings-bundle-7 — Advanced subscreen. Power-
                 // user knobs (Android Auto bucket size, future

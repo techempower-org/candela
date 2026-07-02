@@ -668,6 +668,8 @@
     <string name="settings_hub_account_subtitle">Royal Road, GitHub.</string>
     <string name="settings_hub_memory_palace_title">Memory Palace</string>
     <string name="settings_hub_memory_palace_subtitle">Daemon host, probe, integration.</string>
+    <string name="settings_hub_bookshare_title">Bookshare</string>
+    <string name="settings_hub_bookshare_subtitle">Accessible DAISY library · partner API key.</string>
     <string name="settings_hub_advanced_title">Advanced</string>
     <string name="settings_hub_advanced_subtitle">Android Auto, integration tunables.</string>
     <string name="settings_hub_developer_title">Developer</string>
@@ -762,6 +764,13 @@
 
     <!-- Settings · Memory Palace subscreen -->
     <string name="settings_memory_palace_title">Memory Palace</string>
+    <string name="settings_bookshare_title">Bookshare</string>
+    <string name="settings_bookshare_key_label">Partner API key</string>
+    <string name="settings_bookshare_help">Bookshare requires a partner API key issued by Benetech. With a key stored, you can search and browse the accessible-book catalog. Downloading protected titles needs a separate partner agreement.</string>
+    <string name="settings_bookshare_save">Save key</string>
+    <string name="settings_bookshare_clear">Clear</string>
+    <string name="settings_bookshare_status_configured">Partner key stored · discovery enabled</string>
+    <string name="settings_bookshare_status_unconfigured">No partner key · Bookshare stays locked</string>
 
     <!-- Settings · Advanced subscreen -->
     <string name="settings_advanced_title">Advanced</string>

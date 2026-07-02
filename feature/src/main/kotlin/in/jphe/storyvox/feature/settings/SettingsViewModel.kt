@@ -344,6 +344,12 @@ class SettingsViewModel @Inject constructor(
         palaceProbe.value = null
     }
 
+    /** Issue #1471 — persist (or clear, with null) the Bookshare
+     *  partner API key. Stored encrypted; drives `bookshareKeyConfigured`. */
+    fun setBookshareApiKey(key: String?) = viewModelScope.launch {
+        repo.setBookshareApiKey(key)
+    }
+
     fun clearPalaceConfig() = viewModelScope.launch {
         repo.clearPalaceConfig()
         palaceProbe.value = null
