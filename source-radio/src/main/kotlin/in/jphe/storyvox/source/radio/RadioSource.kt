@@ -70,6 +70,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Live community / public / college / specialty radio · Media3 stream (bypasses TTS) · CC0 Radio Browser search",
     sourceUrl = "https://www.radio-browser.info",
+    generateRouting = true,
 )
 @Singleton
 internal class RadioSource @Inject constructor(

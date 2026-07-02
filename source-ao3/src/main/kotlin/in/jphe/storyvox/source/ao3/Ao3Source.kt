@@ -97,6 +97,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "14M+ fanfiction works via per-tag Atom feeds + official EPUB downloads",
     sourceUrl = "https://archiveofourown.org",
+    generateRouting = true,
 )
 @Singleton
 internal class Ao3Source @Inject constructor(

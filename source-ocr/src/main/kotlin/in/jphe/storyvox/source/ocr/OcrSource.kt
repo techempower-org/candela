@@ -54,6 +54,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Scan printed text with your camera · on-device OCR · zero-network",
     sourceUrl = "",
+    generateRouting = true,
 )
 @Singleton
 internal class OcrSource @Inject constructor(

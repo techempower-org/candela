@@ -2,9 +2,7 @@ package `in`.jphe.storyvox.source.royalroad.di
 
 import `in`.jphe.storyvox.data.auth.AuthSource
 import `in`.jphe.storyvox.data.auth.SessionHydrator
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
-import `in`.jphe.storyvox.source.royalroad.RoyalRoadSource
 import `in`.jphe.storyvox.source.royalroad.auth.RoyalRoadAuthSource
 import `in`.jphe.storyvox.source.royalroad.auth.RoyalRoadSessionHydrator
 import `in`.jphe.storyvox.source.royalroad.model.RoyalRoadIds
@@ -112,12 +110,6 @@ internal object RoyalRoadHttpModule {
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class RoyalRoadBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.ROYAL_ROAD)
-    abstract fun bindFictionSource(impl: RoyalRoadSource): FictionSource
 
     /**
      * Royal Road's [SessionHydrator] — top-level singleton binding.

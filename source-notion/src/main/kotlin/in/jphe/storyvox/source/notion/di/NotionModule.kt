@@ -13,7 +13,6 @@ import `in`.jphe.storyvox.data.repository.net.NetworkPatienceConfig
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.SourceIds
-import `in`.jphe.storyvox.source.notion.NotionPATSource
 import `in`.jphe.storyvox.source.notion.NotionTechEmpowerSource
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -97,27 +96,16 @@ internal object NotionHttpModule {
 }
 
 /**
- * Issue #770 — contributes [NotionTechEmpowerSource] and
- * [NotionPATSource] into the multi-source `Map<String, FictionSource>`.
- * Legacy alias routes `SourceIds.NOTION` to the TechEmpower source
- * so persisted fictions with `sourceId="notion"` continue to resolve
- * across one migration cycle.
+ * Notion routing. [NotionTechEmpowerSource] and [NotionPATSource] each
+ * have their `FictionSource` routing + registry descriptor generated
+ * from their `@SourcePlugin` annotation (#1400). This module retains
+ * only the legacy alias that routes `SourceIds.NOTION` to the
+ * TechEmpower source, so persisted fictions with `sourceId="notion"`
+ * continue to resolve across one migration cycle.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class NotionBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.NOTION_TECHEMPOWER)
-    abstract fun bindTechEmpowerSource(impl: NotionTechEmpowerSource): FictionSource
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.NOTION_PAT)
-    abstract fun bindPATSource(impl: NotionPATSource): FictionSource
 
     /** Legacy alias — one migration cycle. Persisted rows with
      *  `sourceId = "notion"` route to the TechEmpower source so

@@ -85,12 +85,6 @@ internal object RadioHttpModule {
 @InstallIn(SingletonComponent::class)
 internal abstract class RadioBindings {
 
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.RADIO)
-    abstract fun bindFictionSource(impl: RadioSource): FictionSource
-
     /**
      * One-migration-cycle alias. Persisted KVMR rows from v0.5.20..0.5.31
      * carry `sourceId = "kvmr"`; without this binding their lookup

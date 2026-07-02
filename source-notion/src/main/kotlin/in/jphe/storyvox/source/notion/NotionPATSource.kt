@@ -39,6 +39,7 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Private Notion databases via Integration Token",
     sourceUrl = "https://www.notion.so",
+    generateRouting = true,
 )
 @Singleton
 internal class NotionPATSource @Inject constructor(
