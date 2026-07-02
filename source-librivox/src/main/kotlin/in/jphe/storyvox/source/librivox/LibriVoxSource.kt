@@ -90,7 +90,6 @@ import kotlinx.coroutines.sync.withLock
     supportsSearch = true,
     description = "Free public-domain audiobooks read by volunteers · archive.org MP3 stream (bypasses TTS) · no account",
     sourceUrl = "https://librivox.org",
-    generateRouting = true,
 )
 @Singleton
 internal class LibriVoxSource @Inject constructor(

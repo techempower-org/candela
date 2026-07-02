@@ -75,7 +75,6 @@ import kotlin.time.toDuration
     supportsSearch = true,
     description = "Repo READMEs as fictions · OAuth Device Flow unlocks 5000/hr + private repos",
     sourceUrl = "https://github.com",
-    generateRouting = true,
 )
 @Singleton
 internal class GitHubSource @Inject constructor(

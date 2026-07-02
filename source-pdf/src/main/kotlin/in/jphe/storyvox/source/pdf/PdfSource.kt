@@ -58,7 +58,6 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Read .pdf files from a folder you pick · zero-network",
     sourceUrl = "",
-    generateRouting = true,
 )
 @Singleton
 internal class PdfSource @Inject constructor(

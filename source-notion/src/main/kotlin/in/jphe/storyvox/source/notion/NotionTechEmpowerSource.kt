@@ -36,7 +36,6 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "TechEmpower guides, resources & about pages",
     sourceUrl = "https://www.notion.so",
-    generateRouting = true,
 )
 @Singleton
 internal class NotionTechEmpowerSource @Inject constructor(

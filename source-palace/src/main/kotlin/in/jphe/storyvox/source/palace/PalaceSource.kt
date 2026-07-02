@@ -120,7 +120,6 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Public library borrowing via OPDS · open-access titles only (DRM titles deep-link to Palace app)",
     sourceUrl = "https://thepalaceproject.org",
-    generateRouting = true,
 )
 @Singleton
 internal class PalaceSource @Inject constructor(

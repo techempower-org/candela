@@ -75,7 +75,6 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Top stories, Ask HN, Show HN · stories + top comments as single-chapter fictions · Algolia search",
     sourceUrl = "https://news.ycombinator.com",
-    generateRouting = true,
 )
 @Singleton
 internal class HackerNewsSource @Inject constructor(

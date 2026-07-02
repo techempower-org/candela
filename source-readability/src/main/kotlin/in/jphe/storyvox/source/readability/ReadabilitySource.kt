@@ -67,7 +67,6 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Catch-all article extractor — paste any URL · single chapter",
     sourceUrl = "",
-    generateRouting = true,
 )
 @Singleton
 internal class ReadabilitySource @Inject constructor(

@@ -65,7 +65,6 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Hand-curated, typographically polished public-domain classics · tap-to-add downloads EPUB",
     sourceUrl = "https://standardebooks.org",
-    generateRouting = true,
 )
 @Singleton
 internal class StandardEbooksSource @Inject constructor(

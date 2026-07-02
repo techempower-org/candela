@@ -96,7 +96,6 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Bot-token-authed public-channel reader · channel = fiction, post = chapter",
     sourceUrl = "https://telegram.org",
-    generateRouting = true,
 )
 @Singleton
 internal class TelegramSource @Inject constructor(

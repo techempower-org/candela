@@ -72,7 +72,6 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Transcribed public-domain texts · multi-part works become per-chapter playlists",
     sourceUrl = "https://en.wikisource.org",
-    generateRouting = true,
 )
 @Singleton
 internal class WikisourceSource @Inject constructor(

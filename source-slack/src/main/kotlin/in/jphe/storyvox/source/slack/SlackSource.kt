@@ -88,7 +88,6 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Bot-token-authed channel reader · workspace = scope, channel = fiction, message = chapter",
     sourceUrl = "https://slack.com",
-    generateRouting = true,
 )
 @Singleton
 internal class SlackSource @Inject constructor(
