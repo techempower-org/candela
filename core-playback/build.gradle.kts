@@ -137,6 +137,12 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
+    // epic/plugin-dx B1 — @VoicePlugin KSP: generates the
+    // @Binds @IntoMap @StringKey(engineId) VoiceEnginePlugin modules
+    // (replaces the hand-written VoiceEnginePluginModule; mirrors the
+    // @SourcePlugin seam every source-* module already uses).
+    ksp(project(":core-plugin-ksp"))
+
     // PR-F (#86) — background PCM cache pre-render via WorkManager.
     // ChapterRenderJob is a @HiltWorker that synthesizes a chapter's
     // PCM into the cache on a background coroutine, scheduled by

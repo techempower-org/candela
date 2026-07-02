@@ -6,6 +6,7 @@ import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptors
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
+import `in`.jphe.storyvox.playback.voice.VoicePlugin
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,6 +33,7 @@ import javax.inject.Singleton
  *   sidesteps the Dagger-cycle risk the source/settings seam has hit
  *   before).
  */
+@VoicePlugin(VoiceFamilyIds.AZURE)
 @Singleton
 class AzureEnginePlugin @Inject constructor() : VoiceEnginePlugin {
 

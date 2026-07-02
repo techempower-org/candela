@@ -13,6 +13,7 @@ import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptors
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import `in`.jphe.storyvox.playback.voice.VoiceManager
+import `in`.jphe.storyvox.playback.voice.VoicePlugin
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +35,7 @@ import javax.inject.Singleton
  * shared dir + speaker activation before the native load). `dagger.Lazy`
  * deps as in [PiperEnginePlugin].
  */
+@VoicePlugin(VoiceFamilyIds.SUPERTONIC)
 @Singleton
 class SupertonicEnginePlugin @Inject constructor(
     private val voiceManager: dagger.Lazy<VoiceManager>,

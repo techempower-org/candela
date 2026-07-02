@@ -13,6 +13,7 @@ import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptors
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import `in`.jphe.storyvox.playback.voice.VoiceManager
+import `in`.jphe.storyvox.playback.voice.VoicePlugin
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,6 +32,7 @@ import javax.inject.Singleton
  * eagerly-built registry map stays construction-light, and the existing
  * registry unit tests keep constructing the plugin with inert fakes.
  */
+@VoicePlugin(VoiceFamilyIds.PIPER)
 @Singleton
 class PiperEnginePlugin @Inject constructor(
     private val voiceManager: dagger.Lazy<VoiceManager>,
