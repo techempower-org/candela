@@ -200,6 +200,50 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:bundleRelease --no-daemon --stacktrace
 
+      - name: Guard — reject debug-signed AAB (#1476)
+        # The release AAB is only correctly signed on a runner that holds the
+        # storyvox release keystore (katana today). On familiar / ubox0 it falls
+        # back to the checked-in DEBUG keystore, and Play Console rejects
+        # debug-signed bundles (#1476, hit for real on v1.7.0).
+        #
+        # Rather than sink the whole tag build — the debug-signed *sideload*
+        # APK + Wear APK are perfectly good and must still ship — this guard:
+        #   (a) reads the AAB's v1 (JAR) signer-cert CN with openssl (no keytool
+        #       needed: unzip the META-INF/*.RSA block → pkcs7 → x509 subject);
+        #   (b) if it's debug-signed (or the signer can't be verified), WITHHOLDS
+        #       the bundle — removes it so the release step below can't attach it
+        #       — and records AAB_DEBUG_SIGNED=true;
+        #   (c) a later step fails the run so the signing gap is impossible to
+        #       miss. The GitHub release is created first, so it is NOT torpedoed.
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -u
+          AAB_DIR=app/build/outputs/bundle/release
+          AAB="$AAB_DIR/app-release.aab"
+          if [ ! -f "$AAB" ]; then
+            echo "::error::#1476 guard: expected the release bundle at $AAB but none was produced."
+            echo "AAB_DEBUG_SIGNED=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          # AABs are jarsigner-signed (v1): the signer block is META-INF/*.RSA
+          # (or *.EC / *.DSA). Stream it through openssl to read the cert subject.
+          SIG_ENTRY=$(unzip -Z1 "$AAB" 2>/dev/null | grep -iE '^META-INF/.*\.(RSA|EC|DSA)$' | head -1)
+          SUBJECT=""
+          if [ -n "$SIG_ENTRY" ]; then
+            SUBJECT=$(unzip -p "$AAB" "$SIG_ENTRY" \
+              | openssl pkcs7 -inform DER -print_certs 2>/dev/null \
+              | openssl x509 -noout -subject 2>/dev/null || true)
+          fi
+          echo "AAB signer subject: ${SUBJECT:-<none found>}"
+          if [ -z "$SUBJECT" ] || echo "$SUBJECT" | grep -qi 'debug'; then
+            echo "::error::#1476 — the tag-built AAB is debug-signed (${SUBJECT:-no signer found}); Play Console rejects debug-signed bundles, so it has NOT been attached to this release. Build the release bundle on katana (the runner holding ~/.storyvox-keystore/storyvox-release.keystore): ./gradlew :app:bundleRelease (a SEPARATE invocation, per #952), then upload candela-${GITHUB_REF_NAME}.aab to the Play Console manually — until #1476's signing path is decided. The sideload APK + Wear APK in this release are unaffected."
+            rm -f "$AAB" "$AAB_DIR"/candela-*.aab
+            echo "AAB_DEBUG_SIGNED=true" >> "$GITHUB_ENV"
+          else
+            echo "::notice::#1476 — AAB is release-signed ($SUBJECT); attaching it to the release."
+            echo "AAB_DEBUG_SIGNED=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Assemble Wear release APK
         # Companion watch app ("Library Nocturne"). Signed with the same
         # checked-in keystore as :app (see wear/build.gradle.kts) so the
@@ -266,7 +310,12 @@ jobs:
             AAB_SRC="$AAB_DIR/app-release.aab"
           fi
           AAB_DST="$AAB_DIR/candela-${TAG}.aab"
-          if [ "$AAB_SRC" != "$AAB_DST" ]; then
+          # #1476 — the debug-signed-AAB guard above removes the bundle when it
+          # fails the signing check, so the source may be absent here. Only
+          # rename a bundle that still exists; a withheld AAB is simply not
+          # attached (softprops fail_on_unmatched_files defaults to false, so the
+          # missing glob is skipped rather than failing the release step).
+          if [ -f "$AAB_SRC" ] && [ "$AAB_SRC" != "$AAB_DST" ]; then
             cp "$AAB_SRC" "$AAB_DST"
           fi
 
@@ -298,3 +347,16 @@ jobs:
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
             app/build/outputs/bundle/release/candela-${{ github.ref_name }}.aab
+
+      - name: Fail the tag build if the AAB was withheld (#1476)
+        # Runs AFTER "Create GitHub release", so the sideload APK + Wear APK are
+        # already published — this never torpedoes the APK release. Its only job
+        # is to turn the run RED when the guard withheld a debug-signed bundle,
+        # so the signing gap is impossible to miss and someone produces the AAB
+        # on katana + uploads it to Play. Uses the runner-provided
+        # $GITHUB_REF_NAME shell var (not ${{ }} interpolation) to keep run: free
+        # of injected expressions.
+        if: startsWith(github.ref, 'refs/tags/v') && env.AAB_DEBUG_SIGNED == 'true'
+        run: |
+          echo "::error::#1476 — release ${GITHUB_REF_NAME} was published WITHOUT a Play AAB: the CI-built bundle was debug-signed (this runner lacks the release keystore). Produce it on katana — ./gradlew :app:bundleRelease (separate invocation, per #952) — then upload candela-${GITHUB_REF_NAME}.aab to the Play Console. Tracking: #1476."
+          exit 1
