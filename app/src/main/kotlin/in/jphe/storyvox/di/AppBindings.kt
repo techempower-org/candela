@@ -35,6 +35,7 @@ import `in`.jphe.storyvox.data.repository.AddByUrlResult
 import `in`.jphe.storyvox.feature.api.DocumentImporterUi
 import `in`.jphe.storyvox.feature.api.FictionRepositoryUi
 import `in`.jphe.storyvox.feature.api.UiAddByUrlResult
+import `in`.jphe.storyvox.feature.api.ChapterStartFailure
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.api.UiChapter
@@ -56,7 +57,9 @@ import `in`.jphe.storyvox.playback.StoryvoxPlaybackService
 import javax.inject.Named
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -1002,6 +1005,13 @@ internal class RealPlaybackControllerUi(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    /** #1489 — see [PlaybackControllerUi.chapterStartFailures]. Buffered +
+     *  tryEmit so the abort (inside a scope.launch) never suspends on a slow
+     *  collector; replay = 0 so a freshly-opened reader can't pick up a stale
+     *  failure from a previous chapter. */
+    private val _chapterStartFailures = MutableSharedFlow<ChapterStartFailure>(extraBufferCapacity = 4)
+    override val chapterStartFailures: Flow<ChapterStartFailure> = _chapterStartFailures.asSharedFlow()
+
     /**
      * Issue #98 — Mode A live cache. Read by [toUi] when computing
      * `isWarmingUp` + the wall-time freeze gate. Volatile because writers
@@ -1292,6 +1302,10 @@ internal class RealPlaybackControllerUi(
             }
             if (ready == null) {
                 android.util.Log.e("PlaybackBindings", "startListening: chapter $chapterId body not ready within 30s — aborting")
+                // #1489 — don't abort silently (the on-device root cause: the
+                // reader never learned and "Loading chapter…" spun forever).
+                // Signal the reader so it flips to its TimedOut → Retry surface.
+                _chapterStartFailures.tryEmit(ChapterStartFailure(fictionId, chapterId))
                 return@launch
             }
             controller.play(fictionId, chapterId, charOffset = charOffset)
