@@ -32,6 +32,7 @@ import `in`.jphe.storyvox.R
 import `in`.jphe.storyvox.auth.AuthWebViewScreen
 import `in`.jphe.storyvox.auth.anthropic.AnthropicTeamsSignInScreen
 import `in`.jphe.storyvox.auth.github.GitHubSignInScreen
+import `in`.jphe.storyvox.data.intent.ReaderIntentContract
 import `in`.jphe.storyvox.data.share.FictionShareLink
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.github.auth.GitHubAuthConfig
@@ -1632,22 +1633,14 @@ private fun StoryvoxNavHostContent(
 object DeepLinkResolver {
     private val FICTION_PATH = Regex("^/fiction/(\\d+)(/.*)?$")
 
-    /** Extras the playback notification's tap intent carries — see
-     *  [in.jphe.storyvox.playback.StoryvoxPlaybackService] session activity. */
-    const val EXTRA_OPEN_READER_FICTION_ID = "storyvox.open_reader.fiction_id"
-    const val EXTRA_OPEN_READER_CHAPTER_ID = "storyvox.open_reader.chapter_id"
-
-    /**
-     * Issue #1455 — set only by the new-chapter notification
-     * ([in.jphe.storyvox.data.work.NewChapterNotifier]), which deep-links a
-     * brand-new chapter the PlaybackController has never loaded. Signals
-     * MainActivity to `startListening` that chapter before navigating; the
-     * playback notification and now-playing widget carry the ids above but
-     * point at the already-playing chapter, so they omit this flag and stay
-     * navigate-only. Kept in sync by string with the mirror in
-     * NewChapterNotifier.
-     */
-    const val EXTRA_OPEN_READER_PRELOAD = "storyvox.open_reader.preload"
+    // Issue #1478 — the open_reader.* extra keys now live in the shared
+    // [ReaderIntentContract] (:core-data), so the emit sides (new-chapter
+    // notification, playback service, now-playing widget) and this read side
+    // reference one declaration and can no longer drift. EXTRA_PRELOAD is set
+    // only by NewChapterNotifier (#1455): it deep-links a brand-new chapter the
+    // PlaybackController has never loaded, so MainActivity must startListening
+    // it before navigating. The playback notification and now-playing widget
+    // point at the already-playing chapter and omit the flag (navigate-only).
 
     /** Issue #472 — query-string carried on the Library route when a
      *  shared URL needs to land in the Magic-add sheet. The Library
@@ -1699,10 +1692,10 @@ object DeepLinkResolver {
         // these extras: the playback notification and now-playing widget
         // (the currently-playing chapter) and the new-chapter notification
         // (#1455, a brand-new chapter — which additionally sets
-        // EXTRA_OPEN_READER_PRELOAD so MainActivity loads it first; see
+        // ReaderIntentContract.EXTRA_PRELOAD so MainActivity loads it first; see
         // [readerPreload]).
-        val rf = intent.getStringExtra(EXTRA_OPEN_READER_FICTION_ID)
-        val rc = intent.getStringExtra(EXTRA_OPEN_READER_CHAPTER_ID)
+        val rf = intent.getStringExtra(ReaderIntentContract.EXTRA_FICTION_ID)
+        val rc = intent.getStringExtra(ReaderIntentContract.EXTRA_CHAPTER_ID)
         if (!rf.isNullOrBlank() && !rc.isNullOrBlank()) {
             return StoryvoxRoutes.reader(rf, rc)
         }
@@ -1777,9 +1770,9 @@ object DeepLinkResolver {
      *  extraction isn't unit-testable without Robolectric, so MainActivity
      *  calls this glue and the pure decision above carries the logic. */
     fun readerPreload(intent: Intent): ReaderPreload? = shouldPreloadReader(
-        fictionId = intent.getStringExtra(EXTRA_OPEN_READER_FICTION_ID),
-        chapterId = intent.getStringExtra(EXTRA_OPEN_READER_CHAPTER_ID),
-        preloadRequested = intent.getBooleanExtra(EXTRA_OPEN_READER_PRELOAD, false),
+        fictionId = intent.getStringExtra(ReaderIntentContract.EXTRA_FICTION_ID),
+        chapterId = intent.getStringExtra(ReaderIntentContract.EXTRA_CHAPTER_ID),
+        preloadRequested = intent.getBooleanExtra(ReaderIntentContract.EXTRA_PRELOAD, false),
     )
 
     /** Lightweight URL sniffer — accepts http(s) URLs only. Apps that
