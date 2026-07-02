@@ -30,14 +30,19 @@ package `in`.jphe.storyvox.playback.voice
  * (`SourcePlugin`, `SourcePluginRegistry`, `SourcePluginDescriptor`)
  * and sidesteps all three collisions.
  *
+ * ## Model loading (epic/plugin-dx B1)
+ *
+ * The divergent per-engine load signatures (Piper: onnx + tokens;
+ * Kokoro/Kitten: onnx + tokens + voices.bin; Supertonic: a shared dir)
+ * are expressed as data via [ModelSpec]: [modelSpec] builds the on-disk
+ * description (the local-model plugins inject `VoiceManager` +
+ * `@ApplicationContext` for that), [loadModel] performs the engine's
+ * native load. The old load `when` arms in `AudiobookSynthesizer` /
+ * `ChapterRenderJob` are gone — those call sites dispatch through the
+ * registry.
+ *
  * ## What this contract intentionally does NOT cover (yet)
  *
- * - **`loadModel`** — the four in-process engines have divergent load
- *   signatures (Piper: onnx + tokens; Kokoro/Kitten: onnx + tokens +
- *   voices.bin; Supertonic: a shared dir) and need `VoiceManager` for
- *   on-disk paths. Folding that in means injecting `VoiceManager` +
- *   `Context` into the plugins, which is the natural next PR. For now
- *   the load `when` stays in `AudiobookSynthesizer` / `ChapterRenderJob`.
  * - **Streaming / secondary engines** — `EnginePlayer`'s parallel-synth
  *   streaming path (`secondaryKokoroEngines`, `EngineStreamingSource`,
  *   per-engine handles) is a separate architecture, not a simple
@@ -81,6 +86,16 @@ interface VoiceEnginePlugin {
     /** True when this plugin owns [type]. Keeps the `is EngineType.X`
      *  discrimination inside the engine instead of a central `when`. */
     fun handles(type: EngineType): Boolean
+
+    /** Build the on-disk spec for [type] (voice dirs come from the injected
+     *  VoiceManager). Engines without local models keep [ModelSpec.None]. */
+    fun modelSpec(type: EngineType, voiceId: String): ModelSpec = ModelSpec.None
+
+    /** Load the engine's model per [spec]; "Success" or an error string (legacy
+     *  contract of the vendor engines). Callers hold `EngineMutex.mutex` across
+     *  loadModel + [generateAudioPCM]. Engines with nothing to load locally
+     *  (cloud / framework) keep the "Success" default. */
+    fun loadModel(spec: ModelSpec): String = "Success"
 
     /**
      * Synthesise [text] to one 16-bit-mono-LE PCM buffer at

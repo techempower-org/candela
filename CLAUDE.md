@@ -35,13 +35,15 @@ Wait ~60s for boot, then CI picks up automatically. Never compile locally on kat
 
 ## Key patterns
 
-**Source plugin contract**: Each source module has a `*Source.kt` implementing `FictionSource`. Annotated with `@SourcePlugin` — KSP generates Hilt bindings into `SourcePluginRegistry`. To add a source: create module, implement `FictionSource`, annotate class, add to `settings.gradle.kts`.
+**Source plugin contract**: Each source module has a `*Source.kt` implementing `FictionSource`. Annotated with `@SourcePlugin` — KSP generates Hilt bindings into `SourcePluginRegistry`. To add a source: run `scripts/new-source.sh <id> "<Display Name>"` (generates module + di module + contract test), make the two printed one-line edits, implement the API. Contract kit: `core-source-testkit` (`FictionSourceContractTest` — IO pin, auth mapping, CF detection). Guide: `docs/CONTRIBUTING-SOURCES.md`. Don't add `SourceIds` entries — the annotation `id` is the source of truth.
+
+**Voice plugin contract**: Engines live in `core-playback/.../voice/engines/`, implement `VoiceEnginePlugin`, and are annotated `@VoicePlugin(engineId)` — KSP generates the Hilt bindings (no hand DI module). Model loading is data-driven via `ModelSpec` (`modelSpec()`/`loadModel()` on the plugin); `EngineKey` is the de-sealed discriminator (`EngineType` remains as a UI-layer shim). Engines that can pool secondary instances for parallel synth implement the optional `StreamingSynth` capability — EnginePlayer consumes it generically. To add an engine: run `scripts/new-voice-engine.sh <id>` (plugin class + contract test, zero other edits — CI proves the Hilt binding). Contract kit: `VoiceEnginePluginContractTest` in `core-source-testkit`. Guide: `docs/CONTRIBUTING-VOICES.md`.
 
 **Browse filters**: Sources declare `filterDimensions()` returning `List<FilterDimension>` (Sort, Select, TagSet, NumberRange, DateRange, Toggle, Text). `DynamicFilterSheet` renders them generically. Sources implement `applyFilters(base, state)` to translate UI state → `SearchQuery`.
 
 **Navigation**: `StoryvoxNavHost.kt` defines all routes as `StoryvoxRoutes` constants. Bottom bar: Playing, Library, Browse, Voices, Settings.
 
-**Testing**: JUnit 4, no Robolectric. Tests use fake `FictionSource` implementations (see `PluginManagerLogicTest` for the pattern). Compose UI tests use `createComposeRule()`.
+**Testing**: JUnit 4. Mostly plain JVM tests with hand-rolled fakes (see `PluginManagerLogicTest` for the pattern); `core-playback`/`feature` carry some Robolectric classes — their SDK-36 sandboxes need Java 21 (JDK 17 fails at classMethod with "Android SDK 36 requires Java 21"; CI only compiles tests, so this bites local runs only). Compose UI tests use `createComposeRule()`. New sources/engines subclass the contract kits in `core-source-testkit`.
 
 ## Large files (read with offset/limit)
 

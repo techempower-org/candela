@@ -9,10 +9,14 @@ package `in`.jphe.storyvox.data.source
  * depend on it without breaking the leaf-source architecture (source
  * modules don't depend on each other; they all depend on core-data).
  *
- * Adding a new source: add a new `const val` here, then use it at the
- * source's `FictionSource.id`, the corresponding Hilt `@StringKey`,
- * and any UrlRouter Match construction. Issue #57 tracks the
- * deduplication; this file is the single source of truth.
+ * **Frozen alias table for in-tree call sites (epic/plugin-dx).** NEW sources do
+ * NOT add entries here — the `@SourcePlugin(id = …)` annotation on the source's
+ * `FictionSource` implementation is the single source of truth for its id, and
+ * KSP emits both Hilt bindings (registry descriptor + `Map<String, FictionSource>`
+ * `@StringKey`) from it. The constants below remain only as stable aliases for
+ * the existing in-tree references (UrlRouter matches, migration aliases, tests)
+ * that already read them; no constant is deleted. See
+ * docs/CONTRIBUTING-SOURCES.md. Issue #57 tracks the original deduplication.
  */
 object SourceIds {
     const val ROYAL_ROAD: String = "royalroad"

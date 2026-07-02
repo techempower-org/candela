@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.playback.cache.CacheStateInspector
-import `in`.jphe.storyvox.playback.voice.EngineKey
+import `in`.jphe.storyvox.playback.voice.EngineCollapseKey
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
@@ -88,7 +88,7 @@ data class VoiceLibraryUiState(
      *  default rules. Empty on first launch for the Installed section
      *  (defaults to expanded); will already include every Available
      *  engine on first paint (Available defaults to collapsed). */
-    val collapsedEngines: Set<EngineKey> = emptySet(),
+    val collapsedEngines: Set<EngineCollapseKey> = emptySet(),
     /** Issue #264 — set of two-letter language codes ("en", "es", "fr"...)
      *  for which at least one voice exists in the unfiltered catalog. The
      *  language-chip strip renders one chip per code. Sorted alphabetically
@@ -457,7 +457,7 @@ class VoiceLibraryViewModel @Inject constructor(
      *  the [voiceLibraryCollapse.flippedKeys] flow combined into the
      *  main pipeline; the screen re-renders with rows hidden/shown. */
     fun toggleEngineCollapsed(section: VoiceLibrarySection, engine: VoiceEngine) {
-        val key = EngineKey(section, engine.toCoreId())
+        val key = EngineCollapseKey(section, engine.toCoreId())
         viewModelScope.launch { voiceLibraryCollapse.toggle(key) }
     }
 
@@ -734,14 +734,14 @@ internal fun computeCollapsedEngines(
     installedEngines: Set<VoiceEngine>,
     availableEngines: Set<VoiceEngine>,
     flipped: Set<String>,
-): Set<EngineKey> {
-    val out = mutableSetOf<EngineKey>()
+): Set<EngineCollapseKey> {
+    val out = mutableSetOf<EngineCollapseKey>()
     for (engine in installedEngines) {
-        val key = EngineKey(VoiceLibrarySection.Installed, engine.toCoreId())
+        val key = EngineCollapseKey(VoiceLibrarySection.Installed, engine.toCoreId())
         if (VoiceLibraryCollapse.isCollapsed(key, flipped)) out += key
     }
     for (engine in availableEngines) {
-        val key = EngineKey(VoiceLibrarySection.Available, engine.toCoreId())
+        val key = EngineCollapseKey(VoiceLibrarySection.Available, engine.toCoreId())
         if (VoiceLibraryCollapse.isCollapsed(key, flipped)) out += key
     }
     return out

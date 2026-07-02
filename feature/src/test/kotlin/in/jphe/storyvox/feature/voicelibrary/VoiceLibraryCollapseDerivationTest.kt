@@ -1,6 +1,6 @@
 package `in`.jphe.storyvox.feature.voicelibrary
 
-import `in`.jphe.storyvox.playback.voice.EngineKey
+import `in`.jphe.storyvox.playback.voice.EngineCollapseKey
 import `in`.jphe.storyvox.playback.voice.VoiceEngineId
 import `in`.jphe.storyvox.playback.voice.VoiceLibrarySection
 import org.junit.Assert.assertEquals
@@ -27,11 +27,11 @@ class VoiceLibraryCollapseDerivationTest {
         )
 
         // Available defaults to collapsed → both available engines in.
-        assertTrue(EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Piper) in collapsed)
-        assertTrue(EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro) in collapsed)
+        assertTrue(EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Piper) in collapsed)
+        assertTrue(EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro) in collapsed)
         // Installed defaults to expanded → neither installed engine in.
-        assertFalse(EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper) in collapsed)
-        assertFalse(EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro) in collapsed)
+        assertFalse(EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper) in collapsed)
+        assertFalse(EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro) in collapsed)
     }
 
     @Test
@@ -42,7 +42,7 @@ class VoiceLibraryCollapseDerivationTest {
             flipped = setOf("installed:Piper"),
         )
         assertEquals(
-            setOf(EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)),
+            setOf(EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)),
             collapsed,
         )
     }
@@ -68,7 +68,7 @@ class VoiceLibraryCollapseDerivationTest {
             flipped = setOf("installed:Piper", "installed:Kokoro"),
         )
         assertEquals(
-            setOf(EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)),
+            setOf(EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)),
             collapsed,
         )
     }
@@ -84,13 +84,13 @@ class VoiceLibraryCollapseDerivationTest {
         )
 
         // Installed Piper: flipped from default-expanded → collapsed.
-        assertTrue(EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper) in collapsed)
+        assertTrue(EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper) in collapsed)
         // Installed Kokoro: default expanded.
-        assertFalse(EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro) in collapsed)
+        assertFalse(EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro) in collapsed)
         // Available Piper: default collapsed → in the set.
-        assertTrue(EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Piper) in collapsed)
+        assertTrue(EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Piper) in collapsed)
         // Available Kokoro: flipped from default-collapsed → expanded → not in.
-        assertFalse(EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro) in collapsed)
+        assertFalse(EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro) in collapsed)
     }
 
     @Test

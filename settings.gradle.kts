@@ -41,6 +41,8 @@ include(":core-data")
 include(":core-plugin-ksp")
 include(":core-llm")
 include(":core-playback")
+// epic/plugin-dx A1 — abstract FictionSource contract-test kit (test-fixtures style).
+include(":core-source-testkit")
 include(":core-ui")
 include(":source-royalroad")
 include(":source-github")

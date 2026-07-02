@@ -30,16 +30,21 @@ import org.junit.Test
  */
 class VoiceEngineRegistryTest {
 
+    /** Inert deps for the B1 modelSpec/loadModel seam — this test never
+     *  builds specs or loads models, so touching these is a bug. */
+    private fun <T> unused(): dagger.Lazy<T> =
+        dagger.Lazy<T> { error("not used by this test") }
+
     private fun realPlugins(): List<VoiceEnginePlugin> = listOf(
-        PiperEnginePlugin(),
-        KokoroEnginePlugin(),
-        KittenEnginePlugin(),
-        SupertonicEnginePlugin(),
+        PiperEnginePlugin(unused(), unused()),
+        KokoroEnginePlugin(unused(), unused()),
+        KittenEnginePlugin(unused(), unused()),
+        SupertonicEnginePlugin(unused(), unused()),
         AzureEnginePlugin(),
         SystemTtsEnginePlugin(),
     )
 
-    /** The map exactly as `VoiceEnginePluginModule`'s @StringKey binds it. */
+    /** The map exactly as the KSP-generated `@VoicePlugin` modules bind it. */
     private fun registry(): VoiceEngineRegistry =
         VoiceEngineRegistry(realPlugins().associateBy { it.engineId })
 
@@ -157,12 +162,21 @@ class VoiceEngineRegistryTest {
         assertSame(VoiceFamilyDescriptors.SYSTEM_TTS, r.byId(VoiceFamilyIds.SYSTEM_TTS)!!.familyDescriptor())
     }
 
+    @Test fun `byKey resolves through the EngineKey discriminator`() {
+        val r = registry()
+        assertEquals(
+            VoiceFamilyIds.KOKORO,
+            r.byKey(EngineType.Kokoro(3).toEngineKey())?.engineId,
+        )
+        assertNull(r.byKey(EngineKey("voice_martian")))
+    }
+
     @Test fun `construction fails fast when a plugin is bound under the wrong key`() {
         // Mirrors the @StringKey contract: the map key must equal the
         // plugin's engineId. A mismatch is a wiring bug and should blow
         // up at graph build, not silently break byId().
         val ex = assertThrows(IllegalStateException::class.java) {
-            VoiceEngineRegistry(mapOf(VoiceFamilyIds.KOKORO to PiperEnginePlugin()))
+            VoiceEngineRegistry(mapOf(VoiceFamilyIds.KOKORO to PiperEnginePlugin(unused(), unused())))
         }
         assertTrue(
             "message should name the offending binding",

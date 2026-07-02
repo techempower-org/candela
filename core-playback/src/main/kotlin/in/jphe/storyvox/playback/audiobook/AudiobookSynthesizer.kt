@@ -1,20 +1,16 @@
 package `in`.jphe.storyvox.playback.audiobook
 
-import android.content.Context
 import com.CodeBySonu.VoxSherpa.KittenEngine
 import com.CodeBySonu.VoxSherpa.KokoroEngine
 import com.CodeBySonu.VoxSherpa.SupertonicEngine
 import com.CodeBySonu.VoxSherpa.VoiceEngine
-import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.jphe.storyvox.playback.cache.EngineMutex
 import `in`.jphe.storyvox.playback.tts.SentenceChunker
 import `in`.jphe.storyvox.playback.tts.detectLocale
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry
-import `in`.jphe.storyvox.playback.voice.VoiceManager
 import java.io.ByteArrayOutputStream
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.sync.withLock
@@ -42,12 +38,12 @@ import kotlinx.coroutines.sync.withLock
  */
 @Singleton
 class AudiobookSynthesizer @Inject constructor(
-    @ApplicationContext private val appContext: Context,
-    private val voiceManager: VoiceManager,
     private val engineMutex: EngineMutex,
     private val chunker: SentenceChunker,
     // #1372 — synthesis + export-capability dispatch goes through the
     // VoiceEnginePlugin registry instead of a per-engine `when` here.
+    // epic/plugin-dx B1 — model loading too: the Context/VoiceManager
+    // deps moved into the plugins with the load arms.
     private val voiceEngines: VoiceEngineRegistry,
 ) {
 
@@ -86,7 +82,12 @@ class AudiobookSynthesizer @Inject constructor(
         if (plugin == null || !plugin.supportsExport) {
             throw UnsupportedVoiceException(exportUnsupportedReason(voice.engineType))
         }
-        val result = engineMutex.mutex.withLock { loadModel(voice) }
+        // epic/plugin-dx B1 — the load itself is plugin-owned: the plugin
+        // builds its on-disk ModelSpec and performs the engine-specific
+        // native load; the per-engine `when` that lived here is gone.
+        val result = engineMutex.mutex.withLock {
+            plugin.loadModel(plugin.modelSpec(voice.engineType, voice.id))
+        }
         if (result != "Success") throw EngineLoadException("Voice failed to load: $result")
     }
 
@@ -134,46 +135,6 @@ class AudiobookSynthesizer @Inject constructor(
         return out.toByteArray()
     }
 
-    // ── engine bridging (mirrors ChapterRenderJob) ──────────────────────────
-
-    private fun loadModel(voice: UiVoiceInfo): String =
-        when (val type = voice.engineType) {
-            is EngineType.Piper -> {
-                val voiceDir = voiceManager.voiceDirFor(voice.id)
-                val onnx = File(voiceDir, MODEL_FILE).absolutePath
-                val tokens = File(voiceDir, TOKENS_FILE).absolutePath
-                VoiceEngine.getInstance().loadModel(appContext, onnx, tokens)
-                    ?: ERR_LOAD_NULL
-            }
-            is EngineType.Kokoro -> {
-                val sharedDir = voiceManager.kokoroSharedDir()
-                val onnx = File(sharedDir, MODEL_FILE).absolutePath
-                val tokens = File(sharedDir, TOKENS_FILE).absolutePath
-                val voicesBin = File(sharedDir, VOICES_BIN_FILE).absolutePath
-                KokoroEngine.getInstance().setActiveSpeakerId(type.speakerId)
-                KokoroEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
-                    ?: ERR_LOAD_NULL
-            }
-            is EngineType.Kitten -> {
-                val sharedDir = voiceManager.kittenSharedDir()
-                val onnx = File(sharedDir, MODEL_FILE).absolutePath
-                val tokens = File(sharedDir, TOKENS_FILE).absolutePath
-                val voicesBin = File(sharedDir, VOICES_BIN_FILE).absolutePath
-                KittenEngine.getInstance().setActiveSpeakerId(type.speakerId)
-                KittenEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
-                    ?: ERR_LOAD_NULL
-            }
-            is EngineType.Supertonic -> {
-                val sharedDir = voiceManager.supertonicSharedDir()
-                SupertonicEngine.getInstance().setActiveSpeakerId(type.speakerId)
-                SupertonicEngine.getInstance().loadModel(appContext, sharedDir.absolutePath)
-                    ?: ERR_LOAD_NULL
-            }
-            // Guarded in loadVoice; defensive typed errors keep the when exhaustive.
-            is EngineType.Azure -> "Error: Azure not supported for export"
-            is EngineType.SystemTts -> "Error: System TTS not supported for export"
-        }
-
     // #1372 — synthesis routes through the VoiceEnginePlugin registry.
     // The plugin re-asserts the shared-model speaker from voice.engineType
     // before each synth (the #1263-correct pattern), which also fixes a
@@ -196,11 +157,8 @@ class AudiobookSynthesizer @Inject constructor(
         /** Inter-sentence gap so narration doesn't run together. */
         private const val SENTENCE_GAP_MS = 280
 
-        // On-disk voice-bundle artifact names — a filesystem contract shared with
-        // the voice downloader and ChapterRenderJob across all three engines.
-        private const val MODEL_FILE = "model.onnx"
-        private const val TOKENS_FILE = "tokens.txt"
-        private const val VOICES_BIN_FILE = "voices.bin"
-        private const val ERR_LOAD_NULL = "Error: load returned null"
+        // epic/plugin-dx B1 — the on-disk artifact-name constants
+        // (model.onnx / tokens.txt / voices.bin) moved to ModelSpec's
+        // companion; the engine plugins build their own specs now.
     }
 }

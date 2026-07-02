@@ -59,8 +59,13 @@ enum class VoiceLibrarySection { Installed, Available }
 /** Composite key for an engine sub-header within a section. The
  *  collapse store keys on the rendered string `"<section>:<engine>"`
  *  so the on-disk format stays human-readable in case anyone ever
- *  needs to inspect the prefs file. */
-data class EngineKey(val section: VoiceLibrarySection, val engine: VoiceEngineId) {
+ *  needs to inspect the prefs file.
+ *
+ *  epic/plugin-dx B1 — renamed from `EngineKey`: that name now belongs
+ *  to the de-sealed engine discriminator ([EngineKey], the spec-named
+ *  type) in this same package. Pure type rename; [storeKey]'s on-disk
+ *  format is untouched, so persisted collapse state survives. */
+data class EngineCollapseKey(val section: VoiceLibrarySection, val engine: VoiceEngineId) {
     /** On-disk key — keep stable across refactors. */
     fun storeKey(): String = "${section.name.lowercase()}:${engine.name}"
 }
@@ -79,7 +84,7 @@ class VoiceLibraryCollapse private constructor(
     @Inject
     constructor(@ApplicationContext context: Context) : this(context.voiceLibraryCollapseStore)
 
-    /** Reactive set of [EngineKey] entries currently flipped from
+    /** Reactive set of [EngineCollapseKey] entries currently flipped from
      *  their section default. Empty on first launch. */
     val flippedKeys: Flow<Set<String>> = store.data.map { prefs ->
         prefs[CollapseKeys.FLIPPED].orEmpty()
@@ -88,7 +93,7 @@ class VoiceLibraryCollapse private constructor(
     /** Idempotent toggle — flips the (section, engine) pair's state
      *  away from / back to its default. Use [isCollapsed] downstream
      *  to derive the rendered state from the flipped set. */
-    suspend fun toggle(key: EngineKey) {
+    suspend fun toggle(key: EngineCollapseKey) {
         store.edit { prefs ->
             val current = prefs[CollapseKeys.FLIPPED].orEmpty()
             val storeKey = key.storeKey()
@@ -108,7 +113,7 @@ class VoiceLibraryCollapse private constructor(
          *  Available → default collapsed → flipped means expanded.
          *  Returning a Boolean keeps the call site clean — composables
          *  can `if (isCollapsed) skip rows`. */
-        fun isCollapsed(key: EngineKey, flipped: Set<String>): Boolean {
+        fun isCollapsed(key: EngineCollapseKey, flipped: Set<String>): Boolean {
             val isFlipped = key.storeKey() in flipped
             val defaultExpanded = when (key.section) {
                 VoiceLibrarySection.Installed -> true

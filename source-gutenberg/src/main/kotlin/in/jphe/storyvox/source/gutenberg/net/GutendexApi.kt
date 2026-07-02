@@ -28,10 +28,17 @@ import javax.inject.Singleton
  * the catalog itself; only EPUB downloads hit gutenberg.org directly.
  */
 @Singleton
-internal class GutendexApi @Inject constructor(
+internal open class GutendexApi @Inject constructor(
     private val client: OkHttpClient,
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
+
+    /**
+     * Test seam — overridable Gutendex host, defaulting to production (mirrors
+     * `StandardEbooksApi.baseUrl` / `PlosApi.baseSearch`). The contract-test kit
+     * points this at a MockWebServer; nothing in production overrides it.
+     */
+    protected open val baseUrl: String get() = BASE_URL
 
     /**
      * `GET /books?page=N&sort=popular` — default Gutendex sort is by
@@ -115,7 +122,7 @@ internal class GutendexApi @Inject constructor(
         path: String,
         parse: (String) -> T,
     ): FictionResult<T> = withContext(Dispatchers.IO) {
-        val url = BASE_URL + path
+        val url = baseUrl + path
         try {
             val req = Request.Builder()
                 .url(url)
@@ -125,6 +132,13 @@ internal class GutendexApi @Inject constructor(
             client.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 404 -> FictionResult.NotFound("Gutendex: $path not found")
+                    resp.code == 401 || resp.code == 403 -> FictionResult.AuthRequired(
+                        "HTTP ${resp.code} from $url",
+                    )
+                    resp.code == 429 -> FictionResult.RateLimited(
+                        retryAfter = null,
+                        message = "Gutendex rate limited (HTTP 429)",
+                    )
                     !resp.isSuccessful -> FictionResult.NetworkError(
                         "HTTP ${resp.code} from $url",
                         IOException("HTTP ${resp.code}"),

@@ -247,6 +247,10 @@ Per-dreamer detail specs live in `scratch/dreamers/`.
 | Wear OS | Compose for Wear, `play-services-wearable` |
 | CI | GitHub Actions |
 
+## Contributing
+
+Adding a fiction source or a TTS voice engine is a one-unit, scaffold-driven task — see [docs/CONTRIBUTING-SOURCES.md](docs/CONTRIBUTING-SOURCES.md) (~30 minutes to a green contract test) and [docs/CONTRIBUTING-VOICES.md](docs/CONTRIBUTING-VOICES.md) (an afternoon including model wiring).
+
 ## Roadmap
 
 The v0.4 line shipped 80+ point releases — the engine, six fiction sources, AI chat, OAuth, the Settings redesign, Azure HD as a remote TTS option, and the Tier 3 perf lane are all in. The next wave is the v0.5 line: better recall, more shaping of the read-aloud, and the long-promised knowledge graph.

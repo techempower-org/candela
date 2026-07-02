@@ -44,22 +44,30 @@ internal open class HackerNewsApi @Inject constructor(
     private val json = Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
 
     /**
+     * Test seams — overridable API hosts, defaulting to production (mirrors
+     * `StandardEbooksApi.baseUrl` / `PlosApi.baseSearch`). The contract-test
+     * kit points both at a MockWebServer; nothing in production overrides them.
+     */
+    protected open val firebaseBase: String get() = FIREBASE_BASE
+    protected open val algoliaBase: String get() = ALGOLIA_BASE
+
+    /**
      * `GET /v0/topstories.json` — array of ids, highest-ranked first.
      * HN returns ~500 of these; the caller decides how many to surface
      * (the spec takes 50 for the Browse landing).
      */
     suspend fun topStoryIds(): FictionResult<List<Long>> = fetchIdArray(
-        "$FIREBASE_BASE/v0/topstories.json",
+        "$firebaseBase/v0/topstories.json",
     )
 
     /** `GET /v0/askstories.json` — Ask HN ids only. */
     suspend fun askStoryIds(): FictionResult<List<Long>> = fetchIdArray(
-        "$FIREBASE_BASE/v0/askstories.json",
+        "$firebaseBase/v0/askstories.json",
     )
 
     /** `GET /v0/showstories.json` — Show HN ids only. */
     suspend fun showStoryIds(): FictionResult<List<Long>> = fetchIdArray(
-        "$FIREBASE_BASE/v0/showstories.json",
+        "$firebaseBase/v0/showstories.json",
     )
 
     /**
@@ -70,7 +78,7 @@ internal open class HackerNewsApi @Inject constructor(
      * null payload as "skip this entry".
      */
     open suspend fun item(id: Long): FictionResult<HnItem?> = withContext(Dispatchers.IO) {
-        val url = "$FIREBASE_BASE/v0/item/$id.json"
+        val url = "$firebaseBase/v0/item/$id.json"
         try {
             val req = Request.Builder()
                 .url(url)
@@ -79,6 +87,13 @@ internal open class HackerNewsApi @Inject constructor(
                 .build()
             client.newCall(req).execute().use { resp ->
                 if (resp.code == 404) return@withContext FictionResult.NotFound("HN item $id missing")
+                if (resp.code == 401 || resp.code == 403) return@withContext FictionResult.AuthRequired(
+                    "HTTP ${resp.code} fetching HN item $id",
+                )
+                if (resp.code == 429) return@withContext FictionResult.RateLimited(
+                    retryAfter = null,
+                    message = "HN rate limited (HTTP 429)",
+                )
                 if (!resp.isSuccessful) return@withContext FictionResult.NetworkError(
                     "HTTP ${resp.code} fetching HN item $id",
                     IOException("HTTP ${resp.code}"),
@@ -110,7 +125,7 @@ internal open class HackerNewsApi @Inject constructor(
         withContext(Dispatchers.IO) {
             val q = java.net.URLEncoder.encode(query, Charsets.UTF_8)
             val zeroIdx = (page - 1).coerceAtLeast(0)
-            val url = "$ALGOLIA_BASE/search?query=$q&tags=story&page=$zeroIdx"
+            val url = "$algoliaBase/search?query=$q&tags=story&page=$zeroIdx"
             try {
                 val req = Request.Builder()
                     .url(url)
@@ -118,6 +133,13 @@ internal open class HackerNewsApi @Inject constructor(
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
+                    if (resp.code == 401 || resp.code == 403) return@withContext FictionResult.AuthRequired(
+                        "HTTP ${resp.code} from Algolia",
+                    )
+                    if (resp.code == 429) return@withContext FictionResult.RateLimited(
+                        retryAfter = null,
+                        message = "Algolia rate limited (HTTP 429)",
+                    )
                     if (!resp.isSuccessful) return@withContext FictionResult.NetworkError(
                         "HTTP ${resp.code} from Algolia",
                         IOException("HTTP ${resp.code}"),
@@ -142,6 +164,13 @@ internal open class HackerNewsApi @Inject constructor(
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
+                    if (resp.code == 401 || resp.code == 403) return@withContext FictionResult.AuthRequired(
+                        "HTTP ${resp.code} from $url",
+                    )
+                    if (resp.code == 429) return@withContext FictionResult.RateLimited(
+                        retryAfter = null,
+                        message = "HN rate limited (HTTP 429)",
+                    )
                     if (!resp.isSuccessful) return@withContext FictionResult.NetworkError(
                         "HTTP ${resp.code} from $url",
                         IOException("HTTP ${resp.code}"),

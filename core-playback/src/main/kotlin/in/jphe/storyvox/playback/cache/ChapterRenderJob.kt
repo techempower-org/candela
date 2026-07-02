@@ -28,7 +28,6 @@ import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry
 import `in`.jphe.storyvox.playback.voice.VoiceManager
-import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withLock
 
@@ -184,10 +183,21 @@ class ChapterRenderJob @AssistedInject constructor(
         runCatching { setForeground(buildForegroundInfo(chapter.title)) }
 
         // 8. Load the model (idempotent if EnginePlayer already loaded
-        // the same voice). Holds engineMutex.
+        // the same voice). Holds engineMutex. epic/plugin-dx B1 — the
+        // load is plugin-owned (ModelSpec + loadModel); the per-engine
+        // `when` that lived here is gone. The supportsExport gate keeps
+        // the old defensive-arm semantics: a non-local voice that slips
+        // past the SystemTts pre-filter still reads as a load failure
+        // (retry) instead of silently completing an empty cache entry.
+        val plugin = voiceEngines.forType(voice.engineType)
         val loadResult = engineMutex.mutex.withLock {
             if (isStopped) return Result.failure()
-            loadModel(voice)
+            when {
+                plugin == null -> "Error: no engine plugin handles ${voice.engineType}"
+                !plugin.supportsExport ->
+                    "Error: ${plugin.engineId} not supported in background pre-render"
+                else -> plugin.loadModel(plugin.modelSpec(voice.engineType, voice.id))
+            }
         }
         if (loadResult != "Success") {
             Log.w(
@@ -282,47 +292,6 @@ class ChapterRenderJob @AssistedInject constructor(
     }
 
     // ── engine bridging ─────────────────────────────────────────────────
-
-    private fun loadModel(voice: UiVoiceInfo): String =
-        when (val type = voice.engineType) {
-            is EngineType.Piper -> {
-                val voiceDir = voiceManager.voiceDirFor(voice.id)
-                val onnx = File(voiceDir, "model.onnx").absolutePath
-                val tokens = File(voiceDir, "tokens.txt").absolutePath
-                VoiceEngine.getInstance().loadModel(appContext, onnx, tokens)
-                    ?: "Error: load returned null"
-            }
-            is EngineType.Kokoro -> {
-                val sharedDir = voiceManager.kokoroSharedDir()
-                val onnx = File(sharedDir, "model.onnx").absolutePath
-                val tokens = File(sharedDir, "tokens.txt").absolutePath
-                val voicesBin = File(sharedDir, "voices.bin").absolutePath
-                KokoroEngine.getInstance().setActiveSpeakerId(type.speakerId)
-                KokoroEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
-                    ?: "Error: load returned null"
-            }
-            is EngineType.Kitten -> {
-                val sharedDir = voiceManager.kittenSharedDir()
-                val onnx = File(sharedDir, "model.onnx").absolutePath
-                val tokens = File(sharedDir, "tokens.txt").absolutePath
-                val voicesBin = File(sharedDir, "voices.bin").absolutePath
-                KittenEngine.getInstance().setActiveSpeakerId(type.speakerId)
-                KittenEngine.getInstance().loadModel(appContext, onnx, tokens, voicesBin)
-                    ?: "Error: load returned null"
-            }
-            is EngineType.Supertonic -> {
-                val sharedDir = voiceManager.supertonicSharedDir()
-                SupertonicEngine.getInstance().setActiveSpeakerId(type.speakerId)
-                SupertonicEngine.getInstance().loadModel(appContext, sharedDir.absolutePath)
-                    ?: "Error: load returned null"
-            }
-            // Guarded above — defensive fall-through if surface evolves.
-            is EngineType.Azure -> "Error: Azure not supported in background pre-render"
-            // #676 — also guarded above; mirrors Azure with a typed error
-            // so the surface is exhaustive without a fall-through `else`.
-            is EngineType.SystemTts ->
-                "Error: System TTS not supported in background pre-render"
-        }
 
     private fun sampleRateFor(voice: UiVoiceInfo): Int =
         when (voice.engineType) {
