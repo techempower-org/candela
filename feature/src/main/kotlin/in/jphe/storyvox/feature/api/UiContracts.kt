@@ -533,6 +533,14 @@ sealed class UiSleepTimerMode {
  *  toggles between the two states. */
 enum class UiRecapPlaybackState { Idle, Speaking }
 
+/**
+ * Issue #1489 — identifies the chapter whose [PlaybackControllerUi.startListening]
+ * gave up. Carries the fiction too so the reader's Retry can re-invoke
+ * startListening even when nothing is loaded into the controller yet (a cold
+ * abort leaves `UiPlaybackState.fictionId` null).
+ */
+data class ChapterStartFailure(val fictionId: String, val chapterId: String)
+
 interface PlaybackControllerUi {
     val state: Flow<UiPlaybackState>
     val chapterText: Flow<String>
@@ -583,6 +591,21 @@ interface PlaybackControllerUi {
      */
     val waitReason: Flow<`in`.jphe.storyvox.playback.diagnostics.WaitReason?>
         get() = kotlinx.coroutines.flow.flowOf(null)
+
+    /**
+     * Issue #1489 — emits when a [startListening] call gives up waiting for the
+     * chapter body to download (the source is rate-limiting / offline / the
+     * body never parses). Before this the abort was log-only (`PlaybackBindings:
+     * body not ready within 30s — aborting`), so the reader sat on "Loading
+     * chapter…" forever. The reader observes this to flip its LoadingPhase to
+     * TimedOut — the existing "Couldn't start this chapter" + Retry surface —
+     * and to remember the ref so Retry can actually re-attempt the load.
+     *
+     * Default emits nothing so the many lightweight [PlaybackControllerUi] test
+     * fakes stay slim (same defaulting pattern as [events] / [engineState]).
+     */
+    val chapterStartFailures: Flow<ChapterStartFailure>
+        get() = kotlinx.coroutines.flow.emptyFlow()
     fun play()
     fun pause()
     fun seekTo(ms: Long)
