@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.8.1] -- 2026-07-02
+
+**Mythic Grimoire.**
+
+### Fixed
+
+- The reader no longer spins on "Loading chapter…" forever when a chapter can't be fetched (e.g. a rate-limited feed): the silent 30-second give-up now surfaces as "Couldn't start this chapter" with a Retry that actually re-attempts the load. Completes #1489. (#1499)
+
 ## [1.8.0] -- 2026-07-02
 
 **Jade Warden.** The Morning Briefing arrives, and feeds stop failing silently.
