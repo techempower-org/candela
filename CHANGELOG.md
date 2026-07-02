@@ -9,6 +9,32 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.8.0] -- 2026-07-02
+
+**Jade Warden.** The Morning Briefing arrives, and feeds stop failing silently.
+
+### Added
+
+- **Morning Briefing** — one tap assembles Hacker News, arXiv, your RSS feeds, and GitHub into a single continuous narrated episode with cross-book auto-advance. Settings hub → Podcasts. (#1467, #1483)
+- Bookshare partner API key field in Settings — discovery lights up the moment a key is entered (dormant until the Benetech partnership; downloads stay gated). (#1471, #1485)
+- Browse chips and search hints now come from each source's own plugin descriptor. (#1482, #1487)
+
+### Fixed
+
+- **RSS feeds no longer fail silently.** A freshly-added feed could sit on an empty chapter list forever (a refresh guard skipped fetching, and every error was swallowed). The chapter list now shows loading / a clear error with Retry / an honest empty state — and Retry forces a real fetch. (#1489, #1490)
+- Chapter taps on RSS feeds are instant after the list loads — the feed is cached instead of re-downloaded on every tap. (#1490)
+- Rate-limited feed servers (reddit's instant 429s) surface as "try again later" instead of hanging; Cloudflare blocks are reported honestly. (#1490)
+- Adding a site's homepage now auto-discovers its RSS/Atom feed. (#1490)
+- New-chapter notification taps load the chapter before opening the reader. (#1455, #1477)
+- Wear: transient volume arc on bezel turns; Teleprompter/Sleep touch targets meet 48dp. (#1401, #1402, #1479)
+
+### Under the hood
+
+- New sources need only a `@SourcePlugin` annotation — KSP generates all routing; 27 modules of hand-written DI deleted. (#1400, #1481)
+- Wear app rebranded to `org.techempower.candela.wear`. (#1403, #1475)
+- Tagged releases attach a Play-ready release-signed AAB, with a CI guard that withholds any debug-signed bundle. (#1476, #1484)
+- Reader intent extras consolidated into one compiler-enforced contract. (#1478, #1486)
+
 ## [1.7.0] -- 2026-07-01
 
 **Offline for the road.** Bulk book downloads with a Wi-Fi-only data saver — built for metered-data users.
