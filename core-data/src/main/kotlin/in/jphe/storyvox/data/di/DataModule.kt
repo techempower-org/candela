@@ -32,6 +32,8 @@ import `in`.jphe.storyvox.data.db.dao.LlmSessionDao
 import `in`.jphe.storyvox.data.db.dao.PlaybackDao
 import `in`.jphe.storyvox.data.db.dao.TeleprompterScriptDao
 import `in`.jphe.storyvox.data.db.migration.ALL_MIGRATIONS
+import `in`.jphe.storyvox.data.briefing.BriefingBuilder
+import `in`.jphe.storyvox.data.briefing.DefaultBriefingBuilder
 import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
 import `in`.jphe.storyvox.data.repository.AnnotationRepositoryImpl
@@ -316,6 +318,11 @@ abstract class RepositoryBindings {
     abstract fun bindListeningStatsRepository(
         impl: ListeningStatsRepositoryImpl,
     ): ListeningStatsRepository
+
+    // Issue #1467 — morning-briefing queue builder. Resolves each configured
+    // source's latest items to playable chapters (via FictionRepository).
+    @Binds @Singleton
+    abstract fun bindBriefingBuilder(impl: DefaultBriefingBuilder): BriefingBuilder
 
     @Binds @Singleton
     abstract fun bindInboxRepository(impl: InboxRepositoryImpl): InboxRepository
