@@ -1102,9 +1102,10 @@ private fun ReadabilityHintState() {
 @Composable
 private fun SearchHint(sourceId: String, visibleSources: List<SourcePluginDescriptor>) {
     val spacing = LocalSpacing.current
-    val displayName = remember(sourceId, visibleSources) {
-        visibleSources.firstOrNull { it.id == sourceId }?.displayName ?: sourceId
+    val descriptor = remember(sourceId, visibleSources) {
+        visibleSources.firstOrNull { it.id == sourceId }
     }
+    val displayName = descriptor?.displayName ?: sourceId
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1121,11 +1122,12 @@ private fun SearchHint(sourceId: String, visibleSources: List<SourcePluginDescri
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            // Issue #271 — per-source empty-state subtitle. Phase 3
-            // (#384) — the per-source phrase lookup goes through the
-            // `BrowseSourceUi` side-table keyed by stable plugin id.
+            // Issue #271 — per-source empty-state subtitle. #1482 — the
+            // phrase now rides the `@SourcePlugin` descriptor
+            // (`searchHint`); `BrowseSourceUi` just falls back to
+            // "Search <displayName>" when a plugin didn't declare one.
             Text(
-                BrowseSourceUi.searchHint(sourceId, displayName),
+                BrowseSourceUi.searchHint(descriptor?.searchHint.orEmpty(), displayName),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

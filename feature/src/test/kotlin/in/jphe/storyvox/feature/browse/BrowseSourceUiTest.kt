@@ -8,57 +8,35 @@ import org.junit.Test
 
 /**
  * Plugin-seam Phase 3 (#384) — unit tests for the [BrowseSourceUi]
- * side-table. Verifies the lookup tables return the expected per-
- * source UI hints for all 17 in-tree backends, with sensible defaults
- * for ids the table doesn't know about (out-of-tree plugin posture).
+ * side-table.
+ *
+ * [BrowseSourceUi.supportedTabs] is still keyed by `SourceIds`, so it's
+ * verified per in-tree backend. [BrowseSourceUi.chipLabel] and
+ * [BrowseSourceUi.searchHint] moved their per-source strings onto the
+ * `@SourcePlugin` descriptor in #1482; here they're only the
+ * prefer-descriptor-else-displayName fallback, so those tests pin the
+ * contract rather than enumerate every source.
  */
 class BrowseSourceUiTest {
 
-    @Test fun `chipLabel returns concise label for every in-tree source`() {
-        val expected = mapOf(
-            SourceIds.ROYAL_ROAD to "Royal Road",
-            SourceIds.GITHUB to "GitHub",
-            SourceIds.MEMPALACE to "Palace",
-            SourceIds.RSS to "RSS",
-            SourceIds.EPUB to "Local",
-            SourceIds.OUTLINE to "Wiki",
-            SourceIds.GUTENBERG to "Gutenberg",
-            SourceIds.AO3 to "AO3",
-            SourceIds.STANDARD_EBOOKS to "Standard Ebooks",
-            SourceIds.WIKIPEDIA to "Wikipedia",
-            SourceIds.WIKISOURCE to "Wikisource",
-            // Issue #417 — :source-kvmr → :source-radio. Both ids
-            // resolve to the "Radio" chip during the one-cycle
-            // migration overlap.
-            SourceIds.RADIO to "Radio",
-            SourceIds.KVMR to "Radio",
-            // Issue #770 — split NOTION into TECHEMPOWER + PAT.
-            SourceIds.NOTION_TECHEMPOWER to "TechEmpower",
-            SourceIds.NOTION_PAT to "Notion",
-            SourceIds.HACKERNEWS to "Hacker News",
-            SourceIds.GOOGLE_NEWS to "Google News",
-            SourceIds.ARXIV to "arXiv",
-            SourceIds.PLOS to "PLOS",
-            SourceIds.DISCORD to "Discord",
-        )
+    // #1482 — chip labels moved onto the `@SourcePlugin` descriptor
+    // (`chipLabel`). `BrowseSourceUi.chipLabel` is now the tiny
+    // "prefer the descriptor value, else the formal displayName"
+    // fallback; the per-source strings are asserted by each source's
+    // annotation. These tests pin the fallback contract.
 
-        // 20 = 11 catalog backends + Radio/Kvmr alias +
-        // Notion TechEmpower + Notion PAT + HN + Google News + arXiv +
-        // PLOS + Discord. Slack and Telegram intentionally fall through to
-        // the registry's displayName (chip strip uses the same string as
-        // the Settings → Plugins label).
-        assertEquals(20, expected.size)
-        for ((id, label) in expected) {
-            assertEquals(
-                "Unexpected chip label for $id",
-                label,
-                BrowseSourceUi.chipLabel(id, "fallback"),
-            )
-        }
+    @Test fun `chipLabel prefers the descriptor value over displayName`() {
+        // e.g. AO3's formal displayName is "Archive of Our Own"; the
+        // concise chip label rides @SourcePlugin(chipLabel = "AO3").
+        assertEquals("AO3", BrowseSourceUi.chipLabel("AO3", "Archive of Our Own"))
     }
 
-    @Test fun `chipLabel falls through to displayName for unknown ids`() {
-        assertEquals("Custom Backend", BrowseSourceUi.chipLabel("custom-id", "Custom Backend"))
+    @Test fun `chipLabel falls back to displayName when the descriptor label is blank`() {
+        // Out-of-tree backend that didn't declare a chip label, or an
+        // in-tree source whose chip == its formal name (e.g. "Radio").
+        assertEquals("Custom Backend", BrowseSourceUi.chipLabel("", "Custom Backend"))
+        // Whitespace-only is treated as "unset" too.
+        assertEquals("Custom Backend", BrowseSourceUi.chipLabel("   ", "Custom Backend"))
     }
 
     @Test fun `supportedTabs gives a non-empty list for every in-tree source`() {
@@ -130,30 +108,23 @@ class BrowseSourceUiTest {
         assertEquals(withDefault, withExplicitTrue)
     }
 
-    @Test fun `searchHint returns sensible copy for every in-tree source`() {
-        // Issue #695 — sources that declare `supportsSearch = false`
-        // (Slack, Telegram) never reach the Search tab's empty state,
-        // so a dedicated `searchHint` entry is unreachable copy. The
-        // generic "Search <displayName>" fallback is fine for them.
-        // Every other in-tree source must override.
-        val noSearchSources = setOf(SourceIds.SLACK, SourceIds.TELEGRAM)
-        for (id in IN_TREE_IDS - noSearchSources) {
-            val hint = BrowseSourceUi.searchHint(id, displayName = "FallbackName")
-            assertTrue(
-                "Expected non-empty searchHint for $id (got: '$hint')",
-                hint.isNotBlank(),
-            )
-            // Default `else` branch uses the displayName; in-tree
-            // sources should NOT fall through to that branch.
-            assertFalse(
-                "$id fell through to the default searchHint",
-                hint == "Search FallbackName",
-            )
-        }
+    // #1482 — per-source search-empty-state copy moved onto the
+    // `@SourcePlugin` descriptor (`searchHint`). `BrowseSourceUi.searchHint`
+    // is now the "prefer the descriptor value, else Search <displayName>"
+    // fallback. These tests pin that contract.
+
+    @Test fun `searchHint prefers the descriptor value over the generic fallback`() {
+        assertEquals(
+            "Search AO3 by tag, fandom, or character",
+            BrowseSourceUi.searchHint("Search AO3 by tag, fandom, or character", "Archive of Our Own"),
+        )
     }
 
-    @Test fun `searchHint falls through to displayName for unknown ids`() {
-        assertEquals("Search My Backend", BrowseSourceUi.searchHint("custom-id", "My Backend"))
+    @Test fun `searchHint falls back to Search displayName when the descriptor hint is blank`() {
+        // Matches the old `else` branch — exactly what supportsSearch=false
+        // sources (Slack, Telegram) surface, since they declare no hint.
+        assertEquals("Search My Backend", BrowseSourceUi.searchHint("", "My Backend"))
+        assertEquals("Search My Backend", BrowseSourceUi.searchHint("   ", "My Backend"))
     }
 
     private companion object {

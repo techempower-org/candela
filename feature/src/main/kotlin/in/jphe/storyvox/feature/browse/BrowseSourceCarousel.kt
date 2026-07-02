@@ -298,7 +298,7 @@ private fun BrowseSourceCard(
         label = "browse-source-card-label",
     )
 
-    val label = BrowseSourceUi.chipLabel(descriptor.id, descriptor.displayName)
+    val label = BrowseSourceUi.chipLabel(descriptor.chipLabel, descriptor.displayName)
     val tagline = sourceTagline(descriptor.id)
     val glyph = sourceGlyph(descriptor.id)
     // Soft brass-tinted gradient on the selected card. Pulls the active
@@ -473,7 +473,7 @@ private fun SourceContextSheet(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val label = BrowseSourceUi.chipLabel(descriptor.id, descriptor.displayName)
+    val label = BrowseSourceUi.chipLabel(descriptor.chipLabel, descriptor.displayName)
     val tagline = sourceTagline(descriptor.id)
     val glyph = sourceGlyph(descriptor.id)
 
