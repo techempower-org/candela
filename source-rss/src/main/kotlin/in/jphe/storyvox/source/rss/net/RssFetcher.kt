@@ -19,8 +19,11 @@ import javax.inject.Singleton
  * with [FetchResult.NotModified]. The caller can use this to skip
  * re-parsing when nothing's changed since the last poll.
  */
+// #1489 — `open` so unit tests can subclass with a counting/stub fetcher
+// (assert the RssSource feed cache avoids re-fetching). The production
+// singleton is still the Hilt-provided instance.
 @Singleton
-class RssFetcher @Inject constructor(
+open class RssFetcher @Inject constructor(
     @`in`.jphe.storyvox.source.rss.di.RssHttp private val client: OkHttpClient,
 ) {
     /**
@@ -32,7 +35,7 @@ class RssFetcher @Inject constructor(
      * fatal `NetworkOnMainThreadException`. Same fix pattern as
      * `ArxivApi.getRaw`.
      */
-    suspend fun fetch(
+    open suspend fun fetch(
         url: String,
         previousEtag: String? = null,
         previousLastModified: String? = null,
