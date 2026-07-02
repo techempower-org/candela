@@ -409,6 +409,13 @@ class ReaderViewModel @Inject constructor(
     private val _loadingPhase = MutableStateFlow(LoadingPhase.Loading)
     private var loadingTimerJob: Job? = null
 
+    /** Issue #1489 — the ref from the most recent
+     *  [PlaybackControllerUi.chapterStartFailures] emission. Retained so
+     *  [retryLoading] can re-invoke `startListening`: a cold abort never handed
+     *  the chapter to the controller, so `playback.play()` alone can't recover
+     *  it (there's nothing loaded to play). */
+    private var lastFailedStart: `in`.jphe.storyvox.feature.api.ChapterStartFailure? = null
+
     /**
      * Calliope (v0.5.00) — one-shot signal for the chapter-complete
      * confetti easter-egg. Conflated capacity 1 so a missed observer
@@ -474,6 +481,22 @@ class ReaderViewModel @Inject constructor(
                     delay(LOADING_SLOW_HINT_MS)
                     _loadingPhase.value = LoadingPhase.Slow
                     delay(LOADING_TIMEOUT_MS - LOADING_SLOW_HINT_MS)
+                    _loadingPhase.value = LoadingPhase.TimedOut
+                }
+            }
+        }
+        // Issue #1489 — a startListening() that gave up waiting for the chapter
+        // body used to abort log-only, leaving the reader spinning on "Loading
+        // chapter…" forever (confirmed on-device: reddit 429 → body never
+        // downloads → 30s abort). Surface the existing TimedOut → "Couldn't
+        // start this chapter" + Retry immediately, and remember the ref so
+        // retryLoading re-attempts the load. Gated on isLoading so a stray
+        // failure can't clobber an already-loaded reader.
+        viewModelScope.launch {
+            playback.chapterStartFailures.collect { failure ->
+                if (isLoading.value) {
+                    lastFailedStart = failure
+                    loadingTimerJob?.cancel()
                     _loadingPhase.value = LoadingPhase.TimedOut
                 }
             }
@@ -865,7 +888,18 @@ class ReaderViewModel @Inject constructor(
      *  play() is a documented no-op. */
     fun retryLoading() {
         _loadingPhase.value = LoadingPhase.Loading
-        playback.play()
+        // #1489 — if the last attempt aborted before the controller ever
+        // received the chapter (body never downloaded — e.g. the source was
+        // rate-limiting), play() can't recover it: nothing is loaded. Re-invoke
+        // startListening for the remembered ref. Otherwise (a mid-buffer stall
+        // on an already-loaded chapter) resume as before.
+        val failed = lastFailedStart
+        if (failed != null) {
+            lastFailedStart = null
+            playback.startListening(fictionId = failed.fictionId, chapterId = failed.chapterId)
+        } else {
+            playback.play()
+        }
     }
 
     /**
