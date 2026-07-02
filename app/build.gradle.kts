@@ -566,7 +566,6 @@ dependencies {
     implementation(project(":source-pdf"))
     implementation(project(":source-outline"))
     implementation(project(":source-gutenberg"))
-    implementation(project(":source-demofeed")) // PROOF new-source.sh scaffold — reverted in the next commit
     implementation(project(":source-ao3"))
     implementation(project(":source-standard-ebooks"))
     implementation(project(":source-wikipedia"))
