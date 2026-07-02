@@ -63,19 +63,19 @@ class VoiceLibraryCollapseTest {
 
     @Test
     fun `installed default is expanded — empty set means not collapsed`() {
-        val key = EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
+        val key = EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
         assertFalse(VoiceLibraryCollapse.isCollapsed(key, flipped = emptySet()))
     }
 
     @Test
     fun `available default is collapsed — empty set means collapsed`() {
-        val key = EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Piper)
+        val key = EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Piper)
         assertTrue(VoiceLibraryCollapse.isCollapsed(key, flipped = emptySet()))
     }
 
     @Test
     fun `flipping installed engine collapses it`() = runTest {
-        val key = EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro)
+        val key = EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro)
         collapse.toggle(key)
 
         val flipped = collapse.flippedKeys.first()
@@ -85,7 +85,7 @@ class VoiceLibraryCollapseTest {
 
     @Test
     fun `flipping available engine expands it`() = runTest {
-        val key = EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro)
+        val key = EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro)
         collapse.toggle(key)
 
         val flipped = collapse.flippedKeys.first()
@@ -95,7 +95,7 @@ class VoiceLibraryCollapseTest {
 
     @Test
     fun `toggle is idempotent — flip then unflip returns to default`() = runTest {
-        val key = EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
+        val key = EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
         collapse.toggle(key)
         collapse.toggle(key)
 
@@ -107,8 +107,8 @@ class VoiceLibraryCollapseTest {
 
     @Test
     fun `flipping one engine doesn't affect the other in same section`() = runTest {
-        val piperKey = EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
-        val kokoroKey = EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro)
+        val piperKey = EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
+        val kokoroKey = EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Kokoro)
 
         collapse.toggle(piperKey)
 
@@ -120,8 +120,8 @@ class VoiceLibraryCollapseTest {
 
     @Test
     fun `flipping installed Piper doesn't affect available Piper`() = runTest {
-        val installedKey = EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
-        val availableKey = EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Piper)
+        val installedKey = EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper)
+        val availableKey = EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Piper)
 
         collapse.toggle(installedKey)
 
@@ -134,7 +134,7 @@ class VoiceLibraryCollapseTest {
 
     @Test
     fun `round-trip survives reinitialization of the collapse facade`() = runTest {
-        val key = EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro)
+        val key = EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro)
         collapse.toggle(key)
         assertEquals(setOf("available:Kokoro"), collapse.flippedKeys.first())
 
@@ -152,11 +152,11 @@ class VoiceLibraryCollapseTest {
         // ignore existing prefs. Pin the format here.
         assertEquals(
             "installed:Piper",
-            EngineKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper).storeKey(),
+            EngineCollapseKey(VoiceLibrarySection.Installed, VoiceEngineId.Piper).storeKey(),
         )
         assertEquals(
             "available:Kokoro",
-            EngineKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro).storeKey(),
+            EngineCollapseKey(VoiceLibrarySection.Available, VoiceEngineId.Kokoro).storeKey(),
         )
     }
 }
