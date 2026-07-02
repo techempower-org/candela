@@ -92,6 +92,12 @@ data class FictionDetailUiState(
      *  (that's the genuine loading/error state, surfaced via [isLoading] /
      *  [error] instead). */
     val isOffline: Boolean = false,
+    /** Issue #1489 — true while the first-subscription / retry `refreshDetail`
+     *  is in flight (from [FictionRepositoryUi.detailRefreshing]). The screen
+     *  pairs it with an empty [chapters] list to show a "Fetching chapters…"
+     *  affordance instead of a bare empty list while a slow feed (e.g. a fresh
+     *  RSS subscription) hydrates its chapters. */
+    val chaptersRefreshing: Boolean = false,
 )
 
 /**
@@ -396,6 +402,14 @@ class FictionDetailViewModel @Inject constructor(
             // gate on state.fiction != null to avoid a misleading banner there.
             .combine(connectivity.state) { state, conn ->
                 state.copy(isOffline = !conn.isOnline && state.fiction != null)
+            }
+            // Issue #1489 — fold in the detail-refresh in-flight flag so the
+            // screen can show a chapters-loading affordance during a slow feed
+            // fetch. Appended as a binary combine (not the 5-arg `base`
+            // combine, which is at its ceiling) — same shape as the companion
+            // / connectivity folds above.
+            .combine(repo.detailRefreshing(fictionId)) { state, refreshing ->
+                state.copy(chaptersRefreshing = refreshing)
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FictionDetailUiState())
     }

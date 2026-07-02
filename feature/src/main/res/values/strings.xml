@@ -436,6 +436,9 @@
     <string name="fiction_chapter_search_label">Search chapters</string>
     <string name="fiction_chapter_jump_label">Go to #</string>
     <string name="fiction_chapter_search_no_results">No chapters match your search.</string>
+    <!-- Issue #1489 — shown in the chapter-list slot while a slow feed (e.g. a
+         fresh RSS subscription) is still fetching its chapters. -->
+    <string name="fiction_fetching_chapters">Fetching chapters…</string>
     <!-- Issue #1208 — audio↔text companion (LibriVox↔Gutenberg) row on fiction detail. -->
     <string name="fiction_companion_listen_along">🎧 Listen along on LibriVox</string>
     <string name="fiction_companion_read_along">📖 Read along on Project Gutenberg</string>

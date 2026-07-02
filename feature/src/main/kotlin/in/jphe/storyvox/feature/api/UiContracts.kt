@@ -164,6 +164,21 @@ interface FictionRepositoryUi {
     fun fictionLoadError(id: String): Flow<String?>
     fun chaptersFor(fictionId: String): Flow<List<UiChapter>>
     /**
+     * Issue #1489 — true while the first-subscription / retry `refreshDetail`
+     * for [fictionId] is in flight. Lets FictionDetail show a "fetching
+     * chapters" affordance instead of a bare empty list during the window
+     * where the (browse-cached) fiction row has landed but [chaptersFor]
+     * hasn't hydrated yet — the exact gap a slow feed (e.g. a fresh RSS
+     * subscription) opens. Distinct from [fictionLoadError] (that reports the
+     * outcome; this reports in-flight).
+     *
+     * Defaulted to `flowOf(false)` so the many lightweight
+     * [FictionRepositoryUi] test fakes don't have to implement it (same
+     * defaulting trick as [observePlaybackSpeed] / [retryDetail]); the real
+     * adapter overrides it.
+     */
+    fun detailRefreshing(fictionId: String): Flow<Boolean> = flowOf(false)
+    /**
      * Targeted boolean stream: true when [fictionId] is in the user's
      * library. Scoped to a single row — unlike [library], this flow
      * does not re-emit when unrelated fictions change. Used by

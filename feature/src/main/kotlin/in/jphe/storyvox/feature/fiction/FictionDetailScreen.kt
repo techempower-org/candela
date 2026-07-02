@@ -678,6 +678,12 @@ fun FictionDetailScreen(
                                 .padding(horizontal = spacing.md, vertical = spacing.xxs),
                         )
                     }
+                    // Issue #1489 — no chapters yet + a refresh in flight ⇒
+                    // show a fetch affordance instead of a bare empty slot
+                    // (the window a slow RSS feed opens after the row lands).
+                    if (state.chapters.isEmpty() && state.chaptersRefreshing) {
+                        item(key = "chapters-loading") { ChaptersLoadingRow() }
+                    }
                     if (wideShowSearch && wideFiltered.isEmpty() && wideSearchQuery.isNotBlank()) {
                         item(key = "chapter-search-empty") {
                             Text(
@@ -835,6 +841,11 @@ fun FictionDetailScreen(
                             .fillMaxWidth()
                             .padding(horizontal = spacing.md, vertical = spacing.xxs),
                     )
+                }
+                // Issue #1489 — no chapters yet + a refresh in flight ⇒ show a
+                // fetch affordance instead of a bare empty chapter slot.
+                if (state.chapters.isEmpty() && state.chaptersRefreshing) {
+                    item(key = "chapters-loading") { ChaptersLoadingRow() }
                 }
                 if (narrowShowSearch && narrowFiltered.isEmpty() && narrowSearchQuery.isNotBlank()) {
                     item(key = "chapter-search-empty") {
@@ -1639,6 +1650,38 @@ private fun ActionRow(
  * scroll-only and a webnovel jumps into search mode.
  */
 internal const val CHAPTER_SEARCH_THRESHOLD: Int = 50
+
+/**
+ * Issue #1489 — chapter-list placeholder shown while a slow feed (e.g. a
+ * fresh RSS subscription) is still fetching its chapters: the fiction row
+ * has landed (from the browse cache) but [FictionDetailUiState.chapters]
+ * hasn't hydrated yet. Rendered in the chapter-list slot in place of a bare
+ * empty list. A [LiveRegionMode.Polite] region so TalkBack announces the
+ * fetch without stealing focus (matching OfflineBanner's a11y convention).
+ */
+@Composable
+private fun ChaptersLoadingRow(modifier: Modifier = Modifier) {
+    val spacing = LocalSpacing.current
+    val label = stringResource(R.string.fiction_fetching_chapters)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.md, vertical = spacing.lg)
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                liveRegion = LiveRegionMode.Polite
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally),
+    ) {
+        MagicCircularProgress(modifier = Modifier.size(20.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
 /**
  * Issue #794 — case-insensitive title-substring filter. Empty / blank
