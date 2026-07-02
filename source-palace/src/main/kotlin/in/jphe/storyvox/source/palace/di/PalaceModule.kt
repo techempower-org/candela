@@ -7,11 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.palace.InMemoryPalaceLibraryConfig
 import `in`.jphe.storyvox.source.palace.PalaceLibraryConfig
 import `in`.jphe.storyvox.source.palace.PalaceSource
@@ -112,27 +108,4 @@ internal abstract class PalaceConfigBindings {
     @Binds
     @Singleton
     abstract fun bindConfig(impl: InMemoryPalaceLibraryConfig): PalaceLibraryConfig
-}
-
-/**
- * Contributes [PalaceSource] into the multi-source
- * `Map<String, FictionSource>`. Adds a "Palace Library" entry to the
- * source picker; persisted fictions with `sourceId="palace"` route
- * through this source.
- *
- * The legacy `@IntoMap @StringKey` binding is kept in parallel with
- * the auto-generated `@SourcePlugin` descriptor binding emitted by
- * `:core-plugin-ksp` — same Phase 2 transitional pattern every other
- * source module uses (#384). Phase 3 will remove the legacy bindings
- * across the board.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class PalaceBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.PALACE)
-    abstract fun bindFictionSource(impl: PalaceSource): FictionSource
 }

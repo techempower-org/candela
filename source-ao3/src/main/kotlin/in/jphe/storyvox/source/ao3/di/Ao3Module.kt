@@ -11,7 +11,6 @@ import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
 import `in`.jphe.storyvox.data.auth.AuthSource
 import `in`.jphe.storyvox.data.auth.SessionHydrator
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.ao3.Ao3AuthedSource
 import `in`.jphe.storyvox.source.ao3.Ao3Source
@@ -139,11 +138,12 @@ internal object Ao3HttpModule {
 }
 
 /**
- * Contributes [Ao3Source] into the multi-source `Map<String,
- * FictionSource>`. Persisted fictions with sourceId="ao3" route
- * through this source.
+ * AO3's cross-source auth wiring. The `FictionSource` routing +
+ * registry descriptor are generated from the `@SourcePlugin` annotation
+ * on [Ao3Source] (#1400); this module contributes only the
+ * non-`FictionSource` bindings below.
  *
- * #426 PR2 — also contributes [Ao3AuthSource] into the cross-source
+ * #426 PR2 — contributes [Ao3AuthSource] into the cross-source
  * `Map<String, AuthSource>` so the AO3 sign-in WebView surface
  * picks the right config (URL + identity-cookie name) by sourceId,
  * and [Ao3SessionHydrator] into the cross-source `Map<String,
@@ -153,12 +153,6 @@ internal object Ao3HttpModule {
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class Ao3Bindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.AO3)
-    abstract fun bindFictionSource(impl: Ao3Source): FictionSource
 
     /**
      * #426 PR2 — surfaces [Ao3Source]'s subscription / Marked-for-Later

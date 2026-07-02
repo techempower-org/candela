@@ -7,7 +7,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.github.GitHubAuthedSource
@@ -101,26 +100,19 @@ internal object GitHubHttpModule {
 }
 
 /**
- * Contributes [GitHubSource] into the multi-source `Map<String,
- * FictionSource>` from PR #35. With this binding active,
- * `addByUrl(github URL)` flows end-to-end through the data layer:
- * `UrlRouter` returns sourceId="github", `FictionRepository.addByUrl`
- * looks up `sources[SourceIds.GITHUB]`, and `GitHubSource
- * .fictionDetail` resolves the manifest + chapters.
+ * GitHub's cross-module auth wiring. The `FictionSource` routing +
+ * registry descriptor are generated from the `@SourcePlugin` annotation
+ * on [GitHubSource] (#1400); this module contributes only the
+ * non-`FictionSource` bindings.
  *
- * Issue #91 added the [GitHubAuthRepository] binding alongside, so
- * `:feature` and `:app` can inject the GitHub session state for the
- * Settings UI sign-in row.
+ * [GitHubAuthedSource] (#200) lets the `:app` Browse adapter route
+ * auth-gated listings without exposing the package-internal
+ * [GitHubSource] type, and [GitHubAuthRepository] (#91) lets `:feature`
+ * / `:app` inject the GitHub session state for the Settings sign-in row.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class GitHubBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.GITHUB)
-    abstract fun bindFictionSource(impl: GitHubSource): FictionSource
 
     /**
      * Cross-module binding so the Browse adapter (in `:app`) can route

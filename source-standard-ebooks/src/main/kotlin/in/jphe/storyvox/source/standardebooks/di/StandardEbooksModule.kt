@@ -1,17 +1,12 @@
 package `in`.jphe.storyvox.source.standardebooks.di
 
 import android.content.Context
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.standardebooks.StandardEbooksSource
 import `in`.jphe.storyvox.source.standardebooks.net.StandardEbooksApi
 import okhttp3.Interceptor
@@ -78,21 +73,4 @@ internal object StandardEbooksHttpModule {
     @StandardEbooksCache
     fun provideCacheDir(@ApplicationContext ctx: Context): File =
         File(ctx.cacheDir, "standardebooks").apply { mkdirs() }
-}
-
-/**
- * Contributes [StandardEbooksSource] into the multi-source
- * `Map<String, FictionSource>`. Adds a "Standard Ebooks" entry to
- * the segmented source picker; persisted fictions with
- * `sourceId="standardebooks"` route through this source.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class StandardEbooksBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.STANDARD_EBOOKS)
-    abstract fun bindFictionSource(impl: StandardEbooksSource): FictionSource
 }

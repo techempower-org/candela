@@ -1,15 +1,10 @@
 package `in`.jphe.storyvox.source.librivox.di
 
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import dagger.multibindings.IntoMap
-import dagger.multibindings.StringKey
-import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.source.librivox.LibriVoxSource
 import `in`.jphe.storyvox.source.librivox.net.GutenbergTextApi
 import `in`.jphe.storyvox.source.librivox.net.LibriVoxApi
@@ -74,27 +69,4 @@ internal object LibriVoxHttpModule {
     fun provideGutenbergTextApi(
         @LibriVoxHttp client: OkHttpClient,
     ): GutenbergTextApi = GutenbergTextApi(client)
-}
-
-/**
- * Issue #1015 — contributes [LibriVoxSource] into the multi-source
- * `Map<String, FictionSource>` under [SourceIds.LIBRIVOX].
- *
- * Dual-wire: the matching `@SourcePlugin` annotation on [LibriVoxSource]
- * adds the registry-driven descriptor binding (so the Settings →
- * Library & Sync auto-section and Browse chip surface it without manual
- * touchpoints), while this `@IntoMap` binding keeps the repository's
- * existing `Map<String, FictionSource>` resolving the source — the same
- * coexistence pattern `:source-radio` uses during the plugin-seam
- * migration (#384).
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class LibriVoxBindings {
-
-    @Binds
-    @Singleton
-    @IntoMap
-    @StringKey(SourceIds.LIBRIVOX)
-    abstract fun bindFictionSource(impl: LibriVoxSource): FictionSource
 }
