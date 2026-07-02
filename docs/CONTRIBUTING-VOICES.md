@@ -121,6 +121,15 @@ background pre-render worker treats a slip-through as load-failure
 (retry with backoff — see the gate in `ChapterRenderJob`). Only claim
 `true` when you synchronously render real PCM.
 
+### Contributor gotcha: unit tests need Java 21
+
+`core-playback`'s Robolectric tests sandbox Android SDK 36, which
+**requires Java 21** — under JDK 17 they fail at class init with
+`UnsupportedOperationException ... requires Java 21 (have Java 17)`.
+Point `JAVA_HOME` at a JDK 21 before running
+`:core-playback:testDebugUnitTest`. (CI and the shared runner are
+already configured; this bites local setups.)
+
 ## PR checklist
 
 - [ ] Contract test green; full `:core-playback:testDebugUnitTest` green.
