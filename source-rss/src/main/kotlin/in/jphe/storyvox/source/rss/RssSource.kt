@@ -23,8 +23,8 @@ import `in`.jphe.storyvox.source.rss.parse.ParseException
 import `in`.jphe.storyvox.source.rss.parse.RssFeed
 import `in`.jphe.storyvox.source.rss.parse.RssItem
 import `in`.jphe.storyvox.source.rss.parse.RssParser
+import `in`.jphe.storyvox.source.rss.cache.TtlCache
 import `in`.jphe.storyvox.source.rss.templates.CraigslistTemplates
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -64,38 +64,19 @@ import javax.inject.Singleton
     searchHint = "Search your subscribed feeds",
 )
 @Singleton
-internal class RssSource internal constructor(
+internal class RssSource @Inject constructor(
     private val config: RssConfig,
     private val fetcher: RssFetcher,
-    /** #1489 — wall clock for the feed-cache TTL, taken as a seam so tests
-     *  can advance time deterministically. Deliberately NOT a Dagger
-     *  dependency: the [Inject]-annotated secondary constructor below
-     *  supplies the real clock. Putting `() -> Long` on the injected
-     *  constructor would force a `Function0<Long>` binding the app graph
-     *  doesn't provide — it would fail at `:app` assembly, not here. */
-    private val now: () -> Long,
 ) : FictionSource, `in`.jphe.storyvox.data.source.UrlMatcher {
-
-    /** Dagger entry point — the real singleton uses the system clock.
-     *  KSP's generated `@SourcePlugin` modules inject `RssSource` via this
-     *  constructor; the 3-arg primary is test-only. */
-    @Inject
-    constructor(
-        config: RssConfig,
-        fetcher: RssFetcher,
-    ) : this(config, fetcher, now = { System.currentTimeMillis() })
 
     override val id: String = SourceIds.RSS
     override val displayName: String = "RSS"
 
-    /** #1489 — parsed feed keyed by URL, with the wall-clock ms it was
-     *  fetched. See [fetchAndParse] / [FEED_CACHE_TTL_MS]. */
-    private data class CachedFeed(val fetchedAtMs: Long, val feed: RssFeed)
-
-    /** #1489 — in-memory parsed-feed cache. Concurrent because
-     *  [fictionDetail] and [chapter] can be invoked from different
-     *  coroutines for the same feed. */
-    private val feedCache = ConcurrentHashMap<String, CachedFeed>()
+    /** #1489 — parsed-feed memo keyed by feed URL, TTL-bounded so a re-open
+     *  picks up newly-published items. Both [fictionDetail] and [chapter]
+     *  read through it (see [fetchAndParse]); the caching decision lives in
+     *  the pure, plain-JUnit-tested [TtlCache]. */
+    private val feedCache = TtlCache<RssFeed>(FEED_CACHE_TTL_MS, System::currentTimeMillis)
 
     /** Issue #472 — RSS / Atom feed URLs. Matched by path/extension
      *  heuristics: `.rss`, `.atom`, `.xml`, or paths containing
@@ -373,17 +354,15 @@ internal class RssSource internal constructor(
     // ─── helpers ────────────────────────────────────────────────────────
 
     private suspend fun fetchAndParse(url: String): RssFeed? {
-        // #1489 — serve a recently-parsed feed from memory so a chapter
-        // tap after the detail list has loaded is instant (no re-download,
-        // no re-parse). Freshness is bounded by FEED_CACHE_TTL_MS.
-        feedCache[url]?.let { cached ->
-            if (now() - cached.fetchedAtMs < FEED_CACHE_TTL_MS) return cached.feed
-        }
+        // #1489 — serve a recently-parsed feed from memory so a chapter tap
+        // after the detail list has loaded is instant (no re-download, no
+        // re-parse). Freshness is bounded by FEED_CACHE_TTL_MS.
+        feedCache.get(url)?.let { return it }
         val result = fetcher.fetch(url)
         if (result !is FictionResult.Success) return null
         val body = (result.value as? FetchResult.Body) ?: return null
         return try {
-            RssParser.parse(body.xml).also { feedCache[url] = CachedFeed(now(), it) }
+            RssParser.parse(body.xml).also { feedCache.put(url, it) }
         } catch (_: ParseException) {
             null
         }
