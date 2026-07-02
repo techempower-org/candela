@@ -66,6 +66,7 @@ include(":source-ocr")
 include(":source-pdf")
 include(":source-outline")
 include(":source-gutenberg")
+include(":source-demofeed") // PROOF new-source.sh scaffold — reverted in the next commit
 include(":source-ao3")
 include(":source-standard-ebooks")
 include(":source-wikipedia")
