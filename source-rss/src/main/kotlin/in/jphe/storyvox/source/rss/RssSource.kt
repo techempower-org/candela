@@ -23,7 +23,10 @@ import `in`.jphe.storyvox.source.rss.parse.ParseException
 import `in`.jphe.storyvox.source.rss.parse.RssFeed
 import `in`.jphe.storyvox.source.rss.parse.RssItem
 import `in`.jphe.storyvox.source.rss.parse.RssParser
+import `in`.jphe.storyvox.source.rss.parse.discoverFeedUrl
+import `in`.jphe.storyvox.source.rss.cache.TtlCache
 import `in`.jphe.storyvox.source.rss.templates.CraigslistTemplates
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,12 +42,15 @@ import javax.inject.Singleton
  * is a no-op (RSS feeds don't carry genre metadata in any consistent
  * way).
  *
- * Caching: this impl is stateless w.r.t. parsed content — every
- * call re-fetches and re-parses. The repository layer above caches
- * the chapter cards. For the small N (a few feeds × a few hundred
- * items each) the cost is negligible; if it becomes a concern, an
- * in-memory map keyed by fictionId + last fetch's ETag is the
- * follow-up.
+ * Caching (#1489): [fictionDetail] and [chapter] both funnel through
+ * [fetchAndParse], which now memoises the parsed [RssFeed] per feed URL
+ * for [FEED_CACHE_TTL_MS]. Before this the source was stateless — every
+ * chapter tap re-downloaded and re-parsed the WHOLE feed, so the reader
+ * sat on "Loading chapter…" for a full network round-trip on each tap
+ * (the follow-up the previous revision's comment predicted). The
+ * detail-list load warms the cache; subsequent taps are served from
+ * memory and are instant. The repository layer above still caches the
+ * chapter cards — this cache only shortcuts the source's own fetch+parse.
  */
 @SourcePlugin(
     id = SourceIds.RSS,
@@ -67,6 +73,21 @@ internal class RssSource @Inject constructor(
 
     override val id: String = SourceIds.RSS
     override val displayName: String = "RSS"
+
+    /** #1489 — parsed-feed memo keyed by feed URL, TTL-bounded so a re-open
+     *  picks up newly-published items. Both [fictionDetail] and [chapter]
+     *  read through it (see [fetchAndParse]); the caching decision lives in
+     *  the pure, plain-JUnit-tested [TtlCache]. */
+    private val feedCache = TtlCache<RssFeed>(FEED_CACHE_TTL_MS, System::currentTimeMillis)
+
+    /** #1489 — subscription URL → autodiscovered feed URL. When a user pastes
+     *  a bare homepage, the first fetch parses the HTML for its `<link
+     *  rel=alternate>` feed; we remember it here so an expired-cache re-fetch
+     *  goes straight to the real feed instead of re-scanning the HTML. Kept in
+     *  memory only — persisting it would mean rewriting the subscription URL,
+     *  which changes the URL-hash-derived fictionId and orphans the Room rows
+     *  (see PR notes; a model-level fix is a follow-up). */
+    private val resolvedFeedUrls = ConcurrentHashMap<String, String>()
 
     /** Issue #472 — RSS / Atom feed URLs. Matched by path/extension
      *  heuristics: `.rss`, `.atom`, `.xml`, or paths containing
@@ -245,9 +266,12 @@ internal class RssSource @Inject constructor(
         val sub = config.snapshot().firstOrNull { it.fictionId == fictionId }
             ?: return FictionResult.NotFound("Feed not subscribed: $fictionId")
 
-        val feed = fetchAndParse(sub.url) ?: return FictionResult.NetworkError(
-            "Failed to fetch feed", null,
-        )
+        val feed = when (val r = fetchAndParse(sub.url)) {
+            is FictionResult.Success -> r.value
+            // #1489 — propagate RateLimited / Cloudflare / NetworkError so the
+            // UI can surface the real reason instead of a generic failure.
+            is FictionResult.Failure -> return r
+        }
 
         // #236 instrumentation
         android.util.Log.i(
@@ -286,9 +310,12 @@ internal class RssSource @Inject constructor(
         val sub = config.snapshot().firstOrNull { it.fictionId == fictionId }
             ?: return FictionResult.NotFound("Feed not subscribed: $fictionId")
 
-        val feed = fetchAndParse(sub.url) ?: return FictionResult.NetworkError(
-            "Failed to fetch feed", null,
-        )
+        val feed = when (val r = fetchAndParse(sub.url)) {
+            is FictionResult.Success -> r.value
+            // #1489 — propagate RateLimited / Cloudflare / NetworkError so the
+            // UI can surface the real reason instead of a generic failure.
+            is FictionResult.Failure -> return r
+        }
 
         // #236 instrumentation: log every chapter request so we can see
         // which chapterId comes in vs which item gets matched. Surfaces
@@ -343,15 +370,70 @@ internal class RssSource @Inject constructor(
 
     // ─── helpers ────────────────────────────────────────────────────────
 
-    private suspend fun fetchAndParse(url: String): RssFeed? {
-        val result = fetcher.fetch(url)
-        if (result !is FictionResult.Success) return null
-        val body = (result.value as? FetchResult.Body) ?: return null
-        return try {
-            RssParser.parse(body.xml)
-        } catch (_: ParseException) {
-            null
+    /**
+     * Fetch + parse a feed, reading through [feedCache] first.
+     *
+     * #1489 — returns a typed [FictionResult] rather than a nullable feed.
+     * The previous `RssFeed?` collapsed EVERY failure (rate-limit, Cloudflare
+     * challenge, network, parse error) to null, which the callers turned into
+     * one generic "Failed to fetch feed" NetworkError — so the detail screen
+     * could never tell the user *why* (a reddit 429 read identically to a real
+     * outage). Propagating the fetcher's [FictionResult.Failure] lets the UI
+     * surface rate-limiting / Cloudflare honestly.
+     */
+    private suspend fun fetchAndParse(url: String): FictionResult<RssFeed> {
+        // Serve a recently-parsed feed from memory so a chapter tap after the
+        // detail list has loaded is instant (no re-download, no re-parse).
+        feedCache.get(url)?.let { return FictionResult.Success(it) }
+        // If we've already autodiscovered the real feed for this subscription,
+        // fetch it directly — skip the HTML round-trip and the re-scan.
+        val target = resolvedFeedUrls[url] ?: url
+        return fetchResolveParse(fetchUrl = target, cacheKey = url, allowDiscovery = target == url)
+    }
+
+    /**
+     * Fetch [fetchUrl], parse it, cache the result under [cacheKey] (the
+     * subscription URL). On a parse failure with [allowDiscovery] the body is
+     * treated as an HTML page and run through RSS/Atom autodiscovery —
+     * following exactly ONE hop to the advertised feed (the recursion passes
+     * `allowDiscovery = false`, so a non-feed discovered URL can't loop).
+     */
+    private suspend fun fetchResolveParse(
+        fetchUrl: String,
+        cacheKey: String,
+        allowDiscovery: Boolean,
+    ): FictionResult<RssFeed> {
+        return when (val result = fetcher.fetch(fetchUrl)) {
+            is FictionResult.Success -> {
+                val body = result.value as? FetchResult.Body
+                    ?: return FictionResult.NetworkError("Empty feed response from $fetchUrl")
+                try {
+                    val feed = RssParser.parse(body.xml)
+                    feedCache.put(cacheKey, feed)
+                    FictionResult.Success(feed)
+                } catch (e: ParseException) {
+                    // #1489 — not a feed. The user likely pasted the site's
+                    // homepage; the HTML may advertise its feed. Try once.
+                    val discovered = if (allowDiscovery) discoverFeedUrl(body.xml, fetchUrl) else null
+                    if (discovered != null && discovered != fetchUrl) {
+                        resolvedFeedUrls[cacheKey] = discovered
+                        fetchResolveParse(discovered, cacheKey, allowDiscovery = false)
+                    } else {
+                        FictionResult.NetworkError("Couldn't parse feed at $fetchUrl", e)
+                    }
+                }
+            }
+            // Propagate RateLimited / Cloudflare / NetworkError unchanged.
+            is FictionResult.Failure -> result
         }
+    }
+
+    internal companion object {
+        /** #1489 — parsed-feed cache TTL. 3 min: comfortably longer than a
+         *  detail-open → chapter-tap sequence (so taps always hit the
+         *  cache), short enough that re-opening a feed after a few minutes
+         *  re-fetches to surface newly-published items. */
+        internal const val FEED_CACHE_TTL_MS = 3L * 60L * 1000L
     }
 }
 

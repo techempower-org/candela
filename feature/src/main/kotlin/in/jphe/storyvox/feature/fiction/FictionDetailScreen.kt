@@ -678,6 +678,22 @@ fun FictionDetailScreen(
                                 .padding(horizontal = spacing.md, vertical = spacing.xxs),
                         )
                     }
+                    // Issue #1489 — the empty chapter slot is a 3-state
+                    // machine, never a bare list: refreshing → spinner;
+                    // else → message + Retry (failed load, or a slow/empty
+                    // feed). Populated lists render via items() above.
+                    if (state.chapters.isEmpty()) {
+                        item(key = "chapters-empty-state") {
+                            if (state.chaptersRefreshing) {
+                                ChaptersLoadingRow()
+                            } else {
+                                ChaptersEmptyState(
+                                    error = state.error,
+                                    onRetry = viewModel::retryRefresh,
+                                )
+                            }
+                        }
+                    }
                     if (wideShowSearch && wideFiltered.isEmpty() && wideSearchQuery.isNotBlank()) {
                         item(key = "chapter-search-empty") {
                             Text(
@@ -835,6 +851,20 @@ fun FictionDetailScreen(
                             .fillMaxWidth()
                             .padding(horizontal = spacing.md, vertical = spacing.xxs),
                     )
+                }
+                // Issue #1489 — empty chapter slot as a 3-state machine (see
+                // wide layout): refreshing → spinner; else → message + Retry.
+                if (state.chapters.isEmpty()) {
+                    item(key = "chapters-empty-state") {
+                        if (state.chaptersRefreshing) {
+                            ChaptersLoadingRow()
+                        } else {
+                            ChaptersEmptyState(
+                                error = state.error,
+                                onRetry = viewModel::retryRefresh,
+                            )
+                        }
+                    }
                 }
                 if (narrowShowSearch && narrowFiltered.isEmpty() && narrowSearchQuery.isNotBlank()) {
                     item(key = "chapter-search-empty") {
@@ -1639,6 +1669,85 @@ private fun ActionRow(
  * scroll-only and a webnovel jumps into search mode.
  */
 internal const val CHAPTER_SEARCH_THRESHOLD: Int = 50
+
+/**
+ * Issue #1489 — chapter-list placeholder shown while a slow feed (e.g. a
+ * fresh RSS subscription) is still fetching its chapters: the fiction row
+ * has landed (from the browse cache) but [FictionDetailUiState.chapters]
+ * hasn't hydrated yet. Rendered in the chapter-list slot in place of a bare
+ * empty list. A [LiveRegionMode.Polite] region so TalkBack announces the
+ * fetch without stealing focus (matching OfflineBanner's a11y convention).
+ */
+@Composable
+private fun ChaptersLoadingRow(modifier: Modifier = Modifier) {
+    val spacing = LocalSpacing.current
+    val label = stringResource(R.string.fiction_fetching_chapters)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.md, vertical = spacing.lg)
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                liveRegion = LiveRegionMode.Polite
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally),
+    ) {
+        MagicCircularProgress(modifier = Modifier.size(20.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Issue #1489 — the chapter-list slot when there are no chapters and no
+ * refresh is running. Never a bare empty list (the original silent bug):
+ *
+ *  - A failed refresh (`error != null`) reuses the themed [ErrorBlock]
+ *    banner — BrassButton retry + live region baked in. This sits in the
+ *    chapter slot so the missing content itself offers Retry (the top-of-
+ *    screen banner is in the wide layout's *other* column).
+ *  - Otherwise (an empty feed, or the #1314 TTL guard short-circuiting a
+ *    chapter-less row to success without fetching) a neutral message plus
+ *    Retry. Retry → `retryDetail` → `refreshDetail(force = true)`, which
+ *    bypasses that TTL guard and re-fetches — the in-place recovery for the
+ *    "backed out and re-entered and it loaded" report.
+ */
+@Composable
+private fun ChaptersEmptyState(error: String?, onRetry: () -> Unit) {
+    if (error != null) {
+        ErrorBlock(
+            title = stringResource(R.string.fiction_chapters_load_failed_title),
+            message = friendlyErrorMessage(error),
+            onRetry = onRetry,
+            placement = ErrorPlacement.Banner,
+        )
+        return
+    }
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.md, vertical = spacing.lg)
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Text(
+            text = stringResource(R.string.fiction_no_chapters),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        BrassButton(
+            label = stringResource(R.string.fiction_retry),
+            onClick = onRetry,
+            variant = BrassButtonVariant.Secondary,
+        )
+    }
+}
 
 /**
  * Issue #794 — case-insensitive title-substring filter. Empty / blank

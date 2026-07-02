@@ -644,18 +644,41 @@ private class RealFictionRepositoryUi(
     private fun errorState(id: String): MutableStateFlow<String?> =
         loadErrors.getOrPut(id) { MutableStateFlow(null) }
 
+    /** Issue #1489 — per-id "refreshDetail in flight" tracker, shared
+     *  between [fictionById] / [retryDetail] (which flip it) and
+     *  [detailRefreshing] (which exposes it). Singleton-scoped like
+     *  [loadErrors]; drives FictionDetail's chapters-loading affordance. */
+    private val refreshing = java.util.concurrent.ConcurrentHashMap<String, MutableStateFlow<Boolean>>()
+
+    private fun refreshingState(id: String): MutableStateFlow<Boolean> =
+        refreshing.getOrPut(id) { MutableStateFlow(false) }
+
     override fun fictionById(id: String): Flow<UiFiction?> = flow {
         // Kick off a refresh on first subscription. Failures are silently
         // tolerated for the value flow (the cached row may exist) but
         // captured in [errorState] so [fictionLoadError] can surface them.
-        when (val result = repo.refreshDetail(id)) {
-            is FictionResult.Success -> errorState(id).value = null
-            is FictionResult.Failure -> errorState(id).value = result.message
+        // #1489 — flip [refreshingState] around the call so FictionDetail can
+        // show a chapters-loading affordance during the window where the
+        // (browse-cached) row is present but chapters haven't hydrated yet.
+        refreshingState(id).value = true
+        try {
+            when (val result = repo.refreshDetail(id)) {
+                is FictionResult.Success -> errorState(id).value = null
+                is FictionResult.Failure -> errorState(id).value = result.message
+            }
+        } finally {
+            refreshingState(id).value = false
         }
         emitAll(repo.observeFiction(id).map { detail -> detail?.summary?.let(::toUiFiction) })
     }
 
     override fun fictionLoadError(id: String): Flow<String?> = errorState(id).asStateFlow()
+
+    /** Issue #1489 — expose the first-subscription / retry refresh in-flight
+     *  flag so FictionDetail can render "Fetching chapters…" instead of a
+     *  bare empty chapter list during a slow feed fetch. */
+    override fun detailRefreshing(fictionId: String): Flow<Boolean> =
+        refreshingState(fictionId).asStateFlow()
 
     override suspend fun chapterTextById(chapterId: String): String? =
         chapters.getChapter(chapterId)?.text
@@ -770,9 +793,16 @@ private class RealFictionRepositoryUi(
         // successful refresh will surface automatically.
         // #1314 — force past the TTL guard: an explicit Retry tap must always
         // re-hit the source, not short-circuit on a recently-cached row.
-        when (val result = repo.refreshDetail(id, force = true)) {
-            is FictionResult.Success -> errorState(id).value = null
-            is FictionResult.Failure -> errorState(id).value = result.message
+        // #1489 — mirror [fictionById]'s refreshing-flag flip so the
+        // chapters-loading affordance shows on a retry too.
+        refreshingState(id).value = true
+        try {
+            when (val result = repo.refreshDetail(id, force = true)) {
+                is FictionResult.Success -> errorState(id).value = null
+                is FictionResult.Failure -> errorState(id).value = result.message
+            }
+        } finally {
+            refreshingState(id).value = false
         }
     }
 

@@ -8,6 +8,8 @@ import okhttp3.Request
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Issue #236 — thin wrapper around OkHttp for fetching feed XML.
@@ -47,6 +49,17 @@ class RssFetcher @Inject constructor(
             client.newCall(builder.build()).execute().use { response ->
                 when {
                     response.code == 304 -> FictionResult.Success(FetchResult.NotModified)
+                    // #1489 — reddit (and other servers) throttle non-browser
+                    // UAs with a 429 on the very first `.rss` request. Surface
+                    // it as RateLimited so the detail screen can say so honestly
+                    // ("try again in a bit") instead of a generic network error
+                    // that reads as "the app is broken". We deliberately do NOT
+                    // spoof a browser UA — the descriptive UA is policy (#1141).
+                    response.code == 429 -> FictionResult.RateLimited(
+                        retryAfter = parseRetryAfter(response.header("Retry-After")),
+                        message = "The feed server is rate-limiting requests",
+                        cause = IOException("HTTP 429 from $url"),
+                    )
                     !response.isSuccessful -> FictionResult.NetworkError(
                         "HTTP ${response.code}",
                         IOException("HTTP ${response.code} from $url"),
@@ -86,6 +99,16 @@ class RssFetcher @Inject constructor(
         body.contains("/cdn-cgi/challenge-platform/") ||
             body.contains("Just a moment...") ||
             body.contains("cf-mitigated")
+
+    /**
+     * #1489 — parse a `Retry-After` header into a [Duration]. Handles the
+     * delta-seconds form (`Retry-After: 120`), which is what feed servers
+     * send on a 429. The HTTP-date form is rare here and not worth a date
+     * parser — returns null, which the UI renders as a generic "try again
+     * later". Guards against a negative / bogus value.
+     */
+    internal fun parseRetryAfter(header: String?): Duration? =
+        header?.trim()?.toLongOrNull()?.takeIf { it >= 0 }?.seconds
 
     companion object {
         // Identifies storyvox in feed-server logs so feed authors can
