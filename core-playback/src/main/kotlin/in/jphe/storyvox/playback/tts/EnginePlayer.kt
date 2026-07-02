@@ -65,6 +65,7 @@ import `in`.jphe.storyvox.playback.tts.source.PcmSource
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceManager
+import `in`.jphe.storyvox.playback.voice.toEngineKey
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -2300,7 +2301,7 @@ class EnginePlayer @AssistedInject constructor(
                         secondaryPiperEngines.forEach { runCatching { it.destroy() } }
                         secondaryPiperEngines = emptyList()
                         val secondaries = mutableListOf<com.CodeBySonu.VoxSherpa.VoiceEngine>()
-                        for (i in 1 until parallelState.instances) {
+                        for (i in 1..StreamingDispatch.desiredSecondaryCount(parallelState.instances)) {
                             android.util.Log.i(
                                 "EnginePlayer",
                                 "Tier 3 attempting secondary Piper $i",
@@ -2397,7 +2398,7 @@ class EnginePlayer @AssistedInject constructor(
                         secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
                         secondaryKokoroEngines = emptyList()
                         val kokoroSecondaries = mutableListOf<com.CodeBySonu.VoxSherpa.KokoroEngine>()
-                        for (i in 1 until parallelState.instances) {
+                        for (i in 1..StreamingDispatch.desiredSecondaryCount(parallelState.instances)) {
                             val secondary = com.CodeBySonu.VoxSherpa.KokoroEngine()
                             secondary.setActiveSpeakerId(
                                 (active.engineType as EngineType.Kokoro).speakerId,
@@ -2461,7 +2462,7 @@ class EnginePlayer @AssistedInject constructor(
                         secondaryKittenEngines.forEach { runCatching { it.destroy() } }
                         secondaryKittenEngines = emptyList()
                         val kittenSecondaries = mutableListOf<com.CodeBySonu.VoxSherpa.KittenEngine>()
-                        for (i in 1 until parallelState.instances) {
+                        for (i in 1..StreamingDispatch.desiredSecondaryCount(parallelState.instances)) {
                             val secondary = com.CodeBySonu.VoxSherpa.KittenEngine()
                             secondary.setActiveSpeakerId(
                                 (active.engineType as EngineType.Kitten).speakerId,
@@ -2889,8 +2890,8 @@ class EnginePlayer @AssistedInject constructor(
             if (thermalStatus >= ThermalMonitor.THERMAL_STATUS_SEVERE) {
                 // Severe thermal pressure: halve queue depth to reduce
                 // memory + CPU headroom. Floor at 2 so the pipeline
-                // doesn't starve.
-                val capped = (base / 2).coerceAtLeast(2)
+                // doesn't starve. Decision pinned in StreamingDispatch (B2 prep).
+                val capped = StreamingDispatch.queueDepth(base, thermalStatus)
                 DebugLog.i("EnginePlayer") {
                     "#803 thermal SEVERE+: queue depth $base -> $capped"
                 }
@@ -2992,7 +2993,7 @@ class EnginePlayer @AssistedInject constructor(
                 // HTTPS-bounded, not memory-bounded). A future PR
                 // could split the slider if the tradeoffs diverge
                 // visibly.
-                val lookaheadCount = (cachedParallelSynthInstances - 1).coerceAtLeast(0)
+                val lookaheadCount = StreamingDispatch.azureLookaheadCount(cachedParallelSynthInstances)
                 val voiceName = engineType.voiceName
                 List(lookaheadCount) {
                     object : EngineStreamingSource.VoiceEngineHandle {
@@ -3039,13 +3040,13 @@ class EnginePlayer @AssistedInject constructor(
         // independent KokoroEngine instances pinned to the primary speaker
         // at load, so they'd synthesize the wrong voice for routed
         // sentences. Force serial whenever routing is active on Kokoro.
-        val autoLangForcesSerial =
-            cachedAutoLanguageDetection &&
-                engineType is EngineType.Kokoro &&
-                secondaryHandles.isNotEmpty()
+        val autoLangForcesSerial = StreamingDispatch.autoLangForcesSerial(
+            cachedAutoLanguageDetection,
+            engineType.toEngineKey(),
+            secondaryHandles.isNotEmpty(),
+        )
         val effectiveSecondaryHandles = if (
-            thermalStatus >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
-            secondaryHandles.isNotEmpty()
+            StreamingDispatch.thermalForcesSerial(thermalStatus, secondaryHandles.isNotEmpty())
         ) {
             DebugLog.i("EnginePlayer") {
                 "#803 thermal MODERATE+: dropping ${secondaryHandles.size} secondary " +
