@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Podcasts
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Speed
@@ -159,6 +160,12 @@ fun SettingsHubScreen(
      */
     onOpenStats: () -> Unit = {},
     /**
+     * Issue #1467 — morning-briefing / personal-podcast queue. Default no-op so
+     * existing callers / smoke tests compile without wiring it; production
+     * wiring lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
+     */
+    onOpenBriefing: () -> Unit = {},
+    /**
      * Issue #1369 — teleprompter script manager. Default no-op so existing
      * callers / smoke tests compile without wiring it; production wiring lives
      * in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
@@ -253,6 +260,16 @@ fun SettingsHubScreen(
                     title = stringResource(R.string.settings_hub_stats_title),
                     subtitle = stringResource(R.string.settings_hub_stats_subtitle),
                     onClick = onOpenStats,
+                )
+                // Issue #1467 — morning briefing / personal-podcast queue.
+                // Reading-adjacent: a curated listen-through of your sources'
+                // latest, stitched into one hands-free episode. (Copy inline
+                // for slice 1; string extraction is a follow-up.)
+                SettingsHubRow(
+                    icon = Icons.Outlined.Podcasts,
+                    title = "Morning Briefing",
+                    subtitle = "One episode from your sources — HN, arXiv, RSS, GitHub",
+                    onClick = onOpenBriefing,
                 )
                 // Issue #1369 — teleprompter script manager. Reading-adjacent:
                 // save/edit/organize scripts the teleprompter can load.

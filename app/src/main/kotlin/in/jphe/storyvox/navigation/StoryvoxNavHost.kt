@@ -59,6 +59,7 @@ import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
+import `in`.jphe.storyvox.feature.briefing.MorningBriefingScreen
 import `in`.jphe.storyvox.feature.settings.SettingsHubScreen
 import `in`.jphe.storyvox.feature.stats.ListeningStatsScreen
 import `in`.jphe.storyvox.feature.settings.SettingsScreen
@@ -113,6 +114,9 @@ object StoryvoxRoutes {
 
     /** Issue #1235 — Listening stats dashboard, reached from the Settings hub. */
     const val STATS = "stats"
+
+    /** Issue #1467 — morning-briefing / personal-podcast queue, reached from the Settings hub. */
+    const val MORNING_BRIEFING = "morning_briefing"
 
     /** Issue #1369 — teleprompter script manager (save/edit/organize). The
      *  list is reached from the Settings hub and (once wired) the teleprompter
@@ -1124,6 +1128,7 @@ private fun StoryvoxNavHostContent(
                     onOpenAbout = { navController.navigate(StoryvoxRoutes.SETTINGS_ABOUT) },
                     onOpenAdvanced = { navController.navigate(StoryvoxRoutes.SETTINGS_ADVANCED) },
                     onOpenStats = { navController.navigate(StoryvoxRoutes.STATS) },
+                    onOpenBriefing = { navController.navigate(StoryvoxRoutes.MORNING_BRIEFING) },
                     onOpenScripts = { navController.navigate(StoryvoxRoutes.SCRIPT_LIST) },
                 )
             }
@@ -1139,6 +1144,18 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 ListeningStatsScreen(onBack = { navController.popBackStack() })
+            }
+
+            // Issue #1467 — morning-briefing / personal-podcast queue. Push
+            // enter/exit: a drill-down from the Settings hub like Stats.
+            composable(
+                StoryvoxRoutes.MORNING_BRIEFING,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                MorningBriefingScreen(onBack = { navController.popBackStack() })
             }
 
             // Issue #1369 — teleprompter script manager. List + editor are
