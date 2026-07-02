@@ -5,7 +5,7 @@
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-b88746.svg)](LICENSE)
 [![Built by dream-team](https://img.shields.io/badge/built%20by-dream--team-7d5fff.svg)](#how-it-was-built)
 
-**Candela is [TechEmpower](https://techempower.org)'s accessible resource app.**
+**Candela is [TechEMPOWER](https://techempower.org)'s accessible resource app.**
 Browse free tech guides, connect with our peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.
 
 **Under the hood: a neural-voice audiobook player for any text you have.**
