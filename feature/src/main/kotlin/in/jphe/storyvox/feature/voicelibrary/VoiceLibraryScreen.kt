@@ -87,7 +87,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
-import `in`.jphe.storyvox.playback.voice.EngineKey
+import `in`.jphe.storyvox.playback.voice.EngineCollapseKey
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
@@ -469,7 +469,7 @@ fun VoiceLibraryScreen(
             } else {
                 installedByEngine.forEach { (engine, tiers) ->
                     val engineCount = tiers.values.sumOf { it.size }
-                    val engineKey = EngineKey(VoiceLibrarySection.Installed, engine.toCoreId())
+                    val engineKey = EngineCollapseKey(VoiceLibrarySection.Installed, engine.toCoreId())
                     val isCollapsed = engineKey in state.collapsedEngines
                     item(key = "i-engine-${engine.name}") {
                         EngineSubHeader(
@@ -559,7 +559,7 @@ fun VoiceLibraryScreen(
                 }
                 availableByEngine.forEach { (engine, tiers) ->
                     val engineCount = tiers.values.sumOf { it.size }
-                    val engineKey = EngineKey(VoiceLibrarySection.Available, engine.toCoreId())
+                    val engineKey = EngineCollapseKey(VoiceLibrarySection.Available, engine.toCoreId())
                     val isCollapsed = engineKey in state.collapsedEngines
                     item(key = "a-engine-${engine.name}") {
                         EngineSubHeader(
