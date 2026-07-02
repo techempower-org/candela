@@ -397,6 +397,15 @@ object AppBindings {
     fun provideGoogleNewsConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.GoogleNewsConfig = impl
 
+    /** Issue #1471 — Bookshare partner API key. Supplies the
+     *  secrets-backed [BookshareConfigImpl] over `:source-bookshare`'s
+     *  default (which no longer binds one), so `BookshareSource` /
+     *  `BookshareApi` read the entered `api_key`. Blank key ⇒ the source
+     *  stays gated to AuthRequired, exactly as before. */
+    @Provides @Singleton
+    fun provideBookshareConfig(impl: `in`.jphe.storyvox.data.BookshareConfigImpl):
+        `in`.jphe.storyvox.source.bookshare.BookshareConfig = impl
+
     /** Issue #597 — user-tunable HTTP timeout preset. Same singleton;
      *  consumed by source-* modules' OkHttp factories via an
      *  Interceptor / timeout override. v1 wires this into the most-

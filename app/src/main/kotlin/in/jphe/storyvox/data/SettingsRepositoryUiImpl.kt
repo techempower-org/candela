@@ -1095,6 +1095,11 @@ class SettingsRepositoryUiImpl(
      *  quota, combined into the [settings] flow so the Settings UI's
      *  "Currently used: 1.4 GB / 2 GB" row stays live. */
     private val cacheStats: CacheStatsRepository,
+    /** Issue #1471 — Bookshare partner-key store. Nullable + null-default
+     *  so the pre-existing primary-ctor test harnesses (named args ending
+     *  at [cacheStats]) need no update; production's @Inject constructor
+     *  below always supplies the real impl. */
+    private val bookshareConfig: BookshareConfigImpl? = null,
     /** Issue #977 — push-on-write seam. The action [scheduleSettingsPush]
      *  fires after the debounce so every synced preference change reaches
      *  InstantDB without a cold-start/manual sync (and can't be clobbered
@@ -1167,6 +1172,7 @@ class SettingsRepositoryUiImpl(
         pcmCache: PcmCache,
         pcmCacheConfig: PcmCacheConfig,
         cacheStats: CacheStatsRepository,
+        bookshareConfig: BookshareConfigImpl,
         // Issue #977 — ⚠️ [dagger.Lazy] is load-bearing: the DI graph has
         // a cycle — SyncCoordinator → Set<Syncer> → SettingsSyncer →
         // SettingsSnapshotSource (this class) → SyncCoordinator. Lazy
@@ -1184,6 +1190,7 @@ class SettingsRepositoryUiImpl(
         azureCreds, azureClient, azureRoster,
         googleTokenSource,
         pcmCache, pcmCacheConfig, cacheStats,
+        bookshareConfig = bookshareConfig,
         pushSettings = { coordinator.get().requestPush(SETTINGS_PUSH_DOMAIN) },
     )
 
@@ -1352,6 +1359,10 @@ class SettingsRepositoryUiImpl(
             // that lands, this default is ON for all builds.
             wikipediaLanguageCode = wikipedia.languageCode,
             discordTokenConfigured = discord.apiToken.isNotBlank(),
+            // Issue #1471 — read the secrets-backed Bookshare key directly
+            // (BookshareConfig has no state Flow); azureTick re-emits this
+            // block when setBookshareApiKey bumps it.
+            bookshareKeyConfigured = bookshareConfig?.isKeyConfigured() ?: false,
             discordServerId = discord.serverId,
             discordServerName = discord.serverName,
             discordCoalesceMinutes = discord.coalesceMinutes,
@@ -2038,6 +2049,14 @@ class SettingsRepositoryUiImpl(
 
     override suspend fun clearPalaceConfig() {
         palaceConfig.clear()
+    }
+
+    /** Issue #1471 — persist/clear the Bookshare partner API key. Bumps
+     *  [azureTick] (the shared non-Flow-secrets tick) so the settings
+     *  Flow re-emits `bookshareKeyConfigured` without a manual refetch. */
+    override suspend fun setBookshareApiKey(key: String?) {
+        bookshareConfig?.setApiKey(key)
+        azureTick.value = azureTick.value + 1
     }
 
     override suspend fun testPalaceConnection(): PalaceProbeResult {
