@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import `in`.jphe.storyvox.data.R
+import `in`.jphe.storyvox.data.intent.ReaderIntentContract
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,8 +21,8 @@ import javax.inject.Singleton
  *
  * Lives in `:core-data` next to the worker that calls it. To deep-link the
  * tap into the reader without depending on `:app`, the content intent targets
- * [MAIN_ACTIVITY] by fully-qualified name and carries the same
- * `storyvox.open_reader.*` extras that
+ * [MAIN_ACTIVITY] by fully-qualified name and carries the shared
+ * [ReaderIntentContract] extras that
  * [`in`.jphe.storyvox.navigation.DeepLinkResolver] already decodes for the
  * playback notification — so the existing nav plumbing routes the tap to the
  * first new chapter.
@@ -31,7 +32,7 @@ import javax.inject.Singleton
  * deep-links a brand-new chapter the controller has never loaded. The reader
  * is a passive view of the controller, so navigating alone would leave it
  * stuck on "loading chapter" (until the 30s timeout). We therefore also set
- * [EXTRA_OPEN_READER_PRELOAD]; MainActivity keys on it to `startListening`
+ * [ReaderIntentContract.EXTRA_PRELOAD]; MainActivity keys on it to `startListening`
  * the chapter before navigating, mirroring the inbox (#1343) and history
  * (#1350) navigate-without-load fixes. The playback notification / widget
  * omit the flag, so their tap stays navigate-only (a preload there would
@@ -109,14 +110,14 @@ class NewChapterNotifier @Inject constructor(
         val launchIntent = Intent().apply {
             component = ComponentName(context.packageName, MAIN_ACTIVITY)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(EXTRA_OPEN_READER_FICTION_ID, fictionId)
-            putExtra(EXTRA_OPEN_READER_CHAPTER_ID, chapterId)
+            putExtra(ReaderIntentContract.EXTRA_FICTION_ID, fictionId)
+            putExtra(ReaderIntentContract.EXTRA_CHAPTER_ID, chapterId)
             // Issue #1455 — load this (brand-new, never-played) chapter into
             // the PlaybackController before navigating; without it the passive
             // reader hangs on "loading chapter". The playback notification and
             // now-playing widget omit this flag (their chapter is already the
             // one playing).
-            putExtra(EXTRA_OPEN_READER_PRELOAD, true)
+            putExtra(ReaderIntentContract.EXTRA_PRELOAD, true)
         }
         // FLAG_UPDATE_CURRENT so the per-fiction extras overwrite a prior
         // intent for the same request code (PendingIntent equality ignores
@@ -130,9 +131,5 @@ class NewChapterNotifier @Inject constructor(
         const val CHANNEL_NEW_CHAPTERS = "new_chapters"
         private const val GROUP_NEW_CHAPTERS = "in.jphe.storyvox.NEW_CHAPTERS"
         private const val MAIN_ACTIVITY = "in.jphe.storyvox.MainActivity"
-        // Mirror DeepLinkResolver.EXTRA_OPEN_READER_* — kept in sync by string.
-        private const val EXTRA_OPEN_READER_FICTION_ID = "storyvox.open_reader.fiction_id"
-        private const val EXTRA_OPEN_READER_CHAPTER_ID = "storyvox.open_reader.chapter_id"
-        private const val EXTRA_OPEN_READER_PRELOAD = "storyvox.open_reader.preload"
     }
 }

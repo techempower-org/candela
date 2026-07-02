@@ -27,6 +27,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
 import dagger.hilt.android.AndroidEntryPoint
+import `in`.jphe.storyvox.data.intent.ReaderIntentContract
 import `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
 import `in`.jphe.storyvox.playback.diagnostics.AudioOutputMonitor
@@ -278,8 +279,8 @@ class StoryvoxPlaybackService : MediaSessionService() {
             component = ComponentName(packageName, MAIN_ACTIVITY)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             if (!fictionId.isNullOrBlank() && !chapterId.isNullOrBlank()) {
-                putExtra(EXTRA_OPEN_READER_FICTION_ID, fictionId)
-                putExtra(EXTRA_OPEN_READER_CHAPTER_ID, chapterId)
+                putExtra(ReaderIntentContract.EXTRA_FICTION_ID, fictionId)
+                putExtra(ReaderIntentContract.EXTRA_CHAPTER_ID, chapterId)
             }
         }
         // FLAG_UPDATE_CURRENT so the new fictionId/chapterId actually overwrite
@@ -460,9 +461,6 @@ class StoryvoxPlaybackService : MediaSessionService() {
         /** FQN of the launcher Activity. Hardcoded so :core-playback doesn't
          *  need a dependency on :app. Mirrors the manifest entry. */
         private const val MAIN_ACTIVITY = "in.jphe.storyvox.MainActivity"
-        /** Mirrors [in.jphe.storyvox.navigation.DeepLinkResolver.EXTRA_OPEN_READER_FICTION_ID]. */
-        private const val EXTRA_OPEN_READER_FICTION_ID = "storyvox.open_reader.fiction_id"
-        private const val EXTRA_OPEN_READER_CHAPTER_ID = "storyvox.open_reader.chapter_id"
         /** Issue #150 — duration of the sleep timer's fade tail. The
          *  shake-to-extend listener only runs when remainingMs is in
          *  this window, matching SleepTimer.FADE_TAIL_MS. Fixed

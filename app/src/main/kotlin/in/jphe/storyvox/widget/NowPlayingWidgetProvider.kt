@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
  *     [WidgetEntryPoint] lookup and invokes the same methods that the
  *     in-app transport row uses — no service-side duplication.
  *  3. Tapping the cover routes through a [PendingIntent.getActivity]
- *     into MainActivity with the same `EXTRA_OPEN_READER_*` extras the
+ *     into MainActivity with the same `ReaderIntentContract` extras the
  *     notification carries (see DeepLinkResolver in navigation/), so
  *     the user lands on the audiobook screen for the playing chapter.
  *

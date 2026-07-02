@@ -8,10 +8,10 @@ import org.junit.Test
  * Issue #1455 — the deep-link handler must LOAD a brand-new chapter into the
  * PlaybackController before opening the reader (the reader is a passive view
  * of the controller; navigating alone hangs it on "loading chapter"). Three
- * emitters share the `storyvox.open_reader.*` extras — the playback
+ * emitters share the `ReaderIntentContract` extras — the playback
  * notification and now-playing widget (already-playing chapter → navigate
  * only) and the new-chapter notification (brand-new chapter → preload). The
- * discriminator is [DeepLinkResolver.EXTRA_OPEN_READER_PRELOAD]; the pure
+ * discriminator is `ReaderIntentContract.EXTRA_PRELOAD`; the pure
  * decision below is what MainActivity keys on.
  *
  * Pure (no Android types), so it runs as a plain JUnit test — no Robolectric,

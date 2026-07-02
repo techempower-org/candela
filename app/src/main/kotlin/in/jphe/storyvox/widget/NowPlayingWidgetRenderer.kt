@@ -12,6 +12,7 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.LayoutRes
 import `in`.jphe.storyvox.R
+import `in`.jphe.storyvox.data.intent.ReaderIntentContract
 
 /**
  * Issue #159 — pure-functional RemoteViews builder. Given the current
@@ -215,8 +216,8 @@ internal object NowPlayingWidgetRenderer {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         if (!snapshot.isIdle) {
-            intent.putExtra(EXTRA_OPEN_READER_FICTION_ID, snapshot.fictionId)
-            intent.putExtra(EXTRA_OPEN_READER_CHAPTER_ID, snapshot.chapterId)
+            intent.putExtra(ReaderIntentContract.EXTRA_FICTION_ID, snapshot.fictionId)
+            intent.putExtra(ReaderIntentContract.EXTRA_CHAPTER_ID, snapshot.chapterId)
         }
         return intent
     }
@@ -262,12 +263,6 @@ internal object NowPlayingWidgetRenderer {
     }
 
     private const val MAIN_ACTIVITY_FQN = "in.jphe.storyvox.MainActivity"
-
-    // Keep these in lockstep with DeepLinkResolver.EXTRA_OPEN_READER_*.
-    // We literal-string them here so :app's widget module doesn't take
-    // a hard dep on the navigation package, but the values must match.
-    private const val EXTRA_OPEN_READER_FICTION_ID = "storyvox.open_reader.fiction_id"
-    private const val EXTRA_OPEN_READER_CHAPTER_ID = "storyvox.open_reader.chapter_id"
 
     // Distinct request codes per PendingIntent so the system caches
     // them separately. Without unique codes, PendingIntent.getBroadcast
