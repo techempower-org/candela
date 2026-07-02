@@ -31,6 +31,37 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 - Play Store beta-track walkthrough (§VIII), README + repo-metadata refresh, stale-version sweep. (#1458–#1460)
 
+## [1.6.3] -- 2026-06-30
+
+**Spectral Shield.** Cloudflare-challenge detection across the fetch layer — garbled challenge pages are caught and surfaced instead of being read aloud.
+
+### Fixed
+
+- Cloudflare challenges detected before content is stored or narrated on Standard Ebooks, Google News, AO3, RSS, and LibriVox. (#1447–#1451)
+- Readability source's CF detection tightened to stop flagging legitimate articles. (#1440, #1445)
+- Cloud-sync errors now name the field the server actually rejected instead of always blaming the email address. (#1452, #1454)
+- Chapter metadata updates wrapped in a Room transaction. (#1437, #1439)
+
+## [1.6.2] -- 2026-06-30
+
+**Turnstile Mend.**
+
+### Fixed
+
+- Royal Road no longer false-positives Cloudflare detection on Turnstile-protected pages, which had blocked loading real chapters. (#1433, #1453)
+
+## [1.6.1] -- 2026-06-30
+
+**Chapter Vigil.**
+
+### Fixed
+
+- Cloud Sync sign-in routed to the wrong backend (Royal Road instead of InstantDB). (#1434, #1436)
+- Royal Road chapter lists no longer wiped by an empty parse or a Cloudflare challenge page. (#1433, #1435)
+- Playback guarded against uncaught crashes on play. (#1382, #1432)
+- PDF import reflows soft line breaks for natural narration. (#1428, #1431)
+- Wear build-config bundle: version alignment, targetSdk, release docs, unused Hilt removed. (#1405–#1408, #1430)
+
 ## [1.6.0] -- 2026-06-30
 
 **Library Nocturne — Wear OS companion app.** The complete watch experience: control playback, browse chapters, adjust speed, set sleep timers, and read the teleprompter — all from your wrist.
