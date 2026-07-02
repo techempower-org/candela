@@ -87,6 +87,32 @@ class StreamingDispatchTest {
         assertEquals(1500, StreamingDispatch.queueDepth(3000, severe))
     }
 
+    @Test fun `secondary construction caps at the first load failure`() {
+        assertEquals(2, StreamingDispatch.achievedSecondaries(listOf(true, true, false, true)))
+        assertEquals(0, StreamingDispatch.achievedSecondaries(listOf(false, true, true)))
+        assertEquals(3, StreamingDispatch.achievedSecondaries(listOf(true, true, true)))
+        assertEquals(0, StreamingDispatch.achievedSecondaries(emptyList()))
+    }
+
+    @Test fun `voice-swap teardown ordering is pinned`() {
+        // #89 / #1383 / #1386 — stop-pipeline first (idle instances before
+        // destroy), own stale pool destroyed strictly before the rebuild.
+        assertEquals(
+            listOf(
+                StreamingDispatch.SwapStep.STOP_PIPELINE,
+                StreamingDispatch.SwapStep.DESTROY_OTHER_FAMILY_POOLS,
+                StreamingDispatch.SwapStep.CONFIGURE_AND_LOAD_PRIMARY,
+                StreamingDispatch.SwapStep.DESTROY_OWN_STALE_POOL,
+                StreamingDispatch.SwapStep.BUILD_SECONDARIES,
+            ),
+            StreamingDispatch.swapStepOrder(),
+        )
+        assertTrue(
+            StreamingDispatch.swapStepOrder().indexOf(StreamingDispatch.SwapStep.DESTROY_OWN_STALE_POOL) <
+                StreamingDispatch.swapStepOrder().indexOf(StreamingDispatch.SwapStep.BUILD_SECONDARIES),
+        )
+    }
+
     @Test fun `swap preamble tears down every pooled family except the target's own`() {
         assertEquals(
             setOf(VoiceFamilyIds.KOKORO, VoiceFamilyIds.KITTEN),

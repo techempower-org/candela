@@ -83,4 +83,35 @@ internal object StreamingDispatch {
      *  all three). */
     fun preambleTeardownFamilies(target: EngineKey): Set<String> =
         NATIVE_POOL_FAMILIES - setOfNotNull(target.engineId.takeIf { it in NATIVE_POOL_FAMILIES })
+
+    /** Cap-on-failure policy for secondary construction: the pool is the
+     *  prefix of successful loads — the first failed secondary is
+     *  destroyed and construction STOPS ("capping at k+1 instances"),
+     *  it does not skip-and-continue. */
+    fun achievedSecondaries(loadResults: List<Boolean>): Int =
+        loadResults.takeWhile { it }.count()
+
+    /** The voice-swap teardown/rebuild ordering, pinned as data — this is
+     *  the #1383/#1386 regression minefield. Invariants it encodes:
+     *  [SwapStep.STOP_PIPELINE] comes FIRST (#89 — EngineStreamingSource.
+     *  close's awaitTermination blocks until in-flight JNI generate()
+     *  calls return, so every later destroy() runs on an idle instance);
+     *  [SwapStep.DESTROY_OWN_STALE_POOL] strictly precedes
+     *  [SwapStep.BUILD_SECONDARIES] (never double-resident). */
+    enum class SwapStep {
+        STOP_PIPELINE,
+        DESTROY_OTHER_FAMILY_POOLS,
+        CONFIGURE_AND_LOAD_PRIMARY,
+        DESTROY_OWN_STALE_POOL,
+        BUILD_SECONDARIES,
+    }
+
+    /** See [SwapStep]. */
+    fun swapStepOrder(): List<SwapStep> = listOf(
+        SwapStep.STOP_PIPELINE,
+        SwapStep.DESTROY_OTHER_FAMILY_POOLS,
+        SwapStep.CONFIGURE_AND_LOAD_PRIMARY,
+        SwapStep.DESTROY_OWN_STALE_POOL,
+        SwapStep.BUILD_SECONDARIES,
+    )
 }
