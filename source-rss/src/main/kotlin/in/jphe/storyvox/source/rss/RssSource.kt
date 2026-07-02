@@ -23,8 +23,10 @@ import `in`.jphe.storyvox.source.rss.parse.ParseException
 import `in`.jphe.storyvox.source.rss.parse.RssFeed
 import `in`.jphe.storyvox.source.rss.parse.RssItem
 import `in`.jphe.storyvox.source.rss.parse.RssParser
+import `in`.jphe.storyvox.source.rss.parse.discoverFeedUrl
 import `in`.jphe.storyvox.source.rss.cache.TtlCache
 import `in`.jphe.storyvox.source.rss.templates.CraigslistTemplates
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -77,6 +79,15 @@ internal class RssSource @Inject constructor(
      *  read through it (see [fetchAndParse]); the caching decision lives in
      *  the pure, plain-JUnit-tested [TtlCache]. */
     private val feedCache = TtlCache<RssFeed>(FEED_CACHE_TTL_MS, System::currentTimeMillis)
+
+    /** #1489 — subscription URL → autodiscovered feed URL. When a user pastes
+     *  a bare homepage, the first fetch parses the HTML for its `<link
+     *  rel=alternate>` feed; we remember it here so an expired-cache re-fetch
+     *  goes straight to the real feed instead of re-scanning the HTML. Kept in
+     *  memory only — persisting it would mean rewriting the subscription URL,
+     *  which changes the URL-hash-derived fictionId and orphans the Room rows
+     *  (see PR notes; a model-level fix is a follow-up). */
+    private val resolvedFeedUrls = ConcurrentHashMap<String, String>()
 
     /** Issue #472 — RSS / Atom feed URLs. Matched by path/extension
      *  heuristics: `.rss`, `.atom`, `.xml`, or paths containing
@@ -374,16 +385,42 @@ internal class RssSource @Inject constructor(
         // Serve a recently-parsed feed from memory so a chapter tap after the
         // detail list has loaded is instant (no re-download, no re-parse).
         feedCache.get(url)?.let { return FictionResult.Success(it) }
-        return when (val result = fetcher.fetch(url)) {
+        // If we've already autodiscovered the real feed for this subscription,
+        // fetch it directly — skip the HTML round-trip and the re-scan.
+        val target = resolvedFeedUrls[url] ?: url
+        return fetchResolveParse(fetchUrl = target, cacheKey = url, allowDiscovery = target == url)
+    }
+
+    /**
+     * Fetch [fetchUrl], parse it, cache the result under [cacheKey] (the
+     * subscription URL). On a parse failure with [allowDiscovery] the body is
+     * treated as an HTML page and run through RSS/Atom autodiscovery —
+     * following exactly ONE hop to the advertised feed (the recursion passes
+     * `allowDiscovery = false`, so a non-feed discovered URL can't loop).
+     */
+    private suspend fun fetchResolveParse(
+        fetchUrl: String,
+        cacheKey: String,
+        allowDiscovery: Boolean,
+    ): FictionResult<RssFeed> {
+        return when (val result = fetcher.fetch(fetchUrl)) {
             is FictionResult.Success -> {
                 val body = result.value as? FetchResult.Body
-                    ?: return FictionResult.NetworkError("Empty feed response from $url")
+                    ?: return FictionResult.NetworkError("Empty feed response from $fetchUrl")
                 try {
                     val feed = RssParser.parse(body.xml)
-                    feedCache.put(url, feed)
+                    feedCache.put(cacheKey, feed)
                     FictionResult.Success(feed)
                 } catch (e: ParseException) {
-                    FictionResult.NetworkError("Couldn't parse feed at $url", e)
+                    // #1489 — not a feed. The user likely pasted the site's
+                    // homepage; the HTML may advertise its feed. Try once.
+                    val discovered = if (allowDiscovery) discoverFeedUrl(body.xml, fetchUrl) else null
+                    if (discovered != null && discovered != fetchUrl) {
+                        resolvedFeedUrls[cacheKey] = discovered
+                        fetchResolveParse(discovered, cacheKey, allowDiscovery = false)
+                    } else {
+                        FictionResult.NetworkError("Couldn't parse feed at $fetchUrl", e)
+                    }
                 }
             }
             // Propagate RateLimited / Cloudflare / NetworkError unchanged.
