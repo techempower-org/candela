@@ -30,11 +30,16 @@ import org.junit.Test
  */
 class VoiceEngineRegistryTest {
 
+    /** Inert deps for the B1 modelSpec/loadModel seam — this test never
+     *  builds specs or loads models, so touching these is a bug. */
+    private fun <T> unused(): dagger.Lazy<T> =
+        dagger.Lazy<T> { error("not used by this test") }
+
     private fun realPlugins(): List<VoiceEnginePlugin> = listOf(
-        PiperEnginePlugin(),
-        KokoroEnginePlugin(),
-        KittenEnginePlugin(),
-        SupertonicEnginePlugin(),
+        PiperEnginePlugin(unused(), unused()),
+        KokoroEnginePlugin(unused(), unused()),
+        KittenEnginePlugin(unused(), unused()),
+        SupertonicEnginePlugin(unused(), unused()),
         AzureEnginePlugin(),
         SystemTtsEnginePlugin(),
     )
@@ -162,7 +167,7 @@ class VoiceEngineRegistryTest {
         // plugin's engineId. A mismatch is a wiring bug and should blow
         // up at graph build, not silently break byId().
         val ex = assertThrows(IllegalStateException::class.java) {
-            VoiceEngineRegistry(mapOf(VoiceFamilyIds.KOKORO to PiperEnginePlugin()))
+            VoiceEngineRegistry(mapOf(VoiceFamilyIds.KOKORO to PiperEnginePlugin(unused(), unused())))
         }
         assertTrue(
             "message should name the offending binding",

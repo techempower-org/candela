@@ -142,14 +142,19 @@ class ActiveVoiceSystemTtsGuardTest {
         while (!cond() && System.nanoTime() < deadline) Thread.sleep(20)
     }
 
+    /** Inert deps for the B1 modelSpec/loadModel seam — this test never
+     *  builds specs or loads models, so touching these is a bug. */
+    private fun <T> unused(): dagger.Lazy<T> =
+        dagger.Lazy<T> { error("not used by this test") }
+
     /** The six in-tree engine plugins, keyed by engineId — exactly as
-     *  `VoiceEnginePluginModule` binds them at runtime. */
+     *  the runtime multibinding maps them. */
     private fun registry(): VoiceEngineRegistry = VoiceEngineRegistry(
         listOf(
-            PiperEnginePlugin(),
-            KokoroEnginePlugin(),
-            KittenEnginePlugin(),
-            SupertonicEnginePlugin(),
+            PiperEnginePlugin(unused(), unused()),
+            KokoroEnginePlugin(unused(), unused()),
+            KittenEnginePlugin(unused(), unused()),
+            SupertonicEnginePlugin(unused(), unused()),
             AzureEnginePlugin(),
             SystemTtsEnginePlugin(),
         ).associateBy { it.engineId },
