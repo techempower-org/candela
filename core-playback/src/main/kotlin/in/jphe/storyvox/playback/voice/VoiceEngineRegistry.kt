@@ -7,9 +7,11 @@ import javax.inject.Singleton
  * Issue #1372 — runtime registry of every [VoiceEnginePlugin].
  *
  * Singleton. Hilt injects the `Map<String, VoiceEnginePlugin>`
- * multibinding populated by the `@Binds @IntoMap @StringKey(...)`
- * factories in `VoiceEnginePluginModule` (one per engine, keyed by
- * [VoiceEnginePlugin.engineId]). Call sites that used to grow a
+ * multibinding populated by the KSP-generated
+ * `<Engine>_VoicePluginModule` factories — one `@Binds @IntoMap
+ * @StringKey(engineId)` per `@VoicePlugin`-annotated engine
+ * (epic/plugin-dx B1; replaced the hand-written
+ * `VoiceEnginePluginModule`). Call sites that used to grow a
  * `when (engineType)` arm per engine instead ask the registry —
  * [forType] to dispatch by [EngineType], [byId] for the family key —
  * so a new engine is a new plugin class + one binding, touching no
@@ -52,6 +54,11 @@ class VoiceEngineRegistry @Inject constructor(
     /** The plugin registered under [engineId] (a [VoiceFamilyIds]
      *  constant), or null. */
     fun byId(engineId: String): VoiceEnginePlugin? = plugins[engineId]
+
+    /** The plugin owning [key]'s engineId — the de-sealed dispatch entry
+     *  point (epic/plugin-dx B1). Delegates to [byId]; unlike [forType]
+     *  it's a map lookup, no `handles` scan. */
+    fun byKey(key: EngineKey): VoiceEnginePlugin? = byId(key.engineId)
 
     /** Every registered plugin. Iteration order is unspecified (Hilt
      *  map order); sort by [VoiceEnginePlugin.engineId] at call sites

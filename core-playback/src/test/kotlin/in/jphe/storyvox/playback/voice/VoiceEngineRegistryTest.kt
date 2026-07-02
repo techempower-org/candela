@@ -44,7 +44,7 @@ class VoiceEngineRegistryTest {
         SystemTtsEnginePlugin(),
     )
 
-    /** The map exactly as `VoiceEnginePluginModule`'s @StringKey binds it. */
+    /** The map exactly as the KSP-generated `@VoicePlugin` modules bind it. */
     private fun registry(): VoiceEngineRegistry =
         VoiceEngineRegistry(realPlugins().associateBy { it.engineId })
 
@@ -160,6 +160,15 @@ class VoiceEngineRegistryTest {
         assertSame(VoiceFamilyDescriptors.PIPER, r.byId(VoiceFamilyIds.PIPER)!!.familyDescriptor())
         assertSame(VoiceFamilyDescriptors.AZURE, r.byId(VoiceFamilyIds.AZURE)!!.familyDescriptor())
         assertSame(VoiceFamilyDescriptors.SYSTEM_TTS, r.byId(VoiceFamilyIds.SYSTEM_TTS)!!.familyDescriptor())
+    }
+
+    @Test fun `byKey resolves through the EngineKey discriminator`() {
+        val r = registry()
+        assertEquals(
+            VoiceFamilyIds.KOKORO,
+            r.byKey(EngineType.Kokoro(3).toEngineKey())?.engineId,
+        )
+        assertNull(r.byKey(EngineKey("voice_martian")))
     }
 
     @Test fun `construction fails fast when a plugin is bound under the wrong key`() {
