@@ -255,9 +255,12 @@ internal class RssSource @Inject constructor(
         val sub = config.snapshot().firstOrNull { it.fictionId == fictionId }
             ?: return FictionResult.NotFound("Feed not subscribed: $fictionId")
 
-        val feed = fetchAndParse(sub.url) ?: return FictionResult.NetworkError(
-            "Failed to fetch feed", null,
-        )
+        val feed = when (val r = fetchAndParse(sub.url)) {
+            is FictionResult.Success -> r.value
+            // #1489 — propagate RateLimited / Cloudflare / NetworkError so the
+            // UI can surface the real reason instead of a generic failure.
+            is FictionResult.Failure -> return r
+        }
 
         // #236 instrumentation
         android.util.Log.i(
@@ -296,9 +299,12 @@ internal class RssSource @Inject constructor(
         val sub = config.snapshot().firstOrNull { it.fictionId == fictionId }
             ?: return FictionResult.NotFound("Feed not subscribed: $fictionId")
 
-        val feed = fetchAndParse(sub.url) ?: return FictionResult.NetworkError(
-            "Failed to fetch feed", null,
-        )
+        val feed = when (val r = fetchAndParse(sub.url)) {
+            is FictionResult.Success -> r.value
+            // #1489 — propagate RateLimited / Cloudflare / NetworkError so the
+            // UI can surface the real reason instead of a generic failure.
+            is FictionResult.Failure -> return r
+        }
 
         // #236 instrumentation: log every chapter request so we can see
         // which chapterId comes in vs which item gets matched. Surfaces
@@ -353,18 +359,35 @@ internal class RssSource @Inject constructor(
 
     // ─── helpers ────────────────────────────────────────────────────────
 
-    private suspend fun fetchAndParse(url: String): RssFeed? {
-        // #1489 — serve a recently-parsed feed from memory so a chapter tap
-        // after the detail list has loaded is instant (no re-download, no
-        // re-parse). Freshness is bounded by FEED_CACHE_TTL_MS.
-        feedCache.get(url)?.let { return it }
-        val result = fetcher.fetch(url)
-        if (result !is FictionResult.Success) return null
-        val body = (result.value as? FetchResult.Body) ?: return null
-        return try {
-            RssParser.parse(body.xml).also { feedCache.put(url, it) }
-        } catch (_: ParseException) {
-            null
+    /**
+     * Fetch + parse a feed, reading through [feedCache] first.
+     *
+     * #1489 — returns a typed [FictionResult] rather than a nullable feed.
+     * The previous `RssFeed?` collapsed EVERY failure (rate-limit, Cloudflare
+     * challenge, network, parse error) to null, which the callers turned into
+     * one generic "Failed to fetch feed" NetworkError — so the detail screen
+     * could never tell the user *why* (a reddit 429 read identically to a real
+     * outage). Propagating the fetcher's [FictionResult.Failure] lets the UI
+     * surface rate-limiting / Cloudflare honestly.
+     */
+    private suspend fun fetchAndParse(url: String): FictionResult<RssFeed> {
+        // Serve a recently-parsed feed from memory so a chapter tap after the
+        // detail list has loaded is instant (no re-download, no re-parse).
+        feedCache.get(url)?.let { return FictionResult.Success(it) }
+        return when (val result = fetcher.fetch(url)) {
+            is FictionResult.Success -> {
+                val body = result.value as? FetchResult.Body
+                    ?: return FictionResult.NetworkError("Empty feed response from $url")
+                try {
+                    val feed = RssParser.parse(body.xml)
+                    feedCache.put(url, feed)
+                    FictionResult.Success(feed)
+                } catch (e: ParseException) {
+                    FictionResult.NetworkError("Couldn't parse feed at $url", e)
+                }
+            }
+            // Propagate RateLimited / Cloudflare / NetworkError unchanged.
+            is FictionResult.Failure -> result
         }
     }
 
