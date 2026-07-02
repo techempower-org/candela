@@ -1064,6 +1064,12 @@ data class UiSettings(
      *  page storyvox walks for fictions. Defaults to TechEmpower's
      *  root; users can override to any public Notion page. */
     val notionRootPageId: String = "",
+    /** Issue #1471 — true when a Bookshare partner `api_key` has been
+     *  stored. The key itself is never surfaced to the UI — only this
+     *  boolean. Blank/absent ⇒ the source stays gated to AuthRequired.
+     *  Discovery (search/browse/categories) lights up when set; content
+     *  download stays gated on the partner agreement regardless. */
+    val bookshareKeyConfigured: Boolean = false,
     /** Issue #150 — when ON, a shake during the sleep timer's fade
      *  tail re-arms the timer. Default ON; users with bumpy commutes
      *  can disable to avoid accidental extensions. */
@@ -2207,6 +2213,13 @@ interface SettingsRepositoryUi {
      *  Pass null or empty to clear. Stored encrypted alongside the
      *  Outline / palace tokens in `storyvox.secrets`. */
     suspend fun setNotionApiToken(token: String?)
+
+    /** Issue #1471 — persist or clear the Bookshare partner API key.
+     *  Pass null or empty to clear. Stored encrypted under
+     *  `pref_source_bookshare_api_key` in `storyvox.secrets`. Default
+     *  `= Unit` so test/fake [SettingsRepositoryUi] implementations
+     *  don't need to override it. */
+    suspend fun setBookshareApiKey(key: String?) = Unit
 
     /** Issue #403 — persist or clear the Discord bot token. Pass
      *  null or empty to clear. Stored encrypted under
