@@ -223,6 +223,15 @@ internal open class StandardEbooksApi @Inject constructor(
             client.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 404 -> FictionResult.NotFound("Standard Ebooks: $url not found")
+                    // Patrons Circle content 401s with `WWW-Authenticate: Basic`; surface it
+                    // as a typed auth failure rather than a generic network error.
+                    resp.code == 401 || resp.code == 403 -> FictionResult.AuthRequired(
+                        "HTTP ${resp.code} from $url",
+                    )
+                    resp.code == 429 -> FictionResult.RateLimited(
+                        retryAfter = null,
+                        message = "Standard Ebooks rate limited (HTTP 429)",
+                    )
                     !resp.isSuccessful -> FictionResult.NetworkError(
                         "HTTP ${resp.code} from $url",
                         IOException("HTTP ${resp.code}"),
