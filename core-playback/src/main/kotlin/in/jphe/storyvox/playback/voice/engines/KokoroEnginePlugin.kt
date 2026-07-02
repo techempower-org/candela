@@ -7,6 +7,8 @@ import `in`.jphe.storyvox.playback.EngineSampleRateCache
 import `in`.jphe.storyvox.playback.voice.CatalogEntry
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.StreamingSynth
+import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
@@ -38,7 +40,7 @@ import javax.inject.Singleton
 class KokoroEnginePlugin @Inject constructor(
     private val voiceManager: dagger.Lazy<VoiceManager>,
     @ApplicationContext private val appContext: dagger.Lazy<Context>,
-) : VoiceEnginePlugin {
+) : VoiceEnginePlugin, StreamingSynth {
 
     override val engineId: String = VoiceFamilyIds.KOKORO
 
@@ -80,4 +82,64 @@ class KokoroEnginePlugin @Inject constructor(
     override fun catalogEntries(): List<CatalogEntry> = VoiceCatalog.kokoroEntries()
 
     override fun familyDescriptor(): VoiceFamilyDescriptor = VoiceFamilyDescriptors.KOKORO
+
+    /** epic/plugin-dx B2 — Tier 3 (#88) secondary construction, moved
+     *  verbatim from EnginePlayer's Kokoro arm: per-instance KokoroEngine
+     *  pinned to the active speaker (spec.speakerId) + the primary's
+     *  silence scale (#196), cap-on-failure. Each session is ~325 MB and
+     *  first-load takes ~30 s — constructed sequentially, exactly like
+     *  the loop this replaces. */
+    override fun acquirePool(
+        spec: ModelSpec,
+        size: Int,
+        threadsPerInstance: Int,
+        tuning: StreamingTuning,
+    ): List<StreamingSynth.Handle> {
+        val s = spec as? ModelSpec.OnnxTokensVoices ?: return emptyList()
+        val handles = mutableListOf<StreamingSynth.Handle>()
+        for (i in 1..size) {
+            val secondary = KokoroEngine()
+            s.speakerId?.let { secondary.setActiveSpeakerId(it) }
+            secondary.setSilenceScale(tuning.kokoroSilenceScale)
+            val r = secondary.loadModel(
+                appContext.get(),
+                s.onnx.absolutePath,
+                s.tokens.absolutePath,
+                s.voices.absolutePath,
+                threadsPerInstance,
+            )
+            if (r == "Success") {
+                handles += KokoroHandle(secondary)
+            } else {
+                runCatching { secondary.destroy() }
+                android.util.Log.w(
+                    LOG_TAG,
+                    "Tier 3 secondary $i (Kokoro) load failed: " +
+                        "$r — capping at ${handles.size + 1} instances.",
+                )
+                break
+            }
+        }
+        return handles
+    }
+
+    private class KokoroHandle(
+        private val engine: KokoroEngine,
+    ) : StreamingSynth.Handle {
+        // #582 — Kokoro is architecturally 24 kHz across every speaker.
+        override val sampleRate: Int
+            get() = EngineSampleRateCache.kokoroRate().takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
+
+        override fun generatePCM(text: String, speed: Float, pitch: Float): ByteArray? =
+            engine.generateAudioPCM(text, speed, pitch)
+
+        override fun destroy() {
+            runCatching { engine.destroy() }
+        }
+    }
+
+    private companion object {
+        const val LOG_TAG = "KokoroEnginePlugin"
+        const val DEFAULT_SAMPLE_RATE = 22_050
+    }
 }

@@ -7,6 +7,8 @@ import `in`.jphe.storyvox.playback.EngineSampleRateCache
 import `in`.jphe.storyvox.playback.voice.CatalogEntry
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.StreamingSynth
+import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
@@ -36,7 +38,7 @@ import javax.inject.Singleton
 class KittenEnginePlugin @Inject constructor(
     private val voiceManager: dagger.Lazy<VoiceManager>,
     @ApplicationContext private val appContext: dagger.Lazy<Context>,
-) : VoiceEnginePlugin {
+) : VoiceEnginePlugin, StreamingSynth {
 
     override val engineId: String = VoiceFamilyIds.KITTEN
 
@@ -78,4 +80,62 @@ class KittenEnginePlugin @Inject constructor(
     override fun catalogEntries(): List<CatalogEntry> = VoiceCatalog.kittenEntries()
 
     override fun familyDescriptor(): VoiceFamilyDescriptor = VoiceFamilyDescriptors.KITTEN
+
+    /** epic/plugin-dx B2 — Tier 3 (#119) secondary construction, moved
+     *  verbatim from EnginePlayer's Kitten arm: per-instance KittenEngine
+     *  pinned to the active speaker (spec.speakerId), cap-on-failure.
+     *  Sessions are small (~60–80 MB fp16), the friendliest engine for
+     *  the parallel slider on low-end hardware. */
+    override fun acquirePool(
+        spec: ModelSpec,
+        size: Int,
+        threadsPerInstance: Int,
+        tuning: StreamingTuning,
+    ): List<StreamingSynth.Handle> {
+        val s = spec as? ModelSpec.OnnxTokensVoices ?: return emptyList()
+        val handles = mutableListOf<StreamingSynth.Handle>()
+        for (i in 1..size) {
+            val secondary = KittenEngine()
+            s.speakerId?.let { secondary.setActiveSpeakerId(it) }
+            val r = secondary.loadModel(
+                appContext.get(),
+                s.onnx.absolutePath,
+                s.tokens.absolutePath,
+                s.voices.absolutePath,
+                threadsPerInstance,
+            )
+            if (r == "Success") {
+                handles += KittenHandle(secondary)
+            } else {
+                runCatching { secondary.destroy() }
+                android.util.Log.w(
+                    LOG_TAG,
+                    "Tier 3 secondary $i (Kitten) load failed: " +
+                        "$r — capping at ${handles.size + 1} instances.",
+                )
+                break
+            }
+        }
+        return handles
+    }
+
+    private class KittenHandle(
+        private val engine: KittenEngine,
+    ) : StreamingSynth.Handle {
+        // #582 — Kitten is architecturally 24 kHz across every speaker.
+        override val sampleRate: Int
+            get() = EngineSampleRateCache.kittenRate().takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
+
+        override fun generatePCM(text: String, speed: Float, pitch: Float): ByteArray? =
+            engine.generateAudioPCM(text, speed, pitch)
+
+        override fun destroy() {
+            runCatching { engine.destroy() }
+        }
+    }
+
+    private companion object {
+        const val LOG_TAG = "KittenEnginePlugin"
+        const val DEFAULT_SAMPLE_RATE = 22_050
+    }
 }
