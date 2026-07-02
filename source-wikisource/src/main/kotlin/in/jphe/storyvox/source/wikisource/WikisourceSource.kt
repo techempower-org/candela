@@ -72,6 +72,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Transcribed public-domain texts · multi-part works become per-chapter playlists",
     sourceUrl = "https://en.wikisource.org",
+    // #1482 — chipLabel omitted: "Wikisource" chip == displayName.
+    searchHint = "Search Wikisource — transcribed public-domain texts",
 )
 @Singleton
 internal class WikisourceSource @Inject constructor(

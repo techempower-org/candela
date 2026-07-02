@@ -75,6 +75,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Top stories, Ask HN, Show HN · stories + top comments as single-chapter fictions · Algolia search",
     sourceUrl = "https://news.ycombinator.com",
+    // #1482 — chipLabel omitted: "Hacker News" chip == displayName.
+    searchHint = "Search Hacker News stories (Algolia-backed full-text)",
 )
 @Singleton
 internal class HackerNewsSource @Inject constructor(

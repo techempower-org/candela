@@ -97,6 +97,9 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "14M+ fanfiction works via per-tag Atom feeds + official EPUB downloads",
     sourceUrl = "https://archiveofourown.org",
+    // #1482 — "AO3" chip vs. the formal "Archive of Our Own" displayName.
+    chipLabel = "AO3",
+    searchHint = "Search AO3 by tag, fandom, or character",
 )
 @Singleton
 internal class Ao3Source @Inject constructor(

@@ -39,6 +39,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Private Notion databases via Integration Token",
     sourceUrl = "https://www.notion.so",
+    // #1482 — chipLabel omitted: "Notion" chip == displayName.
+    searchHint = "Search your configured Notion database",
 )
 @Singleton
 internal class NotionPATSource @Inject constructor(

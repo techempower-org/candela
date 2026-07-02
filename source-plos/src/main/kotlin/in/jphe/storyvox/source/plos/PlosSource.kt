@@ -75,6 +75,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Open-access peer-reviewed science · abstract + first sections as single-chapter fictions · Solr search",
     sourceUrl = "https://plos.org",
+    // #1482 — chipLabel omitted: "PLOS" chip == displayName.
+    searchHint = "Search PLOS — open-access peer-reviewed science",
 )
 @Singleton
 internal class PlosSource @Inject constructor(

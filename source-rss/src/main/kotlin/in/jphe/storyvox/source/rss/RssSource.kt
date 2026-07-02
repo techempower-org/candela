@@ -55,6 +55,9 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Any RSS/Atom feed · one feed = one fiction · items become chapters",
     sourceUrl = "",
+    // #1482 — "RSS" chip vs. the formal "RSS / Atom feeds" displayName.
+    chipLabel = "RSS",
+    searchHint = "Search your subscribed feeds",
 )
 @Singleton
 internal class RssSource @Inject constructor(

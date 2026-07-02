@@ -69,6 +69,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Any Wikipedia article narrated · article = fiction, sections = chapters · per-language",
     sourceUrl = "https://en.wikipedia.org",
+    // #1482 — chipLabel omitted: "Wikipedia" chip == displayName.
+    searchHint = "Search Wikipedia — narrate any article",
 )
 @Singleton
 internal class WikipediaSource @Inject constructor(

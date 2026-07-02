@@ -58,6 +58,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Top stories, topic sections & search · headlines and related coverage as listenable briefings",
     sourceUrl = "https://news.google.com",
+    // #1482 — chipLabel omitted: "Google News" chip == displayName.
+    searchHint = "Search Google News — top stories, topics & more",
 )
 @Singleton
 internal class GoogleNewsSource @Inject constructor(

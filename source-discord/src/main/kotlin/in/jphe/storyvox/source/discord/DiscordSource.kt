@@ -67,6 +67,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Bot-token-authed channel reader · server = filter, channel = fiction, message = chapter (with same-author coalescing)",
     sourceUrl = "https://discord.com",
+    // #1482 — chipLabel omitted: "Discord" chip == displayName.
+    searchHint = "Search messages in your selected Discord server",
 )
 @Singleton
 internal class DiscordSource @Inject constructor(

@@ -60,6 +60,10 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Your local mempalace daemon · LAN-only · wings + rooms become fictions",
     sourceUrl = "http://mempalace.realm.watch",
+    // #1482 — "Palace" chip (#148, avoids a two-line chip) vs. the
+    // formal "Memory Palace" displayName.
+    chipLabel = "Palace",
+    searchHint = "Search your MemPalace knowledge base",
 )
 @Singleton
 internal class MemPalaceSource @Inject constructor(
