@@ -74,6 +74,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Open-access academic papers · abstract + author byline as single-chapter fictions · default cs.AI",
     sourceUrl = "https://arxiv.org",
+    // #1482 — chipLabel omitted: "arXiv" chip == displayName.
+    searchHint = "Search arXiv — open-access academic papers",
 )
 @Singleton
 internal class ArxivSource @Inject constructor(

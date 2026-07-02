@@ -46,6 +46,9 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Self-hosted Outline wiki · collections = fictions, documents = chapters",
     sourceUrl = "https://www.getoutline.com",
+    // #1482 — "Wiki" chip vs. the formal "Outline wiki" displayName.
+    chipLabel = "Wiki",
+    searchHint = "Search your Outline notes",
 )
 @Singleton
 internal class OutlineSource @Inject constructor(

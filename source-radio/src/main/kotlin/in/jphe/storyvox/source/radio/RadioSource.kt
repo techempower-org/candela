@@ -70,6 +70,10 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Live community / public / college / specialty radio · Media3 stream (bypasses TTS) · CC0 Radio Browser search",
     sourceUrl = "https://www.radio-browser.info",
+    // #1482 — chipLabel omitted: "Radio" chip == displayName. The legacy
+    // "kvmr" alias is routing-only (no descriptor) so it never renders a
+    // chip/hint; its old when-branch copy was dead.
+    searchHint = "Search Radio Browser — community, public, and college stations worldwide",
 )
 @Singleton
 internal class RadioSource @Inject constructor(

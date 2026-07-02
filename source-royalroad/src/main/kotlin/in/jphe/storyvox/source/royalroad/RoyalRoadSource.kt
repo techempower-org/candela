@@ -59,6 +59,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
     supportsSearch = true,
     description = "Web fiction · cookie sign-in for Follows + premium chapters",
     sourceUrl = "https://www.royalroad.com",
+    // #1482 — chipLabel omitted: "Royal Road" chip == displayName.
+    searchHint = "Find fictions across Royal Road",
 )
 @Singleton
 class RoyalRoadSource @Inject internal constructor(

@@ -36,6 +36,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "TechEmpower guides, resources & about pages",
     sourceUrl = "https://www.notion.so",
+    // #1482 — chipLabel omitted: "TechEmpower" chip == displayName.
+    searchHint = "Search TechEmpower guides & resources",
 )
 @Singleton
 internal class NotionTechEmpowerSource @Inject constructor(

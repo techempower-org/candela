@@ -131,7 +131,7 @@ internal fun SourceCatalogCard(
     val accent = catalogAccent(group)
     val brass = MaterialTheme.colorScheme.primary
 
-    val label = BrowseSourceUi.chipLabel(descriptor.id, descriptor.displayName)
+    val label = BrowseSourceUi.chipLabel(descriptor.chipLabel, descriptor.displayName)
     // Disabled cards hold back the title/icon emphasis so the shelf reads
     // enabled-vs-not at a glance without hiding the source entirely.
     val contentAlpha = if (row.enabled) 1f else 0.55f

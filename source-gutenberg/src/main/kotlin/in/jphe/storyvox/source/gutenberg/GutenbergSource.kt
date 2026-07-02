@@ -66,6 +66,10 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "70,000+ public-domain books via Gutendex · tap-to-add downloads EPUB once",
     sourceUrl = "https://www.gutenberg.org",
+    // #1482 — "Gutenberg" chip vs. the formal "Project Gutenberg"
+    // displayName.
+    chipLabel = "Gutenberg",
+    searchHint = "Search Project Gutenberg's 70,000+ public-domain books",
 )
 @Singleton
 internal class GutenbergSource @Inject constructor(

@@ -75,6 +75,10 @@ import kotlin.time.toDuration
     supportsSearch = true,
     description = "Repo READMEs as fictions · OAuth Device Flow unlocks 5000/hr + private repos",
     sourceUrl = "https://github.com",
+    // #1482 — Browse UI copy carried on the descriptor; "GitHub" chip
+    // vs. the formal "GitHub fiction" displayName.
+    chipLabel = "GitHub",
+    searchHint = "Search indexed GitHub repositories",
 )
 @Singleton
 internal class GitHubSource @Inject constructor(

@@ -50,6 +50,10 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Read .epub files from a folder you pick · zero-network",
     sourceUrl = "",
+    // #1482 — "Local" chip vs. the formal "Local EPUB files" displayName
+    // (#996 keeps it separable from the PDF "PDFs" chip).
+    chipLabel = "Local",
+    searchHint = "Search your local EPUB library",
 )
 @Singleton
 internal class EpubSource @Inject constructor(

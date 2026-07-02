@@ -65,6 +65,8 @@ import javax.inject.Singleton
     supportsSearch = true,
     description = "Hand-curated, typographically polished public-domain classics · tap-to-add downloads EPUB",
     sourceUrl = "https://standardebooks.org",
+    // #1482 — chipLabel omitted: "Standard Ebooks" chip == displayName.
+    searchHint = "Search Standard Ebooks' hand-curated public-domain classics",
 )
 @Singleton
 internal class StandardEbooksSource @Inject constructor(

@@ -3,67 +3,47 @@ package `in`.jphe.storyvox.feature.browse
 import `in`.jphe.storyvox.data.source.SourceIds
 
 /**
- * Plugin-seam Phase 3 (#384) — side-table of per-source UI hints
- * keyed by sourceId. Lives in `:feature/browse` because the data here
- * is purely UI-shaped: chip strip labels, supported-tabs lists, filter
- * sheet variants, search-hint copy.
+ * Plugin-seam Phase 3 (#384) — side-table of per-source UI hints that
+ * are genuinely Compose-shaped. Lives in `:feature/browse` because
+ * these bits can't live on the `SourcePluginDescriptor` (which sits in
+ * `:core-data` and shouldn't know about `BrowseTab` or filter shapes).
  *
  * The Phase 1/2 `BrowseSourceKey` enum carried this data inline on
- * each enum entry. Phase 3 deletes the enum in favour of iterating
- * `SourcePluginRegistry.descriptors`, but the per-source UI bits don't
- * belong on the `SourcePluginDescriptor` (which lives in `:core-data`
- * and shouldn't know about Compose tabs or filter shapes).
+ * each enum entry. Phase 3 deleted the enum in favour of iterating
+ * `SourcePluginRegistry.descriptors`.
  *
- * The table is keyed by the `SourceIds` string constants. A future
- * out-of-tree backend that adds a new `SourceIds.X` constant must also
- * add its row here (or rely on the defaults — short label = registry
- * display name, supported tabs = Popular + Search).
- *
- * Adding a row is a single-file diff next to the source's
- * `@SourcePlugin` annotation backfill — far less invasive than the
- * Phase 1/2 17-touchpoint shape.
+ * #1482 — chip labels and search-empty-state hints, which *are*
+ * plain-string UI copy, moved onto the `@SourcePlugin` descriptor
+ * ([chipLabel] / [searchHint] now just prefer the descriptor field and
+ * fall back to `displayName`). What remains keyed by `SourceIds` here
+ * is [supportedTabs] — the one hint whose shape (`List<BrowseTab>`,
+ * auth gating) can't be expressed on a `:core-data` descriptor. A
+ * future out-of-tree backend gets its chip label / search hint from
+ * its own annotation for free, and only needs a [supportedTabs] row if
+ * it wants more than the default Popular + Search.
  */
 internal object BrowseSourceUi {
 
     /**
-     * Short label for the browse chip strip. The registry's
+     * Short label for the browse chip strip. Prefers the source's
+     * `@SourcePlugin(chipLabel = …)` — carried on the descriptor and
+     * passed in as [descriptorChipLabel] — because the registry's
      * `displayName` is the formal "Archive of Our Own" / "Local EPUB
-     * files" form, which doesn't fit on a chip on a narrow phone.
-     * Falls through to the descriptor's `displayName` when no override
-     * is present.
+     * files" form, which doesn't fit on a chip on a narrow phone. Falls
+     * back to [displayName] when the plugin didn't declare a chip label.
+     *
+     * #1482 — replaces the per-source `when`-branch (deferred step 4 of
+     * #1400). The concise labels now live on each source's
+     * `@SourcePlugin` annotation and ride the descriptor, so an
+     * out-of-tree backend can declare its own chip label without a
+     * `:feature` edit. Notable in-tree overrides that used to live in
+     * the branch: "Memory Palace" → "Palace" (#148, avoids a two-line
+     * chip), "Local EPUB files" → "Local" / "Local PDF files" → "PDFs"
+     * (#996, keeps the two local-file backends separable), and
+     * "GitHub fiction" → "GitHub".
      */
-    fun chipLabel(id: String, displayName: String): String = when (id) {
-        SourceIds.ROYAL_ROAD -> "Royal Road"
-        SourceIds.GITHUB -> "GitHub"
-        // "Palace" instead of "Memory Palace" so the segmented source
-        // picker doesn't break the chip label across two lines on
-        // narrow phones (#148).
-        SourceIds.MEMPALACE -> "Palace"
-        SourceIds.RSS -> "RSS"
-        SourceIds.EPUB -> "Local"
-        // #996 — PDF sits next to EPUB ("Local"); a distinct "PDFs" chip
-        // keeps the two local-file backends visually separable.
-        SourceIds.PDF -> "PDFs"
-        SourceIds.OUTLINE -> "Wiki"
-        SourceIds.GUTENBERG -> "Gutenberg"
-        SourceIds.AO3 -> "AO3"
-        SourceIds.STANDARD_EBOOKS -> "Standard Ebooks"
-        SourceIds.WIKIPEDIA -> "Wikipedia"
-        SourceIds.WIKISOURCE -> "Wikisource"
-        // Issue #417 — :source-kvmr → :source-radio. The new canonical
-        // chip says "Radio"; the legacy KVMR id is kept as an alias so
-        // any code path still resolving through it stays consistent.
-        SourceIds.RADIO -> "Radio"
-        SourceIds.KVMR -> "Radio"
-        SourceIds.NOTION_TECHEMPOWER -> "TechEmpower"
-        SourceIds.NOTION_PAT -> "Notion"
-        SourceIds.HACKERNEWS -> "Hacker News"
-        SourceIds.GOOGLE_NEWS -> "Google News"
-        SourceIds.ARXIV -> "arXiv"
-        SourceIds.PLOS -> "PLOS"
-        SourceIds.DISCORD -> "Discord"
-        else -> displayName
-    }
+    fun chipLabel(descriptorChipLabel: String, displayName: String): String =
+        descriptorChipLabel.ifBlank { displayName }
 
     /**
      * Tabs meaningful for [id]. [githubSignedIn] gates the auth-only
@@ -172,31 +152,17 @@ internal object BrowseSourceUi {
         else -> listOf(BrowseTab.Popular, BrowseTab.Search)
     }
 
-    /** Issue #271 — per-source subtitle for the Search empty state. */
-    fun searchHint(id: String, displayName: String): String = when (id) {
-        SourceIds.ROYAL_ROAD -> "Find fictions across Royal Road"
-        SourceIds.GITHUB -> "Search indexed GitHub repositories"
-        SourceIds.MEMPALACE -> "Search your MemPalace knowledge base"
-        SourceIds.RSS -> "Search your subscribed feeds"
-        SourceIds.EPUB -> "Search your local EPUB library"
-        SourceIds.PDF -> "Search your local PDF library"
-        SourceIds.OUTLINE -> "Search your Outline notes"
-        SourceIds.GUTENBERG -> "Search Project Gutenberg's 70,000+ public-domain books"
-        SourceIds.AO3 -> "Search AO3 by tag, fandom, or character"
-        SourceIds.STANDARD_EBOOKS -> "Search Standard Ebooks' hand-curated public-domain classics"
-        SourceIds.WIKIPEDIA -> "Search Wikipedia — narrate any article"
-        SourceIds.WIKISOURCE -> "Search Wikisource — transcribed public-domain texts"
-        // Issue #417 — Radio search drives the Radio Browser API.
-        SourceIds.RADIO -> "Search Radio Browser — community, public, and college stations worldwide"
-        SourceIds.KVMR -> "Tune in to KVMR — live community radio from Nevada City"
-        SourceIds.NOTION_TECHEMPOWER -> "Search TechEmpower guides & resources"
-        SourceIds.NOTION_PAT -> "Search your configured Notion database"
-        SourceIds.HACKERNEWS -> "Search Hacker News stories (Algolia-backed full-text)"
-        SourceIds.GOOGLE_NEWS -> "Search Google News — top stories, topics & more"
-        SourceIds.ARXIV -> "Search arXiv — open-access academic papers"
-        SourceIds.PLOS -> "Search PLOS — open-access peer-reviewed science"
-        SourceIds.DISCORD -> "Search messages in your selected Discord server"
-        else -> "Search $displayName"
-    }
+    /**
+     * Issue #271 — per-source subtitle for the Search empty state.
+     *
+     * #1482 — sourced from the source's `@SourcePlugin(searchHint = …)`
+     * (carried on `SourcePluginDescriptor.searchHint`) instead of a
+     * per-source `when`-branch (deferred step 4 of #1400). Falls back to
+     * "Search &lt;displayName&gt;" when the plugin didn't declare a
+     * hint — matching the old `else` branch, which is exactly what
+     * `supportsSearch = false` sources (Slack, Telegram) surfaced.
+     */
+    fun searchHint(descriptorSearchHint: String, displayName: String): String =
+        descriptorSearchHint.ifBlank { "Search $displayName" }
 }
 

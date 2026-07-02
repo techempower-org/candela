@@ -58,6 +58,10 @@ import javax.inject.Singleton
     supportsSearch = false,
     description = "Read .pdf files from a folder you pick · zero-network",
     sourceUrl = "",
+    // #1482 — "PDFs" chip (#996) vs. the formal "Local PDF files"
+    // displayName; distinct from the EPUB "Local" chip.
+    chipLabel = "PDFs",
+    searchHint = "Search your local PDF library",
 )
 @Singleton
 internal class PdfSource @Inject constructor(
