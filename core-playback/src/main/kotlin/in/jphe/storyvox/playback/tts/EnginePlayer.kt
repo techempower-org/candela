@@ -3040,11 +3040,16 @@ class EnginePlayer @AssistedInject constructor(
         // independent KokoroEngine instances pinned to the primary speaker
         // at load, so they'd synthesize the wrong voice for routed
         // sentences. Force serial whenever routing is active on Kokoro.
-        val autoLangForcesSerial = StreamingDispatch.autoLangForcesSerial(
-            cachedAutoLanguageDetection,
-            engineType.toEngineKey(),
-            secondaryHandles.isNotEmpty(),
-        )
+        // engineType is nullable here; the old `engineType is EngineType.Kokoro`
+        // check was null-tolerant (null -> false), so a null type maps to
+        // "no forced serial" exactly as before.
+        val autoLangForcesSerial = engineType?.toEngineKey()?.let { key ->
+            StreamingDispatch.autoLangForcesSerial(
+                cachedAutoLanguageDetection,
+                key,
+                secondaryHandles.isNotEmpty(),
+            )
+        } ?: false
         val effectiveSecondaryHandles = if (
             StreamingDispatch.thermalForcesSerial(thermalStatus, secondaryHandles.isNotEmpty())
         ) {

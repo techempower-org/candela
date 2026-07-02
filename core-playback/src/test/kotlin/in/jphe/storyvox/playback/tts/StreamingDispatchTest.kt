@@ -52,7 +52,9 @@ class StreamingDispatchTest {
 
     @Test fun `thermal MODERATE and above forces serial only when a pool exists`() {
         val none = ThermalMonitor.THERMAL_STATUS_NONE
-        val light = ThermalMonitor.THERMAL_STATUS_LIGHT
+        // ThermalMonitor doesn't mint a LIGHT constant (only NONE/MODERATE/
+        // SEVERE); PowerManager.THERMAL_STATUS_LIGHT == 1.
+        val light = 1
         val moderate = ThermalMonitor.THERMAL_STATUS_MODERATE
         val severe = ThermalMonitor.THERMAL_STATUS_SEVERE
         assertFalse(StreamingDispatch.thermalForcesSerial(none, poolNonEmpty = true))
