@@ -92,6 +92,7 @@ class BriefingBuilderTest {
                     FictionSummary(id = "$source:$n", sourceId = source, title = "$source #$n", author = "a")
                 },
                 page = 1,
+                hasNext = false,
             ),
         )
 
@@ -128,7 +129,7 @@ class BriefingBuilderTest {
             page: Int,
             sourceId: String,
         ): FictionResult<ListPage<FictionSummary>> =
-            latest[sourceId] ?: FictionResult.Success(ListPage(emptyList(), page))
+            latest[sourceId] ?: FictionResult.Success(ListPage(emptyList(), page, hasNext = false))
 
         override suspend fun refreshDetail(id: String, force: Boolean): FictionResult<Unit> =
             FictionResult.Success(Unit)

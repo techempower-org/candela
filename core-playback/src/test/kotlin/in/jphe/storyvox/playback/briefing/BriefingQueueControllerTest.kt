@@ -9,7 +9,7 @@ import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.PlaybackUiEvent
 import `in`.jphe.storyvox.playback.SleepTimerMode
-import `in`.jphe.storyvox.playback.WaitReason
+import `in`.jphe.storyvox.playback.diagnostics.WaitReason
 import `in`.jphe.storyvox.playback.tts.RecapPlaybackState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
