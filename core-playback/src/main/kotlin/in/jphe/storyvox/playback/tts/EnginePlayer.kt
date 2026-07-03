@@ -2861,7 +2861,17 @@ class EnginePlayer @AssistedInject constructor(
             // caller concern, applied in this adapter exactly as the three
             // per-family wrappers it replaces did.
             is EngineType.Piper, is EngineType.Kokoro, is EngineType.Kitten ->
-                streamingPool.map { handle ->
+                // The pool can lag a cross-family voice swap: the deferred
+                // observeActiveVoice path and ensureVoiceLoaded both update
+                // the active engine without rebuilding [streamingPool], and
+                // the #569 fast path then skips the swap arm entirely.
+                // Handles from the previous family would synthesize routed
+                // sentences in the OLD voice — a family mismatch must
+                // degrade to serial, exactly as the old empty per-family
+                // lists did by construction.
+                if (streamingPoolFamily != engineType.toEngineKey().engineId) {
+                    emptyList()
+                } else streamingPool.map { handle ->
                     object : EngineStreamingSource.VoiceEngineHandle {
                         override val sampleRate: Int =
                             handle.sampleRate.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
