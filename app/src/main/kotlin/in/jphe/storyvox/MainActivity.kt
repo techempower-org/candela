@@ -29,7 +29,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.lifecycle.lifecycleScope
 import dagger.Lazy
+import `in`.jphe.storyvox.auth.notion.NotionOAuthManager
 import dagger.hilt.android.AndroidEntryPoint
 import `in`.jphe.storyvox.feature.api.CoverStyle
 import `in`.jphe.storyvox.feature.api.ImportFileResult
@@ -62,6 +64,7 @@ import `in`.jphe.storyvox.navigation.StoryvoxNavHost
 import `in`.jphe.storyvox.navigation.StoryvoxRoutes
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
@@ -140,6 +143,15 @@ class MainActivity : ComponentActivity() {
      * materialises the playback graph during activity injection.
      */
     @Inject lateinit var playback: Lazy<PlaybackControllerUi>
+
+    /**
+     * Issue #1507 — handles the `candela://oauth/notion` redirect: verify
+     * the CSRF nonce, exchange the code for tokens, persist the session,
+     * auto-enable the Notion source. [Lazy] for the same cold-launch reason
+     * as the other injects (#409) — only resolved when an OAuth redirect
+     * actually arrives, never during normal activity injection.
+     */
+    @Inject lateinit var notionOAuth: Lazy<NotionOAuthManager>
 
     // testTagsAsResourceId is experimental Compose UI API. We opt in at
     // the function holding setContent {} because that's where the flag is
@@ -265,6 +277,40 @@ class MainActivity : ComponentActivity() {
                         // body runs before NavHost finishes composing.
                         snapshotFlow { navController.currentBackStackEntry }
                             .first { it != null }
+                        // Issue #1507 — Notion OAuth redirect. The Custom Tab
+                        // returns candela://oauth/notion?code=…&state=… (or
+                        // ?error=access_denied). This is NOT a navigation
+                        // target — verify + exchange on the lifecycle scope
+                        // (survives this LaunchedEffect being torn down while
+                        // the network call is in flight) and stop; don't fall
+                        // through to the import / resolve path below. The
+                        // NotionConfig state flow re-emits on success, so the
+                        // Browse manage sheet updates reactively (Toast is the
+                        // only imperative feedback).
+                        val oauthCallback = DeepLinkResolver.notionOAuthCallback(i)
+                        if (oauthCallback != null) {
+                            this@MainActivity.lifecycleScope.launch {
+                                val outcome = notionOAuth.get().handleCallback(
+                                    code = oauthCallback.code,
+                                    state = oauthCallback.state,
+                                    error = oauthCallback.error,
+                                )
+                                val msg = when (outcome) {
+                                    is NotionOAuthManager.Outcome.Connected ->
+                                        if (outcome.workspaceName.isBlank()) "Notion connected"
+                                        else "Connected to ${outcome.workspaceName}"
+                                    is NotionOAuthManager.Outcome.ExchangeFailed ->
+                                        "Notion connect failed: ${outcome.message}"
+                                    NotionOAuthManager.Outcome.Cancelled -> null
+                                    NotionOAuthManager.Outcome.InvalidCallback -> null
+                                }
+                                if (msg != null) {
+                                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            intentFlow.value = null
+                            return@let
+                        }
                         // Debug-only deterministic seed: an ACTION_VIEW with
                         // the [EXTRA_LOAD_SAMPLE] flag imports the bundled
                         // plaintext fixture (no network, no SAF picker, known

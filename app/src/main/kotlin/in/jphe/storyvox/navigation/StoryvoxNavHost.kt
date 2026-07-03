@@ -1775,6 +1775,50 @@ object DeepLinkResolver {
         preloadRequested = intent.getBooleanExtra(ReaderIntentContract.EXTRA_PRELOAD, false),
     )
 
+    /** Issue #1507 — the query params carried on a `candela://oauth/notion`
+     *  OAuth redirect. All nullable: a cancel carries only [error]
+     *  (`access_denied`), a success carries [code] + [state]. */
+    data class NotionOAuthCallback(val code: String?, val state: String?, val error: String?)
+
+    /** Issue #1507 — the redirect scheme+host the OAuth Custom Tab returns
+     *  to. Must match the AndroidManifest intent-filter and
+     *  [`in`.jphe.storyvox.auth.notion.NotionOAuthConfig.REDIRECT_URI]. */
+    const val NOTION_OAUTH_REDIRECT_PREFIX = "candela://oauth/notion"
+
+    /**
+     * Issue #1507 — pure parse of a Notion OAuth redirect URI string (no
+     * android.net.Uri, so it runs as a plain JUnit test). Returns null for
+     * any URI that isn't our redirect; a non-null result (even with all
+     * fields null) means "this WAS our redirect, handle it and stop".
+     * URL-decodes each value.
+     */
+    fun parseNotionOAuthCallback(dataString: String?): NotionOAuthCallback? {
+        if (dataString == null) return null
+        if (!dataString.startsWith(NOTION_OAUTH_REDIRECT_PREFIX)) return null
+        val query = dataString.substringAfter('?', "")
+        if (query.isBlank()) return NotionOAuthCallback(code = null, state = null, error = null)
+        val params = query.split('&').mapNotNull { pair ->
+            if (pair.isBlank()) return@mapNotNull null
+            val key = pair.substringBefore('=')
+            val rawValue = pair.substringAfter('=', "")
+            val value = runCatching { java.net.URLDecoder.decode(rawValue, "UTF-8") }.getOrDefault(rawValue)
+            key to value
+        }.toMap()
+        return NotionOAuthCallback(
+            code = params["code"],
+            state = params["state"],
+            error = params["error"],
+        )
+    }
+
+    /** Issue #1507 — Intent wrapper for [parseNotionOAuthCallback]. Only
+     *  ACTION_VIEW intents whose data is our redirect qualify; everything
+     *  else returns null and falls through to the normal [resolve] path. */
+    fun notionOAuthCallback(intent: Intent): NotionOAuthCallback? {
+        if (intent.action != Intent.ACTION_VIEW) return null
+        return parseNotionOAuthCallback(intent.dataString)
+    }
+
     /** Lightweight URL sniffer — accepts http(s) URLs only. Apps that
      *  share plaintext frequently emit "title\nURL" or "URL extra
      *  text" via Intent.EXTRA_TEXT; we extract the first http(s)

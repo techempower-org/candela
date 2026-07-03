@@ -1102,6 +1102,15 @@ data class UiSettings(
      *  page storyvox walks for fictions. Defaults to TechEmpower's
      *  root; users can override to any public Notion page. */
     val notionRootPageId: String = "",
+    /** Issue #1507 — the connected Notion workspace name from the OAuth
+     *  token exchange. Blank unless connected via OAuth. Shown as
+     *  "Connected to <workspace>" in the Browse manage sheet. */
+    val notionWorkspaceName: String = "",
+    /** Issue #1507 — true when this build carries Notion OAuth client
+     *  credentials (BuildConfig, from local.properties). Gates the
+     *  "Connect Notion" button: false ⇒ only the paste-token fallback
+     *  shows. Always false on a clean/CI checkout with no creds. */
+    val notionOAuthAvailable: Boolean = false,
     /** Issue #1471 — true when a Bookshare partner `api_key` has been
      *  stored. The key itself is never surfaced to the UI — only this
      *  boolean. Blank/absent ⇒ the source stays gated to AuthRequired.
@@ -2251,6 +2260,15 @@ interface SettingsRepositoryUi {
      *  Pass null or empty to clear. Stored encrypted alongside the
      *  Outline / palace tokens in `storyvox.secrets`. */
     suspend fun setNotionApiToken(token: String?)
+
+    /** Issue #1507 — begin the Notion public-integration OAuth flow.
+     *  Generates + persists a CSRF `state` nonce and returns the authorize
+     *  URL the caller opens in a Custom Tab, or null when this build has no
+     *  OAuth client credentials ([UiSettings.notionOAuthAvailable] false).
+     *  Default `= null` so test/fake [SettingsRepositoryUi] implementations
+     *  don't need to override it (the redirect is handled out-of-band by
+     *  MainActivity's NotionOAuthManager). */
+    suspend fun beginNotionOAuth(): String? = null
 
     /** Issue #1471 — persist or clear the Bookshare partner API key.
      *  Pass null or empty to clear. Stored encrypted under
