@@ -6,11 +6,16 @@ package `in`.jphe.storyvox.playback.voice
  * the per-family `secondary*Engines` paths in `EnginePlayer`: Tier 3 #88
  * Piper/Kokoro, #119 Kitten).
  *
- * `EnginePlayer` consumes this generically: `registry.byKey(key) as?
- * StreamingSynth` — a new pooled engine implements this interface and
- * EnginePlayer needs no edit. Pool sizing / governor decisions stay in
- * `StreamingDispatch` (pinned pure fns); this contract owns only the
- * engine-specific CONSTRUCTION, LOADING and DESTRUCTION of secondaries.
+ * Consumption is NOT yet fully generic: `EnginePlayer` builds and adapts
+ * pools inside per-family swap arms (hardcoded Piper/Kokoro/Kitten via
+ * `byId(VoiceFamilyIds.*)`, plus the pooled-family handle branch), and
+ * dispatch still discriminates on the sealed `EngineType`. A NEW pooled
+ * engine therefore currently needs those EnginePlayer touchpoints in
+ * addition to this interface — the registry `byKey` generic path exists
+ * but is not yet the production route; completing that inversion is a
+ * tracked plugin-dx follow-up. Pool sizing / governor decisions stay in
+ * `StreamingDispatch`; this contract owns only the engine-specific
+ * CONSTRUCTION, LOADING and DESTRUCTION of secondaries.
  * The sentence-distribution machinery is unchanged — handles are adapted
  * to `EngineStreamingSource.VoiceEngineHandle` at the EnginePlayer
  * boundary.

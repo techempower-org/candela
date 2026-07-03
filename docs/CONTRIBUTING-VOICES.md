@@ -4,8 +4,18 @@ A **voice engine** turns chapter text into PCM that Candela's playback
 pipeline streams. Adding one is an afternoon's work against three small
 contracts — `VoiceEnginePlugin` (identity, synth, catalog), `ModelSpec`
 (what you need on disk), and optionally `StreamingSynth` (parallel
-secondary instances) — with **zero central edits**: no `when` arm, no DI
-module, no registry entry, no `EnginePlayer` change.
+secondary instances). The DI side is genuinely zero-edit: `@VoicePlugin`
+generates your Hilt binding — no module, no registry entry.
+
+**Honest limits (current state):** playback dispatch is not yet fully
+inverted. `EnginePlayer` still discriminates on the sealed `EngineType`
+(as do `UiVoiceInfo`/`CatalogEntry`), synth call sites resolve via
+`forType()` over `handles()`, and pooled-secondary wiring lives in
+per-family EnginePlayer arms. A brand-new engine today therefore needs a
+small set of known central touchpoints on top of the plugin class — see
+§7 — and removing them entirely is a tracked plugin-dx follow-up.
+Everything else in this guide (contract, ModelSpec, catalog entries,
+contract test, KSP binding) holds as written.
 
 Reference engine (living documentation): **`KittenEnginePlugin`** — the
 smallest real one, exercising every contract including `StreamingSynth`.
@@ -97,11 +107,12 @@ pins (read it before implementing):
 - Callers own the handles and drive teardown through
   `StreamingDispatch.swapStepOrder()` — you never destroy your own pool.
 
-`EnginePlayer` consumes the capability generically
-(`registry.byKey(key) as? StreamingSynth`) — implementing it requires
-no EnginePlayer edit. Azure's lookahead fan-out is deliberately NOT a
-`StreamingSynth` (no native lifecycle); don't force call-fan-out engines
-through this interface.
+**Wiring reality check**: EnginePlayer does not yet consume this
+capability generically — pool build + handle adaptation live in
+per-family swap arms (see §7), so implementing `StreamingSynth` alone
+does not light up parallel synth for a new family. Azure's lookahead
+fan-out is deliberately NOT a `StreamingSynth` (no native lifecycle);
+don't force call-fan-out engines through this interface.
 
 ## 6. Turn the contract test green — and keep it green
 
@@ -130,16 +141,36 @@ Point `JAVA_HOME` at a JDK 21 before running
 `:core-playback:testDebugUnitTest`. (CI and the shared runner are
 already configured; this bites local setups.)
 
+## 7. The remaining central touchpoints (until the dispatch inversion lands)
+
+The plugin contract + KSP binding are genuinely zero-edit, but playback
+dispatch still discriminates on the sealed `EngineType`. Wiring a NEW
+family end-to-end today additionally means:
+
+1. An `EngineType` variant (`UiVoiceInfo.kt`) + its `EngineKey` mapper
+   arms — `UiVoiceInfo`/`CatalogEntry` are typed on `EngineType`, so
+   your voices can't be represented without it.
+2. A `loadAndPlay` swap arm in `EnginePlayer` (model load +, if pooled,
+   pool build via your plugin + `streamingPoolFamily` bookkeeping).
+3. If pooled: your family in the pooled-family handle branch of
+   `startPlaybackPipeline` and in `StreamingDispatch.NATIVE_POOL_FAMILIES`.
+
+Scaffold + contract test stay green without these — they prove the
+contract, not reachability. Removing this section entirely (production
+`byKey` dispatch, de-sealed catalog types) is the tracked plugin-dx
+follow-up; until it lands, budget the touchpoints above into "an
+afternoon's work".
+
 ## PR checklist
 
 - [ ] Contract test green; full `:core-playback:testDebugUnitTest` green.
 - [ ] CI **Build APK** green — proves the KSP-generated Hilt binding
       resolves in the `:app` graph (the only real proof; module compile
       can't see the whole graph).
-- [ ] No central edits: no `EngineType` variant, no hand DI module, no
-      registry/EnginePlayer/`VoiceFamilyIds` change. (Your literal
-      `"voice_<id>"` is the identity; a `VoiceFamilyIds` constant is
-      optional polish for in-tree call sites, not a requirement.)
+- [ ] No hand DI module, no registry change; central touchpoints limited
+      to the §7 list. (Your literal `"voice_<id>"` is the identity; a
+      `VoiceFamilyIds` constant is optional polish for in-tree call
+      sites, not a requirement.)
 - [ ] `EngineMutex` discipline documented risks reviewed (§2).
 - [ ] On-device QA: play a long chapter; if you implemented
       `StreamingSynth`, also parallel-synth ON + mid-play voice swap

@@ -189,6 +189,12 @@ class ChapterRenderJob @AssistedInject constructor(
         // the old defensive-arm semantics: a non-local voice that slips
         // past the SystemTts pre-filter still reads as a load failure
         // (retry) instead of silently completing an empty cache entry.
+        // CAUTION: supportsExport conflates "offline export allowed" with
+        // "can pre-render in this worker" — a future live-render-only
+        // engine (supportsExport=false, real PCM) would retry here
+        // forever. Splitting a supportsBackgroundRender capability is a
+        // plugin-dx follow-up; new-engine authors see the same warning in
+        // docs/CONTRIBUTING-VOICES.md §6.
         val plugin = voiceEngines.forType(voice.engineType)
         val loadResult = engineMutex.mutex.withLock {
             if (isStopped) return Result.failure()

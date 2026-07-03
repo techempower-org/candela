@@ -8,8 +8,17 @@ import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
  * epic/plugin-dx B2 prep — the parallel-synth streaming DECISIONS from
  * [EnginePlayer], extracted verbatim as pure functions so they are unit-
  * testable (EnginePlayer itself can't be JVM-instantiated: Hilt + the
- * VoxSherpa JNI singletons). Behavior is pinned by `StreamingDispatchTest`;
- * EnginePlayer's inline logic delegates here byte-equivalently.
+ * VoxSherpa JNI singletons). Behavior is pinned by `StreamingDispatchTest`.
+ * Wiring status is MIXED and matters when editing either side:
+ * [desiredSecondaryCount], [azureLookaheadCount], [thermalForcesSerial],
+ * [autoLangForcesSerial] and [queueDepth] ARE the production path —
+ * EnginePlayer calls them. [buildsNativePool], [preambleTeardownFamilies],
+ * [achievedSecondaries] and [swapStepOrder] are SPECIFICATION-ONLY:
+ * EnginePlayer still inlines their equivalents per swap arm (the
+ * `streamingPoolFamily != VoiceFamilyIds.X` preambles and per-family pool
+ * builds), so their tests pin the intended invariants, not the running
+ * code. Keep the inline sites and these functions in step until the
+ * dispatch inversion (plugin-dx follow-up) makes them the single path.
  *
  * The decisions (not the I/O):
  *  - which engine families run a native secondary pool (Tier 3 #88, Kitten
