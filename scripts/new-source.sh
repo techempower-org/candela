@@ -26,6 +26,18 @@ fi
 ID="$1"
 DISPLAY="$2"
 
+# Guard the raw inputs before they reach sed replacements and Kotlin string
+# literals: ids become module dirs + package segments; display names land in
+# generated source. Reject what cannot be made safe, escape the rest below.
+if [[ ! "$ID" =~ ^[a-z][a-z0-9-]*$ ]]; then
+    echo "error: id must match [a-z][a-z0-9-]* (got '$ID')" >&2
+    exit 2
+fi
+if [[ "$DISPLAY" == *'"'* || "$DISPLAY" == *'\\'* ]]; then
+    echo "error: display name must not contain double quotes or backslashes (it becomes a Kotlin string literal)" >&2
+    exit 2
+fi
+
 # Package/namespace segment: id with any non-alphanumerics stripped, lowercased
 # (Kotlin package segments cannot contain '-').
 PKG="$(printf '%s' "$ID" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')"
@@ -36,6 +48,10 @@ PASCAL="$(printf '%s' "$DISPLAY" | sed 's/[^[:alnum:] ]//g' \
 
 if [[ -z "$PKG" || -z "$PASCAL" ]]; then
     echo "error: could not derive a package/type name from id='$ID' display='$DISPLAY'" >&2
+    exit 2
+fi
+if [[ ! "$PKG" =~ ^[a-z] || ! "$PASCAL" =~ ^[A-Za-z] ]]; then
+    echo "error: derived names must start with a letter (pkg='$PKG', type='$PASCAL') — Kotlin identifiers cannot start with a digit" >&2
     exit 2
 fi
 
@@ -220,9 +236,22 @@ internal open class __PASCAL__Api @Inject constructor(
                 client.newCall(req).execute().use { resp ->
                     when {
                         resp.code == 404 -> FictionResult.NotFound("__DISPLAY__: $path not found")
-                        resp.code == 401 || resp.code == 403 -> FictionResult.AuthRequired(
-                            "HTTP ${resp.code} from $url",
-                        )
+                        resp.code == 401 -> FictionResult.AuthRequired("HTTP 401 from $url")
+                        resp.code == 403 -> {
+                            // Cloudflare interstitials arrive as HTTP 403 with challenge
+                            // HTML — the CF sniff MUST precede the auth mapping, or a
+                            // CF-gated 403 misreports as "sign in required" (see
+                            // docs/CONTRIBUTING-SOURCES.md decision table).
+                            val body = resp.body?.string().orEmpty()
+                            if (looksLikeCfChallenge(body)) {
+                                FictionResult.NetworkError(
+                                    "__DISPLAY__ returned a Cloudflare challenge page — try again later",
+                                    IOException("Cloudflare challenge"),
+                                )
+                            } else {
+                                FictionResult.AuthRequired("HTTP 403 from $url")
+                            }
+                        }
                         resp.code == 429 -> FictionResult.RateLimited(
                             retryAfter = null,
                             message = "__DISPLAY__ rate limited (HTTP 429)",
@@ -243,8 +272,22 @@ internal open class __PASCAL__Api @Inject constructor(
                 }
             } catch (e: IOException) {
                 FictionResult.NetworkError(e.message ?: "fetch failed", e)
+            } catch (e: kotlinx.serialization.SerializationException) {
+                // A throwing parse lambda must stay inside the typed-error
+                // contract — never escape as a raw exception.
+                FictionResult.NetworkError("__DISPLAY__ returned an unexpected response shape", e)
             }
         }
+
+    /**
+     * #1443-family heuristic: does a body look like a Cloudflare challenge
+     * interstitial rather than your API's payload? Keep this arm ahead of
+     * the 401/403 auth mapping (see the request() template above).
+     */
+    private fun looksLikeCfChallenge(body: String): Boolean =
+        body.contains("/cdn-cgi/challenge-platform/") ||
+            body.contains("Just a moment...") ||
+            body.contains("cf-mitigated")
 
     companion object {
         const val BASE_URL = "https://example.com"
@@ -341,12 +384,16 @@ class __PASCAL__ContractTest : FictionSourceContractTest() {
 CTEST
 
 # Substitute placeholders (| delimiter so display names with '/' are safe).
+# The display name is user text: escape sed replacement metacharacters
+# (& = whole match, \ = escape, | = our delimiter) or "Q&A Daily" silently
+# corrupts every generated file. PKG/PASCAL/ID are regex-constrained above.
+ESC_DISPLAY="$(printf '%s' "$DISPLAY" | sed -e 's/[&\\|]/\\&/g')"
 find "$MODDIR" -type f -print0 | while IFS= read -r -d '' f; do
     sed -i \
         -e "s|__PASCAL__|$PASCAL|g" \
         -e "s|__PKG__|$PKG|g" \
         -e "s|__ID__|$ID|g" \
-        -e "s|__DISPLAY__|$DISPLAY|g" \
+        -e "s|__DISPLAY__|$ESC_DISPLAY|g" \
         "$f"
 done
 

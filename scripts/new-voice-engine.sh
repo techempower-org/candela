@@ -24,6 +24,11 @@ fi
 ID="$1"
 DISPLAY="$2"
 
+if [[ "$DISPLAY" == *'"'* || "$DISPLAY" == *'\\'* ]]; then
+    echo "error: display name must not contain double quotes or backslashes (it becomes a Kotlin string literal)" >&2
+    exit 2
+fi
+
 LOWER="$(printf '%s' "$ID" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')"
 PASCAL="$(printf '%s' "$DISPLAY" | sed 's/[^[:alnum:] ]//g' \
     | awk '{for(i=1;i<=NF;i++){$i=toupper(substr($i,1,1)) tolower(substr($i,2))}; $1=$1; print}' \
@@ -132,11 +137,14 @@ class __PASCAL__EnginePluginContractTest : VoiceEnginePluginContractTest() {
 }
 CTEST
 
+# Escape sed replacement metacharacters in the raw display name (& \\ |) —
+# "Chirp & Co" would otherwise corrupt the generated plugin metadata.
+ESC_DISPLAY="$(printf '%s' "$DISPLAY" | sed -e 's/[&\\|]/\\&/g')"
 for f in "$PLUGIN_FILE" "$TEST_FILE"; do
     sed -i \
         -e "s|__PASCAL__|$PASCAL|g" \
         -e "s|__LOWER__|$LOWER|g" \
-        -e "s|__DISPLAY__|$DISPLAY|g" \
+        -e "s|__DISPLAY__|$ESC_DISPLAY|g" \
         "$f"
 done
 
