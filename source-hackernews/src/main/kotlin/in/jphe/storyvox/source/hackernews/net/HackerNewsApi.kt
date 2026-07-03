@@ -87,9 +87,10 @@ internal open class HackerNewsApi @Inject constructor(
                 .build()
             client.newCall(req).execute().use { resp ->
                 if (resp.code == 404) return@withContext FictionResult.NotFound("HN item $id missing")
-                if (resp.code == 401 || resp.code == 403) return@withContext FictionResult.AuthRequired(
-                    "HTTP ${resp.code} fetching HN item $id",
-                )
+                // No 401/403 -> AuthRequired mapping: HN has no auth concept, and
+                // Firebase quota/abuse throttling uses 403 for TRANSIENT pressure —
+                // AuthRequired is terminal in ChapterDownloadWorker, so it must fall
+                // through to the retryable NetworkError arm below.
                 if (resp.code == 429) return@withContext FictionResult.RateLimited(
                     retryAfter = null,
                     message = "HN rate limited (HTTP 429)",
@@ -133,9 +134,6 @@ internal open class HackerNewsApi @Inject constructor(
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
-                    if (resp.code == 401 || resp.code == 403) return@withContext FictionResult.AuthRequired(
-                        "HTTP ${resp.code} from Algolia",
-                    )
                     if (resp.code == 429) return@withContext FictionResult.RateLimited(
                         retryAfter = null,
                         message = "Algolia rate limited (HTTP 429)",
@@ -164,9 +162,6 @@ internal open class HackerNewsApi @Inject constructor(
                     .get()
                     .build()
                 client.newCall(req).execute().use { resp ->
-                    if (resp.code == 401 || resp.code == 403) return@withContext FictionResult.AuthRequired(
-                        "HTTP ${resp.code} from $url",
-                    )
                     if (resp.code == 429) return@withContext FictionResult.RateLimited(
                         retryAfter = null,
                         message = "HN rate limited (HTTP 429)",

@@ -132,9 +132,21 @@ internal open class GutendexApi @Inject constructor(
             client.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 404 -> FictionResult.NotFound("Gutendex: $path not found")
-                    resp.code == 401 || resp.code == 403 -> FictionResult.AuthRequired(
-                        "HTTP ${resp.code} from $url",
-                    )
+                    resp.code == 401 -> FictionResult.AuthRequired("HTTP 401 from $url")
+                    resp.code == 403 -> {
+                        // Cloudflare interstitials arrive as HTTP 403 with challenge
+                        // HTML — sniff the body before the auth mapping, or a CF-gated
+                        // 403 misreports as "sign in required" for a public catalog.
+                        val body = resp.body?.string().orEmpty()
+                        if (looksLikeCfChallenge(body)) {
+                            FictionResult.NetworkError(
+                                "Gutendex returned a Cloudflare challenge page — try again later",
+                                IOException("Cloudflare challenge"),
+                            )
+                        } else {
+                            FictionResult.AuthRequired("HTTP 403 from $url")
+                        }
+                    }
                     resp.code == 429 -> FictionResult.RateLimited(
                         retryAfter = null,
                         message = "Gutendex rate limited (HTTP 429)",
@@ -156,6 +168,16 @@ internal open class GutendexApi @Inject constructor(
             FictionResult.NetworkError("Gutendex returned unexpected JSON shape", e)
         }
     }
+
+    /**
+     * #1443-family heuristic: does a body look like a Cloudflare challenge
+     * interstitial rather than API JSON? Same three markers as
+     * `RssFetcher.looksLikeCfChallenge`; a shared utility is tracked in #1438.
+     */
+    private fun looksLikeCfChallenge(body: String): Boolean =
+        body.contains("/cdn-cgi/challenge-platform/") ||
+            body.contains("Just a moment...") ||
+            body.contains("cf-mitigated")
 
     /**
      * Direct EPUB download from gutenberg.org — pulled out of the JSON
