@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Candela — TechEmpower's accessible resource app, with audiobook everything
-description: TechEmpower's accessible resource app — free tech guides, peer-support Discord, dial 211 for local help. Under the hood, a neural-voice audiobook player for twenty-five fiction backends with four in-process voice families plus optional Azure HD cloud voices. Free, GPL-3.0, no telemetry.
+description: Listen to ebooks, follow serial fiction, wake up to a narrated briefing, rehearse with a teleprompter, create audiobooks, scan pages, and hear any link read aloud — twenty-seven sources, four on-device neural voice families, free and open, no account, no tracking.
 image: /screenshots/03-reader.png
 ---
 
@@ -10,15 +10,18 @@ image: /screenshots/03-reader.png
     <h1>Candela</h1>
     <p class="tagline"><strong><a href="https://techempower.org">TechEmpower</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
     <p>
-      Under the hood: twenty-five fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
+      Under the hood: twenty-seven fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
       <a href="https://github.com">GitHub</a>, RSS feeds, EPUB files on your device,
       <a href="https://www.getoutline.com">Outline</a> wikis, your self-hosted
       <a href="https://github.com/techempower-org/mempalace">Memory Palace</a>,
-      <a href="https://www.gutenberg.org/">Project Gutenberg</a>, AO3, Standard Ebooks, Wikipedia,
+      <a href="https://www.gutenberg.org/">Project Gutenberg</a>, AO3, Standard Ebooks,
+      <a href="https://librivox.org">LibriVox</a>, Wikipedia,
       Wikisource, Radio (30k+ stations), <a href="https://notion.so">Notion</a> (defaults to
       TechEmpower's resource library — Guides, Resources, About, Donate), Hacker News,
+      <a href="https://news.google.com">Google News</a>,
       arXiv, PLOS, Discord, <a href="https://telegram.org">Telegram</a>,
-      <a href="https://thepalaceproject.org">Palace Project</a>, <a href="https://slack.com">Slack</a>,
+      <a href="https://thepalaceproject.org">Palace Project</a>,
+      <a href="https://www.bookshare.org">Bookshare</a>, <a href="https://slack.com">Slack</a>,
       <a href="https://matrix.org">Matrix</a> — all read aloud by an <strong>in-process neural TTS engine</strong>
       that runs entirely on-device. A hybrid reader/audiobook view highlights the spoken sentence
       in brass as you listen.
@@ -45,6 +48,90 @@ image: /screenshots/03-reader.png
       <img src="screenshots/03-reader.png" alt="Candela reader playing The Archmage Coefficient with the spoken sentence highlighted in brass." />
     </dark-image>
   </div>
+</section>
+
+<style>
+  .uses { margin-top: 2.2em; }
+  .uses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.9em;
+    margin: 1.3em 0 0.9em;
+  }
+  .use-card {
+    background: var(--warm-bg-card);
+    border: 1px solid var(--warm-rule);
+    border-left: 3px solid var(--brass-600);
+    border-radius: var(--radius-lg);
+    padding: 0.95em 1.1em;
+    transition: border-color 0.15s ease;
+  }
+  .use-card:hover { border-color: var(--brass-600); border-left-color: var(--brass-300); }
+  .use-card h3 { margin: 0 0 0.3em; font-size: 1.02em; color: var(--brass-300); }
+  .use-card p { margin: 0; font-size: 0.92em; color: var(--warm-fg-muted); line-height: 1.45; }
+  .uses-kicker { text-align: center; margin-top: 1.1em; }
+</style>
+
+<section class="uses">
+  <h2>What will you do with it?</h2>
+  <p class="muted">
+    One engine, many lives. Every card below is shipped and working today — no roadmap items.
+  </p>
+  <div class="uses-grid">
+    <div class="use-card">
+      <h3>Listen to ebooks</h3>
+      <p>70,000+ public-domain classics and your own EPUBs, narrated by neural voices that live on your phone.</p>
+    </div>
+    <div class="use-card">
+      <h3>Follow serial fiction</h3>
+      <p>New Royal Road and AO3 chapters land in your inbox and read themselves aloud.</p>
+    </div>
+    <div class="use-card">
+      <h3>Wake up to a briefing</h3>
+      <p>One tap stitches Hacker News, arXiv, your feeds, and GitHub into a single narrated morning episode.</p>
+    </div>
+    <div class="use-card">
+      <h3>Hear your own things</h3>
+      <p>Notion pages, Outline wikis, your Memory Palace, chat channels, PDFs — if you can read it, it can speak.</p>
+    </div>
+    <div class="use-card">
+      <h3>Create an audiobook</h3>
+      <p>Render any book to a chaptered M4B that's yours to keep — or export a clean EPUB.</p>
+    </div>
+    <div class="use-card">
+      <h3>Rehearse a show</h3>
+      <p>A teleprompter that scrolls itself — or follows your voice through the mic — with takes recorded in place.</p>
+    </div>
+    <div class="use-card">
+      <h3>Scan a page &amp; listen</h3>
+      <p>Point the camera at paper; on-device OCR turns it into narration. Nothing leaves the phone.</p>
+    </div>
+    <div class="use-card">
+      <h3>Listen to any link</h3>
+      <p>Share a URL from any app and the magic reader queues it as a chapter. No link is a dead-end.</p>
+    </div>
+    <div class="use-card">
+      <h3>Study with your ears</h3>
+      <p>Synced sentence highlighting, tap-to-define, in-book search, and AI chapter recaps with your own key.</p>
+    </div>
+    <div class="use-card">
+      <h3>Drive and stroll with it</h3>
+      <p>Android Auto on the dashboard, a Wear OS remote and teleprompter on your wrist.</p>
+    </div>
+    <div class="use-card">
+      <h3>Take it off-grid</h3>
+      <p>Download whole books over Wi-Fi and listen with zero signal — built for metered data plans.</p>
+    </div>
+    <div class="use-card">
+      <h3>Fall asleep to it</h3>
+      <p>A sleep timer with an end-of-chapter mode and shake-to-extend as the fade begins.</p>
+    </div>
+  </div>
+  <p class="uses-kicker muted">
+    All of it free, open source, and on-device — no account, no ads, no tracking.
+    The machinery: <a href="#sources">twenty-seven sources</a> and
+    <a href="#voices">four voice families</a>, below.
+  </p>
 </section>
 
 <section class="why">
@@ -139,7 +226,7 @@ image: /screenshots/03-reader.png
 </section>
 
 <section class="sources">
-  <h2>Twenty-five fiction backends, side by side</h2>
+  <h2 id="sources">Twenty-seven fiction backends, side by side</h2>
   <p class="muted">
     A plugin-seam architecture means each backend is ~4 touchpoints. Adding a new one auto-surfaces
     in <strong>Settings → Plugins</strong>. Each has its own on/off toggle.
@@ -215,6 +302,11 @@ image: /screenshots/03-reader.png
       <h3>Hacker News</h3>
       <p>Top stories + Ask HN / Show HN threads with comments narrated in order.</p>
     </a>
+    <a class="source-card" href="https://news.google.com/">
+      <span class="source-glyph" aria-hidden="true">GN</span>
+      <h3>Google News</h3>
+      <p>Topic feeds narrated as chapters — headlines and articles read in order, with Cloudflare-aware fetching.</p>
+    </a>
     <a class="source-card" href="https://arxiv.org/">
       <span class="source-glyph" aria-hidden="true">arX</span>
       <h3>arXiv</h3>
@@ -239,6 +331,11 @@ image: /screenshots/03-reader.png
       <span class="source-glyph" aria-hidden="true">PP</span>
       <h3>Palace Project</h3>
       <p>First library-borrowing backend — OPDS catalog walker for the Palace Project's free library titles. Non-DRM titles in this PR; LCP DRM deferred.</p>
+    </a>
+    <a class="source-card" href="https://www.bookshare.org/">
+      <span class="source-glyph" aria-hidden="true">BS</span>
+      <h3>Bookshare</h3>
+      <p>The world's largest collection of accessible ebooks, for readers with print disabilities — discovery is wired; full access awaits the partner key.</p>
     </a>
     <a class="source-card" href="https://slack.com/">
       <span class="source-glyph" aria-hidden="true">SL</span>
@@ -274,7 +371,7 @@ image: /screenshots/03-reader.png
 </section>
 
 <section class="voices">
-  <h2>Four voice families, all on-device</h2>
+  <h2 id="voices">Four voice families, all on-device</h2>
   <p class="muted">
     Voices download on demand from the <code>voices-v2</code> release; nothing is bundled in the APK.
     The voice picker shows what's installed and what's available. <a href="voices/">Full voice catalog →</a>
@@ -314,8 +411,20 @@ image: /screenshots/03-reader.png
       </p>
       <p class="voice-meta muted">In-tree (Candela)</p>
     </div>
+    <div class="voice-card">
+      <div class="voice-tier">HD</div>
+      <h3>Supertonic&nbsp;3</h3>
+      <p class="voice-size">Shared model, 10 HD en_US speakers</p>
+      <p>
+        The newest family — ten expressive, high-definition English speakers from one shared
+        model. The pick when narration quality matters more than download size.
+      </p>
+      <p class="voice-meta muted">In-tree (Candela)</p>
+    </div>
   </div>
   <p class="voices-cloud">
+    <strong>Zero-download fallback:</strong> your device's own <strong>System TTS</strong> voices work
+    out of the box — the first chapter can speak before any model downloads.
     <strong>Optional cloud:</strong> Bring your own
     <a href="https://learn.microsoft.com/azure/ai-services/speech-service/text-to-speech">Azure HD</a>
     key for studio-grade narration on slow devices. Offline fallback to your local voice if your
@@ -421,7 +530,7 @@ image: /screenshots/03-reader.png
     always resolve to the newest version, so this page never goes stale.
   </p>
   <p>
-    <strong>Where Candela is now:</strong> <strong>twenty-five fiction backends</strong> behind a
+    <strong>Where Candela is now:</strong> <strong>twenty-seven fiction backends</strong> behind a
     plugin-seam architecture (a new backend is ~4 touchpoints — a <code>@SourcePlugin</code> annotation
     plus KSP-generated Hilt registration); <strong>four in-process neural voice families</strong>
     (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
