@@ -95,6 +95,27 @@ val localProperties = Properties().apply {
         localPropertiesFile.inputStream().use { load(it) }
     }
 }
+/**
+ * Issue #1507 — Notion public-integration OAuth client credentials, read
+ * from local.properties at configure time and materialized into
+ * BuildConfig. Both default to the empty string when absent so a clean
+ * checkout (CI, new contributor, secrets-rotated dev machine) still
+ * builds and CI is green WITHOUT the creds — the Connect-Notion button
+ * hides when the id/secret are empty (NotionOAuthConfig.isAvailable),
+ * leaving only the paste-token path. Pattern mirrors core-sync's
+ * INSTANTDB_APP_ID materialization; deliberately NOT via `-P` on the CLI
+ * (that leaks secrets into shell history / CI logs). Notion is a
+ * *confidential* OAuth client — the token endpoint wants client_secret
+ * via HTTP Basic — so this secret ships in the APK; see the security
+ * note in docs/notion-oauth-setup.md. Two local.properties lines:
+ *   NOTION_OAUTH_CLIENT_ID=...
+ *   NOTION_OAUTH_CLIENT_SECRET=...
+ */
+val notionOAuthClientId: String =
+    (localProperties.getProperty("NOTION_OAUTH_CLIENT_ID") ?: "").trim()
+val notionOAuthClientSecret: String =
+    (localProperties.getProperty("NOTION_OAUTH_CLIENT_SECRET") ?: "").trim()
+
 val releaseStoreFilePath: String? = localProperties.getProperty("storyvox.releaseStoreFile")
 val releaseStorePassword: String? = localProperties.getProperty("storyvox.releaseStorePassword")
 val releaseKeyAlias: String? = localProperties.getProperty("storyvox.releaseKeyAlias")
@@ -205,6 +226,11 @@ android {
             "SIGIL_REPO",
             "\"https://github.com/techempower-org/candela\"",
         )
+
+        // Issue #1507 — Notion OAuth client credentials (empty when
+        // unconfigured; see the notionOAuthClientId/Secret vals above).
+        buildConfigField("String", "NOTION_OAUTH_CLIENT_ID", "\"$notionOAuthClientId\"")
+        buildConfigField("String", "NOTION_OAUTH_CLIENT_SECRET", "\"$notionOAuthClientSecret\"")
     }
 
     signingConfigs {

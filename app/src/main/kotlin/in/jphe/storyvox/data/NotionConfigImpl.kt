@@ -40,8 +40,33 @@ private object NotionKeys {
 
 /** EncryptedSharedPreferences key for the Notion integration token.
  *  Lives next to the palace + outline + RR cookie tokens in
- *  `storyvox.secrets`. */
+ *  `storyvox.secrets`. The OAuth access token (#1507) is stored in this
+ *  SAME slot so it rides the existing `Bearer` seam in `NotionApi`
+ *  unchanged; the OAuth-vs-PAT distinction is carried by
+ *  [NOTION_OAUTH_MARKER_PREF]. */
 internal const val NOTION_API_TOKEN_PREF = "notion.api_token"
+
+/** Issue #1507 — OAuth refresh token (rotates on every refresh). Kept
+ *  encrypted alongside the access token so a future auto-refresh-on-401
+ *  slice can renew silently without re-consent. */
+internal const val NOTION_OAUTH_REFRESH_PREF = "notion.oauth_refresh_token"
+
+/** Issue #1507 — "1" when the stored [NOTION_API_TOKEN_PREF] came from
+ *  the OAuth Connect flow (vs a hand-pasted PAT). Drives
+ *  [NotionConfigState.viaOAuth] → `/v1/search` granted-content browsing. */
+internal const val NOTION_OAUTH_MARKER_PREF = "notion.oauth_marker"
+
+/** Issue #1507 — the workspace name from the OAuth token response.
+ *  Display-only ("Connected to <workspace>"); not a secret, but kept in
+ *  the same bag so it re-emits on [secretsTick] with the rest of the
+ *  OAuth session. */
+internal const val NOTION_WORKSPACE_NAME_PREF = "notion.workspace_name"
+
+/** Issue #1507 — the CSRF `state` nonce persisted just before the OAuth
+ *  Custom Tab launches, verified against the redirect on return. Survives
+ *  process death (the Custom Tab can evict the app). Single-use:
+ *  [oauthState] reads it, the callback handler clears it. */
+internal const val NOTION_OAUTH_STATE_PREF = "notion.oauth_state"
 
 /**
  * Issue #233 — production [NotionConfig]. Database id in plaintext
@@ -94,6 +119,11 @@ class NotionConfigImpl(
             databaseId = if (storedDbId.isBlank()) NotionDefaults.TECHEMPOWER_DATABASE_ID else storedDbId,
             rootPageId = if (storedRootId.isBlank()) NotionDefaults.TECHEMPOWER_ROOT_PAGE_ID else storedRootId,
             apiToken = token,
+            // #1507 — an OAuth token still has to be present for the marker
+            // to matter; guarding on the token keeps a stale marker from a
+            // cleared session from flipping the browse strategy.
+            viaOAuth = token.isNotBlank() && secrets.getBoolean(NOTION_OAUTH_MARKER_PREF, false),
+            workspaceName = secrets.getString(NOTION_WORKSPACE_NAME_PREF, "").orEmpty(),
         )
     }.distinctUntilChanged()
 
@@ -108,6 +138,8 @@ class NotionConfigImpl(
             databaseId = if (storedDbId.isBlank()) NotionDefaults.TECHEMPOWER_DATABASE_ID else storedDbId,
             rootPageId = if (storedRootId.isBlank()) NotionDefaults.TECHEMPOWER_ROOT_PAGE_ID else storedRootId,
             apiToken = token,
+            viaOAuth = token.isNotBlank() && secrets.getBoolean(NOTION_OAUTH_MARKER_PREF, false),
+            workspaceName = secrets.getString(NOTION_WORKSPACE_NAME_PREF, "").orEmpty(),
         )
     }
 
@@ -133,12 +165,83 @@ class NotionConfigImpl(
      * explicit Settings re-fetch.
      */
     fun setApiToken(token: String?) {
+        // #1507 — a hand-pasted token is a PAT, never an OAuth grant, so
+        // this path also tears down any prior OAuth session state (marker,
+        // refresh token, workspace name). Otherwise a user who OAuth-
+        // connected then later pasted a PAT would keep viaOAuth=true and
+        // wrongly browse via /v1/search instead of their configured DB.
+        val editor = secrets.edit()
         if (token.isNullOrBlank()) {
-            secrets.edit().remove(NOTION_API_TOKEN_PREF).apply()
+            editor.remove(NOTION_API_TOKEN_PREF)
         } else {
-            secrets.edit().putString(NOTION_API_TOKEN_PREF, token.trim()).apply()
+            editor.putString(NOTION_API_TOKEN_PREF, token.trim())
         }
+        editor.remove(NOTION_OAUTH_MARKER_PREF)
+        editor.remove(NOTION_OAUTH_REFRESH_PREF)
+        editor.remove(NOTION_WORKSPACE_NAME_PREF)
+        editor.apply()
         secretsTick.value = secretsTick.value + 1
+    }
+
+    /**
+     * Issue #1507 — persist a completed OAuth session: the access token
+     * lands in [NOTION_API_TOKEN_PREF] (so the existing Bearer seam works
+     * unchanged), plus the refresh token, the OAuth marker (→ `/v1/search`
+     * granted browsing), and the workspace name for display. Bumps
+     * [secretsTick] so `state` re-emits with `viaOAuth = true`.
+     */
+    fun saveOAuthSession(accessToken: String, refreshToken: String?, workspaceName: String?) {
+        secrets.edit()
+            .putString(NOTION_API_TOKEN_PREF, accessToken.trim())
+            .apply {
+                if (refreshToken.isNullOrBlank()) {
+                    remove(NOTION_OAUTH_REFRESH_PREF)
+                } else {
+                    putString(NOTION_OAUTH_REFRESH_PREF, refreshToken.trim())
+                }
+                putString(NOTION_WORKSPACE_NAME_PREF, workspaceName.orEmpty())
+            }
+            .putBoolean(NOTION_OAUTH_MARKER_PREF, true)
+            .apply()
+        secretsTick.value = secretsTick.value + 1
+    }
+
+    /**
+     * Issue #1507 — rotate the OAuth token pair after a silent refresh.
+     * Keeps the marker + workspace name; only swaps the access token (and
+     * the refresh token, which Notion rotates on every refresh). No-op on
+     * the marker so an in-flight session stays OAuth-flavoured.
+     */
+    fun updateOAuthTokens(accessToken: String, refreshToken: String?) {
+        secrets.edit()
+            .putString(NOTION_API_TOKEN_PREF, accessToken.trim())
+            .apply {
+                if (!refreshToken.isNullOrBlank()) {
+                    putString(NOTION_OAUTH_REFRESH_PREF, refreshToken.trim())
+                }
+            }
+            .apply()
+        secretsTick.value = secretsTick.value + 1
+    }
+
+    /** Issue #1507 — the stored OAuth refresh token, or null if none. */
+    fun oauthRefreshToken(): String? =
+        secrets.getString(NOTION_OAUTH_REFRESH_PREF, null)?.ifBlank { null }
+
+    /** Issue #1507 — persist the CSRF `state` nonce before launching the
+     *  OAuth Custom Tab. Survives process death. */
+    fun setOAuthState(state: String) {
+        secrets.edit().putString(NOTION_OAUTH_STATE_PREF, state).apply()
+    }
+
+    /** Issue #1507 — the persisted CSRF `state` nonce, or null if none. */
+    fun oauthState(): String? =
+        secrets.getString(NOTION_OAUTH_STATE_PREF, null)?.ifBlank { null }
+
+    /** Issue #1507 — drop the CSRF `state` nonce once the redirect is
+     *  handled (single-use). */
+    fun clearOAuthState() {
+        secrets.edit().remove(NOTION_OAUTH_STATE_PREF).apply()
     }
 
     /** True when a non-empty token is stored. Drives the UI's
@@ -171,7 +274,14 @@ class NotionConfigImpl(
             it.remove(NotionKeys.DATABASE_ID)
             it.remove(NotionKeys.ROOT_PAGE_ID)
         }
-        secrets.edit().remove(NOTION_API_TOKEN_PREF).apply()
+        secrets.edit()
+            .remove(NOTION_API_TOKEN_PREF)
+            // #1507 — tear down the full OAuth session too.
+            .remove(NOTION_OAUTH_REFRESH_PREF)
+            .remove(NOTION_OAUTH_MARKER_PREF)
+            .remove(NOTION_WORKSPACE_NAME_PREF)
+            .remove(NOTION_OAUTH_STATE_PREF)
+            .apply()
         secretsTick.value = secretsTick.value + 1
     }
 }

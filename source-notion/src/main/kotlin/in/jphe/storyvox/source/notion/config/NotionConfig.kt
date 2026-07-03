@@ -105,6 +105,22 @@ data class NotionConfigState(
     /** Notion REST API version header — pinned in the source rather than
      *  the user config so storyvox + Notion never drift apart silently. */
     val apiVersion: String = NotionDefaults.API_VERSION,
+
+    /** Issue #1507 — true when [apiToken] was obtained via the public-
+     *  integration OAuth flow (Connect Notion) rather than a hand-pasted
+     *  Internal Integration Token. Both ride the same Bearer seam, but
+     *  the browse strategy differs: an OAuth grant can span *many*
+     *  objects the user picked during consent, so [NotionPATSource]
+     *  lists them via `POST /v1/search`; a pasted PAT keeps the original
+     *  single-[databaseId] `query` path. Defaults to false so existing
+     *  PAT users are unaffected. */
+    val viaOAuth: Boolean = false,
+
+    /** Issue #1507 — the Notion workspace name returned by the OAuth
+     *  token exchange (`workspace_name`). Display-only ("Connected to
+     *  <workspace>" in the Browse manage sheet); blank when not connected
+     *  via OAuth. Not a secret. */
+    val workspaceName: String = "",
 ) {
     /** True when the source can make API calls. In anonymous mode this
      *  is true whenever [rootPageId] is non-blank; in PAT mode it
