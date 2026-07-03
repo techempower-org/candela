@@ -223,6 +223,29 @@ internal open class StandardEbooksApi @Inject constructor(
             client.newCall(req).execute().use { resp ->
                 when {
                     resp.code == 404 -> FictionResult.NotFound("Standard Ebooks: $url not found")
+                    // Patrons Circle content 401s with `WWW-Authenticate: Basic`; surface it
+                    // as a typed auth failure rather than a generic network error.
+                    resp.code == 401 -> FictionResult.AuthRequired("HTTP 401 from $url")
+                    resp.code == 403 -> {
+                        // Cloudflare interstitials arrive as HTTP 403 with challenge
+                        // HTML — the CF sniff MUST precede the auth mapping, or a
+                        // CF-gated 403 misreports as "sign in required" for content
+                        // that has no login gate (same ordering rule as Ao3Api).
+                        val body = resp.body?.string().orEmpty()
+                        if (looksLikeCfChallenge(body)) {
+                            FictionResult.NetworkError(
+                                "Standard Ebooks returned a Cloudflare challenge page" +
+                                    " instead of content — try again later",
+                                IOException("Cloudflare challenge"),
+                            )
+                        } else {
+                            FictionResult.AuthRequired("HTTP 403 from $url")
+                        }
+                    }
+                    resp.code == 429 -> FictionResult.RateLimited(
+                        retryAfter = null,
+                        message = "Standard Ebooks rate limited (HTTP 429)",
+                    )
                     !resp.isSuccessful -> FictionResult.NetworkError(
                         "HTTP ${resp.code} from $url",
                         IOException("HTTP ${resp.code}"),

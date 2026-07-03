@@ -63,8 +63,14 @@ import `in`.jphe.storyvox.playback.tts.source.CacheFileSource
 import `in`.jphe.storyvox.playback.tts.source.EngineStreamingSource
 import `in`.jphe.storyvox.playback.tts.source.PcmSource
 import `in`.jphe.storyvox.playback.voice.EngineType
+import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.StreamingPoolLifecycle
+import `in`.jphe.storyvox.playback.voice.StreamingSynth
+import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
+import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import `in`.jphe.storyvox.playback.voice.VoiceManager
+import `in`.jphe.storyvox.playback.voice.toEngineKey
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -470,6 +476,10 @@ class EnginePlayer @AssistedInject constructor(
      *  so a mid-chapter flip doesn't half-construct a second engine
      *  with no cleanup; takes effect on next pipeline rebuild. */
     private val parallelSynthConfig: `in`.jphe.storyvox.data.repository.playback.ParallelSynthConfig,
+    /** epic/plugin-dx B2 — the plugin registry, used to resolve the
+     *  active family's [StreamingSynth] capability (pool construction
+     *  moved into the pooled engines) and its [ModelSpec]. */
+    private val voiceEngines: `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry,
     /** Accessibility scaffold Phase 2 (#486 / #488, v0.5.43) — extra
      *  inter-sentence silence applied when TalkBack is active. The
      *  flow is already gated by `isTalkBackActive`; outside TalkBack
@@ -647,32 +657,35 @@ class EnginePlayer @AssistedInject constructor(
     @Volatile
     private var cachedThermalStatus: Int = ThermalMonitor.THERMAL_STATUS_NONE
 
-    /** Tier 3 (#88) — list of secondary VoiceEngine / KokoroEngine
-     *  instances for parallel synth. Sized at (instances-1) so the
-     *  primary singleton + N-1 secondaries = N total engines.
-     *  Owned by EnginePlayer so loadAndPlay's voice-swap can destroy
-     *  them cleanly on engine-type change. Empty list = serial mode. */
+    /** Tier 3 (#88, #119) — the secondary-instance pool for parallel
+     *  synth, sized at (instances-1) so the primary singleton + N-1
+     *  secondaries = N total engines. epic/plugin-dx B2: held
+     *  GENERICALLY as [StreamingSynth.Handle]s — construction, loading
+     *  and destruction live in the pooled engines' plugins
+     *  (Piper/Kokoro/Kitten implement [StreamingSynth]); EnginePlayer
+     *  only drives the lifecycle via [StreamingPoolLifecycle] in the
+     *  pinned `StreamingDispatch.swapStepOrder()` order. Empty list =
+     *  serial mode. Supertonic stays serial by design (#1114 — four
+     *  ONNX graphs per session); Azure's lookahead fan-out is
+     *  deliberately NOT part of this pool (no native lifecycle). */
     @Volatile
-    private var secondaryPiperEngines: List<com.CodeBySonu.VoxSherpa.VoiceEngine> = emptyList()
+    private var streamingPool: List<StreamingSynth.Handle> = emptyList()
 
+    /** The engine family (a VoiceFamilyIds constant) that built
+     *  [streamingPool] — voice-swap arms use it to keep the old
+     *  preamble-vs-own-stale teardown ordering with a single pool. */
     @Volatile
-    private var secondaryKokoroEngines: List<com.CodeBySonu.VoxSherpa.KokoroEngine> = emptyList()
+    private var streamingPoolFamily: String? = null
 
-    /** Issue #119 — Kitten secondaries for the Tier 3 parallel-synth
-     *  slider. Each loaded Kitten session is small (~60–80 MB resident
-     *  on the fp16 nano model), so an 8-way fan-out fits comfortably
-     *  even on a 2 GB device — Kitten is the friendliest engine for the
-     *  parallel slider on low-end hardware. Owned per-engine-type like
-     *  the other two; voice swap away from Kitten frees this list. */
-    @Volatile
-    private var secondaryKittenEngines: List<com.CodeBySonu.VoxSherpa.KittenEngine> = emptyList()
-
-    // Issue #1114 — Supertonic has no Tier 3 secondaries: it runs serial
-    // (each session loads four ONNX graphs, so a multi-instance fan-out is
-    // memory-heavy). SupertonicEngine supports a public constructor, so
-    // wiring secondaries here is a future parallel-synth enhancement.
-    // @Volatile
-    // private var secondarySupertonicEngines: List<SupertonicEngine> = emptyList()
+    /** The per-instance tuning today's construction loops propagate,
+     *  snapshotted at rebuild time exactly like the values it replaces:
+     *  Piper's Steady/Expressive noise pair selection and Kokoro's
+     *  absolute silence scale (#196 baseline × the user's cadence
+     *  multiplier — the same product set on the primary). */
+    private fun streamingTuningSnapshot(): StreamingTuning = StreamingTuning(
+        voiceSteady = cachedVoiceSteady,
+        kokoroSilenceScale = KOKORO_SILENCE_SCALE_BASELINE * currentPunctuationPauseMultiplier,
+    )
 
     /**
      * Issue #676 — Android System TTS engine for the currently-active
@@ -2201,7 +2214,7 @@ class EnginePlayer @AssistedInject constructor(
                     "threads=${pendingParallelState.threadsPerInstance}",
             )
             // Skip straight to pipeline construction; reused engines
-            // are still warm in the singleton + secondaries lists.
+            // are still warm in the singleton + streamingPool.
             voiceReloadPending = false
             _observableState.update { it.copy(voiceId = active.id, error = null) }
             // Issue #728 — when the caller wants the chapter loaded
@@ -2245,20 +2258,15 @@ class EnginePlayer @AssistedInject constructor(
                     "This voice isn't fully downloaded — re-download it in Voices, or pick another voice."
                 } else when (active.engineType) {
                     EngineType.Piper -> {
-                        // Voice swap AWAY from Kokoro/Kitten → free
-                        // their secondaries. Tier 3 (#88) honors the
-                        // slider for all in-process engine families
-                        // now; secondaries are owned per-engine-type
-                        // and torn down on type-change.
-                        secondaryKokoroEngines.forEach {
-                            runCatching { it.destroy() }
+                        // Voice swap AWAY from another pooled family →
+                        // free its pool here, the PREAMBLE position of
+                        // the pinned StreamingDispatch.swapStepOrder().
+                        // A same-family stale pool is destroyed by the
+                        // rebuild below instead (own-stale position).
+                        if (streamingPoolFamily != VoiceFamilyIds.PIPER) {
+                            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+                            streamingPoolFamily = null
                         }
-                        secondaryKokoroEngines = emptyList()
-                        // Issue #119 — Kitten secondaries.
-                        secondaryKittenEngines.forEach {
-                            runCatching { it.destroy() }
-                        }
-                        secondaryKittenEngines = emptyList()
                         // #676 — voice swap AWAY from System TTS frees
                         // the framework TextToSpeech instance.
                         systemTtsEngine?.shutdown()
@@ -2291,68 +2299,33 @@ class EnginePlayer @AssistedInject constructor(
                             "Tier 3 primary Piper load: result=$primaryResult",
                         )
                         // Tier 3 (#88) — slider replaces the boolean
-                        // toggle. Construct (instances-1) secondaries
-                        // when instances >= 2. Each gets its own
-                        // OrtSession via VoxSherpa v2.7.8+'s public
-                        // constructor → calls run truly in parallel.
-                        // Tear down any previously-allocated set first
-                        // (voice swap re-runs this path).
-                        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
-                        secondaryPiperEngines = emptyList()
-                        val secondaries = mutableListOf<com.CodeBySonu.VoxSherpa.VoiceEngine>()
-                        for (i in 1 until parallelState.instances) {
-                            android.util.Log.i(
-                                "EnginePlayer",
-                                "Tier 3 attempting secondary Piper $i",
-                            )
-                            val secondary = com.CodeBySonu.VoxSherpa.VoiceEngine()
-                            // Propagate noiseScale settings so all
-                            // instances render with the same prosody.
-                            // Without this, secondaries use default
-                            // 0.35/0.667 (Steady) while primary uses
-                            // whatever cachedVoiceSteady dictates,
-                            // causing audible mismatch between
-                            // sentences depending on which instance
-                            // rendered them.
-                            val ns = if (cachedVoiceSteady) NOISE_SCALE_STEADY
-                                     else NOISE_SCALE_EXPRESSIVE
-                            val nsW = if (cachedVoiceSteady) NOISE_SCALE_W_STEADY
-                                      else NOISE_SCALE_W_EXPRESSIVE
-                            secondary.setNoiseScale(ns)
-                            secondary.setNoiseScaleW(nsW)
-                            val r = secondary.loadModel(context, onnx, tokens, nt)
-                            if (r == "Success") {
-                                secondaries += secondary
-                                android.util.Log.i(
-                                    "EnginePlayer",
-                                    "Tier 3 secondary Piper $i loaded ok",
-                                )
-                            } else {
-                                runCatching { secondary.destroy() }
-                                android.util.Log.w(
-                                    "EnginePlayer",
-                                    "Tier 3 secondary $i (Piper) load failed: " +
-                                        "$r — capping at ${secondaries.size + 1} instances.",
-                                )
-                                break
-                            }
-                        }
-                        secondaryPiperEngines = secondaries
+                        // toggle. epic/plugin-dx B2: the (instances-1)
+                        // secondary construction (incl. the noiseScale
+                        // prosody match) lives in PiperEnginePlugin.
+                        // acquirePool; the lifecycle helper destroys the
+                        // same-family stale pool strictly before
+                        // acquiring (pinned #1383/#1386 ordering).
+                        val poolPlugin = voiceEngines.byId(VoiceFamilyIds.PIPER)
+                        streamingPool = StreamingPoolLifecycle.rebuild(
+                            old = streamingPool,
+                            synth = poolPlugin as? StreamingSynth,
+                            spec = poolPlugin?.modelSpec(active.engineType, active.id)
+                                ?: ModelSpec.None,
+                            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
+                            threadsPerInstance = nt,
+                            tuning = streamingTuningSnapshot(),
+                        )
+                        streamingPoolFamily = VoiceFamilyIds.PIPER
                         primaryResult ?: "Error: load returned null"
                     }
                     is EngineType.Kokoro -> {
-                        // Voice swap AWAY from Piper/Kitten → free their
-                        // secondaries. Tier 3 secondaries are
-                        // engine-type-specific.
-                        secondaryPiperEngines.forEach {
-                            runCatching { it.destroy() }
+                        // Voice swap AWAY from another pooled family →
+                        // free its pool (preamble position of the pinned
+                        // swapStepOrder; own-stale handled by the rebuild).
+                        if (streamingPoolFamily != VoiceFamilyIds.KOKORO) {
+                            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+                            streamingPoolFamily = null
                         }
-                        secondaryPiperEngines = emptyList()
-                        // Issue #119 — Kitten secondaries.
-                        secondaryKittenEngines.forEach {
-                            runCatching { it.destroy() }
-                        }
-                        secondaryKittenEngines = emptyList()
                         // #676 — voice swap AWAY from System TTS.
                         systemTtsEngine?.shutdown()
                         systemTtsEngine = null
@@ -2387,39 +2360,24 @@ class EnginePlayer @AssistedInject constructor(
                         val primaryResult = KokoroEngine.getInstance()
                             .loadModel(context, onnx, tokens, voicesBin, nt)
                         // Tier 3 (#88) — Kokoro N-instance support.
-                        // Each loaded Kokoro session is ~325 MB; on
-                        // an 8 GB device 8 instances ≈ 2.6 GB which
-                        // fits but is heavy. Construct sequentially —
-                        // Kokoro's first-load takes ~30 s, so 8
-                        // instances ≈ 4 min first-launch penalty
-                        // (acceptable for an explicit opt-in;
-                        // subsequent chapters reuse loaded instances).
-                        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKokoroEngines = emptyList()
-                        val kokoroSecondaries = mutableListOf<com.CodeBySonu.VoxSherpa.KokoroEngine>()
-                        for (i in 1 until parallelState.instances) {
-                            val secondary = com.CodeBySonu.VoxSherpa.KokoroEngine()
-                            secondary.setActiveSpeakerId(
-                                (active.engineType as EngineType.Kokoro).speakerId,
-                            )
-                            secondary.setSilenceScale(
-                                KOKORO_SILENCE_SCALE_BASELINE *
-                                    currentPunctuationPauseMultiplier,
-                            )
-                            val r = secondary.loadModel(context, onnx, tokens, voicesBin, nt)
-                            if (r == "Success") {
-                                kokoroSecondaries += secondary
-                            } else {
-                                runCatching { secondary.destroy() }
-                                android.util.Log.w(
-                                    "EnginePlayer",
-                                    "Tier 3 secondary $i (Kokoro) load failed: " +
-                                        "$r — capping at ${kokoroSecondaries.size + 1} instances.",
-                                )
-                                break
-                            }
-                        }
-                        secondaryKokoroEngines = kokoroSecondaries
+                        // Each loaded Kokoro session is ~325 MB and
+                        // first-load takes ~30 s. epic/plugin-dx B2:
+                        // sequential construction + speaker pinning +
+                        // silence scale live in KokoroEnginePlugin.
+                        // acquirePool (speaker rides ModelSpec.speakerId);
+                        // the lifecycle helper destroys the same-family
+                        // stale pool strictly before acquiring.
+                        val poolPlugin = voiceEngines.byId(VoiceFamilyIds.KOKORO)
+                        streamingPool = StreamingPoolLifecycle.rebuild(
+                            old = streamingPool,
+                            synth = poolPlugin as? StreamingSynth,
+                            spec = poolPlugin?.modelSpec(active.engineType, active.id)
+                                ?: ModelSpec.None,
+                            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
+                            threadsPerInstance = nt,
+                            tuning = streamingTuningSnapshot(),
+                        )
+                        streamingPoolFamily = VoiceFamilyIds.KOKORO
                         primaryResult ?: "Error: load returned null"
                     }
                     is EngineType.Kitten -> {
@@ -2428,14 +2386,13 @@ class EnginePlayer @AssistedInject constructor(
                         // multi-speaker model. Switching speakers reuses
                         // the loaded engine via setActiveSpeakerId; first
                         // load is fast (~2–4 s) because the model is tiny.
-                        secondaryPiperEngines.forEach {
-                            runCatching { it.destroy() }
+                        // Voice swap AWAY from another pooled family →
+                        // free its pool (preamble position of the pinned
+                        // swapStepOrder; own-stale handled by the rebuild).
+                        if (streamingPoolFamily != VoiceFamilyIds.KITTEN) {
+                            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+                            streamingPoolFamily = null
                         }
-                        secondaryPiperEngines = emptyList()
-                        secondaryKokoroEngines.forEach {
-                            runCatching { it.destroy() }
-                        }
-                        secondaryKokoroEngines = emptyList()
                         // #676 — voice swap AWAY from System TTS.
                         systemTtsEngine?.shutdown()
                         systemTtsEngine = null
@@ -2452,34 +2409,22 @@ class EnginePlayer @AssistedInject constructor(
                         val nt = parallelState.threadsPerInstance
                         val primaryResult = KittenEngine.getInstance()
                             .loadModel(context, onnx, tokens, voicesBin, nt)
-                        // Tier 3 (#88) — Kitten N-instance support.
-                        // Each loaded Kitten session is small (~60–80 MB
-                        // resident on the fp16 nano model), so even an
-                        // 8-way fan-out fits in 1 GB. Kitten is the
-                        // friendliest engine for the parallel slider on
-                        // low-end hardware.
-                        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKittenEngines = emptyList()
-                        val kittenSecondaries = mutableListOf<com.CodeBySonu.VoxSherpa.KittenEngine>()
-                        for (i in 1 until parallelState.instances) {
-                            val secondary = com.CodeBySonu.VoxSherpa.KittenEngine()
-                            secondary.setActiveSpeakerId(
-                                (active.engineType as EngineType.Kitten).speakerId,
-                            )
-                            val r = secondary.loadModel(context, onnx, tokens, voicesBin, nt)
-                            if (r == "Success") {
-                                kittenSecondaries += secondary
-                            } else {
-                                runCatching { secondary.destroy() }
-                                android.util.Log.w(
-                                    "EnginePlayer",
-                                    "Tier 3 secondary $i (Kitten) load failed: " +
-                                        "$r — capping at ${kittenSecondaries.size + 1} instances.",
-                                )
-                                break
-                            }
-                        }
-                        secondaryKittenEngines = kittenSecondaries
+                        // Tier 3 (#88) — Kitten N-instance support
+                        // (small ~60–80 MB fp16 sessions; friendliest
+                        // engine for the slider on low-end hardware).
+                        // epic/plugin-dx B2: construction + speaker
+                        // pinning live in KittenEnginePlugin.acquirePool.
+                        val poolPlugin = voiceEngines.byId(VoiceFamilyIds.KITTEN)
+                        streamingPool = StreamingPoolLifecycle.rebuild(
+                            old = streamingPool,
+                            synth = poolPlugin as? StreamingSynth,
+                            spec = poolPlugin?.modelSpec(active.engineType, active.id)
+                                ?: ModelSpec.None,
+                            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
+                            threadsPerInstance = nt,
+                            tuning = streamingTuningSnapshot(),
+                        )
+                        streamingPoolFamily = VoiceFamilyIds.KITTEN
                         primaryResult ?: "Error: load returned null"
                     }
                     is EngineType.Supertonic -> {
@@ -2492,12 +2437,8 @@ class EnginePlayer @AssistedInject constructor(
                         // Supertonic — each session loads four ONNX graphs
                         // (duration/encoder/vector/vocoder), so it runs serial
                         // for now (see the secondary-engines branch below).
-                        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
-                        secondaryPiperEngines = emptyList()
-                        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKokoroEngines = emptyList()
-                        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKittenEngines = emptyList()
+                        streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+                        streamingPoolFamily = null
                         systemTtsEngine?.shutdown()
                         systemTtsEngine = null
                         loadedSystemTtsEngineName = null
@@ -2516,13 +2457,8 @@ class EnginePlayer @AssistedInject constructor(
                         // Tier 3 (#88) — voice swap AWAY from local
                         // engines: free all local secondaries (Piper,
                         // Kokoro, Kitten) to recover memory.
-                        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
-                        secondaryPiperEngines = emptyList()
-                        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKokoroEngines = emptyList()
-                        // Issue #119 — Kitten secondaries.
-                        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKittenEngines = emptyList()
+                        streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+                        streamingPoolFamily = null
                         // #676 — voice swap AWAY from System TTS frees
                         // the framework TextToSpeech instance.
                         systemTtsEngine?.shutdown()
@@ -2554,12 +2490,8 @@ class EnginePlayer @AssistedInject constructor(
                         // time) and (re)build the framework
                         // TextToSpeech instance pinned to the chosen
                         // engine + voice.
-                        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
-                        secondaryPiperEngines = emptyList()
-                        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKokoroEngines = emptyList()
-                        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
-                        secondaryKittenEngines = emptyList()
+                        streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+                        streamingPoolFamily = null
 
                         val target = active.engineType as EngineType.SystemTts
                         // Reuse the existing TextToSpeech only when the
@@ -2889,8 +2821,8 @@ class EnginePlayer @AssistedInject constructor(
             if (thermalStatus >= ThermalMonitor.THERMAL_STATUS_SEVERE) {
                 // Severe thermal pressure: halve queue depth to reduce
                 // memory + CPU headroom. Floor at 2 so the pipeline
-                // doesn't starve.
-                val capped = (base / 2).coerceAtLeast(2)
+                // doesn't starve. Decision pinned in StreamingDispatch (B2 prep).
+                val capped = StreamingDispatch.queueDepth(base, thermalStatus)
                 DebugLog.i("EnginePlayer") {
                     "#803 thermal SEVERE+: queue depth $base -> $capped"
                 }
@@ -2919,66 +2851,39 @@ class EnginePlayer @AssistedInject constructor(
         // per-sentence latency: while sentence N plays, sentences
         // N+1..N+secondaries are synthesizing in parallel server-side.
         val secondaryHandles: List<EngineStreamingSource.VoiceEngineHandle> = when (engineType) {
-            EngineType.Piper -> secondaryPiperEngines.map { eng ->
-                object : EngineStreamingSource.VoiceEngineHandle {
-                    // Issue #582 — route secondary-engine sample-rate
-                    // reads through the volatile cache too. Each
-                    // secondary is a separate VoiceEngine instance with
-                    // its own intrinsic monitor, so a per-secondary
-                    // loadModel that's still in flight when this main-
-                    // thread construction runs would contend on THAT
-                    // instance the same way the singleton did. All
-                    // Piper engines share one model file and therefore
-                    // one sample rate within a process, so the
-                    // engine-type-scoped cache is the correct answer.
-                    override val sampleRate: Int =
-                        EngineSampleRateCache.piperRate()
-                            .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
-                    override fun generateAudioPCM(
-                        text: String, speed: Float, pitch: Float,
-                    ): ByteArray? {
-                        // Issue #801 — respect power-save mode.
-                        AndroidProcess.setThreadPriority(producerPriority())
-                        return eng.generateAudioPCM(text, speed, pitch)
+            // epic/plugin-dx B2 — ONE generic branch for every pooled
+            // family: [streamingPool] holds StreamingSynth.Handles built
+            // by the active family's plugin; adapt each to the
+            // VoiceEngineHandle SAM here AT THE BOUNDARY (per plan —
+            // EngineStreamingSource internals untouched). Handle.sampleRate
+            // routes through the #582 lock-free EngineSampleRateCache in
+            // the plugins; the #801 power-save producer priority stays a
+            // caller concern, applied in this adapter exactly as the three
+            // per-family wrappers it replaces did.
+            is EngineType.Piper, is EngineType.Kokoro, is EngineType.Kitten ->
+                // The pool can lag a cross-family voice swap: the deferred
+                // observeActiveVoice path and ensureVoiceLoaded both update
+                // the active engine without rebuilding [streamingPool], and
+                // the #569 fast path then skips the swap arm entirely.
+                // Handles from the previous family would synthesize routed
+                // sentences in the OLD voice — a family mismatch must
+                // degrade to serial, exactly as the old empty per-family
+                // lists did by construction.
+                if (streamingPoolFamily != engineType.toEngineKey().engineId) {
+                    emptyList()
+                } else streamingPool.map { handle ->
+                    object : EngineStreamingSource.VoiceEngineHandle {
+                        override val sampleRate: Int =
+                            handle.sampleRate.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
+                        override fun generateAudioPCM(
+                            text: String, speed: Float, pitch: Float,
+                        ): ByteArray? {
+                            // Issue #801 — respect power-save mode.
+                            AndroidProcess.setThreadPriority(producerPriority())
+                            return handle.generatePCM(text, speed, pitch)
+                        }
                     }
                 }
-            }
-            is EngineType.Kokoro -> secondaryKokoroEngines.map { eng ->
-                object : EngineStreamingSource.VoiceEngineHandle {
-                    // Issue #582 — see Piper branch above. Kokoro is
-                    // architecturally 24 kHz across every speaker.
-                    override val sampleRate: Int =
-                        EngineSampleRateCache.kokoroRate()
-                            .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
-                    override fun generateAudioPCM(
-                        text: String, speed: Float, pitch: Float,
-                    ): ByteArray? {
-                        // Issue #801 — respect power-save mode.
-                        AndroidProcess.setThreadPriority(producerPriority())
-                        return eng.generateAudioPCM(text, speed, pitch)
-                    }
-                }
-            }
-            // Issue #119 — Kitten secondaries. Same wrapping shape as
-            // Kokoro because both engines are multi-speaker singletons
-            // with the same `generateAudioPCM(text, speed, pitch)` Java
-            // signature.
-            is EngineType.Kitten -> secondaryKittenEngines.map { eng ->
-                object : EngineStreamingSource.VoiceEngineHandle {
-                    // Issue #582 — see Piper branch above. Kitten is
-                    // architecturally 24 kHz across every speaker.
-                    override val sampleRate: Int =
-                        EngineSampleRateCache.kittenRate()
-                            .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
-                    override fun generateAudioPCM(
-                        text: String, speed: Float, pitch: Float,
-                    ): ByteArray? {
-                        // Issue #801 — respect power-save mode.
-                        AndroidProcess.setThreadPriority(producerPriority())
-                        return eng.generateAudioPCM(text, speed, pitch)
-                    }
-                }
-            }
             // Issue #1114 — Supertonic runs serial (no Tier 3 secondaries).
             // The engine supports multi-instance construction, but each
             // Supertonic session loads four ONNX graphs, so a fan-out is
@@ -2992,7 +2897,7 @@ class EnginePlayer @AssistedInject constructor(
                 // HTTPS-bounded, not memory-bounded). A future PR
                 // could split the slider if the tradeoffs diverge
                 // visibly.
-                val lookaheadCount = (cachedParallelSynthInstances - 1).coerceAtLeast(0)
+                val lookaheadCount = StreamingDispatch.azureLookaheadCount(cachedParallelSynthInstances)
                 val voiceName = engineType.voiceName
                 List(lookaheadCount) {
                     object : EngineStreamingSource.VoiceEngineHandle {
@@ -3039,13 +2944,18 @@ class EnginePlayer @AssistedInject constructor(
         // independent KokoroEngine instances pinned to the primary speaker
         // at load, so they'd synthesize the wrong voice for routed
         // sentences. Force serial whenever routing is active on Kokoro.
-        val autoLangForcesSerial =
-            cachedAutoLanguageDetection &&
-                engineType is EngineType.Kokoro &&
-                secondaryHandles.isNotEmpty()
+        // engineType is nullable here; the old `engineType is EngineType.Kokoro`
+        // check was null-tolerant (null -> false), so a null type maps to
+        // "no forced serial" exactly as before.
+        val autoLangForcesSerial = engineType?.toEngineKey()?.let { key ->
+            StreamingDispatch.autoLangForcesSerial(
+                cachedAutoLanguageDetection,
+                key,
+                secondaryHandles.isNotEmpty(),
+            )
+        } ?: false
         val effectiveSecondaryHandles = if (
-            thermalStatus >= ThermalMonitor.THERMAL_STATUS_MODERATE &&
-            secondaryHandles.isNotEmpty()
+            StreamingDispatch.thermalForcesSerial(thermalStatus, secondaryHandles.isNotEmpty())
         ) {
             DebugLog.i("EnginePlayer") {
                 "#803 thermal MODERATE+: dropping ${secondaryHandles.size} secondary " +
@@ -5486,12 +5396,8 @@ class EnginePlayer @AssistedInject constructor(
         // via onDestroy → releaseEngine leaks the JNI OrtSessions
         // (Piper ~150MB, Kokoro ~325MB, Kitten ~60-80MB each). GC
         // finalization is unreliable for JNI pointers.
-        secondaryPiperEngines.forEach { runCatching { it.destroy() } }
-        secondaryPiperEngines = emptyList()
-        secondaryKokoroEngines.forEach { runCatching { it.destroy() } }
-        secondaryKokoroEngines = emptyList()
-        secondaryKittenEngines.forEach { runCatching { it.destroy() } }
-        secondaryKittenEngines = emptyList()
+        streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+        streamingPoolFamily = null
         // Issue #560 — release audio focus so other media apps can
         // resume playback when storyvox is dismissed. The transport-
         // level pause/resume doesn't abandon focus (we keep it for the

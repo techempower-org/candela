@@ -7,6 +7,7 @@ import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptor
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyDescriptors
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
+import `in`.jphe.storyvox.playback.voice.VoicePlugin
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +30,7 @@ import javax.inject.Singleton
  * - [sampleRate] reports `SystemTtsEngine.DEFAULT_SAMPLE_RATE`; the real
  *   rate comes from the live engine instance per chosen OS voice.
  */
+@VoicePlugin(VoiceFamilyIds.SYSTEM_TTS)
 @Singleton
 class SystemTtsEnginePlugin @Inject constructor() : VoiceEnginePlugin {
 

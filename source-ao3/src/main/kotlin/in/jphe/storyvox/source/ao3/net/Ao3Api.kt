@@ -44,10 +44,14 @@ import javax.inject.Singleton
  * real address rather than blocking the whole CIDR.
  */
 @Singleton
-internal class Ao3Api @Inject constructor(
+internal open class Ao3Api @Inject constructor(
     @`in`.jphe.storyvox.source.ao3.di.Ao3Http private val client: OkHttpClient,
     @`in`.jphe.storyvox.source.ao3.di.Ao3AuthedHttp private val authedClient: OkHttpClient,
 ) {
+    /** Base URL — `open` so JVM unit tests can point this at a MockWebServer
+     *  without restructuring the call sites (mirrors StandardEbooksApi.baseUrl).
+     *  The companion [BASE_URL] const stays for external call sites (auth WebView). */
+    internal open val baseUrl: String get() = BASE_URL
     /**
      * `GET /tags/<tagId>/feed.atom` — the listing surface. Returns
      * the raw XML body for [Ao3AtomFeed.parse] to turn into typed
@@ -173,7 +177,7 @@ internal class Ao3Api @Inject constructor(
      * download correctly once the user has signed in.
      */
     suspend fun downloadEpub(workId: Long): FictionResult<ByteArray> = withContext(Dispatchers.IO) {
-        val url = "$BASE_URL/downloads/$workId/storyvox.epub"
+        val url = "$baseUrl/downloads/$workId/storyvox.epub"
         try {
             val req = Request.Builder()
                 .url(url)
@@ -300,7 +304,7 @@ internal class Ao3Api @Inject constructor(
         client: OkHttpClient,
         path: String,
     ): FictionResult<String> = withContext(Dispatchers.IO) {
-        val url = BASE_URL + path
+        val url = baseUrl + path
         try {
             val req = Request.Builder()
                 .url(url)
@@ -316,16 +320,24 @@ internal class Ao3Api @Inject constructor(
                     // generic NetworkError so the caller gets
                     // FictionResult.Cloudflare (and can escalate to
                     // the WebView resolver) instead of a dead-end
-                    // error toast.
+                    // error toast. The Cloudflare check MUST precede the
+                    // 401/403 auth mapping so a CF-gated 403 is not
+                    // misreported as "sign in required".
                     !resp.isSuccessful -> {
                         val body = resp.body?.string().orEmpty()
-                        if (looksLikeCfChallenge(body)) {
-                            FictionResult.Cloudflare(
-                                challengeUrl = BASE_URL + path,
+                        when {
+                            looksLikeCfChallenge(body) -> FictionResult.Cloudflare(
+                                challengeUrl = baseUrl + path,
                                 message = "AO3 returned a Cloudflare challenge for $path (HTTP ${resp.code})",
                             )
-                        } else {
-                            FictionResult.NetworkError(
+                            resp.code == 401 || resp.code == 403 -> FictionResult.AuthRequired(
+                                "HTTP ${resp.code} from $url",
+                            )
+                            resp.code == 429 -> FictionResult.RateLimited(
+                                retryAfter = null,
+                                message = "AO3 rate limited (HTTP 429)",
+                            )
+                            else -> FictionResult.NetworkError(
                                 "HTTP ${resp.code} from $url",
                                 IOException("HTTP ${resp.code}"),
                             )
@@ -339,7 +351,7 @@ internal class Ao3Api @Inject constructor(
                             )
                         if (looksLikeCfChallenge(text)) {
                             return@withContext FictionResult.Cloudflare(
-                                challengeUrl = BASE_URL + path,
+                                challengeUrl = baseUrl + path,
                                 message = "AO3 returned a Cloudflare challenge for $path",
                             )
                         }

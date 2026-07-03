@@ -111,9 +111,12 @@ class VoiceFamilyFilterTest {
             "Placeholder must not be toggleable",
             VoiceFamilyIds.VOXSHERPA_UPSTREAMS in registry.toggleableIds,
         )
-        // #676 — five installed families now: System TTS + Piper +
-        // Kokoro + Kitten + Azure are all toggleable.
-        assertEquals(5, registry.toggleableIds.size)
+        // #676 + #1114 — six toggleable families: System TTS + Piper +
+        // Kokoro + Kitten + Supertonic + Azure. (This assertion went
+        // stale when SUPERTONIC_ENABLED shipped `true`; latent because
+        // CI only compiles unit tests — surfaced by the epic/plugin-dx
+        // zero-failure verification sweep.)
+        assertEquals(6, registry.toggleableIds.size)
     }
 
     @Test fun `Azure family defaults OFF and the local families default ON`() {

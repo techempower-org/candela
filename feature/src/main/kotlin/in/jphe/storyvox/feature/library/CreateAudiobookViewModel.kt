@@ -7,9 +7,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.playback.audiobook.AudiobookExportScheduler
 import `in`.jphe.storyvox.playback.audiobook.AudiobookExportStatus
 import `in`.jphe.storyvox.playback.audiobook.CreateAudiobookFromTextUseCase
-import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
+import `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry
 import `in`.jphe.storyvox.playback.voice.VoiceManager
+import `in`.jphe.storyvox.playback.voice.toEngineKey
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,16 +39,20 @@ class CreateAudiobookViewModel @Inject constructor(
     private val createFromText: CreateAudiobookFromTextUseCase,
     private val exportScheduler: AudiobookExportScheduler,
     private val voiceManager: VoiceManager,
+    private val voiceEngines: VoiceEngineRegistry,
 ) : ViewModel() {
 
-    /** Installed voices the user can narrate with. Azure / System TTS are
-     *  filtered out — the export path is offline-only (see
-     *  AudiobookSynthesizer). */
+    /** Installed voices the user can narrate with. epic/plugin-dx B3 —
+     *  the export-capability gate is data-driven off the plugin's
+     *  [supportsExport] via the de-sealed EngineKey (was a hardcoded
+     *  `!is Azure && !is SystemTts` check): identical today, and a
+     *  future non-export engine is filtered automatically instead of
+     *  slipping into the picker. Mirrors AudiobookSynthesizer.loadVoice
+     *  (#1372). */
     val voices: StateFlow<List<UiVoiceInfo>> = voiceManager.installedVoices
         .map { list ->
             list.filter { v ->
-                v.engineType !is EngineType.Azure &&
-                    v.engineType !is EngineType.SystemTts
+                voiceEngines.byKey(v.engineType.toEngineKey())?.supportsExport == true
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
