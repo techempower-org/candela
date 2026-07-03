@@ -47,9 +47,13 @@ class VoiceEngineRegistry @Inject constructor(
 
     /** The plugin owning [type], or null if no registered engine
      *  handles it. Dispatch entry point that replaces a
-     *  `when (engineType)`. */
+     *  `when (engineType)`. Scans in engineId order so two plugins
+     *  erroneously claiming the same type resolve DETERMINISTICALLY
+     *  (the Hilt map's iteration order is unspecified) — disjointness
+     *  itself is each plugin's contract, exercised by the kit's
+     *  handles()/key round-trip checks. */
     fun forType(type: EngineType): VoiceEnginePlugin? =
-        plugins.values.firstOrNull { it.handles(type) }
+        plugins.values.sortedBy { it.engineId }.firstOrNull { it.handles(type) }
 
     /** The plugin registered under [engineId] (a [VoiceFamilyIds]
      *  constant), or null. */

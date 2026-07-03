@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.testkit.voice
 
 import `in`.jphe.storyvox.playback.voice.EngineKey
+import `in`.jphe.storyvox.playback.voice.ModelSpec
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
 import `in`.jphe.storyvox.playback.voice.toEngineTypeOrNull
 import org.junit.Assert.assertEquals
@@ -88,13 +89,30 @@ abstract class VoiceEnginePluginContractTest {
         // supportsExport=false plugins must return null from generateAudioPCM
         // per the contract kdoc (cloud/framework engines — safe on the JVM,
         // they never reach native code). Export-capable engines are NOT
-        // probed here: their synth is JNI and belongs to on-device QA.
+        // synth-probed here: their synth is JNI and belongs to on-device QA.
         if (!plugin().supportsExport) {
             val t = sampleKeys().firstNotNullOfOrNull { it.toEngineTypeOrNull() } ?: return
             assertEquals(
                 "supportsExport=false plugins must return null from generateAudioPCM",
                 null,
                 plugin().generateAudioPCM(t, "contract probe"),
+            )
+        }
+    }
+
+    @Test fun `export-capable engines declare a local model`() {
+        // The true side of the export claim, JVM-assertable without JNI:
+        // offline audiobook export renders on-device, so supportsExport=true
+        // requires a local ModelSpec. This catches the scaffold-stub trap —
+        // flipping supportsExport to true while modelSpec()/generateAudioPCM
+        // are still the stub values would otherwise pass the whole kit and
+        // export silent, empty audiobooks.
+        if (plugin().supportsExport) {
+            val t = sampleKeys().firstNotNullOfOrNull { it.toEngineTypeOrNull() } ?: return
+            val spec = plugin().modelSpec(t, sampleKeys().first().engineId)
+            assertTrue(
+                "supportsExport=true requires a local ModelSpec, got ModelSpec.None",
+                spec != ModelSpec.None,
             )
         }
     }

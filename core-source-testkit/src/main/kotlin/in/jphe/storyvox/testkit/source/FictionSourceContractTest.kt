@@ -15,23 +15,35 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import java.util.Collections
 
 /**
  * Contract every HTTP-backed [FictionSource] must satisfy. Subclass in your
  * source module's unit tests, implement the three hooks, and the tribal
  * gotchas become executable checks:
  *
- *  - network work leaves the caller thread (#585 Dispatchers.IO pin)
- *  - 401/403 -> AuthRequired, 429 -> RateLimited — never raw exceptions
- *  - Cloudflare challenge bodies are detected, never returned as content
+ *  - network work leaves the caller thread (#585 Dispatchers.IO pin) — checked
+ *    for EVERY request the exercised call issues, not just the last one, so a
+ *    multi-request source (list fetch + per-item fetches) with one un-pinned
+ *    call still fails
+ *  - 401 -> AuthRequired, 429 -> RateLimited — never raw exceptions
+ *  - Cloudflare challenge bodies are detected and surface as
+ *    [FictionResult.Cloudflare] or [FictionResult.NetworkError] — never as
+ *    content, and never as AuthRequired (a CF 403 is not a login gate)
  *  - paging & blank-query sanity
  *
- * Non-HTTP sources (local files) skip this kit; see docs/CONTRIBUTING-SOURCES.md.
+ * Search-only sources set [exercisesPopular] = false; the checks then run
+ * through [FictionSource.search] instead of being skipped, so coverage is
+ * preserved. Non-HTTP sources (local files) skip this kit entirely; see
+ * docs/CONTRIBUTING-SOURCES.md.
  */
 abstract class FictionSourceContractTest {
 
     protected lateinit var server: MockWebServer
-    private val requestThreads = mutableListOf<String>()
+    // Appended from MockWebServer's dispatcher threads while the JUnit thread
+    // reads it — must be synchronized or a concurrent-request source races.
+    private val requestThreads: MutableList<String> =
+        Collections.synchronizedList(mutableListOf())
 
     /** Build YOUR source pointed at [baseUrl] with [client]. */
     protected abstract fun createSource(client: OkHttpClient, baseUrl: String): FictionSource
@@ -42,12 +54,13 @@ abstract class FictionSourceContractTest {
     /** Path fragment your list endpoint hits (used to route the happy body). */
     protected abstract fun listPathFragment(): String
 
-    /** Override if your source cannot serve popular() (e.g. search-only). */
+    /** Override to false for search-only sources: the contract checks below
+     *  then exercise [FictionSource.search] instead of [FictionSource.popular]. */
     protected open val exercisesPopular: Boolean = true
 
     @Before fun startServer() {
         requestThreads.clear()
-        ClientThreadProbe.lastClientThread = null
+        ClientThreadProbe.clientThreads.clear()
         server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
@@ -68,58 +81,70 @@ abstract class FictionSourceContractTest {
 
     /**
      * The source under test, built against a client that records which thread
-     * OkHttp actually executes the call on (the IO-pin probe below). Sources
+     * OkHttp actually executes EACH call on (the IO-pin probe below). Sources
      * see a plain [OkHttpClient]; the interceptor is invisible to them.
      */
     private fun source(): FictionSource = createSource(
         OkHttpClient.Builder()
             .addInterceptor { chain ->
-                ClientThreadProbe.lastClientThread = Thread.currentThread().name
+                ClientThreadProbe.clientThreads += Thread.currentThread().name
                 chain.proceed(chain.request())
             }
             .build(),
         server.url("/").toString(),
     )
 
+    /** The list call the contract checks exercise: popular() when the source
+     *  supports it, otherwise search() — so search-only sources keep coverage. */
+    private suspend fun exerciseList(src: FictionSource): FictionResult<*> =
+        if (exercisesPopular) src.popular(1)
+        else src.search(SearchQuery(term = "contract probe"))
+
     @Test fun `network work leaves the caller thread`() {
-        if (!exercisesPopular) return
         val caller = Thread.currentThread().name
-        runBlocking { source().popular(1) }
-        assertTrue("no request reached the server", requestThreads.isNotEmpty())
-        // MockWebServer serves on its own thread; the IO-pin check is on the CLIENT:
-        // a source missing withContext(Dispatchers.IO) executes OkHttp's blocking call
-        // on the runBlocking caller thread and Android would throw NetworkOnMainThread.
-        // The interceptor above records the thread OkHttp actually ran on; if that is
-        // the runBlocking caller thread, the source never left it.
-        val onCaller = ClientThreadProbe.lastClientThread == caller
-        assertTrue("HTTP executed on caller thread — missing withContext(Dispatchers.IO) (#585)", !onCaller)
+        runBlocking { exerciseList(source()) }
+        assertTrue(
+            "no request reached the probe — the exercised call issued no HTTP",
+            ClientThreadProbe.clientThreads.isNotEmpty(),
+        )
+        // A source missing withContext(Dispatchers.IO) executes OkHttp's blocking
+        // call on the runBlocking caller thread (NetworkOnMainThread on Android).
+        // Every recorded client thread must differ from the caller — checking
+        // only the last one lets a multi-request source hide one un-pinned call
+        // behind later pinned ones (#585's copy-paste failure mode).
+        val offenders = ClientThreadProbe.clientThreads.filter { it == caller }
+        assertTrue(
+            "${offenders.size} request(s) executed on the caller thread — " +
+                "missing withContext(Dispatchers.IO) (#585)",
+            offenders.isEmpty(),
+        )
     }
 
     @Test fun `401 maps to AuthRequired, not an exception`() {
-        if (!exercisesPopular) return
         server.dispatcher = constant(MockResponse().setResponseCode(401))
-        val result = runBlocking { source().popular(1) }
+        val result = runBlocking { exerciseList(source()) }
         assertTrue("expected AuthRequired, got $result", result is FictionResult.AuthRequired)
     }
 
     @Test fun `429 maps to RateLimited`() {
-        if (!exercisesPopular) return
         server.dispatcher = constant(MockResponse().setResponseCode(429))
-        val result = runBlocking { source().popular(1) }
+        val result = runBlocking { exerciseList(source()) }
         assertTrue("expected RateLimited, got $result", result is FictionResult.RateLimited)
     }
 
     @Test fun `cloudflare challenge body is detected, never stored`() {
-        if (!exercisesPopular) return
         server.dispatcher = constant(
             MockResponse().setResponseCode(403)
                 .setHeader("Server", "cloudflare")
                 .setBody(CF_CHALLENGE_BODY),
         )
-        val result = runBlocking { source().popular(1) }
+        val result = runBlocking { exerciseList(source()) }
+        // AuthRequired would ALSO be a Failure — but a CF challenge is not a
+        // login gate, and mapping it to auth sends users to a sign-in prompt
+        // that cannot succeed. Only the two honest shapes pass.
         assertTrue(
-            "CF challenge must map to Cloudflare/NetworkError failure, got $result",
-            result is FictionResult.Failure,
+            "CF challenge must map to Cloudflare/NetworkError, got $result",
+            result is FictionResult.Cloudflare || result is FictionResult.NetworkError,
         )
         if (result is FictionResult.Success<*>) fail("challenge page surfaced as content")
     }
@@ -148,5 +173,7 @@ abstract class FictionSourceContractTest {
 
 /** Interceptor probe used by the thread-pin check. Sources don't touch this. */
 object ClientThreadProbe {
-    @Volatile var lastClientThread: String? = null
+    /** Thread name of every client-side request execution, in order. */
+    val clientThreads: MutableList<String> =
+        Collections.synchronizedList(mutableListOf())
 }
