@@ -43,4 +43,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // #1507 — FictionSourceContractTest + MockWebServer (transitive) for
+    // the NotionPATSource /v1/search OAuth-browsing contract coverage.
+    testImplementation(project(":core-source-testkit"))
 }

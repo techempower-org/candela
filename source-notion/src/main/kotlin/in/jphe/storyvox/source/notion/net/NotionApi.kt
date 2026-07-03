@@ -84,6 +84,49 @@ internal class NotionApi @Inject constructor(
     }
 
     /**
+     * Issue #1507 — `POST /v1/search`: list every object the integration
+     * can access. For an OAuth grant, that's exactly the pages the user
+     * picked during consent — the natural "browse my granted content"
+     * call. Filtered to `object == "page"` so each granted page (including
+     * the rows of any shared database) becomes one storyvox fiction;
+     * database objects are skipped (their entries surface individually as
+     * pages). Requires only a token (NOT a configured database id), so it
+     * bypasses [requireConfigured]'s database check. Shares the Bearer +
+     * Notion-Version transport with the query path via [postJson].
+     *
+     * @param query optional title search passed to Notion's server-side
+     *  `query` param; null/blank lists everything.
+     */
+    suspend fun search(
+        query: String? = null,
+        cursor: String? = null,
+        pageSize: Int = 100,
+    ): FictionResult<NotionPageList> {
+        val state = config.current()
+        if (state.apiToken.isBlank()) {
+            return FictionResult.AuthRequired("Notion integration token not configured")
+        }
+        val safe = pageSize.coerceIn(1, 100)
+        val body = buildString {
+            append('{')
+            if (!query.isNullOrBlank()) {
+                append("\"query\":\"").append(escapeJson(query)).append("\",")
+            }
+            // Only page objects — a database object has no title-typed
+            // property for toSummary() to project, and its rows come back
+            // as their own page results anyway.
+            append("\"filter\":{\"value\":\"page\",\"property\":\"object\"}")
+            append(",\"page_size\":").append(safe)
+            if (!cursor.isNullOrBlank()) {
+                append(",\"start_cursor\":\"").append(escapeJson(cursor)).append("\"")
+            }
+            append('}')
+        }
+        val url = state.baseUrl + "/v1/search"
+        return postJson<NotionPageList>(url, body, state)
+    }
+
+    /**
      * Single-page fetch. Used when the user opens a saved fiction whose
      * page id is in Library but the page details aren't in our query
      * cache yet (cold start, library row).
@@ -222,6 +265,17 @@ internal class NotionApi @Inject constructor(
             client.newCall(reqBuilder.build()).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
                 when {
+                    // #1507 — api.notion.com is Cloudflare-fronted; a CF
+                    // challenge arrives as a 403/503 HTML interstitial. Peek
+                    // before the 401/403 auth mapping so a CF gate is not
+                    // misreported as "integration token rejected" (which
+                    // would send the user to a re-consent that can't clear
+                    // the challenge). Mirrors Ao3Api's ordering.
+                    looksLikeCfChallenge(text) ->
+                        FictionResult.Cloudflare(
+                            challengeUrl = url,
+                            message = "Notion returned a Cloudflare challenge (HTTP ${resp.code})",
+                        )
                     resp.code == 401 || resp.code == 403 ->
                         FictionResult.AuthRequired(
                             decodeErrorMessage(text)
@@ -303,6 +357,22 @@ internal class NotionApi @Inject constructor(
          *  pathologically nested page. 200 covers heavily-structured
          *  pages without risking a request storm. */
         const val MAX_CHILD_REQUESTS = 200
+
+        /**
+         * Issue #1507 — Cloudflare challenge sniff, same shape as
+         * `Ao3Api.looksLikeCfChallenge` (#1433/#1438 track the shared
+         * extraction). `cf-mitigated` is CF's own header echoed into the
+         * body; the "Just a moment" title + a small body is the classic
+         * interstitial. The 20 KB cap avoids flagging a real (large) page
+         * that merely mentions the phrase.
+         */
+        internal fun looksLikeCfChallenge(body: String): Boolean {
+            if (body.contains("cf-mitigated")) return true
+            val hasChallengeTitle = "<title>" in body &&
+                body.substringAfter("<title>").substringBefore("</title>")
+                    .contains("Just a moment", ignoreCase = true)
+            return hasChallengeTitle && body.length < 20_000
+        }
     }
 }
 
