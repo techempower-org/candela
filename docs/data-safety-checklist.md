@@ -70,6 +70,7 @@ Location (approx/precise) · Financial info · Health & fitness · Messages (SMS
 Declare **one** sharing relationship:
 - **Email address + library state + User ID → shared with InstantDB** (sync backend), purpose **App functionality**, when sync is enabled.
 - **Do NOT declare as "shared":** BYOK Azure/Anthropic/OpenAI keys, and third-party sign-ins (Discord/Notion/Royal Road/etc.). Per Play's definition these are *the user transmitting their own data directly to that service*, not the app sharing it.
+  - ⚠️ _#1507 note:_ Notion now also supports an **OAuth "Connect"** flow (in addition to the pasted Integration Token). The classification is unchanged: the OAuth access + refresh tokens are the *user's own* credentials, stored encrypted in `storyvox.secrets` (and, only if cloud sync is on, E2E-encrypted behind the user's passphrase — Candela's servers never see plaintext). Content still flows **user → Notion directly** via those tokens; Candela does not share Notion data with anyone. So Notion stays **Not "shared"** and Files/Messages stay **No**.
 
 ### Section D — Security practices
 - Encrypted in transit → **Yes** (HTTPS enforced by `network_security_config.xml`)
