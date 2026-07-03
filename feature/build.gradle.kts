@@ -108,6 +108,10 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
 
+    // #1507 — Chrome Custom Tabs for the Notion OAuth consent launch from
+    // the Browse manage sheet (already a dep in :app; :feature needs its own).
+    implementation(libs.androidx.browser)
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)

@@ -275,7 +275,18 @@ class BrowseViewModel @Inject constructor(
                 buildSet {
                     for (descriptor in registry.descriptors) {
                         val explicit = s.sourcePluginsEnabled[descriptor.id]
-                        val effective = explicit ?: descriptor.defaultEnabled
+                        // #1507 — the Notion (PAT) chip is discoverable even
+                        // when unconfigured so the "Connect Notion" empty
+                        // state is reachable from Browse: an UNSET pref shows
+                        // it (fallback true), an EXPLICIT disable in Settings →
+                        // Plugins hides it. Its descriptor stays
+                        // defaultEnabled=false (that governs Settings → Plugins
+                        // default + generated registry state), so this is a
+                        // Browse-only visibility override, not a global flip.
+                        val fallback =
+                            if (descriptor.id == SourceIds.NOTION_PAT) true
+                            else descriptor.defaultEnabled
+                        val effective = explicit ?: fallback
                         if (effective) add(descriptor.id)
                     }
                 }
@@ -284,7 +295,12 @@ class BrowseViewModel @Inject constructor(
             .stateIn(
                 viewModelScope,
                 SharingStarted.WhileSubscribed(5_000),
-                registry.descriptors.filter { it.defaultEnabled }.map { it.id }.toSet(),
+                // #1507 — seed the initial set with NOTION_PAT too so the
+                // Connect-Notion chip is present on the very first frame
+                // (mirrors the unset-shows-it fallback above), avoiding a
+                // flash where the chip appears only after settings emit.
+                (registry.descriptors.filter { it.defaultEnabled }.map { it.id } + SourceIds.NOTION_PAT)
+                    .toSet(),
             )
 
     /** v0.5.76 — the user's "starred" sources, surfaced to the carousel
@@ -661,7 +677,56 @@ class BrowseViewModel @Inject constructor(
     fun removeRssFeedByUrl(url: String) {
         viewModelScope.launch { settings.removeRssFeedByUrl(url) }
     }
+
+    // ─── Notion connect / manage (#1507) ────────────────────────────────
+
+    /** Snapshot the Browse Notion manage-sheet reads. */
+    val notionConnection: StateFlow<NotionConnectionUi> =
+        settings.settings
+            .map { s ->
+                NotionConnectionUi(
+                    oauthAvailable = s.notionOAuthAvailable,
+                    connected = s.notionTokenConfigured,
+                    workspaceName = s.notionWorkspaceName,
+                    databaseId = s.notionDatabaseId,
+                )
+            }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotionConnectionUi())
+
+    /**
+     * #1507 — begin the OAuth flow: persists a CSRF nonce and returns the
+     * authorize URL for the caller to open in a Custom Tab, or null when
+     * this build has no OAuth credentials (fall back to the paste path).
+     */
+    suspend fun beginNotionOAuth(): String? = settings.beginNotionOAuth()
+
+    /**
+     * #1507 — advanced/paste path: save a hand-entered Integration Token
+     * (+ optional database id) and auto-enable the source so its chip
+     * populates. Blank token clears the connection.
+     */
+    fun saveNotionToken(token: String, databaseId: String) {
+        viewModelScope.launch {
+            settings.setNotionApiToken(token.ifBlank { null })
+            if (databaseId.isNotBlank()) settings.setNotionDatabaseId(databaseId)
+            if (token.isNotBlank()) settings.setSourcePluginEnabled(SourceIds.NOTION_PAT, true)
+        }
+    }
+
+    /** #1507 — disconnect Notion (clears the token + OAuth session). */
+    fun disconnectNotion() {
+        viewModelScope.launch { settings.setNotionApiToken(null) }
+    }
 }
+
+/** #1507 — Browse-side snapshot of the Notion connection for the manage sheet. */
+data class NotionConnectionUi(
+    val oauthAvailable: Boolean = false,
+    val connected: Boolean = false,
+    val workspaceName: String = "",
+    val databaseId: String = "",
+)
 
 private val AUTH_ONLY_GH_TABS: Set<BrowseTab> = setOf(BrowseTab.MyRepos, BrowseTab.Starred, BrowseTab.Gists)
 
