@@ -105,4 +105,16 @@ class PrimeGamingFeedTest {
         assertTrue(PrimeGamingFeed.parse("").entries.isEmpty())
         assertTrue(PrimeGamingFeed.parse("<html>not a feed</html>").entries.isEmpty())
     }
+
+    @Test
+    fun `numeric entities decode across planes and never throw`() {
+        // BMP apostrophe — the common LootScraper case.
+        assertEquals("Rat's Quest", decodeXmlEntities("Rat&#039;s Quest"))
+        // Supplementary plane: emoji must decode via a surrogate pair,
+        // not throw (Char(code) IAE above 0xFFFF — the #1539 regression).
+        assertEquals("Fun 😀!", decodeXmlEntities("Fun &#128512;!"))
+        // Out-of-Unicode-range and surrogate code points stay literal.
+        assertEquals("bad &#1114112; ref", decodeXmlEntities("bad &#1114112; ref"))
+        assertEquals("lone &#55296; ref", decodeXmlEntities("lone &#55296; ref"))
+    }
 }

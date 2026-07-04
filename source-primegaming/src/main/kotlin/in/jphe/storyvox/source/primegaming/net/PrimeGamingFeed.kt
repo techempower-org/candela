@@ -188,7 +188,13 @@ internal fun stripTags(html: String): String = TAG_RE.replace(html, " ")
  */
 internal fun decodeXmlEntities(text: String): String =
     NUMERIC_ENTITY_RE.replace(text) { m ->
-        m.groupValues[1].toIntOrNull()?.let { code -> Char(code).toString() } ?: m.value
+        m.groupValues[1].toIntOrNull()
+            // Supplementary-plane chars (emoji in game descriptions, e.g.
+            // &#128512;) need Character.toChars — Char(code) throws above
+            // 0xFFFF. Out-of-range and surrogate code points stay literal.
+            ?.takeIf { it in 0..0x10FFFF && it !in 0xD800..0xDFFF }
+            ?.let { code -> String(Character.toChars(code)) }
+            ?: m.value
     }
         .replace("&lt;", "<")
         .replace("&gt;", ">")
