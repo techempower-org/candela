@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "provenance": "seed-sample",
+    "verifiedDate": "2026-07-04",
+    "source": "SEED SAMPLE — authored for surface development (issue #1517). NOT the production corpus.",
+    "note": "Placeholder screening questions and program entries used to build and test the offline screener UI. Program NAMES and org->program mappings are drawn from epic #1520 issues (Project GO / LIHEAP, NID water discount, FREED battery backup, 211). The screening QUESTIONS are generic and the qualify/exclude logic here is ILLUSTRATIVE ONLY — these are not verified eligibility rules and no phone numbers are asserted here beyond the public 211 line. The production corpus (33 verified programs, EN/ES, from techempower.org/qualify's adversarial fact-check pipeline) replaces this file wholesale. When it lands, set provenance to \"techempower-verified\" and the seed banner disappears automatically."
+  },
+  "questions": [
+    {
+      "id": "county",
+      "type": "single_select",
+      "prompt": { "en": "Which county do you live in?", "es": "¿En qué condado vive?" },
+      "options": [
+        { "id": "nevada", "label": { "en": "Nevada County, CA", "es": "Condado de Nevada, CA" } },
+        { "id": "other", "label": { "en": "Somewhere else", "es": "En otro lugar" } }
+      ]
+    },
+    {
+      "id": "income_limited",
+      "type": "boolean",
+      "prompt": {
+        "en": "Is your household income limited — for example, do you often worry about paying bills?",
+        "es": "¿Tiene su hogar ingresos limitados? Por ejemplo, ¿le preocupa a menudo pagar las facturas?"
+      }
+    },
+    {
+      "id": "on_benefits",
+      "type": "boolean",
+      "prompt": {
+        "en": "Do you already get CalFresh (SNAP), Medi-Cal, or SSI?",
+        "es": "¿Ya recibe CalFresh (SNAP), Medi-Cal o SSI?"
+      }
+    },
+    {
+      "id": "has_children",
+      "type": "boolean",
+      "prompt": {
+        "en": "Are there children under 18 living in your home?",
+        "es": "¿Hay niños menores de 18 años que viven en su hogar?"
+      }
+    },
+    {
+      "id": "medical_equipment",
+      "type": "boolean",
+      "prompt": {
+        "en": "Does anyone in your home rely on electric medical equipment?",
+        "es": "¿Alguien en su hogar depende de equipo médico eléctrico?"
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "liheap",
+      "org": "Project GO",
+      "category": "utilities",
+      "name": { "en": "Energy bill help (LIHEAP)", "es": "Ayuda con la factura de energía (LIHEAP)" },
+      "summary": {
+        "en": "Help paying your gas or electric bill, offered locally through Project GO.",
+        "es": "Ayuda para pagar su factura de gas o electricidad, ofrecida localmente por Project GO."
+      },
+      "phone": null,
+      "applyUrl": "https://techempower.org/qualify",
+      "verifiedDate": null,
+      "sourceNote": {
+        "en": "Seed placeholder — program run by Project GO (LIHEAP). Rules pending verified corpus.",
+        "es": "Marcador de posición — programa administrado por Project GO (LIHEAP). Reglas pendientes del corpus verificado."
+      },
+      "criteria": [
+        { "questionId": "income_limited", "op": "is_true" }
+      ]
+    },
+    {
+      "id": "nid_water_discount",
+      "org": "NID",
+      "category": "utilities",
+      "name": { "en": "Lower water bill (NID discount)", "es": "Factura de agua más baja (descuento de NID)" },
+      "summary": {
+        "en": "Nevada Irrigation District offers a reduced water rate for income-qualified households (about $9.50 off).",
+        "es": "El Distrito de Riego de Nevada ofrece una tarifa de agua reducida para hogares con ingresos calificados (unos $9.50 de descuento)."
+      },
+      "phone": null,
+      "applyUrl": "https://techempower.org/qualify",
+      "verifiedDate": null,
+      "sourceNote": {
+        "en": "Seed placeholder — NID water-rate assistance. Rules pending verified corpus.",
+        "es": "Marcador de posición — asistencia de tarifa de agua de NID. Reglas pendientes del corpus verificado."
+      },
+      "criteria": [
+        { "questionId": "county", "op": "equals", "value": "nevada" },
+        { "questionId": "income_limited", "op": "is_true" }
+      ]
+    },
+    {
+      "id": "freed_battery_backup",
+      "org": "FREED",
+      "category": "health",
+      "name": { "en": "Medical battery backup (FREED)", "es": "Batería de respaldo médica (FREED)" },
+      "summary": {
+        "en": "FREED helps people who depend on powered medical equipment get a battery backup for outages.",
+        "es": "FREED ayuda a las personas que dependen de equipo médico eléctrico a obtener una batería de respaldo para los apagones."
+      },
+      "phone": null,
+      "applyUrl": "https://techempower.org/qualify",
+      "verifiedDate": null,
+      "sourceNote": {
+        "en": "Seed placeholder — FREED medical battery program. Rules pending verified corpus.",
+        "es": "Marcador de posición — programa de baterías médicas de FREED. Reglas pendientes del corpus verificado."
+      },
+      "criteria": [
+        { "questionId": "medical_equipment", "op": "is_true" }
+      ]
+    },
+    {
+      "id": "help_211",
+      "org": "United Way 211",
+      "category": "referral",
+      "name": { "en": "Free local help line (211)", "es": "Línea de ayuda local gratuita (211)" },
+      "summary": {
+        "en": "Call 211 any time for a person who can point you to housing, food, and utility help near you.",
+        "es": "Llame al 211 en cualquier momento para hablar con una persona que puede guiarle a ayuda de vivienda, comida y servicios públicos cerca de usted."
+      },
+      "phone": "211",
+      "applyUrl": "https://www.211.org/",
+      "verifiedDate": "2026-07-04",
+      "sourceNote": {
+        "en": "211 is the public United Way social-services line.",
+        "es": "211 es la línea pública de servicios sociales de United Way."
+      },
+      "criteria": []
+    }
+  ]
+}
