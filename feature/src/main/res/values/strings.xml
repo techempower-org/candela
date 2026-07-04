@@ -703,6 +703,12 @@
     <string name="settings_reading_theme_subtitle">System matches the device\'s day/night.</string>
     <string name="settings_reading_shake_extend_title">Shake to extend sleep timer</string>
     <string name="settings_reading_shake_extend_subtitle">Shake during the fade-out to add 15 more minutes.</string>
+    <!-- #1577 — read-along behaviour toggles, surfaced from the reader's in-context controls. -->
+    <string name="settings_reading_readalong_group_title">Read-along</string>
+    <string name="settings_reading_autoscroll_title">Auto-scroll</string>
+    <string name="settings_reading_autoscroll_subtitle">Follow the narrated sentence down the page automatically.</string>
+    <string name="settings_reading_focus_title">Focused reading</string>
+    <string name="settings_reading_focus_subtitle">Dim the off-focus lines and centre the active line for distraction-free reading.</string>
 
     <!-- Settings · Reading-theme color overlay (#993) -->
     <string name="settings_reading_overlay_group_title">Reading colors</string>

@@ -79,6 +79,8 @@ val SettingsSearchSections: List<SettingsSearchSection> = listOf(
             "plugins", "sources", "epub", "outline", "wikipedia", "notion",
             "discord", "telegram", "inbox", "royal road", "kvmr", "wifi",
             "poll", "interval", "download",
+            // #1577 — credentialed sources whose config renders in this section.
+            "reddit", "slack", "matrix", "prime gaming", "bookshare", "github",
         ),
     ),
     SettingsSearchSection(

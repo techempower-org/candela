@@ -559,7 +559,7 @@ internal object HubKeywords {
     val aiSessions = listOf("sessions", "chats", "history", "delete history")
     val plugins = listOf(
         "sources", "backends", "voice families", "voice bundles", "enable", "disable",
-        "reddit", "notion", "prime gaming",
+        "reddit", "notion", "prime gaming", "slack", "matrix", "discord", "telegram",
     )
     val pronunciation = listOf("pronunciation", "phonetic", "lexicon", "word override", "ipa")
     val account = listOf("royal road", "github", "sign in", "login", "cloud sync", "oauth")
