@@ -6,6 +6,7 @@ import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import dagger.Module
 import dagger.Provides
+import dagger.multibindings.IntoSet
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
@@ -95,6 +96,26 @@ object AppBindings {
         repo: FictionRepository,
         chapters: ChapterRepository,
     ): FictionRepositoryUi = RealFictionRepositoryUi(repo, chapters)
+
+    // Issue #1531 — generic config-field seam contributors. Each is added to
+    // the `Set<SourceConfigContributor>` that SettingsRepositoryUiImpl
+    // consumes to render one registry-driven config section per source. A new
+    // credentialed source adds ONE binding here + one contributor class, and
+    // touches none of the three Settings monoliths.
+    @Provides @Singleton @IntoSet
+    fun provideRedditConfigContributor(
+        impl: `in`.jphe.storyvox.data.RedditConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
+    @Provides @Singleton @IntoSet
+    fun provideNotionConfigContributor(
+        impl: `in`.jphe.storyvox.data.NotionConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
+    @Provides @Singleton @IntoSet
+    fun providePrimeGamingConfigContributor(
+        impl: `in`.jphe.storyvox.data.PrimeGamingConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
 
     /** Issue #1228 — bridges the `:feature` [DocumentImporterUi] seam to
      *  the app-side single-file import path (the same one MainActivity's

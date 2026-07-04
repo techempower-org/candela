@@ -90,6 +90,9 @@ import `in`.jphe.storyvox.feature.api.PUNCTUATION_PAUSE_OFF_MULTIPLIER
 import `in`.jphe.storyvox.feature.api.AzureProbeResult
 import `in`.jphe.storyvox.feature.api.PalaceProbeResult
 import `in`.jphe.storyvox.feature.api.ThemeOverride
+import `in`.jphe.storyvox.feature.api.SourceConfigFieldType
+import `in`.jphe.storyvox.feature.api.UiSourceConfigField
+import `in`.jphe.storyvox.feature.api.UiSourceConfigSection
 import `in`.jphe.storyvox.feature.api.UiAiSettings
 import `in`.jphe.storyvox.feature.api.UiAzureConfig
 import `in`.jphe.storyvox.feature.api.UiChatGrounding
@@ -613,12 +616,6 @@ fun SettingsScreen(
                 languageCode = s.wikipediaLanguageCode,
                 onLanguageCodeChange = viewModel::setWikipediaLanguageCode,
             )
-            NotionConfigRow(
-                databaseId = s.notionDatabaseId,
-                tokenConfigured = s.notionTokenConfigured,
-                onDatabaseIdChange = viewModel::setNotionDatabaseId,
-                onApiTokenChange = viewModel::setNotionApiToken,
-            )
             val discordGuilds by viewModel.discordGuilds.collectAsStateWithLifecycle()
             DiscordConfigRow(
                 tokenConfigured = s.discordTokenConfigured,
@@ -640,12 +637,17 @@ fun SettingsScreen(
                 onApiTokenChange = viewModel::setTelegramApiToken,
                 onRefreshProbe = viewModel::refreshTelegramProbe,
             )
-            // #1492 — Reddit installed-app client id (BYOK) + comment epilogue.
-            RedditConfigRow(
-                clientIdConfigured = s.redditClientIdConfigured,
-                appendTopComments = s.redditAppendTopComments,
-                onClientIdChange = viewModel::setRedditClientId,
-                onAppendTopCommentsChange = viewModel::setRedditAppendTopComments,
+            // #1531 — generic per-source config-field seam. Renders every
+            // source's declared config fields (Reddit client id + comment
+            // epilogue, Notion database id + token, Prime Gaming feed-URL
+            // override #1535, and any future credentialed source) from the
+            // registry with ZERO bespoke rows here. This is the whole point
+            // of the seam: a new authed source contributes a
+            // SourceConfigContributor and appears below with no edit to this
+            // monolith.
+            SourceConfigSection(
+                sections = s.sourceConfigSections,
+                onValueChange = viewModel::setSourceConfigValue,
             )
             // #1295 — Google News full-article text (opt-in, default OFF).
             SettingsSwitchRow(
@@ -3472,223 +3474,141 @@ private fun WikipediaLanguageRow(
 }
 
 /**
- * Issue #233 — Notion source config row. Two fields:
+ * Issue #1531 — generic, registry-driven per-source config section.
  *
- *  - **Database ID** — the Notion database the source queries. Defaults
- *    to the techempower.org placeholder from `NotionDefaults`; the user
- *    can override to point at their own Notion DB. Both hyphenated UUID
- *    and 32-hex compact forms accepted by the API.
- *  - **Integration token** — Notion "Internal Integration Token" from
- *    notion.so/my-integrations. Stored encrypted; never re-displayed.
- *    A configured token shows as "Token configured" rather than
- *    surfacing the value.
+ * Replaces the bespoke `NotionConfigRow` / `RedditConfigRow`-per-source
+ * composables. Renders every [UiSourceConfigSection] the repository built
+ * from the injected `Set<SourceConfigContributor>`, so a new credentialed
+ * source appears here with ZERO edit to this file — that is the whole point
+ * of the seam (#1531): source waves stop colliding on this monolith.
  *
- * Inline under the Notion toggle in Library & Sync, mirroring the
- * OutlineConfigRow shape. The "Save" button writes both fields at
- * once; the user can change one without retyping the other.
+ * Each field renders by type: a masked write-only credential (SECRET), a
+ * plain editable value (PLAIN), an http(s)-validated URL override (URL, e.g.
+ * the Prime Gaming feed override #1535), or a behaviour toggle (TOGGLE).
  */
 @Composable
-private fun NotionConfigRow(
-    databaseId: String,
-    tokenConfigured: Boolean,
-    onDatabaseIdChange: (String) -> Unit,
-    onApiTokenChange: (String?) -> Unit,
+private fun SourceConfigSection(
+    sections: List<UiSourceConfigSection>,
+    onValueChange: (sourceId: String, key: String, raw: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val context = LocalContext.current
-    var dbDraft by remember(databaseId) { mutableStateOf(databaseId) }
-    var tokenDraft by remember { mutableStateOf("") }
-
-    // Issue #447 — the prefilled Database ID ("2a3d70…") read as
-    // either a leaked infrastructure id or a confusing placeholder.
-    // Detect when the field is still at the TechEmpower default and
-    // surface a clear label so the user knows it's a public DB they
-    // can replace with their own.
-    val techempowerDefaultId = "2a3d706803c649409e74e9ce5ccd4c4b"
-    val isDefaultDatabaseId = databaseId == techempowerDefaultId
-    Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
-        Text(
-            "Notion integration",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.xs),
-        )
-        Text(
-            text = when {
-                tokenConfigured ->
-                    "Token configured. Paste a new token to replace it, " +
-                        "or clear it to switch back to the anonymous TechEmpower demo content."
-                isDefaultDatabaseId ->
-                    "No token configured — Browse → Notion shows TechEmpower's public " +
-                        "Notion content as a demo. Paste a Notion Internal Integration " +
-                        "Token from notion.so/my-integrations to read your own database; " +
-                        "replace the Database ID below with your own."
-                else ->
-                    "Paste a Notion Internal Integration Token. " +
-                        "Create one at notion.so/my-integrations, then share " +
-                        "your database with the integration."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.sm),
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = dbDraft,
-            onValueChange = { dbDraft = it.trim().take(64) },
-            label = {
-                Text(
-                    if (dbDraft == techempowerDefaultId)
-                        "Database ID (TechEmpower demo)"
-                    else
-                        "Database ID",
-                )
-            },
-            placeholder = { Text("32-hex or hyphenated UUID") },
-            singleLine = true,
-            supportingText = {
-                if (dbDraft == techempowerDefaultId) {
-                    Text(
-                        "Default points at TechEmpower's public Resources DB. " +
-                            "Replace with your own DB id to read a personal database.",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = tokenDraft,
-            onValueChange = { tokenDraft = it },
-            label = { Text("Integration token") },
-            placeholder = { Text("ntn_…") },
-            singleLine = true,
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth().padding(top = spacing.xs),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            BrassButton(
-                label = "Save",
-                onClick = {
-                    // Issue #455 — empty required fields produce a toast
-                    // so the user sees that something was missing.
-                    // Database ID has a baked-in default (TechEmpower),
-                    // so an "empty Database ID at save time" already
-                    // applies that default silently — the toast still
-                    // names it so the user knows the demo content will
-                    // be what they see in Browse → Notion.
-                    val skipped = buildList {
-                        if (dbDraft.isBlank()) add("Database ID")
-                        if (tokenDraft.isBlank() && !tokenConfigured) add("Integration token")
-                    }
-                    if (dbDraft != databaseId) onDatabaseIdChange(dbDraft)
-                    if (tokenDraft.isNotBlank()) {
-                        onApiTokenChange(tokenDraft)
-                        tokenDraft = ""
-                    }
-                    if (skipped.isNotEmpty()) {
-                        Toast.makeText(
-                            context,
-                            "Saved. Skipped (defaults applied): ${skipped.joinToString(", ")}",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }
-                },
-                variant = BrassButtonVariant.Primary,
+    sections.forEach { section ->
+        Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
+            Text(
+                section.displayName,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = spacing.xs),
             )
-            if (tokenConfigured) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        onApiTokenChange(null)
-                        tokenDraft = ""
-                    },
-                ) { Text("Clear token") }
+            if (section.help.isNotBlank()) {
+                Text(
+                    section.help,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = spacing.sm),
+                )
+            }
+            section.fields.forEach { field ->
+                when (field.type) {
+                    SourceConfigFieldType.TOGGLE ->
+                        SettingsSwitchRow(
+                            title = field.label,
+                            subtitle = field.help,
+                            checked = field.toggled,
+                            onCheckedChange = { on ->
+                                onValueChange(section.sourceId, field.key, on.toString())
+                            },
+                        )
+                    else ->
+                        SourceConfigTextField(
+                            sourceId = section.sourceId,
+                            field = field,
+                            onValueChange = onValueChange,
+                        )
+                }
             }
         }
     }
 }
 
 /**
- * Issue #1492 — Reddit backend config card. Renders inside the
- * Library & Sync section.
+ * Issue #1531 — one editable text-like config field (PLAIN / SECRET / URL)
+ * for [SourceConfigSection].
  *
- * Reddit is BYOK: the user creates their own free "installed app" at
- * reddit.com/prefs/apps and pastes its **client id** (installed apps have
- * no secret — see docs/reddit-setup.md). Parallel shape to
- * [NotionConfigRow]: header + explanatory text + client-id field +
- * save/clear + a comment-epilogue toggle. The client id is not masked —
- * unlike a token it's a public identifier, and showing it lets the user
- * verify the paste.
+ *  - SECRET: input is masked and write-only — the stored value is never
+ *    prefilled; a "Configured" hint + Clear action appear once set.
+ *  - PLAIN / URL: the current value is prefilled and editable; Clear reverts
+ *    to the source's baked default (a blank write).
+ *  - URL: a non-blank value must be http(s) — Save is blocked with an inline
+ *    error otherwise.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun RedditConfigRow(
-    clientIdConfigured: Boolean,
-    appendTopComments: Boolean,
-    onClientIdChange: (String?) -> Unit,
-    onAppendTopCommentsChange: (Boolean) -> Unit,
+private fun SourceConfigTextField(
+    sourceId: String,
+    field: UiSourceConfigField,
+    onValueChange: (sourceId: String, key: String, raw: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    var clientIdDraft by remember { mutableStateOf("") }
-    Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
-        Text(
-            "Reddit (installed-app OAuth)",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.xs),
-        )
-        Text(
-            text = if (clientIdConfigured) {
-                "Client id configured — Reddit browsing is active. Paste a new " +
-                    "client id to replace it, or clear it to disable Reddit."
-            } else {
-                "Create a free \"installed app\" at reddit.com/prefs/apps (type: " +
-                    "installed app — no secret) and paste its client id. Full post " +
-                    "bodies via Reddit's API, ~100 requests/min. See docs/reddit-setup.md."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.sm),
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = clientIdDraft,
-            onValueChange = { clientIdDraft = it.trim().take(64) },
-            label = { Text(if (clientIdConfigured) "Replace client id" else "Client id") },
-            placeholder = { Text("e.g. AbC1dEf2GhI3jK") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            BrassButton(
-                label = "Save",
-                onClick = {
-                    if (clientIdDraft.isNotBlank()) {
-                        onClientIdChange(clientIdDraft)
-                        clientIdDraft = ""
-                    }
-                },
-                variant = BrassButtonVariant.Primary,
+    val isSecret = field.type == SourceConfigFieldType.SECRET
+    // Secrets are write-only: start blank so the masked field never echoes
+    // the stored credential. Plain/URL fields prefill the current value so
+    // the user edits in place. Re-key on value/configured so an external
+    // change (e.g. Clear) resets the draft.
+    var draft by remember(field.value, field.configured) {
+        mutableStateOf(if (isSecret) "" else field.value)
+    }
+    val urlError = field.type == SourceConfigFieldType.URL && draft.isNotBlank() &&
+        !(draft.startsWith("http://") || draft.startsWith("https://"))
+    androidx.compose.material3.OutlinedTextField(
+        value = draft,
+        onValueChange = { draft = if (isSecret) it.take(256) else it.trim().take(512) },
+        label = {
+            Text(
+                if (isSecret && field.configured) "Replace ${field.label.lowercase()}"
+                else field.label,
             )
-            if (clientIdConfigured) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        onClientIdChange(null)
-                        clientIdDraft = ""
-                    },
-                ) { Text("Clear") }
+        },
+        placeholder = { if (field.placeholder.isNotBlank()) Text(field.placeholder) },
+        singleLine = true,
+        isError = urlError,
+        visualTransformation = if (isSecret)
+            androidx.compose.ui.text.input.PasswordVisualTransformation()
+        else
+            androidx.compose.ui.text.input.VisualTransformation.None,
+        supportingText = {
+            when {
+                urlError -> Text("Enter an http(s) URL")
+                isSecret && field.configured -> Text("Configured")
+                field.help.isNotBlank() -> Text(field.help)
             }
-        }
-        SettingsSwitchRow(
-            title = "Append top comments",
-            subtitle = "Narrate each post's top comments after its body.",
-            checked = appendTopComments,
-            onCheckedChange = onAppendTopCommentsChange,
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        BrassButton(
+            label = "Save",
+            onClick = {
+                // Secret: a blank draft is a no-op (nothing to store).
+                // Plain/URL: Save always persists the current draft.
+                if (!urlError && (!isSecret || draft.isNotBlank())) {
+                    onValueChange(sourceId, field.key, draft)
+                    if (isSecret) draft = ""
+                }
+            },
+            variant = BrassButtonVariant.Primary,
         )
+        if (field.configured) {
+            androidx.compose.material3.TextButton(
+                onClick = {
+                    onValueChange(sourceId, field.key, "")
+                    draft = ""
+                },
+            ) { Text("Clear") }
+        }
     }
 }
 
@@ -3706,7 +3626,7 @@ private fun RedditConfigRow(
  *  - **Coalesce minutes slider** — 1-30 min, default 5. Tunes the
  *    same-author message coalesce window.
  *
- * Parallel shape to [NotionConfigRow]: header + explanatory text +
+ * Parallel shape to the other credential rows: header + explanatory text +
  * masked token field + extra config + save/clear actions. The
  * Discord-specific piece is the guilds dropdown, which only renders
  * once a token is configured (no point listing servers when the bot
