@@ -39,8 +39,9 @@ source-<id>/
   src/test/.../<Name>ContractTest.kt     # subclass of the shared contract kit
 ```
 
-(`--local` sources have no `net/` or `di/` — they get a `<Name>Reader` seam and
-a plain `<Name>SourceTest` instead; see **Local-provider sources** below.)
+(`--local` sources have no `net/` — they get a `<Name>Reader` interface + bound
+impl, a 3-line `@Binds` `di/` module, and a plain `<Name>SourceTest` instead; see
+**Local-provider sources** below.)
 
 Everything compiles immediately; the contract test **fails honestly** because
 the stub doesn't talk to the network yet. That red test is your to-do list.
@@ -208,8 +209,10 @@ Two things sit next to each other here, so keep them straight (#1522):
   this module is **required**. You don't write it by hand, but do **not** delete
   it thinking it's redundant: without it the `:app` Hilt graph can't provide
   `<Name>Api` and the build fails at `:app:hiltJavaCompileRelease` (CI-only —
-  it compiles fine per-module). `--local` sources have no such module: their
-  `<Name>Reader` is a plain `@Inject` class Hilt constructs directly.
+  it compiles fine per-module). `--local` sources have no HTTP-client module,
+  but they DO get a different `di/<Name>Module.kt` — a 3-line `@Binds` that
+  wires the `<Name>Reader` interface to its `@ApplicationContext`-backed impl
+  (#1562); keep that one too.
 
 ## Local-provider sources (non-HTTP)
 
@@ -225,18 +228,35 @@ scripts/new-source.sh --local <id> "<Display Name>"
 That emits a leaner module:
 
 - **no** OkHttp / kotlinx-serialization and **no** `core-source-testkit` dep;
-- a `<Name>Reader` seam — a concrete `@Inject`-constructor class (so Hilt builds
-  it with no hand-written DI module) whose IO-pinned `items()` / `item()` methods
-  you point at your device read (SAF, `ContentResolver`, or a DataStore the
-  `:app` / `:feature` layer persists);
-- a plain `<Name>SourceTest` with a hand-rolled `FakeReader` (the `source-ocr`
-  `OcrSourceTest` pattern) instead of a contract-kit subclass;
+- a `<Name>Reader` seam — an **interface** with a bound impl
+  `<Name>ReaderImpl @Inject constructor(@ApplicationContext context: Context)`
+  whose IO-pinned `items()` / `item()` methods you point at your device read
+  (bundled assets via `context.assets`, SAF, `ContentResolver`, or a DataStore
+  the `:app` / `:feature` layer persists);
+- a 3-line `di/<Name>Module.kt` with a single `@Binds` (interface → impl);
+- a plain `<Name>SourceTest` whose `FakeReader` **implements the interface** (the
+  `source-ocr` pattern) instead of a contract-kit subclass;
 - an `AndroidManifest.xml` placeholder for a permission you may need to declare
   (e.g. `READ_CALENDAR`) — delete it if your source needs none.
 
+> **Why an interface, not a concrete `@Inject` class (#1562).** A real local
+> read needs a `Context` (assets / SAF / `ContentResolver`). A concrete
+> `@Inject constructor(@ApplicationContext Context)` reader **cannot be
+> fake-subclassed in a pure-JVM test** — the fake can't call `super()` without a
+> real `Context` (that would force Robolectric, which `--local` avoids). The
+> interface + bound impl keeps the fake trivial. If your provider genuinely
+> needs no `Context`, drop the impl's constructor arg — the `@Binds` still holds.
+
+**Id scheme still applies.** Even though a local source skips the HTTP contract
+kit (which asserts it), your `FictionSummary` ids **must** be
+`"<pluginId>:<localId>"` — a colon-less id silently routes to Royal Road (see
+[Id scheme](#id-scheme--the-pluginidlocalid-rule-required) above). The `--local`
+test seed already models this (`"$ID:1"`); keep the prefix when you map real
+items (#1564).
+
 The IO pin the HTTP kit enforces automatically is **your** responsibility in a
 local source: keep every blocking device read inside
-`withContext(Dispatchers.IO)` in the reader. `source-ocr` is the reference
+`withContext(Dispatchers.IO)` in the impl. `source-ocr` is the reference
 implementation. If you ran the default scaffold before realizing your source is
 local, re-run with `--local` on a fresh id rather than gutting the HTTP scaffold
 by hand.
