@@ -22,6 +22,7 @@ import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
+import `in`.jphe.storyvox.data.source.model.NotePosition
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -882,12 +883,16 @@ class FictionRepositoryImplTest {
 
     @Test fun `refreshDetail with a prefetched body keeps user read state and bookmark`() = runTest {
         // #1497 — a re-refresh of a subscribed feed may carry an edited item
-        // body. Take the fresh body, but never reset the user's progress.
+        // body. Take the fresh body AND its notes (they're a matched set), but
+        // never reset the user's progress (read flags + bookmark).
         val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
             detailResult = FictionResult.Success(
                 detail("99", chapterCount = 1).copy(
                     prefetchedBodies = mapOf(
-                        "99-c0" to ChapterBody(htmlBody = "<p>new body</p>", plainBody = "new body"),
+                        "99-c0" to ChapterBody(
+                            htmlBody = "<p>new body</p>", plainBody = "new body",
+                            notesAuthor = "fresh note", notesAuthorPosition = NotePosition.BEFORE,
+                        ),
                     ),
                 ),
             )
@@ -899,6 +904,7 @@ class FictionRepositoryImplTest {
             bodyChecksum = "old", bodyFetchedAt = 1L,
             downloadState = ChapterDownloadState.DOWNLOADED,
             userMarkedRead = true, firstReadAt = 5678L, bookmarkCharOffset = 42,
+            notesAuthor = "STALE note", notesAuthorPosition = NotePosition.AFTER,
         )
 
         r.refreshDetail("99")
@@ -909,6 +915,40 @@ class FictionRepositoryImplTest {
         assertEquals("read flag preserved", true, merged.userMarkedRead)
         assertEquals("first-read timestamp preserved", 5678L, merged.firstReadAt)
         assertEquals("bookmark preserved", 42, merged.bookmarkCharOffset)
+        // #1554 review — notes travel WITH the fresh body: the fresh body's
+        // notes win over the stale previous notes (the inverse of the else
+        // branch, which preserves the old body AND its old notes).
+        assertEquals("fresh body's notes win", "fresh note", merged.notesAuthor)
+        assertEquals(NotePosition.BEFORE, merged.notesAuthorPosition)
+    }
+
+    @Test fun `refreshDetail preserves bookmark and notes on a normal (non-prefetched) refresh`() = runTest {
+        // #1547 review — a plain metadata refresh (no prefetched body; the
+        // common non-RSS path) must not clobber user-authored / body-associated
+        // fields. Pre-#1547 the merge dropped bookmarkCharOffset + notesAuthor,
+        // silently resetting a reader's bookmark on every refresh.
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(detail("99", chapterCount = 1))
+        }
+        val (r, _, chapterDao) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        chapterDao.rows["99-c0"] = Chapter(
+            id = "99-c0", fictionId = "99", sourceChapterId = "src-0",
+            index = 0, title = "old", htmlBody = "<p>body</p>", plainBody = "body",
+            bodyChecksum = "abc", bodyFetchedAt = 1L,
+            downloadState = ChapterDownloadState.DOWNLOADED,
+            bookmarkCharOffset = 17,
+            notesAuthor = "Author's note text", notesAuthorPosition = NotePosition.AFTER,
+        )
+
+        r.refreshDetail("99")
+
+        val merged = chapterDao.rows["99-c0"]!!
+        assertEquals("bookmark survives a plain refresh", 17, merged.bookmarkCharOffset)
+        assertEquals("author note survives", "Author's note text", merged.notesAuthor)
+        assertEquals(NotePosition.AFTER, merged.notesAuthorPosition)
+        // Body still preserved (unchanged behaviour).
+        assertEquals("body", merged.plainBody)
+        assertEquals(ChapterDownloadState.DOWNLOADED, merged.downloadState)
     }
 
     @Test fun `refreshDetail prunes chapters dropped from the feed (issues #349, #652, #879)`() = runTest {

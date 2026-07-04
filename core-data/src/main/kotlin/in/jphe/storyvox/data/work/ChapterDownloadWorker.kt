@@ -201,7 +201,10 @@ class ChapterDownloadWorker @AssistedInject constructor(
         Data.Builder().putString(KEY_RESULT, tag).build()
 
     private fun sha256(s: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(s.toByteArray())
+        // Encode UTF-8 explicitly (not the platform default) so the checksum
+        // is stable across JVMs and identical to the prefetch-path checksum in
+        // FictionRepositoryImpl — #1547 review.
+        val digest = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
 

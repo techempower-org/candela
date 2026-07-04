@@ -649,14 +649,33 @@ class FictionRepositoryImpl @Inject constructor(
                 audioUrl = prefetched.audioUrl ?: base.audioUrl,
             )
         }
+        // #1547 review — load every existing chapter row for this fiction in
+        // ONE query and index by id, instead of a per-chapter `get()` inside
+        // the merge loop (an N+1 that stung fictions with hundreds/thousands
+        // of chapters). `allChapters` is the same full-row read `get()` did,
+        // batched into a single round-trip.
+        val existingById = chapterDao.allChapters(detail.summary.id).associateBy { it.id }
         val merged = incoming.map { fresh ->
-            val previous = chapterDao.get(fresh.id)
+            val previous = existingById[fresh.id]
             when {
                 previous == null -> fresh
-                // #1497 — the source handed us a fresh body inline this refresh.
-                // Take it (the feed item may have been edited upstream), but
-                // keep the user's read state and in-chapter bookmark so a
-                // re-refresh of a subscribed feed doesn't reset progress.
+                // #1497 — the source handed us a fresh body inline this refresh
+                // (this branch fires exactly when the `incoming` block above
+                // applied a prefetched body). Take that fresh body AND its
+                // notes: `fresh.notesAuthor`/`notesAuthorPosition` were parsed
+                // from THIS body (set from the source's ChapterBody just above),
+                // so they are a matched set. We deliberately do NOT copy
+                // `previous.notesAuthor` here — unlike the else branch (which
+                // *preserves* the old body and so must keep the old body's
+                // notes), copying stale notes onto a fresh body would be a
+                // body/notes mismatch, the inverse of the bug the else-branch
+                // fix addresses. Notes travel with the body; only user-state
+                // (read flags, bookmark) is carried across.
+                //
+                // NB: `bookmarkCharOffset` is an offset into the PREVIOUS
+                // plainBody. Keeping the reader's place (best-effort) beats
+                // dropping it; if an upstream edit changed the body the offset
+                // may drift a little, which the reader tolerates.
                 fresh.downloadState == ChapterDownloadState.DOWNLOADED &&
                     fresh.htmlBody != null -> fresh.copy(
                     userMarkedRead = previous.userMarkedRead,
@@ -674,6 +693,15 @@ class FictionRepositoryImpl @Inject constructor(
                     userMarkedRead = previous.userMarkedRead,
                     firstReadAt = previous.firstReadAt,
                     audioUrl = fresh.audioUrl ?: previous.audioUrl,
+                    // #1547 review — body-associated + user-authored fields a
+                    // metadata refresh must never clobber: the in-chapter
+                    // bookmark (an offset into the preserved plainBody) and the
+                    // author's-note block (parsed from the preserved body). The
+                    // pre-#1497 merge didn't carry these, so a plain refresh
+                    // silently reset a reader's bookmark and dropped notes.
+                    bookmarkCharOffset = previous.bookmarkCharOffset,
+                    notesAuthor = previous.notesAuthor,
+                    notesAuthorPosition = previous.notesAuthorPosition,
                 )
             }
         }
@@ -832,11 +860,12 @@ internal fun inferUrlHost(maybeUrl: String?): String? {
  * [`in`.jphe.storyvox.data.work.ChapterDownloadWorker]'s scheme
  * (hex SHA-256 of the HTML body) so a chapter that later flows through
  * the on-demand download path lands on an identical `bodyChecksum` for
- * identical content.
+ * identical content. Encodes as UTF-8 explicitly (rather than the platform
+ * default) so the checksum is stable across JVMs — #1547 review.
  */
 private fun sha256(s: String): String =
     java.security.MessageDigest.getInstance("SHA-256")
-        .digest(s.toByteArray())
+        .digest(s.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 
 internal fun ChapterInfo.toEntity(fictionId: String): Chapter = Chapter(

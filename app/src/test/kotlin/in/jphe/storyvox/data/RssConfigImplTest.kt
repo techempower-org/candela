@@ -120,6 +120,19 @@ class RssConfigImplTest {
         assertNull(config.snapshot().single().resolvedUrl)
     }
 
+    @Test fun `setResolvedUrl back to the identity URL clears a stale resolvedUrl`() = runTest {
+        // #1549 review — resetting a subscription to its identity URL must
+        // clear a previously-set resolvedUrl, not leave the stale one in place.
+        config.addFeed("https://tricycle.org")
+        val fid = fictionIdForFeedUrl("https://tricycle.org")
+        config.setResolvedUrl(fid, "https://tricycle.org/feed/atom/")
+        assertEquals("https://tricycle.org/feed/atom/", config.snapshot().single().resolvedUrl)
+
+        config.setResolvedUrl(fid, "https://tricycle.org") // == identity URL
+
+        assertNull("stale resolvedUrl cleared", config.snapshot().single().resolvedUrl)
+    }
+
     @Test fun `removeFeed drops the resolved record too`() = runTest {
         config.addFeed("https://tricycle.org")
         val fid = fictionIdForFeedUrl("https://tricycle.org")

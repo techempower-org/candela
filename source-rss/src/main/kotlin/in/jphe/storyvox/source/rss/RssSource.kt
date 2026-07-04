@@ -445,7 +445,11 @@ internal class RssSource @Inject constructor(
                     if (discovered != null && discovered != fetchUrl) {
                         // #1498 — persist across launches, keyed by the stable
                         // fictionId (not the URL) so identity is preserved.
-                        config.setResolvedUrl(fictionId, discovered)
+                        // Best-effort: persistence is an optimization, so a
+                        // DataStore write failure (disk full, IO error) must not
+                        // fail the fetch — we just re-discover next cold start
+                        // (#1549 review).
+                        runCatching { config.setResolvedUrl(fictionId, discovered) }
                         fetchResolveParse(discovered, cacheKey, fictionId, allowDiscovery = false)
                     } else {
                         FictionResult.NetworkError("Couldn't parse feed at $fetchUrl", e)
@@ -485,11 +489,18 @@ private fun RssItem.toChapterInfo(index: Int, fictionId: String): ChapterInfo {
     )
 }
 
+/** #1547 review — hoisted out of [stripHtml] so the patterns compile once
+ *  at class-load instead of on every call. [stripHtml] runs per feed item
+ *  during a detail refresh (#1497), so per-call `Regex(...)` construction
+ *  was needless allocation on the hot path. */
+private val HTML_TAG_REGEX = Regex("<[^>]+>")
+private val WHITESPACE_REGEX = Regex("\\s+")
+
 /** Naive HTML strip for the TTS plaintext. EngineStreamingSource
  *  applies further normalization downstream — this just removes
  *  tags and collapses whitespace so the engine doesn't speak
  *  `<p>...</p>`. */
 private fun String.stripHtml(): String =
-    replace(Regex("<[^>]+>"), " ")
-        .replace(Regex("\\s+"), " ")
+    replace(HTML_TAG_REGEX, " ")
+        .replace(WHITESPACE_REGEX, " ")
         .trim()

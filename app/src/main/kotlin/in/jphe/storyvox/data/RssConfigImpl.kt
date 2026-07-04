@@ -97,12 +97,18 @@ class RssConfigImpl(
         if (trimmed.isEmpty()) return
         store.edit { prefs ->
             val existing = decode(prefs[RssKeys.FEEDS])
-            // No-op if the subscription is gone or the resolved URL is
-            // unchanged / identical to the identity URL (nothing to persist).
             val target = existing.firstOrNull { it.fictionId == fictionId } ?: return@edit
-            if (target.resolvedUrl == trimmed || target.url == trimmed) return@edit
+            // #1549 review — a resolved URL identical to the identity URL is
+            // redundant (encode drops it), so normalize that case to "no
+            // resolution" rather than persisting `url == resolvedUrl`. Compute
+            // the desired value first, then no-op only when it genuinely
+            // matches what's already stored — the old `|| target.url ==
+            // trimmed` guard wrongly left a *stale* resolvedUrl in place when
+            // asked to reset a subscription back to its identity URL.
+            val desired = trimmed.takeIf { it != target.url }
+            if (target.resolvedUrl == desired) return@edit
             val updated = existing.map {
-                if (it.fictionId == fictionId) it.copy(resolvedUrl = trimmed) else it
+                if (it.fictionId == fictionId) it.copy(resolvedUrl = desired) else it
             }
             prefs[RssKeys.FEEDS] = encode(updated)
         }
