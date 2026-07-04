@@ -1,0 +1,130 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "provenance": "seed-sample",
+    "verifiedDate": "2026-07-04",
+    "source": "SEED SAMPLE — authored for surface development (issue #1518). NOT the production corpus.",
+    "note": "Placeholder call cards used to build and test the make-the-call surface. Program NAMES and org mappings come from epic #1520; the scripts, checklists, and best-time-to-call notes are GENERIC call-coaching placeholders, NOT verified content. NO phone number is asserted here beyond the public 211 line — the direct program lines come from the TechEmpower-supplied corpus + SEASON-OPS phone book, each carrying verifiedAt. Cards without a verified number route the user through 211. The production corpus replaces this file wholesale; set provenance to \"techempower-verified\" and the seed banner disappears."
+  },
+  "cards": [
+    {
+      "id": "liheap",
+      "org": "Project GO",
+      "title": { "en": "Energy bill help (LIHEAP)", "es": "Ayuda con la factura de energía (LIHEAP)" },
+      "bestTimeToCall": {
+        "en": "Lines are busiest midday — try calling first thing in the morning.",
+        "es": "Las líneas están más ocupadas al mediodía; intente llamar a primera hora de la mañana."
+      },
+      "phone": null,
+      "whatToSay": [
+        { "en": "Hi, my name is ___. I am calling to ask about energy bill help.", "es": "Hola, me llamo ___. Llamo para preguntar sobre ayuda con la factura de energía." },
+        { "en": "I think I might qualify. Can you tell me what I need to apply?", "es": "Creo que podría calificar. ¿Me puede decir qué necesito para solicitar?" },
+        { "en": "What is the best next step, and is there a deadline?", "es": "¿Cuál es el mejor siguiente paso y hay una fecha límite?" }
+      ],
+      "whatToAsk": [
+        { "en": "Are funds still available?", "es": "¿Todavía hay fondos disponibles?" },
+        { "en": "What documents do I need to bring?", "es": "¿Qué documentos necesito llevar?" },
+        { "en": "Is there an appointment or a deadline?", "es": "¿Hay una cita o una fecha límite?" },
+        { "en": "Who should I ask for if I call back?", "es": "¿Por quién debo preguntar si vuelvo a llamar?" }
+      ],
+      "captureFields": [
+        { "id": "funds_available", "label": { "en": "Funds available?", "es": "¿Fondos disponibles?" } },
+        { "id": "appointment", "label": { "en": "Appointment date / time", "es": "Fecha / hora de la cita" } },
+        { "id": "reference", "label": { "en": "Reference or case number", "es": "Número de referencia o de caso" } },
+        { "id": "notes", "label": { "en": "Other notes", "es": "Otras notas" } }
+      ],
+      "verifiedDate": null,
+      "source": {
+        "en": "Seed placeholder — direct line pending verified corpus; routes via 211 for now.",
+        "es": "Marcador de posición — línea directa pendiente del corpus verificado; se conecta por el 211 por ahora."
+      }
+    },
+    {
+      "id": "nid_water_discount",
+      "org": "NID",
+      "title": { "en": "Lower water bill (NID discount)", "es": "Factura de agua más baja (descuento de NID)" },
+      "bestTimeToCall": {
+        "en": "Call during weekday business hours.",
+        "es": "Llame durante el horario laboral entre semana."
+      },
+      "phone": null,
+      "whatToSay": [
+        { "en": "Hi, my name is ___. I am asking about the reduced water rate.", "es": "Hola, me llamo ___. Pregunto sobre la tarifa de agua reducida." },
+        { "en": "I have a limited income. How do I apply for the discount?", "es": "Tengo ingresos limitados. ¿Cómo solicito el descuento?" },
+        { "en": "What do you need from me to get started?", "es": "¿Qué necesita de mí para comenzar?" }
+      ],
+      "whatToAsk": [
+        { "en": "What proof of income do you need?", "es": "¿Qué comprobante de ingresos necesita?" },
+        { "en": "How long does approval take?", "es": "¿Cuánto tarda la aprobación?" },
+        { "en": "Will the discount show on my next bill?", "es": "¿Aparecerá el descuento en mi próxima factura?" }
+      ],
+      "captureFields": [
+        { "id": "documents", "label": { "en": "Documents needed", "es": "Documentos necesarios" } },
+        { "id": "timeline", "label": { "en": "How long approval takes", "es": "Cuánto tarda la aprobación" } },
+        { "id": "notes", "label": { "en": "Other notes", "es": "Otras notas" } }
+      ],
+      "verifiedDate": null,
+      "source": {
+        "en": "Seed placeholder — direct line pending verified corpus; routes via 211 for now.",
+        "es": "Marcador de posición — línea directa pendiente del corpus verificado; se conecta por el 211 por ahora."
+      }
+    },
+    {
+      "id": "freed_battery_backup",
+      "org": "FREED",
+      "title": { "en": "Medical battery backup (FREED)", "es": "Batería de respaldo médica (FREED)" },
+      "bestTimeToCall": {
+        "en": "Call during weekday business hours; have your equipment details ready.",
+        "es": "Llame durante el horario laboral entre semana; tenga listos los detalles de su equipo."
+      },
+      "phone": null,
+      "whatToSay": [
+        { "en": "Hi, my name is ___. Someone in my home uses electric medical equipment.", "es": "Hola, me llamo ___. Alguien en mi hogar usa equipo médico eléctrico." },
+        { "en": "I am asking about a battery backup for power outages.", "es": "Pregunto sobre una batería de respaldo para los apagones." },
+        { "en": "How do I find out if we qualify?", "es": "¿Cómo averiguo si calificamos?" }
+      ],
+      "whatToAsk": [
+        { "en": "What equipment qualifies?", "es": "¿Qué equipo califica?" },
+        { "en": "Is there a waitlist?", "es": "¿Hay una lista de espera?" },
+        { "en": "What is the next step?", "es": "¿Cuál es el siguiente paso?" }
+      ],
+      "captureFields": [
+        { "id": "qualifies", "label": { "en": "Do we qualify?", "es": "¿Calificamos?" } },
+        { "id": "waitlist", "label": { "en": "Waitlist?", "es": "¿Lista de espera?" } },
+        { "id": "notes", "label": { "en": "Other notes", "es": "Otras notas" } }
+      ],
+      "verifiedDate": null,
+      "source": {
+        "en": "Seed placeholder — direct line pending verified corpus; routes via 211 for now.",
+        "es": "Marcador de posición — línea directa pendiente del corpus verificado; se conecta por el 211 por ahora."
+      }
+    },
+    {
+      "id": "help_211",
+      "org": "United Way 211",
+      "title": { "en": "Free local help line (211)", "es": "Línea de ayuda local gratuita (211)" },
+      "bestTimeToCall": {
+        "en": "Available any time, day or night.",
+        "es": "Disponible en cualquier momento, de día o de noche."
+      },
+      "phone": "211",
+      "whatToSay": [
+        { "en": "Hi, I am looking for help with ___ (housing, food, utilities).", "es": "Hola, busco ayuda con ___ (vivienda, comida, servicios públicos)." },
+        { "en": "I live in ___ . What is available near me?", "es": "Vivo en ___ . ¿Qué hay disponible cerca de mí?" }
+      ],
+      "whatToAsk": [
+        { "en": "What programs am I eligible for?", "es": "¿Para qué programas soy elegible?" },
+        { "en": "Can you connect me directly?", "es": "¿Me puede conectar directamente?" }
+      ],
+      "captureFields": [
+        { "id": "programs", "label": { "en": "Programs they mentioned", "es": "Programas que mencionaron" } },
+        { "id": "notes", "label": { "en": "Other notes", "es": "Otras notas" } }
+      ],
+      "verifiedDate": "2026-07-04",
+      "source": {
+        "en": "211 is the public United Way social-services line.",
+        "es": "211 es la línea pública de servicios sociales de United Way."
+      }
+    }
+  ]
+}
