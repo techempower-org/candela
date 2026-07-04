@@ -194,10 +194,10 @@ internal open class RedditApi @Inject constructor(
 
     // ─── transport ────────────────────────────────────────────────────────
 
-    private suspend inline fun <T> authedGet(
+    private suspend fun <T> authedGet(
         path: String,
         query: Map<String, String>,
-        crossinline parse: (String) -> T,
+        parse: (String) -> T,
     ): FictionResult<T> {
         val state = config.current()
         val token = when (val b = bearer(state)) {

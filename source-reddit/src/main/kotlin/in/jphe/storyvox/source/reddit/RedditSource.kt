@@ -211,7 +211,9 @@ internal class RedditSource @Inject constructor(
         val desc = (publicDescription ?: title)?.takeIf { it.isNotBlank() }
         return FictionSummary(
             id = redditFictionId(name),
-            sourceId = id,
+            // Qualify: bare `id` in a member-extension binds to the
+            // extension receiver (RedditThingData.id), not the source id.
+            sourceId = this@RedditSource.id,
             title = displayNamePrefixed?.takeIf { it.isNotBlank() } ?: "r/$name",
             author = AUTHOR_LABEL,
             description = desc,
