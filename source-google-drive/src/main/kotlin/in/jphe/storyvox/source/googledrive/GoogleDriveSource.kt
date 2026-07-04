@@ -36,7 +36,8 @@ import javax.inject.Singleton
  * Each file is one fiction with one chapter. **Google Docs are read
  * natively** via the Drive *export* API (`text/plain`) — the one thing SAF's
  * system picker can't do (a native Doc has no downloadable bytes). Plain
- * `text/*` files are downloaded directly (`alt=media`). Rich binaries
+ * plain-text files (`text/plain`, `text/markdown`) are downloaded directly
+ * (`alt=media`). Rich binaries
  * (EPUB/PDF/ODT) are intentionally *not* surfaced here — SAF's document
  * picker already opens those Drive files into Candela's import pipeline
  * today (see docs/faq — "Does Candela read from Google Drive?").
