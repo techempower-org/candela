@@ -572,6 +572,11 @@ internal open class __PASCAL__Api @Inject constructor(
      * [FictionResult] failure for every non-2xx status — never throws for an
      * HTTP error. A feed source usually adds conditional-GET headers
      * (If-None-Match / If-Modified-Since) here — see source-primegaming.
+     *
+     * Parser failures stay inside the contract: a throwing XmlPullParser maps to
+     * [FictionResult.NetworkError] via the dedicated catch below. Your `parse`
+     * MUST NOT let a parse exception escape as a raw throw — if you parse with a
+     * type other than XmlPullParser, add a matching narrow catch arm.
      */
     suspend fun <T> request(path: String, parse: (String) -> T): FictionResult<T> =
         withContext(Dispatchers.IO) {
@@ -616,16 +621,26 @@ internal open class __PASCAL__Api @Inject constructor(
                                     IOException("empty body"),
                                 )
                             // XML/regex parsing does not throw SerializationException,
-                            // so there is no JSON parse-error catch here (#1533). If
-                            // your parser can throw (XmlPullParserException is an
-                            // IOException, caught below), keep failures inside the
-                            // typed contract — never let one escape as a raw throw.
+                            // so there is no JSON parse-error catch here (#1533). A
+                            // throwing XmlPullParser surfaces as XmlPullParserException,
+                            // which has its OWN catch arm below (it extends Exception,
+                            // NOT IOException) — keep parse()'s failures inside the
+                            // typed contract, never let one escape as a raw throw.
                             FictionResult.Success(parse(text))
                         }
                     }
                 }
             } catch (e: IOException) {
                 FictionResult.NetworkError(e.message ?: "fetch failed", e)
+            } catch (e: org.xmlpull.v1.XmlPullParserException) {
+                // XmlPullParserException extends java.lang.Exception, NOT
+                // IOException (verified against android.jar), so a malformed feed
+                // thrown by an XmlPullParser is NOT caught by the IOException arm
+                // above and needs this one. Do NOT fold it into that arm or drop
+                // it: without it a bad feed escapes the typed contract as a raw
+                // crash (#1533 review). Any parser you swap in must likewise keep
+                // its failures inside FictionResult — add a narrow arm per type.
+                FictionResult.NetworkError("__DISPLAY__ returned a malformed XML feed", e)
             }
         }
 
