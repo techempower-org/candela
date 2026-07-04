@@ -703,6 +703,12 @@
     <string name="settings_reading_theme_subtitle">System matches the device\'s day/night.</string>
     <string name="settings_reading_shake_extend_title">Shake to extend sleep timer</string>
     <string name="settings_reading_shake_extend_subtitle">Shake during the fade-out to add 15 more minutes.</string>
+    <!-- #1577 — read-along behaviour toggles, surfaced from the reader's in-context controls. -->
+    <string name="settings_reading_readalong_group_title">Read-along</string>
+    <string name="settings_reading_autoscroll_title">Auto-scroll</string>
+    <string name="settings_reading_autoscroll_subtitle">Follow the narrated sentence down the page automatically.</string>
+    <string name="settings_reading_focus_title">Focused reading</string>
+    <string name="settings_reading_focus_subtitle">Dim the off-focus lines and centre the active line for distraction-free reading.</string>
 
     <!-- Settings · Reading-theme color overlay (#993) -->
     <string name="settings_reading_overlay_group_title">Reading colors</string>
@@ -855,10 +861,15 @@
     <string name="settings_voice_shake_extend_title">Sleep timer: shake-to-extend</string>
     <string name="settings_voice_shake_extend_subtitle">Minutes the timer extends when you shake during the 10-second fade tail.</string>
     <string name="settings_voice_shake_extend_option">%1$d min</string>
-    <string name="settings_voice_bedtime_auto_title">Sleep timer with Bedtime mode</string>
-    <string name="settings_voice_bedtime_auto_subtitle">Auto-start the sleep timer when your phone enters Sleep or Bedtime mode.</string>
-    <string name="settings_voice_dnd_sleep_title">Do Not Disturb with sleep timer</string>
-    <string name="settings_voice_dnd_sleep_subtitle">Silence notifications while a sleep timer is running, then restore your previous setting when it ends. Needs Do Not Disturb access.</string>
+    <!-- #1577 — these two are INVERSE features with confusingly-similar names
+         (half of why JP couldn't find #1574). Relabelled so the direction of
+         causation is obvious, and BOTH now name "Do Not Disturb" so either is
+         recognizable to a user thinking "dnd". #1574: phone Bedtime/DND → timer
+         auto-STARTS. #1190: timer running → DND auto-turns-ON. -->
+    <string name="settings_voice_bedtime_auto_title">Start timer in Bedtime or Do Not Disturb</string>
+    <string name="settings_voice_bedtime_auto_subtitle">When your phone enters Bedtime, Sleep, or Do Not Disturb mode, a sleep timer starts automatically.</string>
+    <string name="settings_voice_dnd_sleep_title">Turn on Do Not Disturb during a timer</string>
+    <string name="settings_voice_dnd_sleep_subtitle">The reverse: while a sleep timer is running, silence notifications with Do Not Disturb, then restore your previous setting when it ends. Needs Do Not Disturb access.</string>
     <!-- #1577 — Voice &amp; Playback section headers + the shake-to-extend enable row moved here from Reading so the whole sleep-timer feature lives on one screen. -->
     <string name="settings_voice_transport_group_title">Playback controls</string>
     <string name="settings_voice_sleep_group_title">Sleep timer</string>
