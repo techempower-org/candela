@@ -6,6 +6,7 @@ import `in`.jphe.storyvox.data.source.filter.FilterDimension
 import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
+import `in`.jphe.storyvox.data.source.model.ChapterBody
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import `in`.jphe.storyvox.data.source.model.FictionDetail
@@ -282,6 +283,23 @@ internal class RssSource @Inject constructor(
 
         val chapters = feed.items.mapIndexed { idx, item -> item.toChapterInfo(idx, fictionId) }
 
+        // #1497 — the feed we just parsed already carries every item's body
+        // inline (RssItem.htmlBody). Hand them to the repository keyed by
+        // chapter id so it persists them into the offline chapter store at
+        // refresh time: a chapter tap then reads from Room and never
+        // re-downloads the feed. This matters most for hard-throttled feeds
+        // (reddit answers the app's UA with HTTP 429 on the first .rss), where
+        // a cold-session tap otherwise couldn't load the chapter at all.
+        // Items with a blank body fall through to the normal on-tap fetch path.
+        val prefetchedBodies = feed.items.mapNotNull { item ->
+            val html = item.htmlBody
+            if (html.isBlank()) null
+            else item.toChapterId(fictionId) to ChapterBody(
+                htmlBody = html,
+                plainBody = html.stripHtml(),
+            )
+        }.toMap()
+
         // Authors-of-feed = first item's author or feed-level author.
         // Falls back to URL host so the field isn't blank.
         val author = feed.author
@@ -299,7 +317,12 @@ internal class RssSource @Inject constructor(
         )
         val lastUpdatedAt = feed.items.mapNotNull { it.publishedAtEpochMs }.maxOrNull()
         return FictionResult.Success(
-            FictionDetail(summary = summary, chapters = chapters, lastUpdatedAt = lastUpdatedAt),
+            FictionDetail(
+                summary = summary,
+                chapters = chapters,
+                lastUpdatedAt = lastUpdatedAt,
+                prefetchedBodies = prefetchedBodies,
+            ),
         )
     }
 

@@ -630,21 +630,52 @@ class FictionRepositoryImpl @Inject constructor(
 
         // Upsert chapter rows; preserve body + download state for chapters we
         // already have, drop in fresh metadata for new ones.
-        val incoming = detail.chapters.map { it.toEntity(detail.summary.id) }
+        val incoming = detail.chapters.map { info ->
+            val base = info.toEntity(detail.summary.id)
+            // #1497 — the source parsed this chapter's body while building the
+            // TOC (RSS/Atom feeds carry item content inline). Persist it now
+            // and mark the row DOWNLOADED so a tap reads from Room and never
+            // re-fetches. Reuses the existing offline chapter store — no
+            // parallel entity (#1314).
+            val prefetched = detail.prefetchedBodies[info.id]
+            if (prefetched == null) base else base.copy(
+                htmlBody = prefetched.htmlBody,
+                plainBody = prefetched.plainBody,
+                bodyFetchedAt = now,
+                bodyChecksum = sha256(prefetched.htmlBody),
+                downloadState = ChapterDownloadState.DOWNLOADED,
+                notesAuthor = prefetched.notesAuthor,
+                notesAuthorPosition = prefetched.notesAuthorPosition,
+                audioUrl = prefetched.audioUrl ?: base.audioUrl,
+            )
+        }
         val merged = incoming.map { fresh ->
             val previous = chapterDao.get(fresh.id)
-            if (previous == null) fresh else fresh.copy(
-                htmlBody = previous.htmlBody,
-                plainBody = previous.plainBody,
-                bodyFetchedAt = previous.bodyFetchedAt,
-                bodyChecksum = previous.bodyChecksum,
-                downloadState = previous.downloadState,
-                lastDownloadAttemptAt = previous.lastDownloadAttemptAt,
-                lastDownloadError = previous.lastDownloadError,
-                userMarkedRead = previous.userMarkedRead,
-                firstReadAt = previous.firstReadAt,
-                audioUrl = fresh.audioUrl ?: previous.audioUrl,
-            )
+            when {
+                previous == null -> fresh
+                // #1497 — the source handed us a fresh body inline this refresh.
+                // Take it (the feed item may have been edited upstream), but
+                // keep the user's read state and in-chapter bookmark so a
+                // re-refresh of a subscribed feed doesn't reset progress.
+                fresh.downloadState == ChapterDownloadState.DOWNLOADED &&
+                    fresh.htmlBody != null -> fresh.copy(
+                    userMarkedRead = previous.userMarkedRead,
+                    firstReadAt = previous.firstReadAt,
+                    bookmarkCharOffset = previous.bookmarkCharOffset,
+                )
+                else -> fresh.copy(
+                    htmlBody = previous.htmlBody,
+                    plainBody = previous.plainBody,
+                    bodyFetchedAt = previous.bodyFetchedAt,
+                    bodyChecksum = previous.bodyChecksum,
+                    downloadState = previous.downloadState,
+                    lastDownloadAttemptAt = previous.lastDownloadAttemptAt,
+                    lastDownloadError = previous.lastDownloadError,
+                    userMarkedRead = previous.userMarkedRead,
+                    firstReadAt = previous.firstReadAt,
+                    audioUrl = fresh.audioUrl ?: previous.audioUrl,
+                )
+            }
         }
         chapterDao.upsertChaptersForFiction(detail.summary.id, merged)
     }
@@ -795,6 +826,18 @@ internal fun inferUrlHost(maybeUrl: String?): String? {
         java.net.URI(maybeUrl).host?.removePrefix("www.")
     }.getOrNull()
 }
+
+/**
+ * Issue #1497 — checksum for a prefetched body. Matches
+ * [`in`.jphe.storyvox.data.work.ChapterDownloadWorker]'s scheme
+ * (hex SHA-256 of the HTML body) so a chapter that later flows through
+ * the on-demand download path lands on an identical `bodyChecksum` for
+ * identical content.
+ */
+private fun sha256(s: String): String =
+    java.security.MessageDigest.getInstance("SHA-256")
+        .digest(s.toByteArray())
+        .joinToString("") { "%02x".format(it) }
 
 internal fun ChapterInfo.toEntity(fictionId: String): Chapter = Chapter(
     id = id,
