@@ -272,6 +272,13 @@ object AppBindings {
     @Provides @Singleton
     fun provideOcrTextRecognizer(impl: `in`.jphe.storyvox.data.ocr.MlKitOcrTextRecognizer): `in`.jphe.storyvox.data.ocr.OcrTextRecognizer = impl
 
+    /** Issue #1513 — bridges the :core-data [DocPdfExporter] seam to the
+     *  Android PdfDocument-backed impl. On-device PDF composition for the
+     *  multi-page document scanner (#1513); reused by the fillable-form
+     *  export (#1512) and the wallet's proof re-export (#1514). */
+    @Provides @Singleton
+    fun provideDocPdfExporter(impl: `in`.jphe.storyvox.data.docs.PdfDocumentExporter): `in`.jphe.storyvox.data.docs.DocPdfExporter = impl
+
     /** Bridges the source-pdf [PdfConfig] read interface (#996) to the
      *  concrete app-side SAF-backed impl. Exposed concretely is not
      *  needed here (the Settings/Browse mutators go through
