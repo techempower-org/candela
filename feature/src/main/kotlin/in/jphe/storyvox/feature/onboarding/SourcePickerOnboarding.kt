@@ -47,6 +47,7 @@ import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePluginRegistry
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
+import `in`.jphe.storyvox.feature.browse.glyphByName
 import `in`.jphe.storyvox.feature.browse.sourceGlyph
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
@@ -226,7 +227,11 @@ private fun SourceCard(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = sourceGlyph(row.id),
+                // #1527 — honor the source's declared @SourcePlugin(iconName)
+                // here too, so a glyph declared without a feature edit lights up
+                // in onboarding as well as the Browse carousel.
+                imageVector = row.iconName.takeIf { it.isNotBlank() }?.let(::glyphByName)
+                    ?: sourceGlyph(row.id),
                 // Decorative — the row's merged semantics already speak
                 // the source name, so a glyph description would just
                 // double up for TalkBack.
@@ -273,6 +278,9 @@ data class SourcePickRow(
     val description: String,
     val category: SourceCategory,
     val enabled: Boolean,
+    /** `@SourcePlugin(iconName)` — the declared Browse glyph, resolved the same
+     *  prefer-declared-then-fall-back-to-id way the carousel does (#1527). */
+    val iconName: String = "",
 )
 
 /**
@@ -385,6 +393,7 @@ class SourcePickerOnboardingViewModel @Inject constructor(
                     description = descriptor.description,
                     category = descriptor.category,
                     enabled = s.sourcePluginsEnabled[descriptor.id] ?: descriptor.defaultEnabled,
+                    iconName = descriptor.iconName,
                 )
             }
             groupSourcesForOnboarding(rows)
