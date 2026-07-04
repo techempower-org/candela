@@ -1,10 +1,12 @@
 package `in`.jphe.storyvox.source.primegaming.di
 
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import `in`.jphe.storyvox.data.network.UserAgentHeader
+import `in`.jphe.storyvox.source.primegaming.config.PrimeGamingConfig
 import `in`.jphe.storyvox.source.primegaming.net.PrimeGamingApi
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -41,5 +43,8 @@ internal object PrimeGamingHttpModule {
     @Singleton
     fun providePrimeGamingApi(
         @PrimeGamingHttp client: OkHttpClient,
-    ): PrimeGamingApi = PrimeGamingApi(client)
+        // dagger.Lazy breaks the FictionSource -> settings-config init cycle
+        // (#1309); the PrimeGamingConfig binding is supplied by :app.
+        config: Lazy<PrimeGamingConfig>,
+    ): PrimeGamingApi = PrimeGamingApi(client, config)
 }
