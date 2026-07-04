@@ -56,4 +56,9 @@ dependencies {
     // XmlPullParser path.
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // #1491 — MockWebServer for the direct network-path test, plus the shared
+    // FictionSource contract kit so the source rides FictionSourceContractTest.
+    // Mirrors source-standard-ebooks (both deps, explicit alias not transitive).
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(project(":core-source-testkit"))
 }
