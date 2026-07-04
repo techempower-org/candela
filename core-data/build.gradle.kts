@@ -47,6 +47,12 @@ android {
             // Robolectric needs Android resources on the unit-test classpath
             // so MigrationTestHelper can spin up a real SQLiteOpenHelper.
             isIncludeAndroidResources = true
+            // #1564 — FictionSourceIdResolver logs LOUD (android.util.Log.w)
+            // when it hits a colon-less non-numeric id. Its plain-JVM test
+            // exercises that path, so let the android stubs return defaults
+            // instead of throwing "not mocked". (No effect on Robolectric
+            // tests, which supply real android impls.)
+            isReturnDefaultValues = true
         }
     }
 }

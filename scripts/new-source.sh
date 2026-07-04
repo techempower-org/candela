@@ -895,9 +895,12 @@ class __PASCAL__SourceTest {
     fun `popular surfaces every local item as a fiction`() = runTest {
         val source = __PASCAL__Source(
             FakeReader(
+                // #1564 — ids are "<pluginId>:<localId>". A colon-less id
+                // silently misroutes to Royal Road (FictionSourceIdResolver),
+                // so your FictionSummary ids MUST keep the "__ID__:" prefix.
                 listOf(
-                    __PASCAL__Item(id = "1", title = "First", body = "Body one"),
-                    __PASCAL__Item(id = "2", title = "Second", body = "Body two"),
+                    __PASCAL__Item(id = "__ID__:1", title = "First", body = "Body one"),
+                    __PASCAL__Item(id = "__ID__:2", title = "Second", body = "Body two"),
                 ),
             ),
         )

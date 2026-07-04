@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.data.source
 
+import android.util.Log
+
 /**
  * Issue #981 — resolves a stored fiction id to the `sourceId` (the
  * `Map<String, FictionSource>` key) that can actually hydrate it.
@@ -73,7 +75,9 @@ object FictionSourceIdResolver {
             return null
         }
 
-        // No colon → bare Royal Road numeric id.
+        // No colon → bare Royal Road numeric id (or a source that forgot
+        // its prefix — #1564 warns loudly on the latter).
+        warnIfMissingSourcePrefix(id)
         if (SourceIds.ROYAL_ROAD in boundSourceIds) return SourceIds.ROYAL_ROAD
         return null
     }
@@ -95,6 +99,43 @@ object FictionSourceIdResolver {
      * the authoritative self-heal; this just stops the most common shape
      * (bare RR ids) from ever being written wrong.
      */
-    fun resolveByShape(id: String): String =
-        if (id.contains(':')) id.substringBefore(':') else SourceIds.ROYAL_ROAD
+    fun resolveByShape(id: String): String {
+        if (id.contains(':')) return id.substringBefore(':')
+        warnIfMissingSourcePrefix(id)
+        return SourceIds.ROYAL_ROAD
+    }
+
+    /**
+     * Issue #1564 — a colon-less id that is NOT a bare number is almost
+     * certainly a source that forgot the required `"<pluginId>:<localId>"`
+     * prefix. Royal Road (the only bare-id source) uses numeric ids, radio
+     * ids carry a colon, and every other source prefixes — so a colon-less
+     * NON-numeric id is a routing bug: it silently defaults to Royal Road
+     * (above), and its fiction's detail/reader never open.
+     *
+     * Pure (no Android types) so it is unit-testable without a logger.
+     */
+    internal fun looksLikeMissingSourcePrefix(id: String): Boolean =
+        !id.contains(':') && id.toLongOrNull() == null
+
+    /**
+     * Log LOUD (not gated behind verbose logging, and not a throw — a
+     * bad id from one source must not crash sync/back-fill for the rest)
+     * when [id] looks like a missing-prefix routing bug (#1564). The
+     * contract kit ([FictionSourceContractTest]) is the fail-fast,
+     * test-time counterpart.
+     */
+    private fun warnIfMissingSourcePrefix(id: String) {
+        if (looksLikeMissingSourcePrefix(id)) {
+            Log.w(
+                TAG,
+                "Fiction id '$id' has no '<pluginId>:' prefix — routing it to " +
+                    "Royal Road by default. A non-Royal-Road source returning bare " +
+                    "ids will misroute (detail/reader won't open). Fiction ids must " +
+                    "be \"<pluginId>:<localId>\" — see docs/CONTRIBUTING-SOURCES.md.",
+            )
+        }
+    }
+
+    private const val TAG = "FictionSrcIdResolver"
 }
