@@ -41,6 +41,23 @@ source-<id>/
 Everything compiles immediately; the contract test **fails honestly** because
 the stub doesn't talk to the network yet. That red test is your to-do list.
 
+### Scaffold modes
+
+`new-source.sh` scaffolds an **anonymous JSON HTTP** source by default. Pass one
+mode flag (mutually exclusive) when your backend has a different shape:
+
+| Flag               | Backend shape                                       | What changes vs. the default                                                                                          |
+|--------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| *(none)*           | Anonymous JSON HTTP — `source-hackernews`           | —                                                                                                                   |
+| `--auth`/`--oauth` | OAuth / BYOK token HTTP — `source-reddit`, `source-google-drive` | `request()` threads a Bearer token via an `accessToken()` seam; the contract test wires a non-blank fake token (#1529) |
+| `--xml`/`--feed`   | XML / Atom / RSS HTTP — `source-arxiv`, `source-rss`, `source-primegaming` | XML `Accept` header, no kotlinx-serialization, Atom-bodied contract fixture (#1533)                                  |
+| `--local`          | Non-HTTP local provider — `source-ocr`, `source-epub`, `source-calendar` | a `<Name>Reader` device-read seam, no OkHttp/serialization, a plain fake-backed test — no HTTP contract kit (#1526)  |
+
+An authed **XML** feed is the one combination the flags don't cover directly:
+start from `--auth` and swap the `Accept` header (and drop the JSON parse-error
+catch), or start from `--xml` and add the `accessToken()` seam. See
+**Local-provider sources** below for the `--local` path in full.
+
 ## 2. Implement `net/<Name>Api.kt`
 
 The scaffold ships a `request()` wrapper that already does the two things every
@@ -52,6 +69,21 @@ exception to the source layer.
 Point your endpoints at the real service and add typed request functions
 (`popular`, `search`, a detail fetch, a chapter fetch). The `baseUrl` seam is
 already `open` so the contract test can retarget it at a MockWebServer.
+
+> **Authenticated source (`--auth`)?** The scaffolded `request()` reads the
+> bearer token from an `open suspend fun accessToken()` seam and short-circuits
+> to `AuthRequired` when it's blank — wire `accessToken()` to your token store.
+> The `--auth` contract test overrides `accessToken()` with a **non-blank fake**
+> so `popular()` actually reaches the wire; without it a blank-token
+> short-circuit issues zero requests and the IO-pin check fails confusingly with
+> "no request reached the probe" (#1529).
+
+> **Feed / XML source (`--xml`)?** The scaffolded `request()` sends an XML
+> `Accept` header and has **no** kotlinx-serialization parse-error catch (regex
+> and `XmlPullParser` don't throw `SerializationException`). Parse in your
+> `parse` lambda; feed sources usually add conditional-GET headers
+> (`If-None-Match` / `If-Modified-Since`) here. `source-arxiv` and `source-rss`
+> are two real XML precedents (#1533).
 
 ### `FictionResult` decision table
 
@@ -114,7 +146,8 @@ The kit enforces the tribal gotchas as executable checks:
 
 If your source is search-only (no meaningful `popular()`), set
 `override val exercisesPopular = false` and the popular-based checks skip.
-Purely local (non-HTTP) sources don't use this kit at all.
+Purely local (non-HTTP) sources don't use this kit at all — scaffold them with
+`--local` and see **Local-provider sources** below.
 
 ## 5. The two edits that finish the module
 
@@ -133,6 +166,36 @@ registry descriptor (Browse chip, Settings auto-section) and the
 `Map<String, FictionSource>` routing entry. You do **not** add a `SourceIds`
 constant (that table is frozen — the annotation `id` is the source of truth) and
 you do **not** hand-write a DI module.
+
+## Local-provider sources (non-HTTP)
+
+Some sources read the **device**, not a network service — `source-ocr` (scanned
+text), `source-epub` (SAF-picked books), `source-calendar` (`CalendarContract`).
+They have no HTTP surface, so the OkHttp `request()` wrapper, the qualified-client
+DI module, and the HTTP contract kit don't apply. Scaffold them with `--local`:
+
+```bash
+scripts/new-source.sh --local <id> "<Display Name>"
+```
+
+That emits a leaner module:
+
+- **no** OkHttp / kotlinx-serialization and **no** `core-source-testkit` dep;
+- a `<Name>Reader` seam — a concrete `@Inject`-constructor class (so Hilt builds
+  it with no hand-written DI module) whose IO-pinned `items()` / `item()` methods
+  you point at your device read (SAF, `ContentResolver`, or a DataStore the
+  `:app` / `:feature` layer persists);
+- a plain `<Name>SourceTest` with a hand-rolled `FakeReader` (the `source-ocr`
+  `OcrSourceTest` pattern) instead of a contract-kit subclass;
+- an `AndroidManifest.xml` placeholder for a permission you may need to declare
+  (e.g. `READ_CALENDAR`) — delete it if your source needs none.
+
+The IO pin the HTTP kit enforces automatically is **your** responsibility in a
+local source: keep every blocking device read inside
+`withContext(Dispatchers.IO)` in the reader. `source-ocr` is the reference
+implementation. If you ran the default scaffold before realizing your source is
+local, re-run with `--local` on a fresh id rather than gutting the HTTP scaffold
+by hand.
 
 ## PR checklist
 
