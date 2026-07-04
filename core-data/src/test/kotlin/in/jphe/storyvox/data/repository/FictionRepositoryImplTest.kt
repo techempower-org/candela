@@ -14,6 +14,7 @@ import `in`.jphe.storyvox.data.db.entity.Fiction
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.FictionSourceEvent
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.source.model.ChapterBody
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import `in`.jphe.storyvox.data.source.model.FictionDetail
@@ -844,6 +845,70 @@ class FictionRepositoryImplTest {
         assertEquals("first-read timestamp preserved", 5678L, merged.firstReadAt)
         // Title from the fresh detail page wins (mutable upstream metadata).
         assertEquals("chapter 0", merged.title)
+    }
+
+    // -- #1497 prefetched-body persistence ---------------------------------------
+
+    @Test fun `refreshDetail persists prefetched bodies and marks chapters DOWNLOADED`() = runTest {
+        // #1497 — RSS/Atom feeds parse every item body while building the TOC.
+        // When the source hands those back in FictionDetail.prefetchedBodies,
+        // the repository writes them into the chapter row and marks it
+        // DOWNLOADED so a tap reads from Room and never re-fetches the feed.
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(
+                detail("99", chapterCount = 2).copy(
+                    prefetchedBodies = mapOf(
+                        "99-c0" to ChapterBody(htmlBody = "<p>hello</p>", plainBody = "hello"),
+                        // c1 intentionally absent — mixed feed (blank-body item).
+                    ),
+                ),
+            )
+        }
+        val (r, _, chapterDao) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+
+        r.refreshDetail("99")
+
+        val c0 = chapterDao.rows["99-c0"]!!
+        assertEquals("<p>hello</p>", c0.htmlBody)
+        assertEquals("hello", c0.plainBody)
+        assertEquals(ChapterDownloadState.DOWNLOADED, c0.downloadState)
+        assertNotNull("checksum stamped for the prefetched body", c0.bodyChecksum)
+        assertNotNull("body-fetched timestamp stamped", c0.bodyFetchedAt)
+        // A chapter with no prefetched body stays on the lazy on-tap path.
+        val c1 = chapterDao.rows["99-c1"]!!
+        assertNull(c1.htmlBody)
+        assertEquals(ChapterDownloadState.NOT_DOWNLOADED, c1.downloadState)
+    }
+
+    @Test fun `refreshDetail with a prefetched body keeps user read state and bookmark`() = runTest {
+        // #1497 — a re-refresh of a subscribed feed may carry an edited item
+        // body. Take the fresh body, but never reset the user's progress.
+        val src = FakeSource(SourceIds.ROYAL_ROAD).apply {
+            detailResult = FictionResult.Success(
+                detail("99", chapterCount = 1).copy(
+                    prefetchedBodies = mapOf(
+                        "99-c0" to ChapterBody(htmlBody = "<p>new body</p>", plainBody = "new body"),
+                    ),
+                ),
+            )
+        }
+        val (r, _, chapterDao) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
+        chapterDao.rows["99-c0"] = Chapter(
+            id = "99-c0", fictionId = "99", sourceChapterId = "src-0",
+            index = 0, title = "old", htmlBody = "<p>old body</p>", plainBody = "old body",
+            bodyChecksum = "old", bodyFetchedAt = 1L,
+            downloadState = ChapterDownloadState.DOWNLOADED,
+            userMarkedRead = true, firstReadAt = 5678L, bookmarkCharOffset = 42,
+        )
+
+        r.refreshDetail("99")
+
+        val merged = chapterDao.rows["99-c0"]!!
+        assertEquals("fresh body wins", "new body", merged.plainBody)
+        assertEquals(ChapterDownloadState.DOWNLOADED, merged.downloadState)
+        assertEquals("read flag preserved", true, merged.userMarkedRead)
+        assertEquals("first-read timestamp preserved", 5678L, merged.firstReadAt)
+        assertEquals("bookmark preserved", 42, merged.bookmarkCharOffset)
     }
 
     @Test fun `refreshDetail prunes chapters dropped from the feed (issues #349, #652, #879)`() = runTest {

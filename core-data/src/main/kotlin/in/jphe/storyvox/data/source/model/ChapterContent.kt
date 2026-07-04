@@ -36,6 +36,30 @@ data class ChapterContent(
     val audioUrl: String? = null,
 )
 
+/**
+ * Issue #1497 — a chapter body a source already has in hand at
+ * detail-fetch time. Some backends (RSS/Atom feeds) parse every item's
+ * full content while building the table-of-contents, so there's no
+ * reason to re-fetch it on tap. A source surfaces these via
+ * [FictionDetail.prefetchedBodies] (keyed by [ChapterInfo.id]); the
+ * repository persists them into the existing offline chapter store
+ * during refresh and marks the row DOWNLOADED, so a chapter tap reads
+ * from Room instead of round-tripping the network.
+ *
+ * Distinct from [ChapterContent] (which pairs a body with its
+ * [ChapterInfo] for the on-demand fetch path): this carries only the
+ * body bytes, correlated to a chapter by the map key, and coordinates
+ * with the existing download pipeline rather than adding a parallel
+ * store (see #1314).
+ */
+data class ChapterBody(
+    val htmlBody: String,
+    val plainBody: String,
+    val notesAuthor: String? = null,
+    val notesAuthorPosition: NotePosition? = null,
+    val audioUrl: String? = null,
+)
+
 /** Whether an author's-note block sits before or after the main body. */
 enum class NotePosition { BEFORE, AFTER }
 
