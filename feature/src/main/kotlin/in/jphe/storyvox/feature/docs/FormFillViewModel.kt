@@ -81,11 +81,19 @@ class FormFillViewModel @Inject constructor(
                 fields = prev.fields + field,
                 nextId = id + 1,
                 selectedFieldId = id,
+                // Placing a signature raises a one-shot so the screen opens
+                // the draw pad on the new field id (robust — no stale read).
+                pendingSignatureId = if (prev.activeTool == FillTool.Signature) id else null,
                 exportResult = null,
                 shareRequest = null,
                 error = null,
             )
         }
+    }
+
+    /** Consume the one-shot signature-pad signal after the screen opens it. */
+    fun consumePendingSignature() {
+        _state.update { it.copy(pendingSignatureId = null) }
     }
 
     /** Update a text field's content. */
@@ -198,6 +206,9 @@ data class FormFillUiState(
     val fields: List<FormField> = emptyList(),
     val activeTool: FillTool = FillTool.Text,
     val selectedFieldId: Int? = null,
+    /** One-shot: set to a newly-placed signature field's id so the screen
+     *  opens the draw pad, then cleared via [FormFillViewModel.consumePendingSignature]. */
+    val pendingSignatureId: Int? = null,
     val title: String = "",
     val isExporting: Boolean = false,
     val error: String? = null,

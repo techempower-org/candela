@@ -160,6 +160,12 @@ fun LibraryScreen(
      * no-op so test / preview surfaces that don't exercise it still compile.
      */
     onOpenWallet: () -> Unit = {},
+    /**
+     * Issue #1512 — "Fill a form" add-flow entry. Routes to the
+     * photo→fillable-PDF surface ([StoryvoxRoutes.FORM_FILL]). Default
+     * no-op so test / preview surfaces that don't exercise it still compile.
+     */
+    onFillForm: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -376,6 +382,15 @@ fun LibraryScreen(
                             onClick = {
                                 addMenuOpen = false
                                 onOpenWallet()
+                            },
+                        )
+                        // Issue #1512 — photo → fillable PDF: scan a paper
+                        // form, fill it on-phone, export a completed PDF.
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.library_fill_form)) },
+                            onClick = {
+                                addMenuOpen = false
+                                onFillForm()
                             },
                         )
                     }

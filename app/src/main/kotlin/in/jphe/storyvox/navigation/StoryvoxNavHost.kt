@@ -113,6 +113,11 @@ object StoryvoxRoutes {
 
     /** Issue #1519 — saved household profile (autofill scanned forms). */
     const val HOUSEHOLD_PROFILE = "docs/profile"
+
+    /** Issue #1512 — photo → fillable PDF (benefits paperwork companion,
+     *  epic #1520). Reached from the Library add-flow ("Fill a form");
+     *  scan/pick a paper form → tap-anywhere fill → flattened PDF. */
+    const val FORM_FILL = "docs/fill"
     const val FICTION_DETAIL = "fiction/{fictionId}"
     const val READER = "reader/{fictionId}/{chapterId}"
     const val AUDIOBOOK = "audiobook/{fictionId}/{chapterId}"
@@ -857,6 +862,9 @@ private fun StoryvoxNavHostContent(
                     // Issue #1514 — "My Documents" add-flow entry → the
                     // encrypted, biometric-gated document wallet.
                     onOpenWallet = { navController.navigate(StoryvoxRoutes.WALLET) },
+                    // Issue #1512 — "Fill a form" add-flow entry routes to
+                    // the photo→fillable-PDF surface.
+                    onFillForm = { navController.navigate(StoryvoxRoutes.FORM_FILL) },
                     // v0.5.72 — Browse is a first-class bottom-nav tab
                     // now; the standalone Browse route owns RR + AO3
                     // sign-in deep-links. Follows is still embedded
@@ -962,6 +970,18 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 `in`.jphe.storyvox.feature.docs.WalletScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                // Issue #1512 — photo → fillable PDF.
+                StoryvoxRoutes.FORM_FILL,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.docs.FormFillScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }
