@@ -6,12 +6,11 @@ import `in`.jphe.storyvox.testkit.source.FictionSourceContractTest
 import okhttp3.OkHttpClient
 
 /**
- * Epic Free Games against the shared contract kit. This FAILS until you wire
- * [EpicFreeGamesSource.popular] (and friends) through [EpicFreeGamesApi.request]:
- * the stub never hits the network, so the "network work leaves the caller
- * thread" and auth/rate-limit checks fail honestly. Replace [happyListBody] /
- * [listPathFragment] with your real list endpoint, make the source talk to the
- * Api, and turn this green. See docs/CONTRIBUTING-SOURCES.md.
+ * Epic Free Games against the shared [FictionSourceContractTest]. The single
+ * `freeGamesPromotions` endpoint is pointed at the kit's MockWebServer via the
+ * [EpicFreeGamesApi.baseUrl] seam; `popular()` -> `fetchPromotions()` hits it,
+ * so the IO-pin / auth / rate-limit / Cloudflare checks all exercise the real
+ * request path.
  */
 class EpicFreeGamesContractTest : FictionSourceContractTest() {
     override fun createSource(client: OkHttpClient, baseUrl: String): FictionSource {
@@ -23,9 +22,12 @@ class EpicFreeGamesContractTest : FictionSourceContractTest() {
         )
     }
 
-    /** Replace with a trimmed real response body from your list endpoint. */
-    override fun happyListBody(): String = "{}"
+    /** A trimmed real `freeGamesPromotions` body — one currently-free game and
+     *  one upcoming freebie (see [EPIC_FIXTURE_BODY]). */
+    override fun happyListBody(): String = EPIC_FIXTURE_BODY
 
-    /** Replace with a path fragment your popular()/list endpoint hits. */
-    override fun listPathFragment(): String = "epic-free-games"
+    /** `/freeGamesPromotions?...` — the one endpoint this source reads. NOTE:
+     *  the scaffold defaults this to the source id; Epic's path does not contain
+     *  the id, so it must be the real path fragment. */
+    override fun listPathFragment(): String = "freeGamesPromotions"
 }

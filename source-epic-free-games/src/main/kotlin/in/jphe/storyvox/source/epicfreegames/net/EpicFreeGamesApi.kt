@@ -3,16 +3,28 @@ package `in`.jphe.storyvox.source.epicfreegames.net
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import javax.inject.Inject
 
 /**
- * HTTP client for Epic Free Games. The [request] wrapper is pre-written to satisfy
- * the FictionSourceContractTest: it pins the blocking OkHttp call to
- * Dispatchers.IO (#585) and maps status codes to typed failures. Copy its shape
- * for every endpoint you add — do NOT surface raw HTTP codes or exceptions.
+ * HTTP client for the Epic Games Store "free games promotions" feed (#1493).
+ *
+ * There is a single upstream endpoint —
+ * `store-site-backend-static.ak.epicgames.com/freeGamesPromotions` — an
+ * unofficial-but-long-stable, no-auth JSON document that the Epic storefront's
+ * own "Free Games" widget consumes. We treat it as **fragile vendor JSON**:
+ * every wire field is optional with a default, unknown keys are ignored, and a
+ * malformed body surfaces as a typed [FictionResult.NetworkError] rather than a
+ * thrown exception (see [request]).
+ *
+ * The [request] wrapper is the scaffold's pre-written shape and satisfies the
+ * FictionSourceContractTest: it pins the blocking OkHttp call to
+ * Dispatchers.IO (#585) and maps status codes to typed failures.
  */
 internal open class EpicFreeGamesApi @Inject constructor(
     private val client: OkHttpClient,
@@ -20,6 +32,29 @@ internal open class EpicFreeGamesApi @Inject constructor(
     /** Test seam — `open` so unit tests point this at a MockWebServer without
      *  restructuring call sites (mirrors StandardEbooksApi.baseUrl). */
     internal open val baseUrl: String get() = BASE_URL
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
+
+    /**
+     * `GET /freeGamesPromotions` — the whole promotions document in one shot.
+     * The single Browse/detail/chapter surface all read from this; there is no
+     * per-game detail endpoint to fan out to.
+     */
+    suspend fun fetchPromotions(): FictionResult<PromotionsResponse> =
+        request(PROMOTIONS_PATH) { parsePromotions(it) }
+
+    /**
+     * Parse the promotions document. Hoisted out of the network call so the
+     * mapping unit test can exercise it against a captured fixture without an
+     * OkHttp client. A shape mismatch throws [kotlinx.serialization.SerializationException],
+     * which [request] catches and converts to a typed failure.
+     */
+    internal fun parsePromotions(text: String): PromotionsResponse =
+        json.decodeFromString(text)
 
     /**
      * IO-pinned GET. `parse` turns the response body into your typed model.
@@ -92,6 +127,117 @@ internal open class EpicFreeGamesApi @Inject constructor(
             body.contains("cf-mitigated")
 
     companion object {
-        const val BASE_URL = "https://example.com"
+        const val BASE_URL = "https://store-site-backend-static.ak.epicgames.com"
+
+        /**
+         * The free-games feed. `country`/`allowCountries` scope the promotions
+         * to a storefront (giveaways are region-uniform in practice, but the
+         * price strings and availability windows are localized). US/en-US is a
+         * stable default; a future settings knob could localize this.
+         */
+        const val PROMOTIONS_PATH =
+            "/freeGamesPromotions?locale=en-US&country=US&allowCountries=US"
     }
 }
+
+// ── Wire types ────────────────────────────────────────────────────────────
+//
+// Every field is nullable-with-default: the feed is unofficial and Epic
+// reshapes it without notice. Missing/renamed fields degrade to null and are
+// filtered downstream, never crash the parse.
+
+@Serializable
+internal data class PromotionsResponse(
+    val data: CatalogData = CatalogData(),
+)
+
+@Serializable
+internal data class CatalogData(
+    @SerialName("Catalog") val catalog: Catalog = Catalog(),
+)
+
+@Serializable
+internal data class Catalog(
+    val searchStore: SearchStore = SearchStore(),
+)
+
+@Serializable
+internal data class SearchStore(
+    val elements: List<StoreElement> = emptyList(),
+)
+
+/** One catalog entry — a game or add-on that is currently or soon free, OR
+ *  merely on sale (the feed bundles plain discounts too; the source filters
+ *  those out — see [in.jphe.storyvox.source.epicfreegames.giveaways]). */
+@Serializable
+internal data class StoreElement(
+    val title: String? = null,
+    val id: String? = null,
+    val namespace: String? = null,
+    val description: String? = null,
+    val seller: Seller? = null,
+    val productSlug: String? = null,
+    val urlSlug: String? = null,
+    val keyImages: List<KeyImage> = emptyList(),
+    val price: Price? = null,
+    val promotions: Promotions? = null,
+    val offerMappings: List<PageMapping> = emptyList(),
+    val catalogNs: CatalogNs? = null,
+)
+
+@Serializable
+internal data class Seller(val name: String? = null)
+
+@Serializable
+internal data class KeyImage(val type: String? = null, val url: String? = null)
+
+@Serializable
+internal data class Price(val totalPrice: TotalPrice? = null)
+
+@Serializable
+internal data class TotalPrice(
+    val discountPrice: Long? = null,
+    val originalPrice: Long? = null,
+    val currencyCode: String? = null,
+    val fmtPrice: FmtPrice? = null,
+)
+
+@Serializable
+internal data class FmtPrice(
+    val originalPrice: String? = null,
+    val discountPrice: String? = null,
+)
+
+@Serializable
+internal data class Promotions(
+    val promotionalOffers: List<OfferGroup> = emptyList(),
+    val upcomingPromotionalOffers: List<OfferGroup> = emptyList(),
+)
+
+@Serializable
+internal data class OfferGroup(
+    val promotionalOffers: List<PromotionalOffer> = emptyList(),
+)
+
+@Serializable
+internal data class PromotionalOffer(
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val discountSetting: DiscountSetting? = null,
+)
+
+/**
+ * Epic's `discountPercentage` is the percentage of the price the buyer still
+ * PAYS, not the percentage off: `0` means "pay 0%" → the game is free, `50`
+ * means half price. A giveaway is therefore an offer with
+ * `discountPercentage == 0` — that single test separates the free games from
+ * the plain sales the same feed carries.
+ */
+@Serializable
+internal data class DiscountSetting(val discountPercentage: Int? = null)
+
+@Serializable
+internal data class PageMapping(val pageSlug: String? = null, val pageType: String? = null)
+
+@Serializable
+internal data class CatalogNs(val mappings: List<PageMapping> = emptyList())
