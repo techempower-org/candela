@@ -117,6 +117,11 @@ internal data class NotionBlock(
     val divider: JsonElement? = null,
     val toggle: JsonElement? = null,
     @SerialName("to_do") val toDo: JsonElement? = null,
+    /** A sub-page nested under this page. Its payload is
+     *  `{"title": "..."}` and the block [id] IS the child page's id, so
+     *  [NotionApi.pageBlocks] can fetch its content directly. Used by the
+     *  child-page chaptering path (#1508). */
+    @SerialName("child_page") val childPage: JsonElement? = null,
     /** Issue #1036 — nesting level in the flattened document order.
      *  Top-level blocks are depth 0; children spliced in by
      *  [flattenNested] carry their parent's depth + 1. Not part of the
