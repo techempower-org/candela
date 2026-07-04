@@ -137,6 +137,10 @@ include(":source-bookshare")
 // Issue #1495 — device calendar source (CalendarContract). Local-provider,
 // zero-network; narrates your on-device agenda (Today / Tomorrow / This Week).
 include(":source-calendar")
+// Issue #1544 — in-app Candela Handbook. Local-provider (first dogfood of the
+// new-source.sh --local mode, #1526): the app's own docs, compiled into bundled
+// assets by scripts/build-handbook-assets.py and narrated like any book.
+include(":source-handbook")
 include(":core-sync")
 include(":feature")
 // Issue #409 — Baseline Profile producer module. Pure test APK

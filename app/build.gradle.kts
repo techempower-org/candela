@@ -680,6 +680,9 @@ dependencies {
     implementation(project(":source-bookshare"))
     // Issue #1495 — device calendar source (CalendarContract, local-provider).
     implementation(project(":source-calendar"))
+    // Issue #1544 — in-app Candela Handbook (local-provider; docs compiled to
+    // bundled assets). First dogfood of new-source.sh --local (#1526).
+    implementation(project(":source-handbook"))
     implementation(project(":source-azure"))
     implementation(project(":core-sync"))
     implementation(project(":feature"))
