@@ -54,7 +54,6 @@ import kotlin.math.roundToInt
  *
  * Visual reading knobs:
  *  - App theme override (System / Dark / Light, shipped in v0.5.32 #427).
- *  - Shake-to-extend sleep timer (#150).
  *  - Reading-color theme + custom overlay (#993) — tints the reading page
  *    only, leaving app chrome alone. Device-local pref.
  *  - Reading-text typography (#992): font family (incl. OpenDyslexic /
@@ -88,13 +87,10 @@ fun ReadingSettingsScreen(
                     selectedIndex = ThemeOverride.entries.indexOf(s.themeOverride).coerceAtLeast(0),
                     onSelected = { idx -> viewModel.setTheme(ThemeOverride.entries[idx]) },
                 )
-
-                SettingsSwitchRow(
-                    title = stringResource(R.string.settings_reading_shake_extend_title),
-                    subtitle = stringResource(R.string.settings_reading_shake_extend_subtitle),
-                    checked = s.sleepShakeToExtendEnabled,
-                    onCheckedChange = viewModel::setSleepShakeToExtendEnabled,
-                )
+                // Issue #1577 — the shake-to-extend sleep-timer toggle moved to
+                // Settings → Voice & Playback → "Sleep timer", where it sits with
+                // the rest of the sleep-timer knobs (duration, Bedtime auto-arm,
+                // Do Not Disturb). It was the odd one out here under Reading.
             }
 
             // #993 — reading-color theme (page overlay), separate from the

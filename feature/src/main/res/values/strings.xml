@@ -657,13 +657,13 @@
     <string name="settings_hub_clear_search">Clear search</string>
     <string name="settings_hub_no_results">No settings match “%1$s”. Try a different term or clear the search.</string>
     <string name="settings_hub_voice_playback_title">Voice &amp; Playback</string>
-    <string name="settings_hub_voice_playback_subtitle">Voice, speed, cadence, pitch.</string>
+    <string name="settings_hub_voice_playback_subtitle">Voice, speed, sleep timer, Do Not Disturb.</string>
     <string name="settings_hub_voice_library_title">Voice library</string>
     <string name="settings_hub_voice_library_subtitle">Browse and switch between available voices.</string>
     <string name="settings_hub_reading_title">Reading</string>
-    <string name="settings_hub_reading_subtitle">Theme, sleep timer.</string>
+    <string name="settings_hub_reading_subtitle">Theme, fonts, colours, highlight, focus.</string>
     <string name="settings_hub_appearance_title">Appearance</string>
-    <string name="settings_hub_appearance_subtitle">Book cover style.</string>
+    <string name="settings_hub_appearance_subtitle">Book cover style, animation, particles.</string>
     <string name="settings_hub_performance_title">Performance</string>
     <string name="settings_hub_performance_subtitle">Buffer, parallel synth, decoder choice.</string>
     <string name="settings_hub_ai_title">AI</string>
@@ -687,7 +687,7 @@
     <string name="settings_hub_developer_title">Developer</string>
     <string name="settings_hub_developer_subtitle">Debug overlay, log ring, advanced toggles.</string>
     <string name="settings_hub_about_title">About</string>
-    <string name="settings_hub_about_subtitle">Version, sigil, open-source notices.</string>
+    <string name="settings_hub_about_subtitle">Version, sigil, handbook, privacy, licenses.</string>
     <!-- Issue #1235 — Listening stats hub row -->
     <string name="settings_hub_stats_title">Listening stats</string>
     <string name="settings_hub_stats_subtitle">Time listened, streaks, books finished.</string>
@@ -859,6 +859,11 @@
     <string name="settings_voice_bedtime_auto_subtitle">Auto-start the sleep timer when your phone enters Sleep or Bedtime mode.</string>
     <string name="settings_voice_dnd_sleep_title">Do Not Disturb with sleep timer</string>
     <string name="settings_voice_dnd_sleep_subtitle">Silence notifications while a sleep timer is running, then restore your previous setting when it ends. Needs Do Not Disturb access.</string>
+    <!-- #1577 — Voice &amp; Playback section headers + the shake-to-extend enable row moved here from Reading so the whole sleep-timer feature lives on one screen. -->
+    <string name="settings_voice_transport_group_title">Playback controls</string>
+    <string name="settings_voice_sleep_group_title">Sleep timer</string>
+    <string name="settings_voice_shake_enable_title">Shake to extend</string>
+    <string name="settings_voice_shake_enable_subtitle">Shake your device during the timer\'s fade-out to keep listening.</string>
 
     <!-- Settings · Performance subscreen -->
     <string name="settings_performance_title">Performance</string>
