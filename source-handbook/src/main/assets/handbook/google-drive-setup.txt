@@ -1,0 +1,144 @@
+Google Drive OAuth setup (#1496)
+
+Candela can connect to a user's Google Drive to browse authorized folders
+as a library, with Google Docs read natively (exported to text — the one
+thing the system file picker can't do). Before this, and still today with no
+setup at all, you can already open a single Drive file via Android's system
+picker — see docs/faq.md ("Does Candela read files from Google Drive?").
+
+The connect flow only lights up when this build carries an **OAuth client
+id**. This doc is what you register once to enable it. Until the id is
+present the Connect button is hidden — **the app builds and CI is green with
+no creds** (empty-string BuildConfig defaults, mirroring INSTANTDBAPPID
+and the Notion OAuth setup).
+
+---
+
+The load-bearing scope decision: drive.file only
+
+Candela requests exactly one scope:
+
+drive.file is a non-sensitive scope: the app can only see files the
+user explicitly opens/grants to it (via Google's own consent + Picker), never
+the whole Drive. We deliberately do not request drive.readonly or
+drive — those are restricted scopes that trigger Google's app-
+verification wall and a potential CASA third-party security assessment
+(annual, paid), a disproportionate barrier for an open-source app.
+
+The accepted trade-off: Candela can't enumerate your entire Drive. It sees
+only what you grant. That's the whole privacy point.
+
+---
+
+1 · Register an OAuth client
+
+Go to the Google Cloud console → APIs & Services:
+
+Enable the Google Drive API (APIs & Services → Library → Drive API).
+OAuth consent screen → External → add the drive.file scope. Because
+   drive.file is non-sensitive, you do not need Google's app
+   verification for it (you may see a "Testing" cap of 100 users until you
+   publish the consent screen, which for a non-sensitive scope is a
+   self-serve "Publish app" click, not a review).
+Credentials → Create credentials → OAuth client ID. Pick a client
+   type that supports a custom-scheme redirect:
+
+Client type — Secret? — Redirect
+iOS (recommended for a custom scheme) — none (PKCE) — a custom URI scheme
+Android — none (PKCE) — package + SHA-1, reversed-DNS scheme
+Desktop app — issues a non-confidential secret — loopback / custom scheme
+
+   Candela's redirect is candela://oauth/googledrive (matches the
+   AndroidManifest intent-filter and
+   GoogleDriveOAuthConfig.REDIRECT_URI). Register that scheme byte-for-byte.
+
+Scheme caveat. Google sometimes constrains the custom scheme to the
+reversed client id (com.googleusercontent.apps.<CLIENT>:/oauth2redirect)
+for iOS/Android client types. If Google rejects the generic candela://
+scheme, register the reversed-client-id scheme instead and update BOTH
+GoogleDriveOAuthConfig.REDIRECT_URI and the manifest <data> element
+to match. The rest of the flow (PKCE, token exchange) is unchanged.
+
+---
+
+2 · Wire the credentials
+
+Add to local.properties (gitignored; lives only on your machine + the
+self-hosted CI runner — never committed, never passed via -P):
+
+app/build.gradle.kts reads them at configure time into
+BuildConfig.GOOGLEOAUTHCLIENTID / CLIENT_SECRET. Rebuild → the
+Connect button appears.
+
+---
+
+⚠️ Security note — no secret needed (unlike Notion)
+
+Google's installed-app flow is a PKCE public client. The token exchange
+authenticates with a one-time code_verifier (RFC 7636), not a client
+secret — Google's docs state the secret is *"not applicable to requests from
+clients registered as Android, iOS, or Chrome applications."* So for the
+recommended iOS/Android client type, no secret ships in the APK at all —
+strictly better than the Notion OAuth flow, which is a confidential client
+that must ship its secret.
+
+GOOGLEOAUTHCLIENT_SECRET exists only to support a "Desktop app" client
+type (whose secret Google itself documents as not treated as confidential);
+it is optional and blank by default.
+
+---
+
+How it works (for the curious)
+
+Connect Google Drive → GoogleDriveOAuthManager.beginConnect()
+   generates a random CSRF state nonce and a PKCE code_verifier,
+   persists both (encrypted, survive process death), and returns the
+   authorize URL (carrying the S256 code_challenge).
+The app opens that URL in a Chrome Custom Tab. The user consents to
+   the drive.file scope.
+Google redirects to candela://oauth/googledrive?code=…&state=… (or
+   ?error=access_denied on cancel — handled gracefully, no crash).
+MainActivity (singleTask → onNewIntent) hands the redirect to
+   GoogleDriveOAuthManager, which verifies the state nonce, exchanges
+   the code with the persisted code_verifier
+   (POST https://oauth2.googleapis.com/token), and persists the access
+   token + refresh token in the encrypted storyvox.secrets store.
+The google-drive source is auto-enabled; it lists the authorized
+   files via GET /drive/v3/files and reads Google Docs via
+   GET /drive/v3/files/{id}/export?mimeType=text/plain.
+
+Token storage rides the same encrypted-prefs path as every other source
+login (storyvox.secrets); with cloud sync on it's additionally
+E2E-encrypted behind the user's passphrase.
+
+Refresh: the refresh token is persisted and GoogleDriveOAuthApi.refresh()
+is implemented, but the trigger (silent refresh-on-401 from the source
+layer) is a follow-up — it needs a callback seam from :source-google-drive
+up to :app. Until then an expired grant surfaces as "reconnect".
+
+---
+
+Remaining slice — the folder-grant Picker
+
+Under drive.file, existing folders become app-visible only when the
+user selects them in the Google Picker (a folder grant cascades to the
+folder's contents). The OAuth connect + the source that reads granted files
+are complete in this PR; wiring the in-app Google Picker to make the
+grant (and the "Connect Google Drive" button that launches
+beginConnect()) is the remaining UI slice. It's non-trivial because the
+Picker is a JavaScript API whose origin must be an authorized JS origin, so
+it needs a hosted picker page + redirect rather than a local WebView. Tracked
+as a #1496 follow-up.
+
+---
+
+Data-safety lock-step
+
+Adding this OAuth surface does not change Candela's Play Data-Safety
+posture — the token is the user's own credential, content flows **user →
+Google directly**, and Candela shares nothing. The lock-step edits ship in
+the same PR:
+
+docs/privacy.md — §2.2 backends + §4 third-party table (Google Drive row).
+docs/data-safety-checklist.md — §C sharing note (#1496 clarification).
+docs/play-store-walkthrough.html — §IV "API keys & tokens" row.
