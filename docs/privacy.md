@@ -203,6 +203,39 @@ Calendar source simply stays empty until you choose to grant it. You can
 revoke the permission anytime in Android Settings. The Calendar source is
 read-only: Candela never creates, edits, or deletes calendar events.
 
+### 2.11 My Documents wallet (optional, encrypted, biometric-locked)
+
+Candela can store scans of your benefits paperwork — photo ID, proof of
+address, gross pay stubs, award letters, benefit cards — in an on-device
+"My Documents" wallet, so you have your proofs ready when you apply. This is
+the household's most sensitive data, so it gets the strongest protection in
+the app:
+
+- **Encrypted at rest.** Both the document images **and** their metadata
+  (type, capture date, your notes) are encrypted with Jetpack Security
+  `EncryptedFile` (AES-256-GCM) under a key held in the Android Keystore.
+  Nothing in the wallet is stored in the clear.
+- **Biometric / screen-lock gate.** Opening the wallet requires a
+  `BiometricPrompt` (fingerprint or face, with your device PIN/pattern as
+  fallback). The `USE_BIOMETRIC` permission is requested **only** for this
+  gate. Nothing is decrypted until you authenticate. On a device with no
+  screen lock set, the data stays encrypted but opens without a prompt (there
+  is nothing to authenticate against).
+- **On-device only.** The images, metadata, and any PDF you export from the
+  wallet **never leave your device** — no upload, no analytics on contents,
+  no transmission.
+- **Excluded from backup and transfer.** The wallet directory is explicitly
+  excluded from Android cloud backup **and** device-to-device transfer, and
+  is **never** part of Candela's optional cloud sync. Your documents do not
+  ride along to another device or to any cloud.
+- **You control deletion.** Delete any document in the app; deleting removes
+  its encrypted files immediately. Clearing app data or uninstalling erases
+  the whole wallet.
+
+The "what does this prove?" hints (which programs accept a given proof) are a
+built-in, TechEmpower-verified reference list bundled with the app; they are
+static content, involve no lookup, and send nothing off the device.
+
 ---
 
 ## 3. What we do NOT collect
@@ -303,7 +336,13 @@ delete the record.
 - **On-device encryption.** Sensitive credentials (WebView cookies, BYOK
   API keys, Anthropic Teams OAuth tokens) are stored in Android's
   [`EncryptedSharedPreferences`](https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences),
-  which encrypts at rest with a per-app key bound to the device.
+  which encrypts at rest with a per-app key bound to the device. The
+  **My Documents wallet** (§2.11) goes further: document images and
+  metadata are stored as
+  [`EncryptedFile`](https://developer.android.com/reference/androidx/security/crypto/EncryptedFile)
+  (AES-256-GCM under an Android Keystore master key), gated behind a
+  biometric / screen-lock prompt, and excluded from cloud backup and
+  device transfer.
 - **HTTPS everywhere.** All network requests use HTTPS. The app's
   `network_security_config.xml` enforces this — cleartext HTTP is rejected
   by the platform.
