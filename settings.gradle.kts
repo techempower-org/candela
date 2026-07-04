@@ -44,6 +44,9 @@ include(":core-playback")
 // epic/plugin-dx A1 — abstract FictionSource contract-test kit (test-fixtures style).
 include(":core-source-testkit")
 include(":core-ui")
+// #1504 — voice-engine contract-test kit, split out of :core-source-testkit
+// so source modules no longer drag :core-playback into their test compile.
+include(":core-voice-testkit")
 include(":source-royalroad")
 include(":source-github")
 include(":source-mempalace")
