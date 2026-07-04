@@ -109,7 +109,9 @@ if [[ -e "$MODDIR" ]]; then
 fi
 
 if [[ "$MODE" == "local" ]]; then
-    mkdir -p "$MAIN" "$TEST"
+    # #1562 — --local now emits a di/ too (a @Binds interface->impl module for
+    # the Context-backed Reader seam), so the di/ dir is needed here as well.
+    mkdir -p "$MAIN/di" "$TEST"
 else
     mkdir -p "$MAIN/net" "$MAIN/di" "$TEST"
 fi
@@ -155,8 +157,9 @@ dependencies {
 
     // @SourcePlugin -> KSP emits the SourcePluginDescriptor @IntoSet binding
     // AND the Map<String, FictionSource> @IntoMap binding (#1371). The
-    // <Name>Reader seam is an @Inject class, so Hilt constructs it with no
-    // hand-written di/ module.
+    // <Name>Reader seam is an interface with a bound impl (di/<Name>Module.kt's
+    // 3-line @Binds), so a Context-backed reader stays fake-able in a pure-JVM
+    // test (#1562) — keep that module.
     ksp(project(":core-plugin-ksp"))
 
     // Local sources do NOT use the HTTP contract kit — a plain fake-backed
@@ -766,6 +769,8 @@ if [[ "$MODE" == "local" ]]; then
     cat > "$MAIN/${PASCAL}Reader.kt" <<'READER'
 package `in`.jphe.storyvox.source.__PKG__
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -774,28 +779,52 @@ import javax.inject.Singleton
 /**
  * Local read seam for __DISPLAY__ (scaffolded by new-source.sh --local).
  *
- * A local-provider source reads from the device — files via SAF, a
- * ContentResolver query (e.g. CalendarContract), or a DataStore the
- * :app/:feature capture flow persists — NOT the network. Keep every blocking
- * read pinned to Dispatchers.IO here so the source layer stays main-safe: the
- * HTTP contract kit's #585 IO-pin check does NOT run for local sources, so
- * this is your responsibility.
+ * A local-provider source reads from the device — bundled assets
+ * (`context.assets`), files via SAF, a ContentResolver query (e.g.
+ * CalendarContract), or a DataStore the :app/:feature capture flow persists —
+ * NOT the network. Keep every blocking read pinned to Dispatchers.IO in the
+ * impl so the source layer stays main-safe (the HTTP contract kit's #585
+ * IO-pin check does NOT run for local sources — it's your responsibility).
  *
- * This is a concrete `open class` with an `@Inject` constructor on purpose:
- * Hilt constructs it with zero DI wiring (no hand-written di/ module), and unit
- * tests subclass it with a fake — see __PASCAL__SourceTest. Mirrors
- * :source-ocr's `OcrConfig` seam.
+ * ## Why an interface + a bound impl (not a concrete @Inject class) — #1562
+ *
+ * Any real local read needs a `Context` (assets / SAF / ContentResolver). A
+ * concrete `@Inject constructor(@ApplicationContext Context)` reader can't be
+ * fake-subclassed in a pure-JVM test — the fake can't call `super()` without a
+ * real `Context` (⇒ Robolectric, which `--local` deliberately omits). So the
+ * seam is this INTERFACE, with a bound impl ([__PASCAL__ReaderImpl]); the test
+ * fakes the interface directly (see __PASCAL__SourceTest). This mirrors
+ * :source-ocr's `OcrConfig` seam. The one cost is a 3-line `@Binds` module
+ * (`di/__PASCAL__Module.kt`).
+ */
+interface __PASCAL__Reader {
+
+    /** Every item this local source exposes, newest first. */
+    suspend fun items(): List<__PASCAL__Item>
+
+    /** One item's full body by id, or null if it is gone. */
+    suspend fun item(id: String): __PASCAL__Item?
+}
+
+/**
+ * Production [__PASCAL__Reader] — reads from the device via [context]. Stub:
+ * wire the two reads to real asset / SAF / ContentResolver / DataStore access,
+ * each pinned to Dispatchers.IO. If your provider needs NO Context (a purely
+ * in-memory / computed source), drop the constructor arg — the @Binds still
+ * applies.
  */
 @Singleton
-internal open class __PASCAL__Reader @Inject constructor() {
+internal class __PASCAL__ReaderImpl @Inject constructor(
+    @Suppress("unused") @ApplicationContext private val context: Context,
+) : __PASCAL__Reader {
 
-    /** Every item this local source exposes, newest first. Stub — replace with
-     *  a real device read (SAF / ContentResolver / DataStore), IO-pinned. */
-    internal open suspend fun items(): List<__PASCAL__Item> =
-        withContext(Dispatchers.IO) { emptyList() }
+    override suspend fun items(): List<__PASCAL__Item> =
+        withContext(Dispatchers.IO) {
+            // TODO: real device read (context.assets / SAF / ContentResolver / DataStore).
+            emptyList()
+        }
 
-    /** One item's full body by id, or null if it is gone. Stub. */
-    internal open suspend fun item(id: String): __PASCAL__Item? =
+    override suspend fun item(id: String): __PASCAL__Item? =
         withContext(Dispatchers.IO) { null }
 }
 
@@ -813,7 +842,8 @@ fi
 # OkHttpClient + Api still need a provider (there is no global unqualified
 # OkHttpClient — each source owns a qualified client with the shared UA
 # interceptor). Mirrors source-hackernews/di/HackerNewsHttpModule.kt. --local
-# sources skip this: the <Name>Reader is an @Inject class Hilt builds directly.
+# sources get a DIFFERENT di module (a @Binds for the Reader interface->impl,
+# emitted just below) — not this HTTP-client provider.
 if [[ "$MODE" != "local" ]]; then
     cat > "$MAIN/di/${PASCAL}Module.kt" <<'DIMOD'
 package `in`.jphe.storyvox.source.__PKG__.di
@@ -864,6 +894,39 @@ internal object __PASCAL__HttpModule {
 DIMOD
 fi
 
+# ── di/<Pascal>Module.kt  (--local: @Binds Reader interface -> impl) ──────────
+# #1562 — the --local Reader seam is an interface with an @ApplicationContext-
+# backed impl (so a Context-taking reader stays fake-able in a pure-JVM test),
+# which needs one @Binds. Mirrors :source-ocr's config-seam wiring.
+if [[ "$MODE" == "local" ]]; then
+    cat > "$MAIN/di/${PASCAL}Module.kt" <<'DIMOD'
+package `in`.jphe.storyvox.source.__PKG__.di
+
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import `in`.jphe.storyvox.source.__PKG__.__PASCAL__Reader
+import `in`.jphe.storyvox.source.__PKG__.__PASCAL__ReaderImpl
+import javax.inject.Singleton
+
+/**
+ * Binds the __DISPLAY__ local read seam: [__PASCAL__Reader] (interface) ->
+ * [__PASCAL__ReaderImpl] (the @ApplicationContext-backed impl). A local reader
+ * that needs Context can't be a concrete @Inject class a pure-JVM test fakes,
+ * so the seam is an interface + bound impl — the :source-ocr shape (#1562).
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+internal abstract class __PASCAL__Module {
+
+    @Binds
+    @Singleton
+    abstract fun bind__PASCAL__Reader(impl: __PASCAL__ReaderImpl): __PASCAL__Reader
+}
+DIMOD
+fi
+
 # ── src/test/<Pascal>(Contract)Test.kt ───────────────────────────────────────
 if [[ "$MODE" == "local" ]]; then
     cat > "$TEST/${PASCAL}SourceTest.kt" <<'CTEST'
@@ -883,10 +946,14 @@ import org.junit.Test
  * This FAILS until you map [__PASCAL__Reader.items] into a
  * ListPage<FictionSummary> in [__PASCAL__Source.popular] — that mapping is your
  * to-do list. See docs/CONTRIBUTING-SOURCES.md ("Local-provider sources").
+ *
+ * #1562 — FakeReader implements the [__PASCAL__Reader] INTERFACE (it does not
+ * subclass a concrete class), so this stays a pure-JVM test even after the real
+ * impl takes a `Context`.
  */
 class __PASCAL__SourceTest {
 
-    private class FakeReader(private val seed: List<__PASCAL__Item>) : __PASCAL__Reader() {
+    private class FakeReader(private val seed: List<__PASCAL__Item>) : __PASCAL__Reader {
         override suspend fun items(): List<__PASCAL__Item> = seed
         override suspend fun item(id: String): __PASCAL__Item? = seed.firstOrNull { it.id == id }
     }
