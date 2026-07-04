@@ -35,8 +35,12 @@ source-<id>/
   build.gradle.kts                       # android-library + hilt + ksp + the test kit
   src/main/.../<Name>Source.kt           # @SourcePlugin, FictionSource stubbed with NotFound
   src/main/.../net/<Name>Api.kt          # IO-pinned request() wrapper, status mapping pre-written
+  src/main/.../di/<Name>Module.kt        # provides this source's qualified OkHttpClient + Api (keep it — see §5)
   src/test/.../<Name>ContractTest.kt     # subclass of the shared contract kit
 ```
+
+(`--local` sources have no `net/` or `di/` — they get a `<Name>Reader` seam and
+a plain `<Name>SourceTest` instead; see **Local-provider sources** below.)
 
 Everything compiles immediately; the contract test **fails honestly** because
 the stub doesn't talk to the network yet. That red test is your to-do list.
@@ -129,7 +133,11 @@ Open `<Name>ContractTest.kt` and set the two fixture hooks:
 - **`happyListBody()`** — a trimmed, real response body from your list endpoint
   (2–3 items is plenty).
 - **`listPathFragment()`** — a substring of the path your `popular()` hits, so
-  the kit routes the happy body to it.
+  the kit routes the happy body to it. The scaffold defaults this to a loud
+  `REPLACE_WITH_YOUR_LIST_PATH` sentinel: the kit asserts the fragment matched a
+  real requested path, so a forgotten edit (or a fragment that isn't actually in
+  your API's path — e.g. the source id, which rarely is) **fails loudly** instead
+  of silently 404-ing the happy body while the IO-pin check still greens (#1523).
 
 Then run it:
 
@@ -164,8 +172,20 @@ implementation(project(":source-<id>"))
 That's it. `@SourcePlugin(id = …)` makes KSP emit **both** Hilt bindings — the
 registry descriptor (Browse chip, Settings auto-section) and the
 `Map<String, FictionSource>` routing entry. You do **not** add a `SourceIds`
-constant (that table is frozen — the annotation `id` is the source of truth) and
-you do **not** hand-write a DI module.
+constant (that table is frozen — the annotation `id` is the source of truth).
+
+Two things sit next to each other here, so keep them straight (#1522):
+
+- **KSP emits the `FictionSource` multibindings** — the descriptor `@IntoSet` and
+  the `Map<String, FictionSource>` `@IntoMap`. You never hand-write *those*.
+- **The scaffold generates `di/<Name>Module.kt`** — the `@Qualifier` + `@Provides`
+  that supply your source's dedicated `OkHttpClient` (with the shared UA
+  interceptor) and its `Api`. There is no global unqualified `OkHttpClient`, so
+  this module is **required**. You don't write it by hand, but do **not** delete
+  it thinking it's redundant: without it the `:app` Hilt graph can't provide
+  `<Name>Api` and the build fails at `:app:hiltJavaCompileRelease` (CI-only —
+  it compiles fine per-module). `--local` sources have no such module: their
+  `<Name>Reader` is a plain `@Inject` class Hilt constructs directly.
 
 ## Local-provider sources (non-HTTP)
 
