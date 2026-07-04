@@ -141,13 +141,53 @@ are never uploaded, collected, or shared. Declining the camera permission
 does not dead-end the feature — you can instead pick an existing image from
 your gallery, which needs no permission.
 
+### 2.9 Anonymous impact sharing (optional, off by default)
+
+Candela is run by TechEmpower, a nonprofit. The grants that keep the app free
+need aggregate impact numbers — total hours listened, chapters and books
+finished, and the range of built-in sources people use — summed across everyone
+who chooses to help, never any individual. Candela lets you **choose** to share
+such a summary, entirely on your terms:
+
+- **Nothing is sent automatically, ever.** There is no background upload, no
+  scheduled report, and no on/off switch left running. A summary leaves your
+  device **only** when you open the Listening Stats screen, tap "Preview what
+  will be sent," review the exact contents, and share it yourself through the
+  Android share sheet — to a destination **you** pick (email, a message, a
+  form). The act of sharing is the consent.
+- **What a shared summary contains:** the current calendar **month** only; the
+  app version as `major.minor` (e.g. `1.9`, never the build); **coarse, rounded
+  monthly totals** (hours and chapters rounded to the nearest 5, books to the
+  nearest 1) of what you finished *since your last share*; and the **set of
+  built-in source IDs** you used (names only — e.g. `gutenberg`, `royalroad` —
+  never per-source counts, never URLs or titles). You see this exact payload,
+  byte-for-byte, before it ever leaves the device.
+- **What it never contains:** no name, email, or account; no device model, OS
+  version, or locale; no IP address; no persistent or rotating identifier of any
+  kind; no timestamps finer than a month; and nothing about *what* you read
+  (titles, links, contents). The rounding and the "set, not counts" design mean
+  no single summary is precise enough to single out a device.
+- **Withdrawal.** You can simply never share again — nothing further is sent. A
+  summary you already shared lives wherever you sent it; Candela keeps no copy,
+  and because it carries no identifier, TechEmpower cannot trace one back to you
+  to remove it. That unlinkability is a privacy strength, but it does mean past
+  contributions can't be individually withdrawn — they were never tied to you.
+- Candela keeps a tiny device-local record of the coarse totals you last shared,
+  so a subsequent share reports only the incremental change (never double-counts,
+  and never goes negative if you clear app data). That record holds no identity
+  and is erased when you clear app data or uninstall.
+
 ---
 
 ## 3. What we do NOT collect
 
-- **No analytics.** No Firebase, no Google Analytics, no Mixpanel, no
-  Sentry/Bugsnag, no Crashlytics. No "anonymous usage statistics". No
-  fingerprinting.
+- **No analytics or tracking SDKs.** No Firebase, no Google Analytics, no
+  Mixpanel, no Sentry/Bugsnag, no Crashlytics. No fingerprinting, and no
+  per-user usage collection. The one exception is the opt-in **Anonymous impact
+  sharing** feature (off by default, see §2.9), which — *only* if you choose to
+  use it — lets you share coarse, rounded, unlinkable monthly totals with
+  TechEmpower, with no identifier of any kind. Candela still sends nothing on
+  its own.
 - **No advertising.** No ad SDKs. No ad IDs requested. The
   `com.google.android.gms.permission.AD_ID` permission is not declared in
   the manifest.
@@ -179,6 +219,13 @@ with their servers from your device, the same way a web browser would.
 | Discord / Slack / Telegram / Matrix | Only with explicit token / homeserver setup | Bot-token API calls | Their respective policies |
 | Radio Browser API | Radio backend enabled (default off) | Station search queries | [radio-browser.info](https://www.radio-browser.info/) |
 | Palace Project (libraries) | Palace backend enabled | OPDS catalog queries | [thepalaceproject.org/privacy](https://thepalaceproject.org/privacy/) |
+
+**Anonymous impact sharing** (§2.9) adds no service to this table: Candela does
+**not** operate a collector and connects to no endpoint for it. When you choose
+to share a summary, Candela hands the text to whatever app *you* select in the
+Android share sheet (your email client, a messaging app, a web form); that app —
+your choice, using your own account — delivers it. Candela itself transmits
+nothing and involves no third party in the act.
 
 We do not sell, share, or rent your data. We don't have your data to sell —
 it's on your device.

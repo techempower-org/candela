@@ -50,6 +50,7 @@ import `in`.jphe.storyvox.feature.reader.NowPlayingDock
 import `in`.jphe.storyvox.feature.reader.NowPlayingDockViewModel
 import `in`.jphe.storyvox.feature.reader.recording.RecordingScreen
 import `in`.jphe.storyvox.feature.settings.AboutSettingsScreen
+import `in`.jphe.storyvox.feature.settings.ImpactSharingAboutScreen
 import `in`.jphe.storyvox.feature.settings.OssLicensesScreen
 import `in`.jphe.storyvox.feature.settings.AccessibilitySettingsScreen
 import `in`.jphe.storyvox.feature.settings.AccountSettingsScreen
@@ -196,6 +197,10 @@ object StoryvoxRoutes {
      *  the link row on [SETTINGS_ABOUT]; makes good on the hub's long-standing
      *  "open-source notices" promise. */
     const val SETTINGS_LICENSES = "settings/licenses"
+    /** Issue #1463 — Settings → About → Impact sharing. Explainer-only subscreen
+     *  (no toggle) for the opt-in anonymous impact-sharing feature; the actual
+     *  share action lives on the Listening Stats screen. */
+    const val SETTINGS_IMPACT_SHARING = "settings/impact-sharing"
     /**
      * Generic WebView sign-in destination, parameterized by sourceId
      * (#426 PR2). Royal Road = `auth/webview/royalroad`, AO3 =
@@ -1466,7 +1471,20 @@ private fun StoryvoxNavHostContent(
                     onBack = { navController.popBackStack() },
                     // Issue #1142 — route into the OSS licenses subscreen.
                     onOpenLicenses = { navController.navigate(StoryvoxRoutes.SETTINGS_LICENSES) },
+                    // Issue #1463 — route into the impact-sharing explainer.
+                    onOpenImpactSharing = { navController.navigate(StoryvoxRoutes.SETTINGS_IMPACT_SHARING) },
                 )
+            }
+            composable(
+                StoryvoxRoutes.SETTINGS_IMPACT_SHARING,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                // Issue #1463 — explainer-only (no toggle); the share action
+                // lives on the Listening Stats screen.
+                ImpactSharingAboutScreen(onBack = { navController.popBackStack() })
             }
             composable(
                 StoryvoxRoutes.SETTINGS_LICENSES,

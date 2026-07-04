@@ -199,6 +199,20 @@ object AppBindings {
     @Provides @Singleton
     fun provideRssConfig(impl: `in`.jphe.storyvox.data.RssConfigImpl): `in`.jphe.storyvox.source.rss.config.RssConfig = impl
 
+    /** Issue #1463 — device-local bookkeeping for opt-in impact sharing (the
+     *  coarsened cumulative totals as of the last user-triggered share). Bound
+     *  the same way as [provideRssConfig]. Holds no identity. */
+    @Provides @Singleton
+    fun provideImpactShareStore(
+        impl: `in`.jphe.storyvox.data.ImpactShareStoreImpl,
+    ): `in`.jphe.storyvox.data.repository.impact.ImpactShareStore = impl
+
+    /** Issue #1463 — the app version name, so `ImpactReporter` (core-data, no
+     *  BuildConfig of the app) can put `major.minor` in the impact payload. */
+    @Provides
+    @`in`.jphe.storyvox.data.repository.impact.ImpactAppVersion
+    fun provideImpactAppVersion(): String = BuildConfig.VERSION_NAME
+
     /** Issue #417 — bridges the source-radio [RadioConfig] interface to
      *  the app-side DataStore-backed impl. Same shape as
      *  [provideRssConfig]: the impl is exposed concretely so the

@@ -57,6 +57,9 @@ fun AboutSettingsScreen(
      *  this routes to the AboutLibraries-backed list. Default no-op keeps
      *  previews / tests simple; the NavHost passes a real navigate. */
     onOpenLicenses: () -> Unit = {},
+    /** Issue #1463 — open the "About impact sharing" explainer subscreen. Default
+     *  no-op keeps previews / tests simple; the NavHost passes a real navigate. */
+    onOpenImpactSharing: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -113,6 +116,16 @@ fun AboutSettingsScreen(
                     title = stringResource(R.string.settings_about_accessibility),
                     subtitle = stringResource(R.string.settings_about_accessibility_subtitle),
                     onClick = { runCatching { uriHandler.openUri(ACCESSIBILITY_STATEMENT_URL) } },
+                )
+            }
+            // Issue #1463 — findability for the opt-in anonymous impact-sharing
+            // feature. Explainer only (no toggle): sharing is a user-triggered
+            // action on the Listening Stats screen.
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_impact_title),
+                    subtitle = stringResource(R.string.settings_about_impact_subtitle),
+                    onClick = onOpenImpactSharing,
                 )
             }
             SettingsGroupCard {

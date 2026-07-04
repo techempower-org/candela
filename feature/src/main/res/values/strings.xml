@@ -1148,6 +1148,41 @@
     <string name="stats_empty_body">Finish a chapter and your reading stats will appear here.</string>
     <string name="stats_estimate_note">Time figures are estimates based on the length of the chapters you\'ve finished — Candela doesn\'t track exact playback time yet.</string>
 
+    <!-- Issue #1463 — opt-in anonymous impact sharing (user-triggered share/export;
+         no server, no auto-send, no toggle). Card on the stats screen + preview sheet. -->
+    <string name="impact_card_title">Share your impact, anonymously</string>
+    <string name="impact_card_body">Candela is run by TechEmpower, a nonprofit. Grants that keep the app free need impact numbers across everyone — never you. You can choose to share an anonymous, rounded monthly summary to help. Nothing is ever sent automatically.</string>
+    <!-- %1$s is a YYYY-MM month, e.g. "2026-07" -->
+    <string name="impact_card_last_shared">Last shared: %1$s</string>
+    <string name="impact_card_button">Preview what will be sent</string>
+    <string name="impact_card_all_shared">Thanks — this month\'s summary has been shared.</string>
+
+    <string name="impact_preview_title">Preview impact report</string>
+    <string name="impact_preview_intro">This is exactly what will be shared — nothing more. You choose where it goes (email, a message, a form). Candela never sends it for you.</string>
+    <string name="impact_preview_payload_label">Exactly what will be shared</string>
+    <string name="impact_preview_shared_heading">What\'s shared</string>
+    <string name="impact_preview_never_heading">What\'s never shared</string>
+    <string name="impact_shared_line_totals">Coarse monthly totals, rounded — hours, chapters, and books</string>
+    <string name="impact_shared_line_sources">Which built-in sources you used — names only, never counts</string>
+    <string name="impact_shared_line_meta">The month and the app version (major.minor only)</string>
+    <string name="impact_never_line_identity">Your name, email, or any account</string>
+    <string name="impact_never_line_device">Your device, location, or IP address</string>
+    <string name="impact_never_line_content">Titles, links, or anything you actually read</string>
+    <string name="impact_never_line_traceback">Anything that could point back to you</string>
+    <string name="impact_preview_withdrawal">A report you share lives wherever you send it. Candela keeps no copy, and because it carries no identifier, TechEmpower can\'t trace one back to you.</string>
+    <string name="impact_preview_share_button">Share report</string>
+    <string name="impact_preview_privacy_link">Read the privacy policy</string>
+    <string name="impact_share_chooser">Share impact report</string>
+    <!-- %1$s is a YYYY-MM month, e.g. "2026-07" -->
+    <string name="impact_share_subject">Candela anonymous impact report — %1$s</string>
+
+    <!-- Settings → About → Impact sharing (explainer subscreen, no toggle). -->
+    <string name="settings_about_impact_title">About impact sharing</string>
+    <string name="settings_about_impact_subtitle">How the optional anonymous summary works</string>
+    <string name="impact_about_title">Impact sharing</string>
+    <string name="impact_about_intro">Candela is run by TechEmpower, a nonprofit. The grants that keep the app free — and radically private — need aggregate impact numbers: total hours listened, chapters and books finished, and the range of sources people use, summed across everyone who chooses to share. Never you specifically.</string>
+    <string name="impact_about_where">There\'s no switch to leave on and nothing is ever sent automatically. When you want to help, open your Listening Stats screen, preview the exact anonymous summary, and share it — that one tap is the whole feature.</string>
+
     <!-- Issue #1268 — extract hardcoded UI strings for localization / a11y.
          Shared audiobook-export copy (used by both CreateAudiobookSheet and
          FictionDetailScreen's export overlay). -->
