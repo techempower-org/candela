@@ -105,10 +105,13 @@ fun ImpactShareCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            if (data.lastSharedPeriod != null) {
+            // #1525 — bind to a local val: a cross-module property can't be
+            // smart-cast after a null check, so read once and drop the `!!`.
+            val lastSharedPeriod = data.lastSharedPeriod
+            if (lastSharedPeriod != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.impact_card_last_shared, data.lastSharedPeriod!!),
+                    text = stringResource(R.string.impact_card_last_shared, lastSharedPeriod),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
