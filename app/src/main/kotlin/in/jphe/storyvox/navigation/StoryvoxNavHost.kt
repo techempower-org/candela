@@ -106,6 +106,10 @@ object StoryvoxRoutes {
      *  ML Kit Document Scanner / gallery capture → one compact on-device
      *  PDF the share sheet emails. */
     const val DOCS_SCAN = "docs/scan"
+    /** Issue #1514 — "My Documents": the encrypted, biometric-gated
+     *  on-device wallet for benefits proofs (epic #1520). Reached from the
+     *  Library add-flow ("My Documents"). */
+    const val WALLET = "docs/wallet"
     const val FICTION_DETAIL = "fiction/{fictionId}"
     const val READER = "reader/{fictionId}/{chapterId}"
     const val AUDIOBOOK = "audiobook/{fictionId}/{chapterId}"
@@ -840,6 +844,9 @@ private fun StoryvoxNavHostContent(
                     // Issue #1513 — "Scan documents to PDF" add-flow entry
                     // routes to the document scanner (scan → shareable PDF).
                     onScanDocuments = { navController.navigate(StoryvoxRoutes.DOCS_SCAN) },
+                    // Issue #1514 — "My Documents" add-flow entry → the
+                    // encrypted, biometric-gated document wallet.
+                    onOpenWallet = { navController.navigate(StoryvoxRoutes.WALLET) },
                     // v0.5.72 — Browse is a first-class bottom-nav tab
                     // now; the standalone Browse route owns RR + AO3
                     // sign-in deep-links. Follows is still embedded
@@ -933,6 +940,18 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 `in`.jphe.storyvox.feature.docs.DocScanScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                // Issue #1514 — encrypted "My Documents" wallet.
+                StoryvoxRoutes.WALLET,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.docs.WalletScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

@@ -1374,4 +1374,44 @@
     <string name="browse_gdrive_connect_body">Link Google Drive and pick a folder — the documents inside become listenable here. We only see the folder you choose.</string>
     <string name="browse_gdrive_unavailable_body">Google Drive isn\'t set up in this version of the app yet.</string>
     <string name="browse_gdrive_connect_button">Connect Google Drive</string>
+    <!-- #1514: "My Documents" encrypted, biometric-gated on-device wallet
+         for benefits proofs (epic #1520). Program mappings are a verified
+         SAMPLE (see WalletProgramCatalog). Keys alphabetical; wrapped for
+         mechanical cross-lane rebases. -->
+    <string name="library_open_wallet">My Documents (encrypted wallet)</string>
+    <string name="wallet_add_gallery">Add from photos</string>
+    <string name="wallet_add_scan">Scan a document</string>
+    <string name="wallet_back_cd">Back</string>
+    <string name="wallet_captured_days_ago">Captured %1$d days ago</string>
+    <string name="wallet_delete_cd">Delete %1$s</string>
+    <string name="wallet_empty">No documents yet. Scan an ID, pay stub, award letter, or benefit card to keep it safe and ready.</string>
+    <string name="wallet_intro">Your documents are encrypted on this device and never leave your phone. Keep proofs ready for benefits applications.</string>
+    <string name="wallet_locked_body">Your documents are locked. Unlock with your fingerprint, face, or screen lock to view them.</string>
+    <string name="wallet_no_device_lock">This device has no screen lock set. Your documents are still encrypted, but add a screen lock for an extra layer.</string>
+    <string name="wallet_ok">OK</string>
+    <string name="wallet_reexport">Export / share</string>
+    <string name="wallet_save_cancel">Cancel</string>
+    <string name="wallet_save_confirm">Save to wallet</string>
+    <string name="wallet_save_name_label">Name (optional)</string>
+    <string name="wallet_save_note_label">Note (optional)</string>
+    <string name="wallet_save_title">Save these pages to your wallet</string>
+    <string name="wallet_save_type_label">What kind of document is this?</string>
+    <string name="wallet_share_chooser">Share document</string>
+    <string name="wallet_staleness_hint">Heads up: some programs only accept income proof from the last %1$d days. Consider recapturing.</string>
+    <string name="wallet_title">My Documents</string>
+    <string name="wallet_type_address">Proof of address</string>
+    <string name="wallet_type_award">Award letter</string>
+    <string name="wallet_type_card">Benefit card</string>
+    <string name="wallet_type_id">Photo ID</string>
+    <string name="wallet_type_income">Proof of income (pay stub)</string>
+    <string name="wallet_type_other">Other</string>
+    <string name="wallet_unlock_button">Unlock</string>
+    <string name="wallet_unlock_subtitle">Unlock your encrypted documents</string>
+    <string name="wallet_unlock_title">My Documents</string>
+    <string name="wallet_what_proves">What does this prove?</string>
+    <string name="wallet_what_proves_intro">A %1$s can be used as proof for:</string>
+    <string name="wallet_what_proves_none">We don\'t have a verified list of programs for this document type yet.</string>
+    <string name="wallet_what_proves_seed_note">Sample list — the verified program list is provided by TechEmpower.</string>
+    <string name="wallet_what_proves_title">What does this prove?</string>
+    <!-- /#1514 -->
 </resources>
