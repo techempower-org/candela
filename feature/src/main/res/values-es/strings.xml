@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Spanish (es) translations. Introduced by the benefits-suite wave (epic
-  #1520) — Candela's first localized locale. Each lane appends its own keys
-  under a clearly-commented "#<issue>" block; keep additions grouped so
-  cross-lane rebases stay mechanical.
+    Spanish (es) translations for Candela's :feature module.
+
+    Bootstrapped in #1513 (benefits paperwork companion, epic #1520) — the
+    first Spanish locale in the app. It intentionally contains ONLY the
+    keys that have been translated so far; Android falls back to the
+    default (values/) strings for every untranslated key, so a partial
+    file is correct and does not break the build. Add new keys here in the
+    SAME PR that adds them to values/strings.xml (bilingual-at-launch is a
+    hard invariant for every benefits surface).
 -->
 <resources>
 
@@ -192,4 +197,5 @@
     <string name="profile_autofill_preview_title">Vista previa de autocompletar</string>
     <string name="profile_autofill_preview_hint">En un formulario escaneado, los campos que coincidan muestran una etiqueta como estas — toque para rellenar.</string>
     <string name="profile_preview_filled">Rellenado: %1$s</string>
+    <!-- /#1519 -->
 </resources>
