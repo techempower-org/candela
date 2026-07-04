@@ -99,8 +99,6 @@ dependencies {
     // No camera permission needed; de-Googled devices use the gallery-pick
     // fallback in DocScanScreen.
     implementation(libs.mlkit.document.scanner)
-    // #1514 — BiometricPrompt gate on the encrypted document wallet.
-    implementation(libs.androidx.biometric)
     // Issue #1367 — Recording mode adds video capture on top of the OCR
     // preview stack: LifecycleCameraController.startRecording needs the
     // camera-video artifact (Recorder / MediaStoreOutputOptions / AudioConfig).

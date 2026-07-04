@@ -22,8 +22,9 @@ import kotlinx.coroutines.launch
 /**
  * Issue #1514 — drives the encrypted "My Documents" wallet.
  *
- * The wallet stays LOCKED until the screen completes a BiometricPrompt
- * and calls [onUnlocked] — only then does this VM read (decrypt) the
+ * The wallet stays LOCKED until the screen completes a device-credential
+ * prompt (biometric / PIN / pattern) and calls [onUnlocked] — only then
+ * does this VM read (decrypt) the
  * store, so nothing is decrypted behind a failed/absent auth. Documents
  * are added from the scanner/gallery, shown with a staleness hint, can
  * be re-exported to a shareable PDF (reusing the #1513 [DocPdfExporter]),
@@ -121,7 +122,7 @@ class WalletViewModel @Inject constructor(
 /** UI state for the wallet screen. */
 @Immutable
 data class WalletUiState(
-    /** False until BiometricPrompt succeeds — nothing is decrypted before. */
+    /** False until the device-credential prompt succeeds — nothing is decrypted before. */
     val unlocked: Boolean = false,
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,

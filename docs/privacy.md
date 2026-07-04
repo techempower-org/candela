@@ -203,7 +203,7 @@ Calendar source simply stays empty until you choose to grant it. You can
 revoke the permission anytime in Android Settings. The Calendar source is
 read-only: Candela never creates, edits, or deletes calendar events.
 
-### 2.11 My Documents wallet (optional, encrypted, biometric-locked)
+### 2.13 My Documents wallet (optional, encrypted, device-locked)
 
 Candela can store scans of your benefits paperwork — photo ID, proof of
 address, gross pay stubs, award letters, benefit cards — in an on-device
@@ -215,12 +215,13 @@ the app:
   (type, capture date, your notes) are encrypted with Jetpack Security
   `EncryptedFile` (AES-256-GCM) under a key held in the Android Keystore.
   Nothing in the wallet is stored in the clear.
-- **Biometric / screen-lock gate.** Opening the wallet requires a
-  `BiometricPrompt` (fingerprint or face, with your device PIN/pattern as
-  fallback). The `USE_BIOMETRIC` permission is requested **only** for this
-  gate. Nothing is decrypted until you authenticate. On a device with no
-  screen lock set, the data stays encrypted but opens without a prompt (there
-  is nothing to authenticate against).
+- **Device-credential gate.** Opening the wallet requires confirming your
+  device credential — fingerprint, face, or your screen-lock PIN/pattern —
+  via Android's built-in secure-unlock prompt
+  (`KeyguardManager.createConfirmDeviceCredentialIntent`). This uses **no new
+  permission**. Nothing is decrypted until you authenticate. On a device with
+  no screen lock set, the data stays encrypted but opens without a prompt
+  (there is nothing to authenticate against).
 - **On-device only.** The images, metadata, and any PDF you export from the
   wallet **never leave your device** — no upload, no analytics on contents,
   no transmission.
@@ -337,12 +338,12 @@ delete the record.
   API keys, Anthropic Teams OAuth tokens) are stored in Android's
   [`EncryptedSharedPreferences`](https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences),
   which encrypts at rest with a per-app key bound to the device. The
-  **My Documents wallet** (§2.11) goes further: document images and
+  **My Documents wallet** (§2.13) goes further: document images and
   metadata are stored as
   [`EncryptedFile`](https://developer.android.com/reference/androidx/security/crypto/EncryptedFile)
   (AES-256-GCM under an Android Keystore master key), gated behind a
-  biometric / screen-lock prompt, and excluded from cloud backup and
-  device transfer.
+  device-credential (fingerprint / face / screen-lock) prompt, and excluded
+  from cloud backup and device transfer.
 - **HTTPS everywhere.** All network requests use HTTPS. The app's
   `network_security_config.xml` enforces this — cleartext HTTP is rejected
   by the platform.

@@ -52,14 +52,6 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
-    <!-- Issue #1514 — biometric gate on the encrypted "My Documents"
-         wallet (BiometricPrompt). USE_BIOMETRIC covers Class 2/3 biometrics
-         with device-credential (PIN/pattern) fallback, so the wallet still
-         opens on devices without biometric hardware. Nothing about the
-         stored documents leaves the device; the prompt only guards local
-         decryption. -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-
     <!-- Issue #546 / #775 — telephony is OPTIONAL. The TechEmpower
          "Call 211" card (and the matching top-app-bar phone icon)
          dials only on devices with telephony hardware (phones, not

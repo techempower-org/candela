@@ -1,17 +1,15 @@
 package `in`.jphe.storyvox.feature.docs
 
 import android.app.Activity
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,9 +52,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
@@ -71,15 +67,19 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 import java.io.File
 
 /**
- * Issue #1514 — "My Documents": the encrypted, biometric-gated on-device
- * document wallet.
+ * Issue #1514 — "My Documents": the encrypted, device-credential-gated
+ * on-device document wallet.
  *
- * The wallet is LOCKED until BiometricPrompt succeeds (biometric with
- * device-credential fallback); only then does the ViewModel decrypt the
- * list. Documents are added from the scanner/gallery (encrypted at rest),
- * shown with a freshness/staleness hint, can be re-exported to a
- * shareable PDF, and answer "what does this prove?" from the verified
- * program catalog. Nothing leaves the device.
+ * The wallet is LOCKED until the user confirms their device credential
+ * (fingerprint / face / PIN / pattern) via
+ * [KeyguardManager.createConfirmDeviceCredentialIntent]; only then does
+ * the ViewModel decrypt the list. (This gate works from a plain
+ * `ComponentActivity` — the same approach as #1519 — so it needs no
+ * `androidx.biometric` dependency and no extra permission.) Documents are
+ * added from the scanner/gallery (encrypted at rest), shown with a
+ * freshness/staleness hint, can be re-exported to a shareable PDF, and
+ * answer "what does this prove?" from the verified program catalog.
+ * Nothing leaves the device.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,25 +100,32 @@ fun WalletScreen(
     var showSaveDialog by remember { mutableStateOf(false) }
     var whatProvesFor by remember { mutableStateOf<WalletDoc?>(null) }
 
-    fun unlock() {
-        val activity = context.walletActivity()
-        if (activity == null) { viewModel.onUnlocked(); return }
-        authenticateWallet(
-            activity = activity,
-            title = promptTitle,
-            subtitle = promptSubtitle,
-            onSuccess = { viewModel.onUnlocked() },
-            onNoDeviceLock = {
-                // No biometric AND no PIN/pattern: nothing to gate against;
-                // data is still encrypted at rest. Open with a note.
-                viewModel.onAuthFailed(noLockMessage)
-                viewModel.onUnlocked()
-            },
-            onError = { msg -> viewModel.onAuthFailed(msg) },
-        )
+    // Device-credential (biometric / PIN / pattern) confirmation result.
+    val credentialLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) viewModel.onUnlocked()
+        else viewModel.onAuthFailed(null) // cancelled — stay locked
     }
 
-    // Auto-prompt once on first entry.
+    fun unlock() {
+        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val intent = if (keyguard != null && keyguard.isDeviceSecure) {
+            keyguard.createConfirmDeviceCredentialIntent(promptTitle, promptSubtitle)
+        } else {
+            null
+        }
+        if (intent != null) {
+            credentialLauncher.launch(intent)
+        } else {
+            // No secure lock set: nothing to authenticate against. Data is
+            // still encrypted at rest; open with a note.
+            viewModel.onAuthFailed(noLockMessage)
+            viewModel.onUnlocked()
+        }
+    }
+
+    // Prompt once on first entry.
     LaunchedEffect(Unit) {
         if (!state.unlocked) unlock()
     }
@@ -142,7 +149,7 @@ fun WalletScreen(
     }
 
     fun launchScanner() {
-        val activity = context.walletActivity() ?: return
+        val activity = context.findActivity() ?: return
         val options = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(true)
             .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
@@ -520,55 +527,10 @@ private fun walletTypeLabel(type: WalletDocType): Int = when (type) {
     WalletDocType.OTHER -> R.string.wallet_type_other
 }
 
-/**
- * Show a BiometricPrompt. Biometric with device-credential (PIN/pattern)
- * fallback; cross-version safe (API 26+): the combined-authenticator API
- * is used on API 30+, the deprecated device-credential flag on 26-29.
- * [onNoDeviceLock] fires when the device has no secure lock at all.
- */
-private fun authenticateWallet(
-    activity: FragmentActivity,
-    title: String,
-    subtitle: String,
-    onSuccess: () -> Unit,
-    onNoDeviceLock: () -> Unit,
-    onError: (String?) -> Unit,
-) {
-    val manager = BiometricManager.from(activity)
-    val allowed = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-        BiometricManager.Authenticators.DEVICE_CREDENTIAL
-    if (manager.canAuthenticate(allowed) == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
-        onNoDeviceLock()
-        return
-    }
-    val executor = ContextCompat.getMainExecutor(activity)
-    val prompt = BiometricPrompt(
-        activity,
-        executor,
-        object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onSuccess()
-            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                if (errorCode == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL) onNoDeviceLock()
-                else onError(errString.toString())
-            }
-        },
-    )
-    val info = BiometricPrompt.PromptInfo.Builder()
-        .setTitle(title)
-        .setSubtitle(subtitle)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        info.setAllowedAuthenticators(allowed)
-    } else {
-        @Suppress("DEPRECATION")
-        info.setDeviceCredentialAllowed(true)
-    }
-    prompt.authenticate(info.build())
-}
-
-private fun Context.walletActivity(): FragmentActivity? {
+private fun Context.findActivity(): Activity? {
     var ctx: Context? = this
     while (ctx is ContextWrapper) {
-        if (ctx is FragmentActivity) return ctx
+        if (ctx is Activity) return ctx
         ctx = ctx.baseContext
     }
     return null
