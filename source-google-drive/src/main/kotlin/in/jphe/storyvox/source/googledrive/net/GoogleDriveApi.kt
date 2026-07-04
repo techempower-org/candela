@@ -11,6 +11,7 @@ import okhttp3.Request
 import java.io.IOException
 import java.net.URLEncoder
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Issue #1496 — HTTP client for the Google Drive v3 REST API.
@@ -151,7 +152,8 @@ internal open class GoogleDriveApi @Inject constructor(
                         }
                     }
                     resp.code == 429 -> FictionResult.RateLimited(
-                        retryAfter = resp.header("Retry-After")?.toLongOrNull(),
+                        // Retry-After is in seconds when present; null otherwise.
+                        retryAfter = resp.header("Retry-After")?.toLongOrNull()?.seconds,
                         message = "Google Drive rate limited (HTTP 429)",
                     )
                     !resp.isSuccessful -> FictionResult.NetworkError(
