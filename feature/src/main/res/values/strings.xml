@@ -801,6 +801,10 @@
     <!-- Settings · About → Report objectionable content (#1140, IARC content-rating compliance) -->
     <string name="settings_about_report_content">Report objectionable content</string>
     <string name="settings_about_report_content_subtitle">Flag inappropriate content from third-party sources</string>
+    <!-- Settings · About → Read the handbook (#1563 / #1544) -->
+    <string name="settings_about_handbook">Read the handbook</string>
+    <string name="settings_about_handbook_subtitle">The Candela user guide — narrated, and it works offline.</string>
+
     <!-- Settings · About → Replay the welcome tour (#1558) -->
     <string name="settings_about_replay_tour">Replay the welcome tour</string>
     <string name="settings_about_replay_tour_subtitle">Show the first-launch welcome again — no restart needed.</string>
