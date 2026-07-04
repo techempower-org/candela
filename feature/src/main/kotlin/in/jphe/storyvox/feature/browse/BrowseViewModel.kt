@@ -237,6 +237,21 @@ class BrowseViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
+    /**
+     * Issue #1556 — fingerprint of the Notion config that changes what the
+     * Browse → Notion chip should show (token connected? which database?).
+     * Folded into the [paginator] key so connecting Notion — or editing the
+     * token / database id — rebuilds the paginator and auto-fetches with the
+     * new config, with NO manual pull-to-refresh. Closes the
+     * config-just-saved race (follow-up to #1511): before this, the
+     * paginator keyed only on source/tab/filter, so page 1 (fetched empty,
+     * pre-token) was never re-run until the user pulled to refresh.
+     */
+    private val notionConfigKey: StateFlow<String> = settings.settings
+        .map { "${it.notionTokenConfigured}|${it.notionDatabaseId}" }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
     private val hasGitHubRepoScope: kotlinx.coroutines.flow.Flow<Boolean> =
         settings.settings
             .map { s ->
@@ -333,7 +348,7 @@ class BrowseViewModel @Inject constructor(
         val authForResolve = combine(githubSignedIn, royalRoadSignedIn, ao3SignedIn) { gh, rr, ao3 ->
             Triple(gh, rr, ao3)
         }
-        combine(baseTuple, _palaceFilter, authForResolve) { tup, pf, auth ->
+        combine(baseTuple, _palaceFilter, authForResolve, notionConfigKey) { tup, pf, auth, notionKey ->
             resolveSource(
                 sourceId = tup.sourceId,
                 tab = tup.tab,
@@ -343,10 +358,17 @@ class BrowseViewModel @Inject constructor(
                 githubSignedIn = auth.first,
                 royalRoadSignedIn = auth.second,
                 ao3SignedIn = auth.third,
-            )?.let { source -> source to tup.sourceId }
+            )?.let { source ->
+                // #1556 — fold the Notion config fingerprint into the key
+                // ONLY for the Notion source, so connecting / editing Notion
+                // rebuilds the paginator (→ auto-fetch via the init
+                // collectLatest { loadNext() }) without recreating any other
+                // source's paginator on unrelated settings emissions.
+                Triple(source, tup.sourceId, notionPaginatorRefreshKey(tup.sourceId, notionKey))
+            }
         }
             .distinctUntilChanged()
-            .map { pair -> pair?.let { (source, sourceId) -> repo.paginator(source, sourceId) } }
+            .map { triple -> triple?.let { (source, sourceId, _) -> repo.paginator(source, sourceId) } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     }
 
@@ -727,6 +749,18 @@ data class NotionConnectionUi(
     val workspaceName: String = "",
     val databaseId: String = "",
 )
+
+/**
+ * Issue #1556 — the extra component folded into the Browse paginator's
+ * distinct key that makes it rebuild (and thus auto-fetch) when the Notion
+ * config changes. Returns [notionConfigKey] for the Notion source and an
+ * empty string for every other source — so a Notion connect/edit refreshes
+ * the Notion chip without disturbing any other source's paginator (which
+ * would otherwise reset its scroll/pagination on unrelated settings
+ * changes). Pure so it's unit-testable without the full ViewModel.
+ */
+internal fun notionPaginatorRefreshKey(sourceId: String, notionConfigKey: String): String =
+    if (sourceId == SourceIds.NOTION_PAT) notionConfigKey else ""
 
 private val AUTH_ONLY_GH_TABS: Set<BrowseTab> = setOf(BrowseTab.MyRepos, BrowseTab.Starred, BrowseTab.Gists)
 
