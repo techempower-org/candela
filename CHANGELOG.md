@@ -9,6 +9,28 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.10.0] -- 2026-07-04
+
+**Draconic Beacon.** Five new sources in one wave — the plugin scaffold's first real exercise — plus anonymous impact sharing and first-class Google Photos.
+
+### Added
+
+- **reddit source** — subreddits as fictions, full post bodies as chapters (not RSS stubs), via reddit's sanctioned OAuth API. Bring your own free installed-app client id (`docs/reddit-setup.md` walks it) — Candela ships no secret, mints a read-only token, and always sends its honest User-Agent. (#1492)
+- **Google Drive source** — authorize folders as a library via the narrow `drive.file` scope (Candela only ever sees what you pick, never your whole Drive); Google Docs are read natively via export. Connect button appears once OAuth credentials are configured. (#1496)
+- **Device calendar source** — Today / Tomorrow / This Week narrated from the phone's own calendar (`CalendarContract`): every synced provider works, nothing leaves the device, and the optional `READ_CALENDAR` permission is requested only on tap. Overnight events count toward every day they touch. (#1495)
+- **Epic Games Store free games** — the weekly giveaway rotation as narrated chapters, current and upcoming. (#1493)
+- **Prime Gaming free games** — claimable titles via the community LootScraper feed (configurable URL), honestly labeled: claiming requires a Prime subscription. Built only after a five-path research probe validated the data source. (#1494)
+- **Anonymous impact sharing** — a "share your impact" card on the stats screen: preview the exact coarse, rounded monthly summary (no identifiers, no titles, no timestamps finer than a month) and send it yourself through the Android share sheet. Nothing is ever sent automatically — there is no toggle, no background reporting, no server; the act of sharing is the consent. Helps TechEmpower's grant reporting keep the app free. (#1463)
+- **Photo Picker for OCR** — the gallery import now uses the system Photo Picker: still permissionless, and Google Photos (including cloud-only items) appears first-class. (#1537)
+
+### Fixed
+
+- Prime Gaming feed parsing no longer fails on emoji in game descriptions (supplementary-plane numeric entities). (#1539)
+
+### Under the hood
+
+- This wave was built by parallel agents on the v1.9.0 contributor scaffold (`scripts/new-source.sh` + contract kits) — friction found along the way is filed as `dx:` issues and feeds the next scaffold iteration. Privacy policy, Data-Safety checklist, and the walkthrough §IV table updated in lock-step with every permission- or OAuth-bearing source in this release.
+
 ## [1.9.0] -- 2026-07-03
 
 **Eldritch Lantern.** Anyone can write a source or voice plugin — and Notion sub-pages finally chapter correctly.
