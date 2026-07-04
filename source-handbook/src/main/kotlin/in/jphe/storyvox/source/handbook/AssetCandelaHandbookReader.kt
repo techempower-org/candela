@@ -4,7 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.FileNotFoundException
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +26,10 @@ internal class AssetCandelaHandbookReader @Inject constructor(
     override suspend fun manifest(): HandbookManifest = withContext(Dispatchers.IO) {
         val raw = try {
             context.assets.open("$ASSET_DIR/$MANIFEST").use { it.readBytes().decodeToString() }
-        } catch (e: FileNotFoundException) {
+        } catch (e: IOException) {
+            // Missing OR unreadable/corrupt manifest → degrade to an empty
+            // handbook, never crash the help surface (FileNotFoundException is an
+            // IOException, so this one arm covers both).
             return@withContext HandbookManifest(version = "", chapters = emptyList())
         }
         parseManifest(raw)
@@ -37,7 +40,8 @@ internal class AssetCandelaHandbookReader @Inject constructor(
         if (!id.matches(SLUG)) return@withContext null
         try {
             context.assets.open("$ASSET_DIR/$id.txt").use { it.readBytes().decodeToString() }
-        } catch (e: FileNotFoundException) {
+        } catch (e: IOException) {
+            // Missing OR unreadable body → NotFound upstream, not a crash.
             null
         }
     }

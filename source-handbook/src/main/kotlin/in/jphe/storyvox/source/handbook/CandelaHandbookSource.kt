@@ -165,7 +165,9 @@ internal class CandelaHandbookSource @Inject constructor(
      * [ChapterContent.plainBody]; this is just the on-screen rendering.
      */
     private fun toHtml(plain: String): String =
-        plain.split(Regex("\n{2,}"))
+        // Normalize CRLF first: a Windows / autocrlf checkout would otherwise
+        // leave \r between the newlines and defeat the blank-line paragraph split.
+        plain.replace("\r\n", "\n").split(Regex("\n{2,}"))
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .joinToString("\n") { block ->
