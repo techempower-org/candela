@@ -21,9 +21,9 @@ import java.nio.charset.StandardCharsets
  * needs, from the single annotation.
  *
  * For each annotated `FictionSource` implementation, the processor
- * generates ONE Kotlin file in
- * `in.jphe.storyvox.plugin.generated.<module-mangled-id>` containing
- * TWO `@Module`s installed in `SingletonComponent`:
+ * generates ONE Kotlin file in the flat package
+ * `in.jphe.storyvox.plugin.generated` containing TWO `@Module`s
+ * installed in `SingletonComponent`:
  *
  *  1. `<Source>_SourcePluginModule` (`object`) — a
  *     `@Provides @IntoSet SourcePluginDescriptor` factory that
@@ -46,11 +46,14 @@ import java.nio.charset.StandardCharsets
  * machinery then merges every module's `@IntoSet` contributions at
  * the app's `@HiltAndroidApp` graph-build step.
  *
- * That's also why the generated module name is mangled per source
- * class: `KvmrSource` → `KvmrSource_SourcePluginModule`. Two modules
- * declaring the same name would collide at compile time even when
- * they're in different packages, because Hilt aggregates by FQN at
- * the bytecode level.
+ * Because every file lands in the flat `in.jphe.storyvox.plugin.generated`
+ * package and Hilt aggregates `@Module` classes by fully-qualified name,
+ * the generated name must be unique across *all* source modules. Two
+ * same-named `FictionSource` classes in different packages (`a.FooSource`
+ * / `b.FooSource`) would otherwise emit the same file and class FQN and
+ * collide at compile time — so [generatedModuleBaseName] disambiguates by
+ * suffixing the simple name with a hash of the declaring package (#1506):
+ * `KvmrSource` → `KvmrSource_<pkgHash>_SourcePluginModule`.
  *
  * ## Generated shape (illustrative)
  *
@@ -127,9 +130,12 @@ class SourcePluginProcessor(
     }
 
     private fun emitModule(target: KSClassDeclaration, annotation: KSAnnotation) {
-        val targetFqn = target.qualifiedName?.asString()?.let(::escapeKotlinFqn)
+        val rawFqn = target.qualifiedName?.asString()
             ?: error("@SourcePlugin target ${target.simpleName.asString()} has no qualified name")
-        val targetSimple = target.simpleName.asString()
+        val targetFqn = escapeKotlinFqn(rawFqn)
+        // #1506 — package-hash suffix so two same-named source classes in
+        // different packages don't collide in the flat generated package.
+        val baseName = generatedModuleBaseName(rawFqn)
 
         val args: Map<String, Any?> = annotation.arguments.associate { it.name?.asString().orEmpty() to it.value }
         val id = args["id"] as? String
@@ -162,11 +168,11 @@ class SourcePluginProcessor(
             }
         }
 
-        val moduleSimpleName = "${targetSimple}_SourcePluginModule"
+        val moduleSimpleName = "${baseName}_SourcePluginModule"
         // #1371 — second @Module emitted into the same file: the @Binds
         // @IntoMap routing contribution. Distinct name so Hilt's
         // by-FQN aggregation doesn't collide with the descriptor module.
-        val routingModuleSimpleName = "${targetSimple}_SourceRoutingModule"
+        val routingModuleSimpleName = "${baseName}_SourceRoutingModule"
         val generatedFqn = "$GENERATED_PACKAGE_RAW.$moduleSimpleName"
 
         val containingFile = target.containingFile
