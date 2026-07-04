@@ -14,9 +14,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // AGP 9 + `android.builtInKotlin=true` derives the Kotlin jvmTarget
+    // from compileOptions.targetCompatibility, so no explicit
+    // `kotlin { compilerOptions { jvmTarget } }` block is needed here.
 }
-
-kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
     // The abstract contract test lives in this module's MAIN sourceset
@@ -35,6 +36,6 @@ dependencies {
     implementation(project(":core-playback"))
     api(libs.junit)
     api(libs.okhttp)
-    api("com.squareup.okhttp3:mockwebserver:4.12.0") // no version-catalog alias; matches source-plos/-github/-azure/core-llm
+    api(libs.okhttp.mockwebserver)
     api(libs.kotlinx.coroutines.test)
 }
