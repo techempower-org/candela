@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FilterAlt
 import androidx.compose.material3.AssistChip
@@ -513,6 +514,25 @@ fun BrowseScreen(
                 !state.isLoading &&
                 state.error == null ->
                 RssEmptyState(onAdd = { showRssManageSheet = true })
+            // Issue #1511 — Notion is CONNECTED but the first fetch after
+            // connecting comes back empty: the paginator keys on
+            // source/tab/filter (not the just-saved token), so page 1 was
+            // fetched before the config landed and only a manual refresh
+            // repopulates it. Rather than show the "Connect Notion" CTA
+            // (wrong — they already connected), surface a distinct
+            // "connected, no results yet — pull to refresh" state whose CTA
+            // runs the very refresh that fixes it. This branch precedes the
+            // #1507 connect CTA because it's the more specific case (the
+            // `!notionAnonymousActive` guard = a token IS configured). The
+            // isLoading skeleton branch above still covers the first-fetch
+            // loading affordance.
+            state.sourceId == SourceIds.NOTION_PAT &&
+                state.tab != BrowseTab.Search &&
+                state.items.isEmpty() &&
+                !state.isLoading &&
+                state.error == null &&
+                !state.notionAnonymousActive ->
+                NotionConnectedEmptyState(onRefresh = { viewModel.refresh() })
             // Issue #1507 — Notion chip is visible even when unconfigured
             // (see BrowseViewModel's NOTION_PAT visibility override). An
             // unconnected chip lands on an empty grid; surface a connect-me
@@ -1183,6 +1203,52 @@ private fun NotionConnectEmptyState(onConnect: () -> Unit) {
             BrassButton(
                 label = "Connect Notion",
                 onClick = onConnect,
+                variant = BrassButtonVariant.Primary,
+            )
+        }
+    }
+}
+
+/**
+ * Issue #1511 — Notion is connected but the first fetch returned before the
+ * just-saved token propagated, so the grid is empty until a refresh. Distinct
+ * from [NotionConnectEmptyState] (which is for the *unconnected* chip): this
+ * one acknowledges the connection and offers the one-tap refresh that lands the
+ * content — the same second-fetch users otherwise had to trigger by hand with
+ * pull-to-refresh.
+ */
+@Composable
+private fun NotionConnectedEmptyState(onRefresh: () -> Unit) {
+    val spacing = LocalSpacing.current
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            modifier = Modifier.padding(horizontal = spacing.xl),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Refresh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp),
+            )
+            Text(
+                "Notion connected",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                "No pages yet — this can take a moment right after connecting. " +
+                    "Pull to refresh, or tap below, and the pages you granted will appear.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(spacing.md))
+            BrassButton(
+                label = "Refresh",
+                onClick = onRefresh,
                 variant = BrassButtonVariant.Primary,
             )
         }
