@@ -673,6 +673,8 @@ dependencies {
     // scaffold today (partner API key + PDTB DRM + per-user OAuth pending);
     // ships the DAISY text parser as the non-gated groundwork.
     implementation(project(":source-bookshare"))
+    // Issue #1495 — device calendar source (CalendarContract, local-provider).
+    implementation(project(":source-calendar"))
     implementation(project(":source-azure"))
     implementation(project(":core-sync"))
     implementation(project(":feature"))

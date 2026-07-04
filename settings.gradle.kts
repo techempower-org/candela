@@ -127,6 +127,9 @@ include(":source-palace")
 // DAISY text parser + a guarded FictionSource scaffold; functional
 // integration is partnership/DRM-gated (see the #1002 research comment).
 include(":source-bookshare")
+// Issue #1495 — device calendar source (CalendarContract). Local-provider,
+// zero-network; narrates your on-device agenda (Today / Tomorrow / This Week).
+include(":source-calendar")
 include(":core-sync")
 include(":feature")
 // Issue #409 — Baseline Profile producer module. Pure test APK
