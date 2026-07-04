@@ -147,6 +147,13 @@ fun LibraryScreen(
      * test / preview surfaces that don't exercise it still compile.
      */
     onScanPage: () -> Unit = {},
+    /**
+     * Issue #1513 — "Scan documents to PDF" add-flow entry. Routes to the
+     * document scanner ([StoryvoxRoutes.DOCS_SCAN]) — the "no scanner at
+     * home" benefits-paperwork flow. Default no-op so test / preview
+     * surfaces that don't exercise it still compile.
+     */
+    onScanDocuments: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -344,6 +351,16 @@ fun LibraryScreen(
                                         "text/*",
                                     ),
                                 )
+                            },
+                        )
+                        // Issue #1513 — "no scanner at home": scan a paper
+                        // packet into one shareable PDF (benefits paperwork
+                        // companion, epic #1520).
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.library_scan_documents)) },
+                            onClick = {
+                                addMenuOpen = false
+                                onScanDocuments()
                             },
                         )
                     }

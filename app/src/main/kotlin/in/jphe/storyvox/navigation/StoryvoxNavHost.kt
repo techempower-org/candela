@@ -97,6 +97,12 @@ object StoryvoxRoutes {
      *  Library add-flow ("Scan a page"); CameraX / gallery capture →
      *  on-device ML Kit OCR → a fiction the reader narrates. */
     const val OCR_CAPTURE = "ocr/capture"
+    /** Issue #1513 — multi-page document scanner → shareable PDF ("no
+     *  scanner at home"; benefits paperwork companion, epic #1520).
+     *  Reached from the Library add-flow ("Scan documents to PDF");
+     *  ML Kit Document Scanner / gallery capture → one compact on-device
+     *  PDF the share sheet emails. */
+    const val DOCS_SCAN = "docs/scan"
     const val FICTION_DETAIL = "fiction/{fictionId}"
     const val READER = "reader/{fictionId}/{chapterId}"
     const val AUDIOBOOK = "audiobook/{fictionId}/{chapterId}"
@@ -809,6 +815,9 @@ private fun StoryvoxNavHostContent(
                     // Issue #995 — "Scan a page" add-flow entry routes to
                     // the OCR capture surface.
                     onScanPage = { navController.navigate(StoryvoxRoutes.OCR_CAPTURE) },
+                    // Issue #1513 — "Scan documents to PDF" add-flow entry
+                    // routes to the document scanner (scan → shareable PDF).
+                    onScanDocuments = { navController.navigate(StoryvoxRoutes.DOCS_SCAN) },
                     // v0.5.72 — Browse is a first-class bottom-nav tab
                     // now; the standalone Browse route owns RR + AO3
                     // sign-in deep-links. Follows is still embedded
@@ -891,6 +900,18 @@ private fun StoryvoxNavHostContent(
                             popUpTo(StoryvoxRoutes.OCR_CAPTURE) { inclusive = true }
                         }
                     },
+                )
+            }
+            composable(
+                // Issue #1513 — document scanner → shareable PDF.
+                StoryvoxRoutes.DOCS_SCAN,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.docs.DocScanScreen(
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             composable(

@@ -1257,9 +1257,7 @@
     <string name="docs_scan_back_cd">Back</string>
     <string name="docs_scan_intro">Turn a stack of paper into one clean PDF you can email — no scanner needed. Pages are cleaned up and combined on your device.</string>
     <string name="docs_scan_button">Scan pages</string>
-    <string name="docs_scan_button_cd">Open the document scanner</string>
     <string name="docs_scan_pick_gallery">Add from photos</string>
-    <string name="docs_scan_pick_gallery_cd">Add page photos from your gallery</string>
     <string name="docs_scan_scanner_unavailable">The document scanner isn\'t available on this device. You can still add page photos from your gallery.</string>
     <string name="docs_scan_empty">No pages yet. Tap “Scan pages” to capture a document, or add photos from your gallery.</string>
     <string name="docs_scan_page_label">Page %1$d</string>

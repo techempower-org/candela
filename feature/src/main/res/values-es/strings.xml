@@ -17,9 +17,7 @@
     <string name="docs_scan_back_cd">Atrás</string>
     <string name="docs_scan_intro">Convierte una pila de papeles en un solo PDF que puedes enviar por correo, sin necesidad de escáner. Las páginas se limpian y se combinan en tu dispositivo.</string>
     <string name="docs_scan_button">Escanear páginas</string>
-    <string name="docs_scan_button_cd">Abrir el escáner de documentos</string>
     <string name="docs_scan_pick_gallery">Añadir desde fotos</string>
-    <string name="docs_scan_pick_gallery_cd">Añadir fotos de páginas desde tu galería</string>
     <string name="docs_scan_scanner_unavailable">El escáner de documentos no está disponible en este dispositivo. Aún puedes añadir fotos de páginas desde tu galería.</string>
     <string name="docs_scan_empty">Aún no hay páginas. Toca «Escanear páginas» para capturar un documento, o añade fotos desde tu galería.</string>
     <string name="docs_scan_page_label">Página %1$d</string>
