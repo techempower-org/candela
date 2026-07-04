@@ -12,28 +12,31 @@
 -->
 <resources>
 
-    <!-- #1513: multi-page document scanner → shareable PDF -->
-    <string name="docs_scan_title">Escanear documentos</string>
+    <!-- #1513: multi-page document scanner → shareable PDF. Keys
+         alphabetical, same order as values/strings.xml; wrapped so
+         cross-lane rebases are mechanical. -->
     <string name="docs_scan_back_cd">Atrás</string>
-    <string name="docs_scan_intro">Convierte una pila de papeles en un solo PDF que puedes enviar por correo, sin necesidad de escáner. Las páginas se limpian y se combinan en tu dispositivo.</string>
     <string name="docs_scan_button">Escanear páginas</string>
-    <string name="docs_scan_pick_gallery">Añadir desde fotos</string>
-    <string name="docs_scan_scanner_unavailable">El escáner de documentos no está disponible en este dispositivo. Aún puedes añadir fotos de páginas desde tu galería.</string>
     <string name="docs_scan_empty">Aún no hay páginas. Toca «Escanear páginas» para capturar un documento, o añade fotos desde tu galería.</string>
-    <string name="docs_scan_page_label">Página %1$d</string>
-    <string name="docs_scan_move_up_cd">Mover la página %1$d hacia arriba</string>
+    <string name="docs_scan_export">Exportar y compartir PDF</string>
+    <string name="docs_scan_exported">Guardado %1$s · %2$s</string>
+    <string name="docs_scan_exporting">Creando tu PDF…</string>
+    <string name="docs_scan_intro">Convierte una pila de papeles en un solo PDF que puedes enviar por correo, sin necesidad de escáner. Las páginas se limpian y se combinan en tu dispositivo.</string>
     <string name="docs_scan_move_down_cd">Mover la página %1$d hacia abajo</string>
-    <string name="docs_scan_remove_cd">Eliminar la página %1$d</string>
-    <string name="docs_scan_title_label">Nombre del documento</string>
+    <string name="docs_scan_move_up_cd">Mover la página %1$d hacia arriba</string>
+    <string name="docs_scan_page_label">Página %1$d</string>
     <plurals name="docs_scan_pages_ready">
         <item quantity="one">%1$d página lista</item>
         <item quantity="other">%1$d páginas listas</item>
     </plurals>
-    <string name="docs_scan_export">Exportar y compartir PDF</string>
-    <string name="docs_scan_exporting">Creando tu PDF…</string>
-    <string name="docs_scan_exported">Guardado %1$s · %2$s</string>
+    <string name="docs_scan_pick_gallery">Añadir desde fotos</string>
+    <string name="docs_scan_privacy_note">El escaneo y la creación del PDF ocurren en tu dispositivo. Tus documentos nunca salen de tu teléfono.</string>
+    <string name="docs_scan_remove_cd">Eliminar la página %1$d</string>
+    <string name="docs_scan_scanner_unavailable">El escáner de documentos no está disponible en este dispositivo. Aún puedes añadir fotos de páginas desde tu galería.</string>
     <string name="docs_scan_share_again">Compartir de nuevo</string>
     <string name="docs_scan_share_chooser">Compartir PDF</string>
-    <string name="docs_scan_privacy_note">El escaneo y la creación del PDF ocurren en tu dispositivo. Tus documentos nunca salen de tu teléfono.</string>
+    <string name="docs_scan_title">Escanear documentos</string>
+    <string name="docs_scan_title_label">Nombre del documento</string>
     <string name="library_scan_documents">Escanear documentos a PDF</string>
+    <!-- /#1513 -->
 </resources>

@@ -1253,27 +1253,28 @@
          home"). Benefits paperwork companion (epic #1520). Capture happens
          on-device via the ML Kit Document Scanner (Play services); PDF
          composition is on-device too — no content leaves the phone. -->
-    <string name="docs_scan_title">Scan documents</string>
     <string name="docs_scan_back_cd">Back</string>
-    <string name="docs_scan_intro">Turn a stack of paper into one clean PDF you can email — no scanner needed. Pages are cleaned up and combined on your device.</string>
     <string name="docs_scan_button">Scan pages</string>
-    <string name="docs_scan_pick_gallery">Add from photos</string>
-    <string name="docs_scan_scanner_unavailable">The document scanner isn\'t available on this device. You can still add page photos from your gallery.</string>
     <string name="docs_scan_empty">No pages yet. Tap “Scan pages” to capture a document, or add photos from your gallery.</string>
-    <string name="docs_scan_page_label">Page %1$d</string>
-    <string name="docs_scan_move_up_cd">Move page %1$d up</string>
+    <string name="docs_scan_export">Export &amp; share PDF</string>
+    <string name="docs_scan_exported">Saved %1$s · %2$s</string>
+    <string name="docs_scan_exporting">Building your PDF…</string>
+    <string name="docs_scan_intro">Turn a stack of paper into one clean PDF you can email — no scanner needed. Pages are cleaned up and combined on your device.</string>
     <string name="docs_scan_move_down_cd">Move page %1$d down</string>
-    <string name="docs_scan_remove_cd">Remove page %1$d</string>
-    <string name="docs_scan_title_label">Document name</string>
+    <string name="docs_scan_move_up_cd">Move page %1$d up</string>
+    <string name="docs_scan_page_label">Page %1$d</string>
     <plurals name="docs_scan_pages_ready">
         <item quantity="one">%1$d page ready</item>
         <item quantity="other">%1$d pages ready</item>
     </plurals>
-    <string name="docs_scan_export">Export &amp; share PDF</string>
-    <string name="docs_scan_exporting">Building your PDF…</string>
-    <string name="docs_scan_exported">Saved %1$s · %2$s</string>
+    <string name="docs_scan_pick_gallery">Add from photos</string>
+    <string name="docs_scan_privacy_note">Scanning and PDF creation happen on your device. Your documents never leave your phone.</string>
+    <string name="docs_scan_remove_cd">Remove page %1$d</string>
+    <string name="docs_scan_scanner_unavailable">The document scanner isn\'t available on this device. You can still add page photos from your gallery.</string>
     <string name="docs_scan_share_again">Share again</string>
     <string name="docs_scan_share_chooser">Share PDF</string>
-    <string name="docs_scan_privacy_note">Scanning and PDF creation happen on your device. Your documents never leave your phone.</string>
+    <string name="docs_scan_title">Scan documents</string>
+    <string name="docs_scan_title_label">Document name</string>
     <string name="library_scan_documents">Scan documents to PDF</string>
+    <!-- /#1513 -->
 </resources>
