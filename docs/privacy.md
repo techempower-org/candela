@@ -63,8 +63,8 @@ you enable. Each is opt-in via Settings → Plugins. The list currently includes
 Royal Road, GitHub, RSS, Outline, Memory Palace, Project Gutenberg, AO3,
 Standard Ebooks, Wikipedia, Wikisource, Radio (Radio Browser API),
 Notion, Hacker News, arXiv, PLOS, Discord, Telegram, Palace Project, Slack,
-Matrix, Google Drive, and a generic "Readability" catch-all for arbitrary
-URLs you share into the app.
+Matrix, Google Drive, Reddit, and a generic "Readability" catch-all for
+arbitrary URLs you share into the app.
 
 When you browse one of these backends, Candela sends HTTPS requests to
 that backend's servers exactly the way a web browser would. **Candela does
@@ -76,10 +76,10 @@ Candela along with these requests.
 
 For backends that require sign-in (Royal Road follows, AO3 marked-for-later,
 GitHub OAuth Device Flow, Discord/Slack/Matrix/Telegram bot tokens, Notion
-integration or OAuth tokens, Google Drive OAuth tokens, Azure HD speech key),
-credentials live on-device and are sent only to that backend's own API.
-**Candela servers (there aren't any beyond the sync database) never see your
-fiction-backend credentials.**
+integration or OAuth tokens, Google Drive OAuth tokens, Reddit installed-app
+client id, Azure HD speech key), credentials live on-device and are sent only
+to that backend's own API. **Candela servers (there aren't any beyond the sync
+database) never see your fiction-backend credentials.**
 
 For **Google Drive**, Candela requests only the narrow `drive.file` OAuth
 scope, which grants access **only to files and folders you explicitly pick** —
@@ -244,6 +244,7 @@ with their servers from your device, the same way a web browser would.
 | Notion | Only if you add a Notion token | Notion API requests | [Notion privacy](https://www.notion.so/Privacy-Policy) |
 | Google Drive | Only if you connect Google Drive (`drive.file` scope) | Drive API requests for files you grant | [Google privacy](https://policies.google.com/privacy) |
 | Discord / Slack / Telegram / Matrix | Only with explicit token / homeserver setup | Bot-token API calls | Their respective policies |
+| Reddit | Only if you add a Reddit client id | OAuth API requests (read-only) | [Reddit privacy](https://www.reddit.com/policies/privacy-policy) |
 | Radio Browser API | Radio backend enabled (default off) | Station search queries | [radio-browser.info](https://www.radio-browser.info/) |
 | Palace Project (libraries) | Palace backend enabled | OPDS catalog queries | [thepalaceproject.org/privacy](https://thepalaceproject.org/privacy/) |
 

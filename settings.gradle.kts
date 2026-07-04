@@ -118,6 +118,9 @@ include(":source-matrix")
 // otherwise claimed by one of the 17 specialized backends still
 // produces a single-chapter "article" fiction. "No URL is a dead-end."
 include(":source-readability")
+// Issue #1492 — Reddit source (OAuth2 installed-app, BYOK). Full post
+// bodies via the JSON API — supersedes the insta-429 RSS path (#1489/#1490).
+include(":source-reddit")
 // Issue #502 — Palace Project library backend (OPDS catalog walker).
 // First library-borrowing backend in the storyvox roster; ships
 // non-DRM titles only in this PR (LCP DRM is explicitly deferred —

@@ -327,6 +327,17 @@ object AppBindings {
     @Provides @Singleton
     fun provideMatrixConfig(impl: `in`.jphe.storyvox.data.MatrixConfigImpl): `in`.jphe.storyvox.source.matrix.config.MatrixConfig = impl
 
+    /** Issue #1492 — bridges source-reddit RedditConfig to the app-side
+     *  DataStore + EncryptedSharedPreferences impl. Installed-app client
+     *  id encrypted under `pref_source_reddit_client_id` in the shared
+     *  `storyvox.secrets` store; post-sort / comment / favourite-subreddit
+     *  knobs in plaintext DataStore. Same shape as Discord / Matrix. Per
+     *  the Matrix precedent the client-id-entry Settings UI is a follow-up
+     *  (no generic BYOK config-field mechanism yet); the backend ships
+     *  functional via KSP plugin registration + the Plugin Manager toggle. */
+    @Provides @Singleton
+    fun provideRedditConfig(impl: `in`.jphe.storyvox.data.RedditConfigImpl): `in`.jphe.storyvox.source.reddit.config.RedditConfig = impl
+
     /**
      * Same singleton instance as [provideSettingsRepositoryUi], exposed under
      * the [PlaybackBufferConfig] contract so `core-playback`'s [EnginePlayer]
