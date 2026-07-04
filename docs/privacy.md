@@ -221,6 +221,32 @@ neither stores it nor offers to fill it — the app actively warns you on any
 SSN/tax-id field. No network is involved in matching a form field to your
 saved value; it's all local text comparison.
 
+### 2.12 Notice deadline reminders (optional)
+
+Candela can photograph a benefits notice (a renewal letter, a recertification
+form) and set you a local reminder before its deadline. The whole flow is
+**on-device**: the photo is read with the same on-device OCR as §2.8 (image and
+recognized text **never leave your device**), the deadline date is found by
+plain on-device text matching (no AI, no network), and you **confirm** the date
+before anything is scheduled — Candela never auto-commits a guess.
+
+The reminders themselves are **local notifications only**. There is no account,
+no cloud, and no server: the reminder lives on your phone and is delivered by
+Android at the times you chose (by default one week before, two days before, and
+on the day). Your reminders are stored in the app's private storage, are
+**excluded from cloud backup and device-to-device transfer**, and are never
+uploaded, collected, or shared. The notification text is **yours to edit**;
+by default it shows only a short label plus "deadline" — never dollar amounts or
+case numbers — so nothing sensitive appears on your lock screen.
+
+Two Android capabilities support this feature, both used **only** for these
+local reminders: notifications (`POST_NOTIFICATIONS`, which you can grant or deny
+and revoke anytime) and exact alarms (`SCHEDULE_EXACT_ALARM`, so a reminder can
+fire at a predictable time on its day). Exact alarms are optional — if you don't
+grant them, reminders still fire, just batched by the system — and Candela offers
+a one-tap shortcut to the setting rather than nagging. Reminders are re-armed
+after a reboot from that same on-device store.
+
 ### 2.13 My Documents wallet (optional, encrypted, device-locked)
 
 Candela can store scans of your benefits paperwork — photo ID, proof of
