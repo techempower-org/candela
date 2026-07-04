@@ -663,6 +663,10 @@ dependencies {
     // app classpath so its KSP-generated SourcePluginDescriptor binding
     // joins the Hilt multibinding set the registry consumes.
     implementation(project(":source-readability"))
+    // Issue #1492 — Reddit OAuth2 installed-app source (BYOK). On the app
+    // classpath so its KSP-generated SourcePluginDescriptor + FictionSource
+    // @IntoMap bindings join the Hilt multibindings the registry consumes.
+    implementation(project(":source-reddit"))
     // Issue #502 — Palace Project OPDS library backend. First library-
     // borrowing source in the storyvox roster; ships non-DRM titles
     // only in v1 (LCP DRM titles surface greyed-out with an "open in
