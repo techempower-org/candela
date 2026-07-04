@@ -72,6 +72,30 @@ Declare **one** sharing relationship:
 - **Do NOT declare as "shared":** BYOK Azure/Anthropic/OpenAI keys, and third-party sign-ins (Discord/Notion/Royal Road/etc.). Per Play's definition these are *the user transmitting their own data directly to that service*, not the app sharing it.
   - ⚠️ _#1507 note:_ Notion now also supports an **OAuth "Connect"** flow (in addition to the pasted Integration Token). The classification is unchanged: the OAuth access + refresh tokens are the *user's own* credentials, stored encrypted in `storyvox.secrets` (and, only if cloud sync is on, E2E-encrypted behind the user's passphrase — Candela's servers never see plaintext). Content still flows **user → Notion directly** via those tokens; Candela does not share Notion data with anyone. So Notion stays **Not "shared"** and Files/Messages stay **No**.
 
+### Impact sharing (#1463) — no new declaration
+
+**Confirmed: opt-in Anonymous Impact Sharing adds NO new "collected" or "shared"
+data type.** The feature is a *user-initiated share* (no server, no automatic
+transmission, no background upload — see privacy.md §2.9). When the user taps
+Share, Candela hands a coarse, rounded, **identifier-free** summary (month, app
+`major.minor`, bucketed hours/chapters/books, a set of built-in source IDs) to
+whatever app the *user* picks in the Android share sheet, delivered via the
+user's own account.
+
+- Reasoning mirrors the OCR/BYOK argument (§B/§C above): egress that the user
+  initiates to a destination the user chooses, using the user's own channel, is
+  **the user transmitting their own data**, not the app *collecting* or
+  *sharing* it in Play's taxonomy — the same basis on which BYOK keys and
+  third-party sign-ins are "not shared."
+- The payload contains **no data type in Play's personal-data taxonomy**: no
+  identifiers (no email, User ID, device ID, or nonce), no personal info, no
+  location, no content — and Candela operates no collector, so there is no IP to
+  log or retain. There is therefore nothing to add to Section B or Section C.
+- Keep policy + form consistent: privacy.md §2.9 documents this flow and §3
+  states the app still collects nothing on its own. **`play-store-walkthrough.html`
+  §IV needs no change** unless a future Console re-audit disagrees with this
+  mapping (per open item #4).
+
 ### Section D — Security practices
 - Encrypted in transit → **Yes** (HTTPS enforced by `network_security_config.xml`)
 - Users can request deletion → **Yes** → provide the in-app **Delete cloud data** path + the deletion-request email (see Task 1 corrections; **not** sign-out)
@@ -91,5 +115,6 @@ Declare **one** sharing relationship:
 2. Confirm the privacy policy documents a deletion-request email (backstops the `$users` record).
 3. Pick the "library state" Play category (App activity → Other UGC vs Other actions) and keep policy + form consistent.
 4. Re-audit this form whenever a new data flow lands (e.g., opt-in crash reporting) — a Data Safety answer that contradicts observed network traffic is a top rejection trigger.
+   - ✅ _#1463 (impact sharing) audited:_ no new declaration — user-initiated share-sheet egress to a user-chosen destination, no collector, no identifiers (see the "Impact sharing" note above). Candela originates no network traffic for it, so nothing contradicts the form.
 
 _Code refs: `core-sync/.../client/InstantClient.kt` (signOut=token revoke), `feature/.../sync/SyncAuthViewModel.kt` (signOut vs purgeRemoteData #1248), `core-sync/.../coordinator/SyncCoordinator.kt` (purgeRemoteData loops all syncers), `core-sync/.../client/HttpInstantBackend.kt` (admin/transact delete), `core-sync/.../di/SyncModule.kt` (8 syncer domains)._

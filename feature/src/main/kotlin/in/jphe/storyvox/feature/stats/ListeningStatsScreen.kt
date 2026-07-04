@@ -71,6 +71,8 @@ fun ListeningStatsScreen(
     viewModel: ListeningStatsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // #1463 — opt-in anonymous impact share payload for the loaded snapshot.
+    val impact by viewModel.impact.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val appName = stringResource(R.string.stats_app_name)
     val chooserTitle = stringResource(R.string.stats_share_chooser)
@@ -155,7 +157,12 @@ fun ListeningStatsScreen(
 
             is ListeningStatsUiState.Loaded ->
                 if (state.stats.hasData) {
-                    StatsBody(stats = state.stats, contentPadding = padding)
+                    StatsBody(
+                        stats = state.stats,
+                        impact = impact,
+                        onShared = viewModel::onShared,
+                        contentPadding = padding,
+                    )
                 } else {
                     EmptyStats(contentPadding = padding)
                 }
@@ -166,6 +173,8 @@ fun ListeningStatsScreen(
 @Composable
 private fun StatsBody(
     stats: ListeningStats,
+    impact: `in`.jphe.storyvox.data.repository.impact.ImpactShareData?,
+    onShared: () -> Unit,
     contentPadding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     val spacing = LocalSpacing.current
@@ -182,6 +191,15 @@ private fun StatsBody(
         WeeklyCard(stats)
         if (stats.perSource.isNotEmpty()) SourceCard(stats)
         TimeOfDayCard(stats)
+        // #1463 — opt-in anonymous impact sharing, in context beneath the very
+        // numbers it would (coarsely, anonymously) contribute to.
+        if (impact != null) {
+            ImpactShareCard(
+                data = impact,
+                onShared = onShared,
+                currentPeriod = impact.report.period,
+            )
+        }
         Text(
             text = stringResource(R.string.stats_estimate_note),
             style = MaterialTheme.typography.bodySmall,
