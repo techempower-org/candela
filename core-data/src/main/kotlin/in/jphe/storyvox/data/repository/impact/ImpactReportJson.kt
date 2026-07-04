@@ -14,16 +14,20 @@ package `in`.jphe.storyvox.data.repository.impact
  */
 object ImpactReportJson {
 
-    /** Encode [report] as pretty, deterministic JSON. */
+    /** Encode [report] as pretty, deterministic JSON.
+     *
+     *  #1525 — line breaks are written as an explicit `\n` (not `appendLine`)
+     *  so the byte-for-byte determinism contract in the class KDoc is
+     *  self-evident and can never regress to a platform line separator. */
     fun encode(report: ImpactReport): String = buildString {
         append("{\n")
-        appendLine("  ${quote("schema")}: ${report.schema},")
-        appendLine("  ${quote("period")}: ${quote(report.period)},")
-        appendLine("  ${quote("app_version")}: ${quote(report.appVersion)},")
-        appendLine("  ${quote("hours_listened_bucket")}: ${report.hoursListenedBucket},")
-        appendLine("  ${quote("chapters_completed_bucket")}: ${report.chaptersCompletedBucket},")
-        appendLine("  ${quote("books_completed_bucket")}: ${report.booksCompletedBucket},")
-        appendLine("  ${quote("sources_used")}: ${encodeStringArray(report.sourcesUsed)}")
+        append("  ${quote("schema")}: ${report.schema},\n")
+        append("  ${quote("period")}: ${quote(report.period)},\n")
+        append("  ${quote("app_version")}: ${quote(report.appVersion)},\n")
+        append("  ${quote("hours_listened_bucket")}: ${report.hoursListenedBucket},\n")
+        append("  ${quote("chapters_completed_bucket")}: ${report.chaptersCompletedBucket},\n")
+        append("  ${quote("books_completed_bucket")}: ${report.booksCompletedBucket},\n")
+        append("  ${quote("sources_used")}: ${encodeStringArray(report.sourcesUsed)}\n")
         append("}")
     }
 

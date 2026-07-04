@@ -55,4 +55,13 @@ class ImpactReportJsonTest {
         val report = ImpactReport(1, "2026-07", "1.9", 5, 10, 1, listOf("ao3"))
         assertEquals(ImpactReportJson.encode(report), ImpactReportJson.encode(report))
     }
+
+    @Test
+    fun `line breaks are always LF, never a platform CRLF`() {
+        // #1525 — the byte-for-byte contract requires `\n` line breaks on every
+        // platform; a stray `\r` would mean the preview no longer matches the
+        // shared bytes.
+        val report = ImpactReport(1, "2026-07", "1.9", 5, 10, 1, listOf("ao3"))
+        assertTrue(ImpactReportJson.encode(report).none { it == '\r' })
+    }
 }

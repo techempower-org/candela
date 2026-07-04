@@ -103,7 +103,105 @@ class EpicFreeGamesMappingTest {
         val weird = giveaways(api.parsePromotions("""{"data":{},"unexpected":true}"""))
         assertTrue(weird.isEmpty())
     }
+
+    // ─── #1525 polish: blank fields must not defeat the Elvis fallbacks ────
+
+    @Test
+    fun `blank id and namespace fall through to the title for the key`() {
+        // A present-but-empty id/namespace is non-null, so a bare Elvis chain
+        // would keep "" as the key. isNotBlank guards must reach the title.
+        val g = giveaways(api.parsePromotions(BLANK_FIELDS_FIXTURE))
+            .first { it.title == "Blank Fields Game" }
+        assertEquals("Blank Fields Game", g.key)
+    }
+
+    @Test
+    fun `blank offerMappings slug falls through to a non-blank catalogNs slug`() {
+        val g = giveaways(api.parsePromotions(BLANK_FIELDS_FIXTURE))
+            .first { it.title == "Blank Fields Game" }
+        assertEquals("https://store.epicgames.com/p/blank-fields-game-abc", g.storeUrl)
+    }
+
+    @Test
+    fun `all-blank slugs yield a null store url, never a bare p slash`() {
+        val g = giveaways(api.parsePromotions(BLANK_FIELDS_FIXTURE))
+            .first { it.title == "All Blank Slugs Game" }
+        assertNull(g.storeUrl)
+    }
+
+    @Test
+    fun `toHtmlParagraphs normalises CRLF and collapses extra blank lines`() {
+        val body = "Title line\r\n\r\nDetails paragraph\r\nwith a soft wrap\r\n\r\n\r\nClaim it here"
+        assertEquals(
+            "<p>Title line</p>" +
+                "<p>Details paragraph<br/>with a soft wrap</p>" +
+                "<p>Claim it here</p>",
+            body.toHtmlParagraphs(),
+        )
+    }
+
+    @Test
+    fun `toHtmlParagraphs still splits a plain LF body`() {
+        // Regression guard: the LF-only path the code always handled is intact.
+        assertEquals(
+            "<p>One</p><p>Two</p>",
+            "One\n\nTwo".toHtmlParagraphs(),
+        )
+    }
 }
+
+/**
+ * #1525 — two currently-free elements exercising the blank-field fallbacks:
+ *  - "Blank Fields Game": empty id/namespace (key → title) and an empty
+ *    offerMappings slug (store URL → catalogNs slug).
+ *  - "All Blank Slugs Game": every slug blank (store URL → null).
+ */
+internal const val BLANK_FIELDS_FIXTURE: String = """
+{
+  "data": {
+    "Catalog": {
+      "searchStore": {
+        "elements": [
+          {
+            "title": "Blank Fields Game",
+            "id": "",
+            "namespace": "",
+            "productSlug": null,
+            "promotions": {
+              "promotionalOffers": [
+                { "promotionalOffers": [
+                  { "startDate": "2026-07-02T15:00:00.000Z", "endDate": "2026-07-09T15:00:00.000Z",
+                    "discountSetting": { "discountType": "PERCENTAGE", "discountPercentage": 0 } }
+                ] }
+              ],
+              "upcomingPromotionalOffers": []
+            },
+            "offerMappings": [ { "pageSlug": "", "pageType": "productHome" } ],
+            "catalogNs": { "mappings": [ { "pageSlug": "blank-fields-game-abc", "pageType": "productHome" } ] }
+          },
+          {
+            "title": "All Blank Slugs Game",
+            "id": "allblank1",
+            "namespace": "allblankns",
+            "productSlug": null,
+            "promotions": {
+              "promotionalOffers": [
+                { "promotionalOffers": [
+                  { "startDate": "2026-07-02T15:00:00.000Z", "endDate": "2026-07-09T15:00:00.000Z",
+                    "discountSetting": { "discountType": "PERCENTAGE", "discountPercentage": 0 } }
+                ] }
+              ],
+              "upcomingPromotionalOffers": []
+            },
+            "offerMappings": [ { "pageSlug": "", "pageType": "productHome" } ],
+            "catalogNs": { "mappings": [ { "pageSlug": "", "pageType": "productHome" } ] }
+          }
+        ]
+      }
+    }
+  }
+}
+"""
 
 /**
  * A trimmed real `freeGamesPromotions` body:

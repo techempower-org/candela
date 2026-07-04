@@ -262,7 +262,12 @@ internal fun giveaways(resp: PromotionsResponse): List<Giveaway> {
             else -> continue // plain sale / not a giveaway
         }
         out += Giveaway(
-            key = el.id ?: el.namespace ?: title,
+            // #1525 — a present-but-blank id/namespace is non-null, so a bare
+            // Elvis chain would keep the "" and never fall through. Guard each
+            // link with isNotBlank so the fallback reaches a usable value.
+            key = el.id?.takeIf { it.isNotBlank() }
+                ?: el.namespace?.takeIf { it.isNotBlank() }
+                ?: title,
             title = title,
             description = el.description?.trim().orEmpty(),
             seller = el.seller?.name?.trim()?.takeIf { it.isNotBlank() },
@@ -293,11 +298,15 @@ private fun List<OfferGroup>.firstFreeOffer(): PromotionalOffer? =
  * carries no usable slug.
  */
 internal fun storeUrlFor(el: StoreElement): String? {
+    // #1525 — a present-but-blank pageSlug is non-null, so a bare Elvis chain
+    // would keep the "" and emit a broken ".../p/" URL instead of falling
+    // through. Guard every pageSlug with isNotBlank so the chain reaches a
+    // usable slug (or null).
     val slug = el.productSlug?.substringBefore('/')?.takeIf { it.isNotBlank() }
-        ?: el.offerMappings.firstOrNull { it.pageType == "productHome" }?.pageSlug
-        ?: el.offerMappings.firstOrNull()?.pageSlug
-        ?: el.catalogNs?.mappings?.firstOrNull { it.pageType == "productHome" }?.pageSlug
-        ?: el.catalogNs?.mappings?.firstOrNull()?.pageSlug
+        ?: el.offerMappings.firstOrNull { it.pageType == "productHome" }?.pageSlug?.takeIf { it.isNotBlank() }
+        ?: el.offerMappings.firstOrNull()?.pageSlug?.takeIf { it.isNotBlank() }
+        ?: el.catalogNs?.mappings?.firstOrNull { it.pageType == "productHome" }?.pageSlug?.takeIf { it.isNotBlank() }
+        ?: el.catalogNs?.mappings?.firstOrNull()?.pageSlug?.takeIf { it.isNotBlank() }
         ?: return null
     return "https://store.epicgames.com/p/$slug"
 }
@@ -354,9 +363,16 @@ internal fun formatEpicDate(iso: String?): String? {
     }
 }
 
-/** Split the plain body on blank lines into `<p>` blocks for the reader view. */
+/** Split the plain body on blank lines into `<p>` blocks for the reader view.
+ *  #1525 — normalise CRLF / lone-CR line endings to `\n` and collapse runs of
+ *  3+ newlines to a single blank-line separator first, so a body that arrives
+ *  with `\r\n` (or extra blank lines) still splits into paragraphs instead of
+ *  collapsing into one `<p>`. */
 internal fun String.toHtmlParagraphs(): String =
-    split("\n\n")
+    replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .replace(Regex("\n{3,}"), "\n\n")
+        .split("\n\n")
         .filter { it.isNotBlank() }
         .joinToString("") { "<p>${escapeHtml(it).replace("\n", "<br/>")}</p>" }
 
