@@ -189,10 +189,29 @@ internal open class Ao3Api @Inject constructor(
                 val ctype = resp.header("Content-Type").orEmpty()
                 when {
                     resp.code == 404 -> FictionResult.NotFound("EPUB not available for work $workId")
-                    resp.code == 401 || resp.code == 403 ->
-                        FictionResult.AuthRequired(
-                            "AO3 sign-in required for work $workId (likely Archive-Warning gated)",
-                        )
+                    // #1502 — a 403/401 here may be a genuine Archive-Warning /
+                    // auth gate OR Cloudflare fronting AO3. Sniff the body before
+                    // committing to the terminal AuthRequired path (a sign-in
+                    // prompt can't clear a CF block): an interactive challenge
+                    // escalates to the WebView resolver (Cloudflare), a WAF/1020
+                    // block is transient + IP-scoped so it must be a retryable
+                    // NetworkError, and only a real gate stays AuthRequired.
+                    resp.code == 401 || resp.code == 403 -> {
+                        val body = resp.body?.string().orEmpty()
+                        when {
+                            looksLikeCfChallenge(body) -> FictionResult.Cloudflare(
+                                challengeUrl = url,
+                                message = "AO3 returned a Cloudflare challenge for EPUB download (work $workId)",
+                            )
+                            looksLikeCfBlock(body) -> FictionResult.NetworkError(
+                                "AO3 returned a Cloudflare block page for EPUB download (work $workId, HTTP ${resp.code})",
+                                IOException("HTTP ${resp.code} (Cloudflare block)"),
+                            )
+                            else -> FictionResult.AuthRequired(
+                                "AO3 sign-in required for work $workId (likely Archive-Warning gated)",
+                            )
+                        }
+                    }
                     !resp.isSuccessful -> FictionResult.NetworkError(
                         "HTTP ${resp.code} downloading AO3 EPUB",
                         IOException("HTTP ${resp.code}"),
@@ -329,6 +348,17 @@ internal open class Ao3Api @Inject constructor(
                             looksLikeCfChallenge(body) -> FictionResult.Cloudflare(
                                 challengeUrl = baseUrl + path,
                                 message = "AO3 returned a Cloudflare challenge for $path (HTTP ${resp.code})",
+                            )
+                            // #1502 — a Cloudflare WAF / Error-1020 block page
+                            // also arrives as a 403 but carries none of the
+                            // interactive-challenge markers above. There is no
+                            // challenge to solve, so it must NOT fall through to
+                            // the terminal AuthRequired arm; a WAF block is
+                            // transient + IP-scoped, so surface it as a retryable
+                            // NetworkError. Must precede the 401/403 arm.
+                            looksLikeCfBlock(body) -> FictionResult.NetworkError(
+                                "AO3 returned a Cloudflare block page for $path (HTTP ${resp.code})",
+                                IOException("HTTP ${resp.code} (Cloudflare block)"),
                             )
                             resp.code == 401 || resp.code == 403 -> FictionResult.AuthRequired(
                                 "HTTP ${resp.code} from $url",
@@ -521,6 +551,42 @@ internal open class Ao3Api @Inject constructor(
                 body.substringAfter("<title>").substringBefore("</title>")
                     .contains("Just a moment", ignoreCase = true)
             return hasChallengeTitle && body.length < 20_000
+        }
+
+        /**
+         * #1502 — Cheap signal that a NON-success response body is a
+         * Cloudflare WAF / firewall *block* page (typically HTTP 403 —
+         * "Error 1020: Access denied", "Sorry, you have been blocked",
+         * "Attention Required!") rather than the interactive JS challenge
+         * [looksLikeCfChallenge] sniffs for.
+         *
+         * The distinction drives routing. A challenge can be *solved*
+         * (escalate to the WebView resolver via [FictionResult.Cloudflare]);
+         * a WAF block cannot — the CDN refused the request outright on
+         * IP/ASN reputation, with no challenge to complete. Left mapped to
+         * the 401/403 -> [FictionResult.AuthRequired] arm, such a block is
+         * TERMINAL in ChapterDownloadWorker (FAILED + a sign-in prompt that
+         * can never clear a WAF block). Routing it here instead yields a
+         * retryable [FictionResult.NetworkError], which is correct: these
+         * blocks are transient and IP-scoped, so a later retry can succeed.
+         *
+         * Guarded on the literal "cloudflare" token so genuine AO3 403s
+         * (real auth gates, "You must agree" interstitials) never match, and
+         * paired with block-specific phrases so a page merely *mentioning*
+         * Cloudflare (e.g. a fic that quotes an error page) can't
+         * false-positive. Must run AFTER [looksLikeCfChallenge] at the call
+         * site so an interactive challenge still wins the WebView path.
+         */
+        internal fun looksLikeCfBlock(body: String): Boolean {
+            if (!body.contains("cloudflare", ignoreCase = true)) return false
+            return body.contains("error 1020", ignoreCase = true) ||
+                body.contains("error code: 1020", ignoreCase = true) ||
+                body.contains("sorry, you have been blocked", ignoreCase = true) ||
+                body.contains("attention required", ignoreCase = true) ||
+                (
+                    body.contains("access denied", ignoreCase = true) &&
+                        body.contains("ray id", ignoreCase = true)
+                    )
         }
     }
 }
