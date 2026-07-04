@@ -9,6 +9,25 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.9.0] -- 2026-07-03
+
+**Eldritch Lantern.** Anyone can write a source or voice plugin — and Notion sub-pages finally chapter correctly.
+
+### Added
+
+- **Plugin contributor system** — a new source backend or voice engine is now a scaffold command (`scripts/new-source.sh`, `scripts/new-voice-engine.sh`) + one annotation, with contract-test kits (`core-source-testkit`) that turn the tribal gotchas (IO-dispatch pin, auth mapping, Cloudflare detection) into executable checks, and contributor guides (`docs/CONTRIBUTING-SOURCES.md`, `CONTRIBUTING-VOICES.md`). Voice engines gain a `ModelSpec`/`loadModel` data contract, `@VoicePlugin` KSP-generated bindings, and an optional `StreamingSynth` pooled-parallel-synth capability. (#1488)
+
+### Fixed
+
+- **Notion sub-pages now become chapters.** A Notion page whose entries are child sub-pages (not `heading_1` sections) was collapsing into a single "Intro" chapter; it now reads as an Introduction (the page's lead content) plus one chapter per sub-page. (#1508, #1510)
+- Cloudflare-challenge 403s on Standard Ebooks and Project Gutenberg no longer misreport as "sign in required" (the challenge check now precedes the auth mapping). (#1488)
+- Hacker News transient 403s (Firebase throttling) are retryable again instead of terminally failing downloads — HN has no login to require. (#1488)
+- Cross-family voice swaps can no longer route sentences to the previous voice's parallel-synth pool. (#1488)
+
+### Under the hood
+
+- KSP now generates all source routing; 27 modules of hand-written DI bindings deleted — a new source is annotation-only. (#1400, #1481)
+
 ## [1.8.1] -- 2026-07-02
 
 **Mythic Grimoire.**
