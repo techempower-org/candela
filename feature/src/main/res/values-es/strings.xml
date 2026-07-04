@@ -68,4 +68,34 @@
     <!-- Tarjeta de entrada en la cuadrícula de Inicio de TechEmpower. -->
     <string name="screener_card_title">¿Califico?</string>
     <string name="screener_card_body">Responda unas preguntas rápidas para encontrar ayuda local para la que podría ser elegible. Funciona sin conexión.</string>
+
+    <!-- #1516 — Benefits letter decoder -->
+    <string name="decoder_title">Entender una carta</string>
+    <string name="decoder_back">Atrás</string>
+    <string name="decoder_intro">Tome una foto de una carta de beneficios, o escriba su número de formulario, y le explicaremos qué significa y qué hacer.</string>
+    <string name="decoder_offline_note">Funciona sin conexión. El texto de la carta se queda en este dispositivo.</string>
+    <string name="decoder_seed_banner_title">Datos de muestra</string>
+    <string name="decoder_seed_banner_body">Estos explicadores son una vista previa. Los explicadores finales y verificados provienen de TechEmpower.</string>
+    <string name="decoder_input_label">Texto de la carta o número de formulario</string>
+    <string name="decoder_input_placeholder">Por ejemplo: NA 200</string>
+    <string name="decoder_scan">Escanear una carta</string>
+    <string name="decoder_use_last_scan">Usar mi último escaneo</string>
+    <string name="decoder_decode">Explicar esta carta</string>
+    <string name="decoder_start_over">Empezar de nuevo</string>
+    <string name="decoder_section_meaning">Qué significa</string>
+    <string name="decoder_section_why">Por qué la recibió</string>
+    <string name="decoder_section_todo">Qué hacer</string>
+    <string name="decoder_read_aloud">Leer en voz alta</string>
+    <string name="decoder_read_scanned">Leer mi carta en voz alta</string>
+    <string name="decoder_stop">Detener</string>
+    <string name="decoder_call">Llamar</string>
+    <string name="decoder_call_211">Llamar al 211</string>
+    <string name="decoder_learn_more">Más información</string>
+    <!-- %1$s = la fecha de verificación del explicador. -->
+    <string name="decoder_verified_prefix">Explicador verificado: %1$s</string>
+    <string name="decoder_verified_unknown">Este explicador aún no está verificado.</string>
+    <string name="decoder_load_error">No pudimos abrir la biblioteca de explicadores. Actualice la aplicación e inténtelo de nuevo.</string>
+    <!-- Tarjeta de entrada en la cuadrícula de Inicio de TechEmpower. -->
+    <string name="decoder_card_title">Entender una carta</string>
+    <string name="decoder_card_body">Fotografíe un aviso de beneficios confuso; le explicaremos qué significa, en inglés o español. Funciona sin conexión.</string>
 </resources>

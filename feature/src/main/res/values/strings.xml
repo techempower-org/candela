@@ -1306,4 +1306,36 @@
     <!-- Entry card on the TechEmpower Home grid. -->
     <string name="screener_card_title">Do I qualify?</string>
     <string name="screener_card_body">Answer a few quick questions to find local help you may be eligible for. Works offline.</string>
+
+    <!-- #1516 — Benefits letter decoder -->
+    <string name="decoder_title">Understand a letter</string>
+    <string name="decoder_back">Back</string>
+    <string name="decoder_intro">Take a photo of a benefits letter, or type its form number, and we will explain what it means and what to do.</string>
+    <string name="decoder_offline_note">Works offline. The letter\'s text stays on this device.</string>
+    <string name="decoder_seed_banner_title">Sample data</string>
+    <string name="decoder_seed_banner_body">These explainers are a preview. Final, verified explainers come from TechEmpower.</string>
+    <string name="decoder_input_label">Letter text or form number</string>
+    <string name="decoder_input_placeholder">For example: NA 200</string>
+    <string name="decoder_scan">Scan a letter</string>
+    <string name="decoder_use_last_scan">Use my last scan</string>
+    <string name="decoder_decode">Explain this letter</string>
+    <string name="decoder_start_over">Start over</string>
+    <string name="decoder_section_meaning">What it means</string>
+    <string name="decoder_section_why">Why you got it</string>
+    <string name="decoder_section_todo">What to do</string>
+    <string name="decoder_read_aloud">Read aloud</string>
+    <string name="decoder_read_scanned">Read my letter aloud</string>
+    <string name="decoder_stop">Stop</string>
+    <string name="decoder_call">Call</string>
+    <string name="decoder_call_211">Call 211</string>
+    <string name="decoder_learn_more">Learn more</string>
+    <string name="decoder_unknown_title">We don\'t have a verified explainer for this yet</string>
+    <string name="decoder_unknown_body">We will not guess what your letter says. You can hear it read aloud, or call 211 for free help understanding it.</string>
+    <!-- %1$s = the explainer\'s verified date. -->
+    <string name="decoder_verified_prefix">Explainer verified: %1$s</string>
+    <string name="decoder_verified_unknown">This explainer is not yet verified.</string>
+    <string name="decoder_load_error">We could not open the explainer library. Please update the app and try again.</string>
+    <!-- Entry card on the TechEmpower Home grid. -->
+    <string name="decoder_card_title">Understand a letter</string>
+    <string name="decoder_card_body">Photograph a confusing benefits notice — we will explain what it means, in English or Spanish. Works offline.</string>
 </resources>

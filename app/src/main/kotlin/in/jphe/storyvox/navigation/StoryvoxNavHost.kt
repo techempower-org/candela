@@ -70,6 +70,7 @@ import `in`.jphe.storyvox.feature.settings.VoiceAndPlaybackSettingsScreen
 import `in`.jphe.storyvox.feature.settings.pronunciation.PronunciationDictScreen
 import `in`.jphe.storyvox.feature.techempower.TechEmpowerAboutScreen
 import `in`.jphe.storyvox.feature.techempower.TechEmpowerHomeScreen
+import `in`.jphe.storyvox.feature.techempower.decoder.DecoderScreen
 import `in`.jphe.storyvox.feature.techempower.screener.ScreenerScreen
 import `in`.jphe.storyvox.feature.voicelibrary.VoiceLibraryScreen
 import `in`.jphe.storyvox.ui.component.BottomTabBar
@@ -254,6 +255,13 @@ object StoryvoxRoutes {
      * client-side, zero-connectivity. Drill-down from TechEmpower Home.
      */
     const val TECHEMPOWER_SCREENER = "techempower/screener"
+
+    /**
+     * Issue #1516 — benefits letter decoder ("Understand a letter"). Photo /
+     * form-number → verified plain-language explainer. Drill-down from
+     * TechEmpower Home.
+     */
+    const val TECHEMPOWER_DECODER = "techempower/decoder"
     /** Q&A chat about a fiction (#81 follow-up). One chat history per
      *  fictionId; the screen pulls fiction title + current chapter
      *  context internally for the system prompt.
@@ -1678,6 +1686,9 @@ private fun StoryvoxNavHostContent(
                     onOpenScreener = {
                         navController.navigate(StoryvoxRoutes.TECHEMPOWER_SCREENER)
                     },
+                    onOpenDecoder = {
+                        navController.navigate(StoryvoxRoutes.TECHEMPOWER_DECODER)
+                    },
                     onOpenFiction = { fictionId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fictionId))
                     },
@@ -1693,6 +1704,20 @@ private fun StoryvoxNavHostContent(
             ) {
                 ScreenerScreen(
                     onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #1516 — benefits letter decoder drill-down. "Scan a letter"
+            // reuses the existing OCR capture surface.
+            composable(
+                StoryvoxRoutes.TECHEMPOWER_DECODER,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                DecoderScreen(
+                    onBack = { navController.popBackStack() },
+                    onScan = { navController.navigate(StoryvoxRoutes.OCR_CAPTURE) },
                 )
             }
             composable(
