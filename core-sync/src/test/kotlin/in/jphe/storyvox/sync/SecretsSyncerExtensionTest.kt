@@ -337,4 +337,25 @@ class SecretsSyncerExtensionTest {
             "pref_theme_override" in SecretsSyncer.SECRET_KEY_NAMES,
         )
     }
+
+    @Test fun `household profile key is excluded from the secrets sync allowlist`() {
+        // #1519 / #1572 — the Play Data-Safety "Financial info: Not
+        // collected" declaration depends on the saved household profile
+        // (name / address / household size / income / phone / email) NEVER
+        // syncing to the cloud. EncryptedHouseholdProfileStore (:app)
+        // persists it under this key in the SAME `storyvox.secrets`
+        // EncryptedSharedPreferences bag the synced secrets live in — so
+        // SecretsSyncer's allowlist MUST exclude it. This fence fails if a
+        // future allowlist edit (a new name or a broad prefix) silently
+        // starts syncing benefits PII. Mirrors the private `isSecretKey`.
+        val householdProfileKey = "household.profile" // == EncryptedHouseholdProfileStore.KEY
+        assertFalse(
+            "household.profile must NOT be an exact-name synced secret",
+            householdProfileKey in SecretsSyncer.SECRET_KEY_NAMES,
+        )
+        assertFalse(
+            "no SECRET_KEY_PREFIXES entry may match household.profile (would sync income/PII)",
+            SecretsSyncer.SECRET_KEY_PREFIXES.any { householdProfileKey.startsWith(it) },
+        )
+    }
 }
