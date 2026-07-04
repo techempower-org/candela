@@ -1338,4 +1338,29 @@
     <!-- Entry card on the TechEmpower Home grid. -->
     <string name="decoder_card_title">Understand a letter</string>
     <string name="decoder_card_body">Photograph a confusing benefits notice — we will explain what it means, in English or Spanish. Works offline.</string>
+
+    <!-- #1518 — "Make the call" guided phone scripts -->
+    <string name="calls_title">Make the call</string>
+    <string name="calls_back">Back</string>
+    <string name="calls_intro">Some help is just one phone call away. Pick a program — we will give you the number, what to say, and a place to jot down the answers.</string>
+    <string name="calls_seed_banner_title">Sample data</string>
+    <string name="calls_seed_banner_body">These call scripts are a preview. Verified numbers and details come from TechEmpower.</string>
+    <string name="calls_best_time">Best time to call</string>
+    <string name="calls_what_to_say">What to say</string>
+    <string name="calls_what_to_ask">What to ask</string>
+    <string name="calls_call">Call</string>
+    <string name="calls_call_via_211">Call 211 to connect</string>
+    <string name="calls_read_aloud">Read this aloud</string>
+    <string name="calls_stop">Stop</string>
+    <string name="calls_add_notes">Add my notes</string>
+    <string name="calls_capture_title">After your call</string>
+    <string name="calls_capture_note">Notes are kept on this device.</string>
+    <string name="calls_capture_save">Save</string>
+    <!-- %1$s = the card\'s verified date. -->
+    <string name="calls_verified_prefix">Details verified: %1$s</string>
+    <string name="calls_verified_unknown">Number not yet verified — connects you through 211.</string>
+    <string name="calls_load_error">We could not open the call cards. Please update the app and try again.</string>
+    <!-- Entry card on the TechEmpower Home grid. -->
+    <string name="calls_card_title">Make the call</string>
+    <string name="calls_card_body">Program phone numbers, what to say, and a checklist — with help beating call anxiety. Works offline.</string>
 </resources>

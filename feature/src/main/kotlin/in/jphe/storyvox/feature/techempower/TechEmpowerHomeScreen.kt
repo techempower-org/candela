@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -100,6 +101,7 @@ fun TechEmpowerHomeScreen(
     onOpenAbout: () -> Unit,
     onOpenScreener: () -> Unit,
     onOpenDecoder: () -> Unit,
+    onOpenCalls: () -> Unit,
     onOpenFiction: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -187,6 +189,16 @@ fun TechEmpowerHomeScreen(
                     body = "Join our Discord community. Real people, no scripts.",
                     icon = Icons.Filled.Forum,
                     onClick = { launchDiscord(context) },
+                )
+            }
+            // Issue #1518 — "Make the call" guided phone scripts. Bilingual copy
+            // via string resources.
+            item {
+                TechEmpowerCard(
+                    title = stringResource(FeatureR.string.calls_card_title),
+                    body = stringResource(FeatureR.string.calls_card_body),
+                    icon = Icons.Filled.SupportAgent,
+                    onClick = onOpenCalls,
                 )
             }
             // Issue #546 — surface a "no-telephony" fallback dialog if

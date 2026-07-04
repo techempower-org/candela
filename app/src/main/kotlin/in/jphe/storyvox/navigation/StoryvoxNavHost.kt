@@ -70,6 +70,7 @@ import `in`.jphe.storyvox.feature.settings.VoiceAndPlaybackSettingsScreen
 import `in`.jphe.storyvox.feature.settings.pronunciation.PronunciationDictScreen
 import `in`.jphe.storyvox.feature.techempower.TechEmpowerAboutScreen
 import `in`.jphe.storyvox.feature.techempower.TechEmpowerHomeScreen
+import `in`.jphe.storyvox.feature.techempower.calls.CallCardsScreen
 import `in`.jphe.storyvox.feature.techempower.decoder.DecoderScreen
 import `in`.jphe.storyvox.feature.techempower.screener.ScreenerScreen
 import `in`.jphe.storyvox.feature.voicelibrary.VoiceLibraryScreen
@@ -262,6 +263,12 @@ object StoryvoxRoutes {
      * TechEmpower Home.
      */
     const val TECHEMPOWER_DECODER = "techempower/decoder"
+
+    /**
+     * Issue #1518 — "make the call" guided phone scripts. Per-program call
+     * cards with tap-to-dial + answer capture. Drill-down from TechEmpower Home.
+     */
+    const val TECHEMPOWER_CALLS = "techempower/calls"
     /** Q&A chat about a fiction (#81 follow-up). One chat history per
      *  fictionId; the screen pulls fiction title + current chapter
      *  context internally for the system prompt.
@@ -1689,6 +1696,9 @@ private fun StoryvoxNavHostContent(
                     onOpenDecoder = {
                         navController.navigate(StoryvoxRoutes.TECHEMPOWER_DECODER)
                     },
+                    onOpenCalls = {
+                        navController.navigate(StoryvoxRoutes.TECHEMPOWER_CALLS)
+                    },
                     onOpenFiction = { fictionId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fictionId))
                     },
@@ -1718,6 +1728,18 @@ private fun StoryvoxNavHostContent(
                 DecoderScreen(
                     onBack = { navController.popBackStack() },
                     onScan = { navController.navigate(StoryvoxRoutes.OCR_CAPTURE) },
+                )
+            }
+            // Issue #1518 — "make the call" guided phone scripts drill-down.
+            composable(
+                StoryvoxRoutes.TECHEMPOWER_CALLS,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                CallCardsScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(

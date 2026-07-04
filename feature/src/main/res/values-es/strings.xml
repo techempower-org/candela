@@ -98,4 +98,29 @@
     <!-- Tarjeta de entrada en la cuadrícula de Inicio de TechEmpower. -->
     <string name="decoder_card_title">Entender una carta</string>
     <string name="decoder_card_body">Fotografíe un aviso de beneficios confuso; le explicaremos qué significa, en inglés o español. Funciona sin conexión.</string>
+
+    <!-- #1518 — "Hacer la llamada" guiones telefónicos guiados -->
+    <string name="calls_title">Hacer la llamada</string>
+    <string name="calls_back">Atrás</string>
+    <string name="calls_intro">Algo de ayuda está a solo una llamada de distancia. Elija un programa; le daremos el número, qué decir y un lugar para anotar las respuestas.</string>
+    <string name="calls_seed_banner_title">Datos de muestra</string>
+    <string name="calls_seed_banner_body">Estos guiones de llamada son una vista previa. Los números y detalles verificados provienen de TechEmpower.</string>
+    <string name="calls_best_time">Mejor hora para llamar</string>
+    <string name="calls_what_to_say">Qué decir</string>
+    <string name="calls_what_to_ask">Qué preguntar</string>
+    <string name="calls_call">Llamar</string>
+    <string name="calls_call_via_211">Llamar al 211 para conectar</string>
+    <string name="calls_read_aloud">Leer esto en voz alta</string>
+    <string name="calls_stop">Detener</string>
+    <string name="calls_add_notes">Añadir mis notas</string>
+    <string name="calls_capture_title">Después de su llamada</string>
+    <string name="calls_capture_note">Las notas se guardan en este dispositivo.</string>
+    <string name="calls_capture_save">Guardar</string>
+    <!-- %1$s = la fecha de verificación de la tarjeta. -->
+    <string name="calls_verified_prefix">Detalles verificados: %1$s</string>
+    <string name="calls_verified_unknown">Número aún no verificado; le conecta a través del 211.</string>
+    <string name="calls_load_error">No pudimos abrir las tarjetas de llamada. Actualice la aplicación e inténtelo de nuevo.</string>
+    <!-- Tarjeta de entrada en la cuadrícula de Inicio de TechEmpower. -->
+    <string name="calls_card_title">Hacer la llamada</string>
+    <string name="calls_card_body">Números de teléfono de los programas, qué decir y una lista de verificación, con ayuda para vencer la ansiedad de llamar. Funciona sin conexión.</string>
 </resources>
