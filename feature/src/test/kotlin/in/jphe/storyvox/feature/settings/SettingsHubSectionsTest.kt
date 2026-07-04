@@ -27,16 +27,21 @@ import org.junit.Test
 class SettingsHubSectionsTest {
 
     @Test
-    fun `hub catalog renders seventeen sections in fixed order`() {
-        // 16 named sections + 1 escape hatch ("All settings"). The
+    fun `hub catalog renders twenty sections in fixed order`() {
+        // 19 named sections + 1 escape hatch ("All settings"). The
         // count bumped 13 → 14 in v0.5.42 (Accessibility scaffold);
         // 14 → 15 in v0.5.59 (Appearance / book cover style); 15 →
         // 16 in the v1 settings-bundle-7 (Advanced subscreen — #598
         // Android Auto bucket size and future integration tunables);
-        // 16 → 17 in #1235 (Listening stats dashboard). Adding a new
-        // section requires updating both this assertion AND the
-        // composable's row list — that drift is the point of pinning.
-        assertEquals(17, SettingsHubSections.size)
+        // 16 → 17 in #1235 (Listening stats dashboard); 17 → 20 in
+        // #1577, which catalogued the three rows the composable already
+        // rendered but the catalog had drifted from — Morning Briefing
+        // (#1467), Scripts (#1369), and Bookshare (#1471). That drift
+        // meant a search hitting only those rows still showed a false
+        // "No results" line, since the message reads the catalog.
+        // Adding a new section requires updating both this assertion AND
+        // the composable's row list — that drift is the point of pinning.
+        assertEquals(20, SettingsHubSections.size)
     }
 
     @Test
@@ -110,6 +115,59 @@ class SettingsHubSectionsTest {
         // leads the hub. If a reorder ever buries it, this test fails
         // first so the change is intentional.
         assertEquals("Voice & Playback", SettingsHubSections.first().title)
+    }
+
+    // ── Issue #1577 — hub keyword search ────────────────────────────
+
+    private fun sectionsMatching(query: String): List<String> =
+        SettingsHubSections
+            .filter { matchesHubQuery(query, it.title, it.subtitle, it.keywords) }
+            .map { it.title }
+
+    @Test
+    fun `flagship — DND and sleep synonyms surface Voice and Playback (#1574)`() {
+        // The worked example from #1574: the DND auto-sleep toggle lives in
+        // Voice & Playback but was unsearchable. Every term a user reaches for
+        // must now surface that row.
+        for (q in listOf("dnd", "do not disturb", "bedtime", "sleep", "sleep timer", "timer")) {
+            assertTrue(
+                "'$q' should surface Voice & Playback so the DND auto-sleep toggle is findable",
+                sectionsMatching(q).contains("Voice & Playback"),
+            )
+        }
+    }
+
+    @Test
+    fun `help and legal synonyms surface About`() {
+        // The handbook (#1544), privacy policy (#1138), and impact-sharing
+        // explainer (#1463) all live under About but its title/subtitle name
+        // none of them; keywords carry the discoverability.
+        for (q in listOf("handbook", "help", "guide", "manual", "privacy", "impact")) {
+            assertTrue(
+                "'$q' should surface About",
+                sectionsMatching(q).contains("About"),
+            )
+        }
+    }
+
+    @Test
+    fun `every catalogued row carries at least one search keyword`() {
+        // The #1577 discoverability contract: no row may be findable by its
+        // title alone — each carries synonyms + the names of the knobs inside.
+        for (section in SettingsHubSections) {
+            assertTrue(
+                "Hub row '${section.title}' has no search keywords (see #1577)",
+                section.keywords.isNotEmpty(),
+            )
+        }
+    }
+
+    @Test
+    fun `blank query still matches every row`() {
+        // Regression guard: the keyword layer must not change the unfiltered
+        // default — an empty search shows the whole hub.
+        assertEquals(SettingsHubSections.size, sectionsMatching("").size)
+        assertEquals(SettingsHubSections.size, sectionsMatching("   ").size)
     }
 
     @Test

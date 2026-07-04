@@ -27,13 +27,21 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * single-purpose surface reached from the [SettingsHubScreen] gear-
  * icon hub.
  *
- * Row order matches the legacy screen — most-touched first:
+ * Row order — most-touched first:
  *  1. Voice library link
  *  2. Speed slider (with the 1× tick anchor — #273)
  *  3. Pitch slider (with the 1× tick anchor)
  *  4. Punctuation cadence slider (#109)
  *  5. High-quality pitch interpolation switch (#193)
- *  6. Pronunciation dictionary link (#135)
+ *  6. Auto language detection switch (#1233)
+ *  7. Pronunciation dictionary link (#135)
+ *
+ * Then two labelled groups (#1577):
+ *  - **Playback controls** — skip distance (#593), rewind-to-start (#594).
+ *  - **Sleep timer** — shake-to-extend enable (#150, moved here from Reading)
+ *    + duration (#595), Bedtime auto-arm, and Do Not Disturb auto-sleep
+ *    (#1190/#1574). Consolidated so the whole sleep-timer feature lives on one
+ *    screen instead of straddling Reading and Voice & Playback.
  */
 @Composable
 fun VoiceAndPlaybackSettingsScreen(
@@ -159,6 +167,7 @@ fun VoiceAndPlaybackSettingsScreen(
             // controls how SkipPrevious behaves mid-chapter. Bundled
             // because the two prefs pair conceptually — users
             // calibrate them together for their content style.
+            SettingsSectionHeader(label = stringResource(R.string.settings_voice_transport_group_title))
             SettingsGroupCard {
                 // #593 — skip distance. Matches Spotify / Apple Music
                 // / Pocket Casts default of 30s; users on dense
@@ -193,6 +202,25 @@ fun VoiceAndPlaybackSettingsScreen(
                     options = rewindOptions.map { if (it == 0) rewindOffLabel else stringResource(R.string.settings_voice_rewind_option, it) },
                     selectedIndex = rewindSelectedIndex,
                     onSelected = { idx -> viewModel.setRewindToStartThresholdSec(rewindOptions[idx]) },
+                )
+            }
+
+            // Issue #1577 — sleep-timer settings, consolidated. Before this,
+            // the shake-to-extend ENABLE toggle lived under Settings → Reading
+            // while its DURATION, the Bedtime auto-arm, and the DND auto-sleep
+            // toggle (#1190/#1574) lived here — so no single screen held the
+            // whole feature and the flagship DND toggle was doubly buried. All
+            // four now sit together under one labelled "Sleep timer" group,
+            // enable → duration → auto-arm → Do Not Disturb.
+            SettingsSectionHeader(label = stringResource(R.string.settings_voice_sleep_group_title))
+            SettingsGroupCard {
+                // #150 — shake-to-extend enable (moved here from Reading in
+                // #1577 so it sits directly above the duration it governs).
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_voice_shake_enable_title),
+                    subtitle = stringResource(R.string.settings_voice_shake_enable_subtitle),
+                    checked = s.sleepShakeToExtendEnabled,
+                    onCheckedChange = viewModel::setSleepShakeToExtendEnabled,
                 )
 
                 // Issue #595 — sleep-timer shake-to-extend duration.
