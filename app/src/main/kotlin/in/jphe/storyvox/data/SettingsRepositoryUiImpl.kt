@@ -70,8 +70,14 @@ import `in`.jphe.storyvox.source.azure.AzureSpeechClient
 import `in`.jphe.storyvox.source.azure.AzureVoiceRoster
 import `in`.jphe.storyvox.feature.api.CacheQuotaOptions
 import `in`.jphe.storyvox.feature.api.HighlightMode
+import `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor
+import `in`.jphe.storyvox.data.source.plugin.SourceConfigField
+import `in`.jphe.storyvox.data.source.plugin.SourceConfigValue
+import `in`.jphe.storyvox.feature.api.SourceConfigFieldType
 import `in`.jphe.storyvox.feature.api.UiSettings
 import `in`.jphe.storyvox.feature.api.UiSigil
+import `in`.jphe.storyvox.feature.api.UiSourceConfigField
+import `in`.jphe.storyvox.feature.api.UiSourceConfigSection
 import `in`.jphe.storyvox.ui.theme.ReaderTheme
 import `in`.jphe.storyvox.ui.theme.ReaderFontFamily
 import `in`.jphe.storyvox.ui.theme.ReaderTypography
@@ -1101,12 +1107,15 @@ class SettingsRepositoryUiImpl(
      *  at [cacheStats]) need no update; production's @Inject constructor
      *  below always supplies the real impl. */
     private val bookshareConfig: BookshareConfigImpl? = null,
-    /** Issue #1492 — Reddit installed-app config (client id + comment
-     *  epilogue toggle). Nullable + null-default so the primary-ctor test
-     *  harnesses (named args ending at [cacheStats]) need no update, exactly
-     *  like [bookshareConfig]; production's @Inject constructor supplies the
-     *  real impl. When null, Reddit settings project as unconfigured. */
-    private val redditConfig: RedditConfigImpl? = null,
+    /** Issue #1531 — source config-field contributors (Reddit client id +
+     *  comment epilogue, Notion database id + token, Prime Gaming feed-URL
+     *  override, plus any future credentialed source). Default empty so the
+     *  primary-ctor test harnesses (named args ending at [cacheStats]) need
+     *  no update, exactly like [bookshareConfig]; production's @Inject
+     *  constructor supplies the `@IntoSet` multibinding. Drives
+     *  [UiSettings.sourceConfigSections] and [setSourceConfigValue]. */
+    private val sourceConfigContributors: Set<@JvmSuppressWildcards SourceConfigContributor> =
+        emptySet(),
     /** Issue #977 — push-on-write seam. The action [scheduleSettingsPush]
      *  fires after the debounce so every synced preference change reaches
      *  InstantDB without a cold-start/manual sync (and can't be clobbered
@@ -1180,7 +1189,8 @@ class SettingsRepositoryUiImpl(
         pcmCacheConfig: PcmCacheConfig,
         cacheStats: CacheStatsRepository,
         bookshareConfig: BookshareConfigImpl,
-        redditConfig: RedditConfigImpl,
+        // Issue #1531 — the @IntoSet config-field contributors.
+        sourceConfigContributors: Set<@JvmSuppressWildcards SourceConfigContributor>,
         // Issue #977 — ⚠️ [dagger.Lazy] is load-bearing: the DI graph has
         // a cycle — SyncCoordinator → Set<Syncer> → SettingsSyncer →
         // SettingsSnapshotSource (this class) → SyncCoordinator. Lazy
@@ -1199,7 +1209,7 @@ class SettingsRepositoryUiImpl(
         googleTokenSource,
         pcmCache, pcmCacheConfig, cacheStats,
         bookshareConfig = bookshareConfig,
-        redditConfig = redditConfig,
+        sourceConfigContributors = sourceConfigContributors,
         pushSettings = { coordinator.get().requestPush(SETTINGS_PUSH_DOMAIN) },
     )
 
@@ -1276,11 +1286,27 @@ class SettingsRepositoryUiImpl(
         val discord: `in`.jphe.storyvox.source.discord.config.DiscordConfigState,
         val telegram: `in`.jphe.storyvox.source.telegram.config.TelegramConfigState,
         val cacheStats: CacheStatsRepository.CacheStats,
-        // Issue #1492 — Reddit config folded in as the outer combine's third
-        // arm (the inner 5-way combine is at the typed-arity limit; the outer
-        // had room, per the NonPrefsConfigs bundle rationale above).
-        val reddit: `in`.jphe.storyvox.source.reddit.config.RedditConfigState,
+        // Issue #1531 — generic per-source config sections, folded in as the
+        // outer combine's third arm (replacing the old bespoke Reddit arm;
+        // Reddit now rides this seam like every other credentialed source).
+        val sourceConfigSections: List<UiSourceConfigSection>,
     )
+
+    /** Issue #1531 — live per-source config sections built from the injected
+     *  [sourceConfigContributors]. Each contributor's declared fields + live
+     *  values map to one [UiSourceConfigSection]; sorted by display name so
+     *  the Settings order is stable across builds. Emits an empty list when
+     *  no source contributes fields (e.g. primary-ctor test harnesses).
+     *  Defined before [nonPrefsConfigs] so its member reference resolves. */
+    private val sourceConfigSectionsFlow: Flow<List<UiSourceConfigSection>> = run {
+        val perSource = sourceConfigContributors
+            .sortedBy { it.displayName.lowercase() }
+            .map { contributor ->
+                contributor.values.map { values -> contributor.toUiSection(values) }
+            }
+        if (perSource.isEmpty()) flowOf(emptyList())
+        else combine(perSource) { sections -> sections.toList() }
+    }
 
     private val nonPrefsConfigs: Flow<NonPrefsConfigs> =
         combine(
@@ -1294,9 +1320,8 @@ class SettingsRepositoryUiImpl(
                 arrayOf(palace, wiki, notion, discord, telegram)
             },
             cacheStats.observe(),
-            // Null redditConfig (primary-ctor test harnesses) → default state.
-            redditConfig?.state ?: flowOf(`in`.jphe.storyvox.source.reddit.config.RedditConfigState()),
-        ) { sourceStates, stats, reddit ->
+            sourceConfigSectionsFlow,
+        ) { sourceStates, stats, sections ->
             NonPrefsConfigs(
                 palace = sourceStates[0] as `in`.jphe.storyvox.source.mempalace.config.PalaceConfigState,
                 wikipedia = sourceStates[1] as `in`.jphe.storyvox.source.wikipedia.config.WikipediaConfigState,
@@ -1304,7 +1329,7 @@ class SettingsRepositoryUiImpl(
                 discord = sourceStates[3] as `in`.jphe.storyvox.source.discord.config.DiscordConfigState,
                 telegram = sourceStates[4] as `in`.jphe.storyvox.source.telegram.config.TelegramConfigState,
                 cacheStats = stats,
-                reddit = reddit,
+                sourceConfigSections = sections,
             )
         }
 
@@ -1320,7 +1345,6 @@ class SettingsRepositoryUiImpl(
         val notion = configs.notion
         val discord = configs.discord
         val telegram = configs.telegram
-        val reddit = configs.reddit
         UiSettings(
             ttsEngine = "VoxSherpa",
             defaultVoiceId = prefs[Keys.DEFAULT_VOICE_ID],
@@ -1384,9 +1408,9 @@ class SettingsRepositoryUiImpl(
             discordServerName = discord.serverName,
             discordCoalesceMinutes = discord.coalesceMinutes,
             telegramTokenConfigured = telegram.apiToken.isNotBlank(),
-            // Issue #1492 — Reddit installed-app config projection.
-            redditClientIdConfigured = reddit.clientId.isNotBlank(),
-            redditAppendTopComments = reddit.appendTopComments,
+            // Issue #1531 — generic per-source config sections (Reddit,
+            // Notion, Prime Gaming, …) built from the injected contributors.
+            sourceConfigSections = configs.sourceConfigSections,
             // Plugin-seam Phase 1 (#384) — derive the per-plugin map
             // from the JSON blob seeded by SourcePluginsMapMigration.
             // Empty map (parse error / missing key in a race) falls
@@ -2509,13 +2533,18 @@ class SettingsRepositoryUiImpl(
         notionConfig.setApiToken(token)
     }
 
-    // Issue #1492 — Reddit installed-app client id + comment-epilogue toggle.
-    // No-op when redditConfig is absent (primary-ctor test harnesses).
-    override suspend fun setRedditClientId(clientId: String?) {
-        redditConfig?.setClientId(clientId)
+    /** Issue #1531 — contributors keyed by source id, for [setSourceConfigValue]
+     *  routing. Empty in primary-ctor test harnesses (no contributors passed). */
+    private val contributorsById: Map<String, SourceConfigContributor> by lazy {
+        sourceConfigContributors.associateBy { it.sourceId }
     }
-    override suspend fun setRedditAppendTopComments(enabled: Boolean) {
-        redditConfig?.setAppendTopComments(enabled)
+
+    // Issue #1531 — generic per-source config write path. Routes to the
+    // owning source's contributor (which writes through its existing
+    // *ConfigImpl backing store). Unknown source/key = no-op. These configs
+    // live in their own DataStores, so no settings-sync stamp is needed.
+    override suspend fun setSourceConfigValue(sourceId: String, key: String, raw: String) {
+        contributorsById[sourceId]?.set(key, raw)
     }
 
     /**
@@ -3793,3 +3822,57 @@ private fun GitHubSession.toUi(): UiGitHubAuthState = when (this) {
     )
     is GitHubSession.Expired -> UiGitHubAuthState.Expired
 }
+
+/**
+ * Issue #1531 — project a [SourceConfigContributor]'s declared fields +
+ * current [values] into the UI-facing [UiSourceConfigSection]. Maps the
+ * `core-data` `SourceConfigField` sealed hierarchy onto the feature layer's
+ * flattened [SourceConfigFieldType] enum, so `:feature` stays free of the
+ * source-plugin types. A field missing from [values] renders with a
+ * type-appropriate empty default.
+ */
+private fun SourceConfigContributor.toUiSection(
+    values: Map<String, SourceConfigValue>,
+): UiSourceConfigSection = UiSourceConfigSection(
+    sourceId = sourceId,
+    displayName = displayName,
+    help = sectionHelp,
+    fields = fields().map { field ->
+        val value = values[field.key]
+        when (field) {
+            is SourceConfigField.PlainText -> UiSourceConfigField(
+                key = field.key,
+                type = SourceConfigFieldType.PLAIN,
+                label = field.label,
+                help = field.help,
+                placeholder = field.placeholder,
+                value = (value as? SourceConfigValue.Text)?.value.orEmpty(),
+                configured = (value as? SourceConfigValue.Text)?.value?.isNotBlank() ?: false,
+            )
+            is SourceConfigField.SecretText -> UiSourceConfigField(
+                key = field.key,
+                type = SourceConfigFieldType.SECRET,
+                label = field.label,
+                help = field.help,
+                placeholder = field.placeholder,
+                configured = (value as? SourceConfigValue.Secret)?.configured ?: false,
+            )
+            is SourceConfigField.UrlText -> UiSourceConfigField(
+                key = field.key,
+                type = SourceConfigFieldType.URL,
+                label = field.label,
+                help = field.help,
+                placeholder = field.placeholder,
+                value = (value as? SourceConfigValue.Text)?.value.orEmpty(),
+                configured = (value as? SourceConfigValue.Text)?.value?.isNotBlank() ?: false,
+            )
+            is SourceConfigField.Toggle -> UiSourceConfigField(
+                key = field.key,
+                type = SourceConfigFieldType.TOGGLE,
+                label = field.label,
+                help = field.help,
+                toggled = (value as? SourceConfigValue.Bool)?.on ?: false,
+            )
+        }
+    },
+)
