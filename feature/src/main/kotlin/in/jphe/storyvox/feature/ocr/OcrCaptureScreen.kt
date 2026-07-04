@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -73,10 +74,11 @@ import java.io.ByteArrayOutputStream
  *     CAMERA permission; shows a plain-language rationale before the
  *     prompt and a graceful "use the gallery instead" fallback if the
  *     user declines (so a denied camera never dead-ends the feature).
- *  2. **Gallery** — `ActivityResultContracts.GetContent` for images,
- *     no permission needed. This is the path a screen-reader user who
- *     can't aim a camera, or anyone with an existing photo of a page,
- *     takes — never gate the feature behind the camera.
+ *  2. **Gallery** — the system Photo Picker (`PickVisualMedia`, #1537),
+ *     no permission needed, and it surfaces Google Photos first-class
+ *     (including cloud-only items). This is the path a screen-reader
+ *     user who can't aim a camera, or anyone with an existing photo of
+ *     a page, takes — never gate the feature behind the camera.
  *
  * Captured/picked images are decoded to JPEG bytes and handed to
  * [OcrCaptureViewModel.onImageCaptured], which runs on-device ML Kit
@@ -120,10 +122,12 @@ fun OcrCaptureScreen(
         cameraDenied = !granted
     }
 
-    // Gallery pick — no permission needed (the system photo picker
-    // returns a one-shot read grant for the chosen image).
+    // Gallery pick via the system Photo Picker (#1537) — permissionless
+    // one-shot read grant, and surfaces Google Photos first-class
+    // (including cloud-only items), which the legacy GetContent route
+    // only reached through a device-dependent fallback handler.
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
+        contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri: Uri? ->
         uri?.let {
             val bytes = readImageBytes(context, it)
@@ -196,7 +200,11 @@ fun OcrCaptureScreen(
             ) {
                 BrassButton(
                     label = stringResource(R.string.ocr_pick_from_gallery),
-                    onClick = { galleryLauncher.launch("image/*") },
+                    onClick = {
+                        galleryLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
                     variant = BrassButtonVariant.Secondary,
                     enabled = !state.isRecognizing && !state.isSaving,
                     modifier = Modifier.weight(1f),
