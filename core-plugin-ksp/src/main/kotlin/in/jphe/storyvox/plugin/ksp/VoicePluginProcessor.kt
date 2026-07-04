@@ -79,11 +79,13 @@ class VoicePluginProcessor(
     }
 
     private fun emitModule(target: KSClassDeclaration, engineId: String) {
-        val targetFqn = target.qualifiedName?.asString()?.let(::escapeKotlinFqn)
+        val rawFqn = target.qualifiedName?.asString()
             ?: error("@VoicePlugin target ${target.simpleName.asString()} has no qualified name")
-        val targetSimple = target.simpleName.asString()
+        val targetFqn = escapeKotlinFqn(rawFqn)
 
-        val moduleSimpleName = "${targetSimple}_VoicePluginModule"
+        // #1506 — package-hash suffix so two same-named plugin classes in
+        // different packages don't collide in the flat generated package.
+        val moduleSimpleName = "${generatedModuleBaseName(rawFqn)}_VoicePluginModule"
 
         val containingFile = target.containingFile
         val dependencies = if (containingFile != null) {

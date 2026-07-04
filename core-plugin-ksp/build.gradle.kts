@@ -19,4 +19,9 @@ kotlin {
 
 dependencies {
     implementation(libs.ksp.symbol.processing.api)
+
+    // Plain-JVM unit tests for the pure processor helpers (e.g. generated
+    // module naming, #1506). Full KSP compile-testing is intentionally out
+    // of scope — the collision logic is extracted into a pure function.
+    testImplementation(libs.junit)
 }
