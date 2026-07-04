@@ -58,7 +58,9 @@ class CandelaHandbookSourceTest {
 
         assertTrue(result is FictionResult.Success)
         val detail = (result as FictionResult.Success).value
-        assertEquals(listOf("getting-started", "voices"), detail.chapters.map { it.id })
+        // Public chapter ids are composite (globally-unique PK); slugs live on sourceChapterId.
+        assertEquals(listOf("getting-started", "voices"), detail.chapters.map { it.sourceChapterId })
+        assertTrue(detail.chapters[0].id.startsWith("handbook:guide::"))
         assertEquals(listOf(0, 1), detail.chapters.map { it.index })
         assertEquals("Voices", detail.chapters[1].title)
     }
@@ -72,10 +74,15 @@ class CandelaHandbookSourceTest {
             ),
         )
 
-        val result = source.chapter(CandelaHandbookSource.HANDBOOK_FICTION_ID, "getting-started")
+        // The reader is handed the composite chapter id from the detail TOC, not the raw slug.
+        val detail = (source.fictionDetail(CandelaHandbookSource.HANDBOOK_FICTION_ID)
+            as FictionResult.Success).value
+        val chapterId = detail.chapters.single { it.sourceChapterId == "getting-started" }.id
+        val result = source.chapter(CandelaHandbookSource.HANDBOOK_FICTION_ID, chapterId)
 
         assertTrue(result is FictionResult.Success)
         val content = (result as FictionResult.Success).value
+        assertEquals("getting-started", content.info.sourceChapterId)
         assertEquals("Tap Browse & pick a source.\n\nThen press play.", content.plainBody)
         // Two paragraphs, ampersand escaped, no raw markup leaking.
         assertTrue(content.htmlBody.contains("Tap Browse &amp; pick a source."))

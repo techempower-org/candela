@@ -83,7 +83,7 @@ internal class CandelaHandbookSource @Inject constructor(
         val manifest = reader.manifest()
         val chapters = manifest.chapters.map { ch ->
             ChapterInfo(
-                id = ch.id,
+                id = chapterIdFor(ch.id),
                 sourceChapterId = ch.id,
                 index = ch.index,
                 title = ch.title,
@@ -103,14 +103,15 @@ internal class CandelaHandbookSource @Inject constructor(
             return FictionResult.NotFound("unknown handbook fiction: $fictionId")
         }
         val manifest = reader.manifest()
-        val chapter = manifest.chapters.firstOrNull { it.id == chapterId }
+        val chapter = manifest.chapters.firstOrNull { chapterIdFor(it.id) == chapterId }
             ?: return FictionResult.NotFound("unknown handbook chapter: $chapterId")
-        val plain = reader.chapterText(chapterId)
-            ?: return FictionResult.NotFound("handbook chapter body missing: $chapterId")
+        // Assets are keyed by the bare slug; the public chapter id is composite.
+        val plain = reader.chapterText(chapter.id)
+            ?: return FictionResult.NotFound("handbook chapter body missing: ${chapter.id}")
         return FictionResult.Success(
             ChapterContent(
                 info = ChapterInfo(
-                    id = chapter.id,
+                    id = chapterId,
                     sourceChapterId = chapter.id,
                     index = chapter.index,
                     title = chapter.title,
@@ -176,14 +177,25 @@ internal class CandelaHandbookSource @Inject constructor(
                 "<p>$escaped</p>"
             }
 
+    /**
+     * Composite chapter id: `<fictionId>::<slug>`. Globally unique (chapter.id
+     * is a global PK) and mirrors OcrSource's `"$fictionId::p$index"` shape.
+     * The bundled asset is keyed by the bare slug — [chapter] translates back.
+     */
+    private fun chapterIdFor(slug: String): String = "$HANDBOOK_FICTION_ID::$slug"
+
     companion object {
         const val SOURCE_ID = "handbook"
 
         /**
-         * The single fiction id. Stable across snapshots so a saved reading
-         * position / library entry survives a docs regen.
+         * The single fiction id. MUST carry the `handbook:` prefix: the app
+         * resolves a fiction's source via `FictionSourceIdResolver`, which does
+         * `id.substringBefore(':')` and **defaults a colon-less id to Royal
+         * Road** — a bare id here would misroute the handbook and never open.
+         * The prefix must equal [SOURCE_ID] (the @SourcePlugin id / map key).
+         * Stable across snapshots so a saved reading position survives a regen.
          */
-        const val HANDBOOK_FICTION_ID = "candela-handbook"
+        const val HANDBOOK_FICTION_ID = "handbook:guide"
 
         private val GENRES = listOf("Help", "Guide")
         private val MATCH_TERMS = listOf("candela handbook", "manual", "documentation", "docs")
