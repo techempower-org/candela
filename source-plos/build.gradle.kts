@@ -46,5 +46,5 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     // #1058 — MockWebServer to pin the search request URL (assert the
     // doc_type:full fq parity between searchRecent and searchQuery).
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation(libs.okhttp.mockwebserver)
 }

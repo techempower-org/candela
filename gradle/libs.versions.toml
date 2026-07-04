@@ -196,6 +196,10 @@ play-services-wearable = { module = "com.google.android.gms:play-services-wearab
 # Networking
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
+# mockwebserver ships in lockstep with okhttp (same com.squareup.okhttp3
+# release train), so it shares the `okhttp` version ref — no separate
+# [versions] entry. Test-only dep for the source/LLM client suites.
+okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
 readability4j = { module = "net.dankito.readability4j:readability4j", version.ref = "readability4j" }
