@@ -1363,4 +1363,10 @@
     <!-- Entry card on the TechEmpower Home grid. -->
     <string name="calls_card_title">Make the call</string>
     <string name="calls_card_body">Program phone numbers, what to say, and a checklist — with help beating call anxiety. Works offline.</string>
+
+    <!-- #1534 — Google Drive connect empty state -->
+    <string name="browse_gdrive_connect_title">Connect your Google Drive</string>
+    <string name="browse_gdrive_connect_body">Link Google Drive and pick a folder — the documents inside become listenable here. We only see the folder you choose.</string>
+    <string name="browse_gdrive_unavailable_body">Google Drive isn\'t set up in this version of the app yet.</string>
+    <string name="browse_gdrive_connect_button">Connect Google Drive</string>
 </resources>

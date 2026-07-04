@@ -1135,6 +1135,12 @@ class SettingsRepositoryUiImpl(
      *  so the 1.5s debounce resolves in virtual time. */
     private val pushDispatcher: kotlinx.coroutines.CoroutineDispatcher =
         kotlinx.coroutines.Dispatchers.Default,
+    /** Issue #1534 — supplies the Google Drive authorize URL (PKCE + state
+     *  persisted) for [beginGoogleDriveOAuth]. Production wires this to
+     *  [`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager.beginConnect]
+     *  via a `Lazy` edge in the @Inject constructor; the default returns null so
+     *  test/primary-ctor harnesses don't drag in the OAuth manager. */
+    private val googleDriveOAuthBegin: suspend () -> String? = { null },
 ) : SettingsRepositoryUi,
     PlaybackBufferConfig,
     PlaybackModeConfig,
@@ -1198,6 +1204,11 @@ class SettingsRepositoryUiImpl(
         // `get()` is only called from the debounced push, never at
         // construction.
         coordinator: dagger.Lazy<SyncCoordinator>,
+        // Issue #1534 — Lazy so construction doesn't pull the OAuth manager
+        // into the graph early; `get().beginConnect()` runs only when the user
+        // taps "Connect Google Drive". beginConnect() is non-suspend + returns
+        // null when the build has no client id (button then hidden upstream).
+        googleDriveOAuth: dagger.Lazy<`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager>,
     ) : this(
         context.settingsDataStore, auth, hydrator,
         palaceConfig, palaceApi, llmCreds, githubAuth, teamsAuth, rssConfig, epubConfig,
@@ -1211,6 +1222,7 @@ class SettingsRepositoryUiImpl(
         bookshareConfig = bookshareConfig,
         sourceConfigContributors = sourceConfigContributors,
         pushSettings = { coordinator.get().requestPush(SETTINGS_PUSH_DOMAIN) },
+        googleDriveOAuthBegin = { googleDriveOAuth.get().beginConnect() },
     )
 
     /**
@@ -1455,6 +1467,10 @@ class SettingsRepositoryUiImpl(
             // Issue #1507 — OAuth surface for the Browse manage sheet.
             notionWorkspaceName = notion.workspaceName,
             notionOAuthAvailable = `in`.jphe.storyvox.auth.notion.NotionOAuthConfig.isAvailable,
+            // Issue #1534 — build-time flag gating the "Connect Google Drive"
+            // empty-state button (false on clean/CI ⇒ button hidden).
+            googleDriveOAuthAvailable =
+                `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthConfig.isAvailable,
             sleepShakeToExtendEnabled = prefs[Keys.SLEEP_SHAKE_TO_EXTEND_ENABLED] ?: true,
             showDebugOverlay = prefs[Keys.SHOW_DEBUG_OVERLAY] ?: false,
             debugLogging = prefs[Keys.DEBUG_LOGGING_ENABLED] ?: false,
@@ -2562,6 +2578,15 @@ class SettingsRepositoryUiImpl(
         notionConfig.setOAuthState(nonce)
         return `in`.jphe.storyvox.auth.notion.NotionOAuthConfig.authorizeUrl(nonce)
     }
+
+    /**
+     * Issue #1534 — begin the Google Drive OAuth flow. Delegates to
+     * [`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager.beginConnect]
+     * (via the injected `Lazy`), which persists the PKCE verifier + CSRF state
+     * (both must survive the Custom Tab evicting the app) and returns the
+     * authorize URL, or null when the build has no OAuth client id.
+     */
+    override suspend fun beginGoogleDriveOAuth(): String? = googleDriveOAuthBegin()
 
     /** #246 — bridge to SuggestedFeedsRegistry. The fallback list
      *  passed in is the baked-in seed; the registry emits it

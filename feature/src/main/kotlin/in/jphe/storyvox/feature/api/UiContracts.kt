@@ -1176,6 +1176,12 @@ data class UiSettings(
      *  "Connect Notion" button: false ⇒ only the paste-token fallback
      *  shows. Always false on a clean/CI checkout with no creds. */
     val notionOAuthAvailable: Boolean = false,
+    /** Issue #1534 — true when this build carries Google Drive OAuth client
+     *  credentials (BuildConfig, from local.properties). Gates the
+     *  "Connect Google Drive" empty-state button: false ⇒ the source can't be
+     *  connected, so the button is hidden. Always false on a clean/CI checkout
+     *  with no creds (so the connect affordance never dangles). */
+    val googleDriveOAuthAvailable: Boolean = false,
     /** Issue #1471 — true when a Bookshare partner `api_key` has been
      *  stored. The key itself is never surfaced to the UI — only this
      *  boolean. Blank/absent ⇒ the source stays gated to AuthRequired.
@@ -2334,6 +2340,15 @@ interface SettingsRepositoryUi {
      *  don't need to override it (the redirect is handled out-of-band by
      *  MainActivity's NotionOAuthManager). */
     suspend fun beginNotionOAuth(): String? = null
+
+    /** Issue #1534 — begin the Google Drive OAuth flow (drive.file scope).
+     *  Generates + persists the PKCE verifier + CSRF `state` and returns the
+     *  authorize URL the caller opens in a Custom Tab, or null when this build
+     *  has no OAuth client credentials ([UiSettings.googleDriveOAuthAvailable]
+     *  false). Default `= null` so test/fake [SettingsRepositoryUi]
+     *  implementations don't need to override it (the redirect is handled
+     *  out-of-band by MainActivity's GoogleDriveOAuthManager). */
+    suspend fun beginGoogleDriveOAuth(): String? = null
 
     /** Issue #1471 — persist or clear the Bookshare partner API key.
      *  Pass null or empty to clear. Stored encrypted under

@@ -298,9 +298,21 @@ class BrowseViewModel @Inject constructor(
                         // defaultEnabled=false (that governs Settings → Plugins
                         // default + generated registry state), so this is a
                         // Browse-only visibility override, not a global flip.
-                        val fallback =
-                            if (descriptor.id == SourceIds.NOTION_PAT) true
-                            else descriptor.defaultEnabled
+                        // #1534 — the Google Drive chip is discoverable in
+                        // Browse ONLY when this build can actually run OAuth
+                        // (googleDriveOAuthAvailable). That way the "Connect
+                        // Google Drive" empty state is reachable without first
+                        // visiting Settings → Plugins in a configured build,
+                        // while a clean/CI build (isAvailable=false) never
+                        // dangles a chip that can't be connected. Like NOTION_PAT
+                        // this is a Browse-only visibility fallback; an explicit
+                        // enable/disable in Plugins still wins. defaultEnabled
+                        // stays false.
+                        val fallback = when (descriptor.id) {
+                            SourceIds.NOTION_PAT -> true
+                            GOOGLE_DRIVE_SOURCE_ID -> s.googleDriveOAuthAvailable
+                            else -> descriptor.defaultEnabled
+                        }
                         val effective = explicit ?: fallback
                         if (effective) add(descriptor.id)
                     }
@@ -740,6 +752,25 @@ class BrowseViewModel @Inject constructor(
     fun disconnectNotion() {
         viewModelScope.launch { settings.setNotionApiToken(null) }
     }
+
+    // ─── Google Drive connect (#1534) ───────────────────────────────────
+
+    /** Snapshot the Browse "Connect Google Drive" empty state reads. Only
+     *  [GoogleDriveConnectionUi.oauthAvailable] is surfaced — the Connect
+     *  button is shown only when the build can actually run the flow. */
+    val googleDriveConnection: StateFlow<GoogleDriveConnectionUi> =
+        settings.settings
+            .map { GoogleDriveConnectionUi(oauthAvailable = it.googleDriveOAuthAvailable) }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GoogleDriveConnectionUi())
+
+    /**
+     * #1534 — begin the Google Drive OAuth flow: delegates to the app-level
+     * GoogleDriveOAuthManager (via the settings seam), which persists PKCE +
+     * state and returns the authorize URL for the caller to open in a Custom
+     * Tab, or null when this build has no OAuth client id.
+     */
+    suspend fun beginGoogleDriveOAuth(): String? = settings.beginGoogleDriveOAuth()
 }
 
 /** #1507 — Browse-side snapshot of the Notion connection for the manage sheet. */
@@ -762,7 +793,17 @@ data class NotionConnectionUi(
 internal fun notionPaginatorRefreshKey(sourceId: String, notionConfigKey: String): String =
     if (sourceId == SourceIds.NOTION_PAT) notionConfigKey else ""
 
+/** #1534 — Browse-side snapshot for the "Connect Google Drive" empty state. */
+data class GoogleDriveConnectionUi(
+    val oauthAvailable: Boolean = false,
+)
+
 private val AUTH_ONLY_GH_TABS: Set<BrowseTab> = setOf(BrowseTab.MyRepos, BrowseTab.Starred, BrowseTab.Gists)
+
+/** #1534 — the @SourcePlugin id of :source-google-drive. `internal` so
+ *  BrowseScreen shares the same literal (not a SourceIds entry — the annotation
+ *  id is the source of truth). */
+internal const val GOOGLE_DRIVE_SOURCE_ID = "google-drive"
 
 /** #426 PR2 — AO3 auth-only tabs (mirror of [AUTH_ONLY_GH_TABS]). */
 private val AUTH_ONLY_AO3_TABS: Set<BrowseTab> = setOf(

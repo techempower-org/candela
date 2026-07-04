@@ -123,4 +123,10 @@
     <!-- Tarjeta de entrada en la cuadrícula de Inicio de TechEmpower. -->
     <string name="calls_card_title">Hacer la llamada</string>
     <string name="calls_card_body">Números de teléfono de los programas, qué decir y una lista de verificación, con ayuda para vencer la ansiedad de llamar. Funciona sin conexión.</string>
+
+    <!-- #1534 — Estado vacío para conectar Google Drive -->
+    <string name="browse_gdrive_connect_title">Conecte su Google Drive</string>
+    <string name="browse_gdrive_connect_body">Vincule Google Drive y elija una carpeta; los documentos que contiene se podrán escuchar aquí. Solo vemos la carpeta que usted elija.</string>
+    <string name="browse_gdrive_unavailable_body">Google Drive aún no está configurado en esta versión de la aplicación.</string>
+    <string name="browse_gdrive_connect_button">Conectar Google Drive</string>
 </resources>
