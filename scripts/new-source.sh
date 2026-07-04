@@ -946,8 +946,11 @@ class __PASCAL__ContractTest : FictionSourceContractTest() {
     /** Replace with a trimmed real response body from your list endpoint. */
     override fun happyListBody(): String = "{}"
 
-    /** Replace with a path fragment your popular()/list endpoint hits. */
-    override fun listPathFragment(): String = "__ID__"
+    /** The path fragment your popular()/list endpoint hits. A loud sentinel on
+     *  purpose: the contract test FAILS until you point this at a substring your
+     *  source actually requests — the default id rarely appears in a real API
+     *  path, which used to silently false-green the happy path (#1523). */
+    override fun listPathFragment(): String = "REPLACE_WITH_YOUR_LIST_PATH"
 }
 CTEST
 elif [[ "$MODE" == "xml" ]]; then
@@ -985,8 +988,11 @@ class __PASCAL__ContractTest : FictionSourceContractTest() {
             "<entry><id>1</id><title>Example entry</title></entry>" +
             "</feed>"
 
-    /** Replace with a path fragment your popular()/list endpoint hits. */
-    override fun listPathFragment(): String = "__ID__"
+    /** The path fragment your popular()/list endpoint hits. A loud sentinel on
+     *  purpose: the contract test FAILS until you point this at a substring your
+     *  source actually requests — the default id rarely appears in a real API
+     *  path, which used to silently false-green the happy path (#1523). */
+    override fun listPathFragment(): String = "REPLACE_WITH_YOUR_LIST_PATH"
 }
 CTEST
 elif [[ "$MODE" == "json" ]]; then
@@ -1019,8 +1025,11 @@ class __PASCAL__ContractTest : FictionSourceContractTest() {
     /** Replace with a trimmed real response body from your list endpoint. */
     override fun happyListBody(): String = "{}"
 
-    /** Replace with a path fragment your popular()/list endpoint hits. */
-    override fun listPathFragment(): String = "__ID__"
+    /** The path fragment your popular()/list endpoint hits. A loud sentinel on
+     *  purpose: the contract test FAILS until you point this at a substring your
+     *  source actually requests — the default id rarely appears in a real API
+     *  path, which used to silently false-green the happy path (#1523). */
+    override fun listPathFragment(): String = "REPLACE_WITH_YOUR_LIST_PATH"
 }
 CTEST
 fi

@@ -30,6 +30,9 @@ import java.util.Collections
  *  - Cloudflare challenge bodies are detected and surface as
  *    [FictionResult.Cloudflare] or [FictionResult.NetworkError] — never as
  *    content, and never as AuthRequired (a CF 403 is not a login gate)
+ *  - [listPathFragment] actually matches a requested path (#1523) — a wrong
+ *    fragment routes the happy body nowhere and every request 404s, yet the
+ *    IO-pin check above still passes on those 404s (a silent false-green)
  *  - paging & blank-query sanity
  *
  * Search-only sources set [exercisesPopular] = false; the checks then run
@@ -43,6 +46,13 @@ abstract class FictionSourceContractTest {
     // Appended from MockWebServer's dispatcher threads while the JUnit thread
     // reads it — must be synchronized or a concurrent-request source races.
     private val requestThreads: MutableList<String> =
+        Collections.synchronizedList(mutableListOf())
+    // #1523 — every request path the exercised call issued, so the happy-path
+    // check can prove listPathFragment() actually matched a requested path. A
+    // wrong fragment routes the happy body NOWHERE (every request falls through
+    // to the 404 arm), yet the IO-pin check still passes on those 404s — a
+    // silent false-green. Same synchronized-append discipline as requestThreads.
+    private val requestPaths: MutableList<String> =
         Collections.synchronizedList(mutableListOf())
 
     /** Build YOUR source pointed at [baseUrl] with [client]. */
@@ -60,11 +70,13 @@ abstract class FictionSourceContractTest {
 
     @Before fun startServer() {
         requestThreads.clear()
+        requestPaths.clear()
         ClientThreadProbe.clientThreads.clear()
         server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 requestThreads += Thread.currentThread().name
+                requestPaths += request.path.orEmpty()
                 return route(request)
             }
         }
@@ -120,6 +132,25 @@ abstract class FictionSourceContractTest {
         )
     }
 
+    @Test fun `listPathFragment matches a requested path (happy body is served)`() {
+        runBlocking { exerciseList(source()) }
+        val fragment = listPathFragment()
+        val paths = synchronized(requestPaths) { requestPaths.toList() }
+        // A wrong listPathFragment() sends every request to the default router's
+        // 404 arm, so the happy body is served NOWHERE — but the #585 IO-pin
+        // check above still passes (a request DID execute off the caller thread,
+        // it just 404'd). That silently false-greens a mis-routed fragment (it
+        // bit the first non-id-in-path source, #1523). Asserting the fragment
+        // matched a real requested path makes the mistake fail loudly instead.
+        assertTrue(
+            "listPathFragment(\"$fragment\") matched none of the requested paths " +
+                "$paths — the happy list body was served nowhere (every request fell " +
+                "through to the 404 arm). Point listPathFragment() at a substring your " +
+                "popular()/search() endpoint actually requests (#1523).",
+            paths.any { it.contains(fragment) },
+        )
+    }
+
     @Test fun `401 maps to AuthRequired, not an exception`() {
         server.dispatcher = constant(MockResponse().setResponseCode(401))
         val result = runBlocking { exerciseList(source()) }
@@ -158,6 +189,7 @@ abstract class FictionSourceContractTest {
     private fun constant(r: MockResponse) = object : Dispatcher() {
         override fun dispatch(request: RecordedRequest): MockResponse {
             requestThreads += Thread.currentThread().name
+            requestPaths += request.path.orEmpty()
             return r
         }
     }
