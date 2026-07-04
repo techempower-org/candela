@@ -1,0 +1,90 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "provenance": "seed-sample",
+    "verifiedDate": "2026-07-04",
+    "freshnessMaxAgeDays": 365,
+    "source": "SEED SAMPLE — authored for surface development (issue #1516). NOT the production corpus.",
+    "note": "Placeholder Notice-of-Action explainers used to build and test the letter decoder. Form NUMBERS and the fact that these are template CA county notices come from epic #1520; the explainer TEXT here is provisional placeholder guidance, NOT verified content. The production corpus is TechEmpower-supplied from their adversarial fact-check pipeline (v1 = top ~10 CA notice types by volume, EN/ES, each explainer carrying verifiedAt + source). It replaces this file wholesale; set provenance to \"techempower-verified\" and the seed banner disappears. We never paraphrase or summarize the user's actual letter — unknown forms get an honest fallback, never a guess."
+  },
+  "explainers": [
+    {
+      "formNumber": "NA 200",
+      "aliases": ["NA200", "NA-200"],
+      "title": {
+        "en": "Notice of Action (NA 200)",
+        "es": "Aviso de Acción (NA 200)"
+      },
+      "whatItMeans": {
+        "en": "A Notice of Action is the standard letter a county sends when something about your benefits is changing — starting, stopping, going up, or going down.",
+        "es": "Un Aviso de Acción es la carta estándar que envía el condado cuando algo sobre sus beneficios va a cambiar: comenzar, terminar, subir o bajar."
+      },
+      "whyYouGotIt": {
+        "en": "Counties send this when they act on your case — after an application, a review, a reported change, or a scheduled recertification.",
+        "es": "El condado lo envía cuando actúa sobre su caso: después de una solicitud, una revisión, un cambio reportado o una recertificación programada."
+      },
+      "whatToDo": {
+        "en": "Read the date and the amount. If something looks wrong, you usually have a limited number of days to ask for a hearing. Call your county worker or 211 to confirm the deadline before it passes.",
+        "es": "Lea la fecha y el monto. Si algo parece incorrecto, normalmente tiene un número limitado de días para pedir una audiencia. Llame a su trabajador del condado o al 211 para confirmar la fecha límite antes de que pase."
+      },
+      "phone": "211",
+      "verifiedAt": "2026-07-04",
+      "source": {
+        "en": "Seed placeholder — pending TechEmpower verified explainer.",
+        "es": "Marcador de posición — pendiente del explicador verificado de TechEmpower."
+      }
+    },
+    {
+      "formNumber": "SAR 7",
+      "aliases": ["SAR7", "SAR-7"],
+      "title": {
+        "en": "Semi-Annual Report reminder (SAR 7)",
+        "es": "Recordatorio de Informe Semestral (SAR 7)"
+      },
+      "whatItMeans": {
+        "en": "The SAR 7 is a form you fill out twice a year to keep your benefits. This reminder means one is due soon.",
+        "es": "El SAR 7 es un formulario que completa dos veces al año para mantener sus beneficios. Este recordatorio significa que uno vence pronto."
+      },
+      "whyYouGotIt": {
+        "en": "Your county sends it on a schedule. Missing it is one of the most common reasons benefits stop.",
+        "es": "Su condado lo envía según un calendario. No entregarlo es una de las razones más comunes por las que se detienen los beneficios."
+      },
+      "whatToDo": {
+        "en": "Return it by the due date on the form. If you have lost it, call your county worker or 211 right away — do not wait.",
+        "es": "Devuélvalo antes de la fecha de vencimiento en el formulario. Si lo perdió, llame a su trabajador del condado o al 211 de inmediato; no espere."
+      },
+      "phone": "211",
+      "verifiedAt": "2026-07-04",
+      "source": {
+        "en": "Seed placeholder — pending TechEmpower verified explainer.",
+        "es": "Marcador de posición — pendiente del explicador verificado de TechEmpower."
+      }
+    },
+    {
+      "formNumber": "MC 355",
+      "aliases": ["MC355", "MC-355"],
+      "title": {
+        "en": "Medi-Cal notice (MC 355)",
+        "es": "Aviso de Medi-Cal (MC 355)"
+      },
+      "whatItMeans": {
+        "en": "This is a Medi-Cal notice about your health coverage — often about renewing or a change in your case.",
+        "es": "Este es un aviso de Medi-Cal sobre su cobertura de salud, a menudo sobre una renovación o un cambio en su caso."
+      },
+      "whyYouGotIt": {
+        "en": "Medi-Cal sends notices when coverage is renewed, changed, or needs information from you.",
+        "es": "Medi-Cal envía avisos cuando la cobertura se renueva, cambia o necesita información de usted."
+      },
+      "whatToDo": {
+        "en": "Check whether it asks for anything by a date. If it does, respond before that date. Call 211 if you are unsure what it is asking for.",
+        "es": "Verifique si pide algo antes de una fecha. Si es así, responda antes de esa fecha. Llame al 211 si no está seguro de qué le está pidiendo."
+      },
+      "phone": "211",
+      "verifiedAt": "2026-07-04",
+      "source": {
+        "en": "Seed placeholder — pending TechEmpower verified explainer.",
+        "es": "Marcador de posición — pendiente del explicador verificado de TechEmpower."
+      }
+    }
+  ]
+}

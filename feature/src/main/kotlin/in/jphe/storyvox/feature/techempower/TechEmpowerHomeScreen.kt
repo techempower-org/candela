@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -98,6 +99,7 @@ fun TechEmpowerHomeScreen(
     onOpenBrowse: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenScreener: () -> Unit,
+    onOpenDecoder: () -> Unit,
     onOpenFiction: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -167,6 +169,16 @@ fun TechEmpowerHomeScreen(
                     body = "Free tech guides, EBT support, and digital safety — read or listen.",
                     icon = null,
                     onClick = onOpenBrowse,
+                )
+            }
+            // Issue #1516 — "Understand a letter" decoder card. Bilingual copy
+            // via string resources.
+            item {
+                TechEmpowerCard(
+                    title = stringResource(FeatureR.string.decoder_card_title),
+                    body = stringResource(FeatureR.string.decoder_card_body),
+                    icon = Icons.Filled.Mail,
+                    onClick = onOpenDecoder,
                 )
             }
             item {
