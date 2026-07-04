@@ -632,6 +632,33 @@ class SettingsViewModel @Inject constructor(
      *  the override → fall back to the reading-theme accent). */
     fun setWordHighlightColor(argb: Int) =
         viewModelScope.launch { repo.setWordHighlightColor(argb) }
+
+    // ── Reader read-along toggles (#946 auto-scroll, #997 focus mode) ──
+    // Issue #1577 — these ship with in-reader controls but had no Settings
+    // home, so a user who wanted them off by default (or who never found the
+    // in-reader button) had no discoverable path. Surfaced as standalone
+    // StateFlows rather than folded into [uiState], whose typed combine is
+    // already at its 5-flow ceiling.
+    val readerAutoScrollEnabled: StateFlow<Boolean> =
+        repo.readerAutoScrollEnabled.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            true,
+        )
+    val readerFocusModeEnabled: StateFlow<Boolean> =
+        repo.readerFocusModeEnabled.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            false,
+        )
+
+    /** Issue #946 — persist the reader auto-scroll (follow-along) toggle. */
+    fun setReaderAutoScrollEnabled(enabled: Boolean) =
+        viewModelScope.launch { repo.setReaderAutoScrollEnabled(enabled) }
+
+    /** Issue #997 — persist the Focused Reading toggle. */
+    fun setReaderFocusModeEnabled(enabled: Boolean) =
+        viewModelScope.launch { repo.setReaderFocusModeEnabled(enabled) }
 }
 
 /** Map the feature-layer enum to the :core-llm enum. The two are

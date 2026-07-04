@@ -157,3 +157,92 @@ class PrimeGamingConfigContributor @Inject constructor(
         }
     }
 }
+
+/**
+ * Slack bot-token BYOK (#454, surfaced #1577). The `SlackConfigImpl` backing
+ * store + setters shipped with the source, but the Settings UI the source's
+ * own kdoc promised ("Settings → Library & Sync → Slack") never landed — so
+ * the source was permanently gated to AuthRequired with no way to configure
+ * it. Routing the token through this contributor lights it up with no bespoke
+ * row. One token = one workspace (Slack has no multi-workspace token), so a
+ * single masked field is the whole surface.
+ */
+@Singleton
+class SlackConfigContributor @Inject constructor(
+    private val config: SlackConfigImpl,
+) : SourceConfigContributor {
+    override val sourceId: String = SourceIds.SLACK
+    override val displayName: String = "Slack"
+    override val sectionHelp: String =
+        "Read a Slack workspace's channels. Create an app at api.slack.com, " +
+            "install it to your workspace, and paste its Bot User OAuth Token."
+
+    override fun fields(): List<SourceConfigField> = listOf(
+        SourceConfigField.SecretText(
+            key = "token",
+            label = "Bot token",
+            help = "Bot User OAuth Token with the channels:read, channels:history, " +
+                "groups:read, groups:history, and users:read scopes.",
+            placeholder = "xoxb-…",
+        ),
+    )
+
+    override val values: Flow<Map<String, SourceConfigValue>> = config.state.map { s ->
+        mapOf("token" to SourceConfigValue.Secret(s.apiToken.isNotBlank()))
+    }
+
+    override suspend fun set(key: String, raw: String) {
+        when (key) {
+            "token" -> config.setApiToken(raw.ifBlank { null })
+        }
+    }
+}
+
+/**
+ * Matrix access-token BYOK (#457, surfaced #1577). Same "Matrix precedent"
+ * story as Slack — `MatrixConfigImpl` + setters shipped, the Settings UI never
+ * did. The source needs BOTH a homeserver URL and an access token before it can
+ * dispatch, so both are surfaced: homeserver as an editable URL field, token as
+ * a write-only secret. (Blank homeserver clears it; the coalesce-window knob
+ * keeps its default — the generic seam has no numeric field type yet.)
+ */
+@Singleton
+class MatrixConfigContributor @Inject constructor(
+    private val config: MatrixConfigImpl,
+) : SourceConfigContributor {
+    override val sourceId: String = SourceIds.MATRIX
+    override val displayName: String = "Matrix"
+    override val sectionHelp: String =
+        "Read a Matrix room as a fiction. Paste your homeserver URL and an " +
+            "access token (Element → Settings → Help & About → Advanced → Access Token). " +
+            "No password login."
+
+    override fun fields(): List<SourceConfigField> = listOf(
+        SourceConfigField.UrlText(
+            key = "homeserver",
+            label = "Homeserver URL",
+            help = "e.g. https://matrix.org, or your self-hosted Synapse / Dendrite / Conduit.",
+            placeholder = "https://matrix.org",
+        ),
+        SourceConfigField.SecretText(
+            key = "token",
+            label = "Access token",
+            help = "A homeserver access token (syt_… / mat_…) — never your password.",
+            placeholder = "syt_…",
+        ),
+    )
+
+    override val values: Flow<Map<String, SourceConfigValue>> = config.state.map { s ->
+        mapOf(
+            "homeserver" to SourceConfigValue.Text(s.homeserverUrl),
+            "token" to SourceConfigValue.Secret(s.accessToken.isNotBlank()),
+        )
+    }
+
+    override suspend fun set(key: String, raw: String) {
+        when (key) {
+            "homeserver" -> config.setHomeserverUrl(raw)
+            "token" -> config.setAccessToken(raw.ifBlank { null })
+        }
+    }
+}

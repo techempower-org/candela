@@ -117,6 +117,18 @@ object AppBindings {
         impl: `in`.jphe.storyvox.data.PrimeGamingConfigContributor,
     ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
 
+    // #1577 — Slack (#454) + Matrix (#457): backends shipped, Settings UI didn't.
+    // Route them through the generic config seam so they're configurable at last.
+    @Provides @Singleton @IntoSet
+    fun provideSlackConfigContributor(
+        impl: `in`.jphe.storyvox.data.SlackConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
+    @Provides @Singleton @IntoSet
+    fun provideMatrixConfigContributor(
+        impl: `in`.jphe.storyvox.data.MatrixConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
     /** Issue #1228 — bridges the `:feature` [DocumentImporterUi] seam to
      *  the app-side single-file import path (the same one MainActivity's
      *  "Open With" ingest uses), so the Library "Import a file…" picker can

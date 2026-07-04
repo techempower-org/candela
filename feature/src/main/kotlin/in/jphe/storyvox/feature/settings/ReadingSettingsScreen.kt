@@ -71,6 +71,9 @@ fun ReadingSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // #1577 — read-along toggles live on their own repo Flows (not in UiSettings).
+    val autoScrollEnabled by viewModel.readerAutoScrollEnabled.collectAsStateWithLifecycle()
+    val focusModeEnabled by viewModel.readerFocusModeEnabled.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
 
     SettingsSubscreenScaffold(title = stringResource(R.string.settings_reading_title), onBack = onBack) { padding ->
@@ -91,6 +94,27 @@ fun ReadingSettingsScreen(
                 // Settings → Voice & Playback → "Sleep timer", where it sits with
                 // the rest of the sleep-timer knobs (duration, Bedtime auto-arm,
                 // Do Not Disturb). It was the odd one out here under Reading.
+            }
+
+            // Issue #1577 — read-along behaviour. Auto-scroll (#946) and Focused
+            // Reading (#997) shipped with in-reader IconButtons but no Settings
+            // home, so a user who wanted a different default — or who never found
+            // the in-reader control — had no discoverable path. These rows drive
+            // the same persisted prefs the reader controls do.
+            SettingsSectionHeader(label = stringResource(R.string.settings_reading_readalong_group_title))
+            SettingsGroupCard {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_reading_autoscroll_title),
+                    subtitle = stringResource(R.string.settings_reading_autoscroll_subtitle),
+                    checked = autoScrollEnabled,
+                    onCheckedChange = viewModel::setReaderAutoScrollEnabled,
+                )
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_reading_focus_title),
+                    subtitle = stringResource(R.string.settings_reading_focus_subtitle),
+                    checked = focusModeEnabled,
+                    onCheckedChange = viewModel::setReaderFocusModeEnabled,
+                )
             }
 
             // #993 — reading-color theme (page overlay), separate from the
