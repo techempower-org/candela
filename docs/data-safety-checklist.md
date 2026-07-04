@@ -64,7 +64,7 @@ Work top-to-bottom through the Console wizard. **Bold = the option to pick.**
 **Mark as Not collected (select nothing):**
 Location (approx/precise) · Financial info · Health & fitness · Messages (SMS/email/other in-app) · Photos & videos · Audio files/voice/music · Files & docs · Calendar · Contacts · App info & performance (crash logs, diagnostics) · Device or other IDs · Web browsing.
 
-> Reasoning carried from §4: OCR camera images + recognized text are processed **on-device** (ML Kit) and never transmitted → Photos/Audio stay **No** despite the CAMERA permission. EPUB/SAF file reads aren't sent anywhere → Files **No**. Discord/Slack/Matrix/Telegram are read via the **user's own credentials direct to the service**; Candela stores nothing → Messages **No**. No analytics/ads/crash SDK → App activity/info, Device IDs all **No**.
+> Reasoning carried from §4: OCR camera images + recognized text are processed **on-device** (ML Kit) and never transmitted → Photos/Audio stay **No** despite the CAMERA permission. EPUB/SAF file reads aren't sent anywhere → Files **No**. Discord/Slack/Matrix/Telegram are read via the **user's own credentials direct to the service**; Candela stores nothing → Messages **No**. Calendar events are read via the on-device `CalendarContract` provider, narrated locally, and never transmitted (no cloud API / OAuth / key) → **Calendar** stays **No** despite the `READ_CALENDAR` permission (#1495) — the same on-device-only basis as the camera. No analytics/ads/crash SDK → App activity/info, Device IDs all **No**.
 
 ### Section C — Data sharing
 Declare **one** sharing relationship:
@@ -117,5 +117,6 @@ user's own account.
 3. Pick the "library state" Play category (App activity → Other UGC vs Other actions) and keep policy + form consistent.
 4. Re-audit this form whenever a new data flow lands (e.g., opt-in crash reporting) — a Data Safety answer that contradicts observed network traffic is a top rejection trigger.
    - ✅ _#1463 (impact sharing) audited:_ no new declaration — user-initiated share-sheet egress to a user-chosen destination, no collector, no identifiers (see the "Impact sharing" note above). Candela originates no network traffic for it, so nothing contradicts the form.
+5. **#1495 (device calendar):** adds the runtime-dangerous `READ_CALENDAR` permission. Calendar events are read via the on-device `CalendarContract` provider and **never transmitted** (no cloud API / OAuth / key), so the mapping is unchanged: **Calendar = Not collected**, on the same on-device-only basis as the camera. No new sharing relationship — Section C is unchanged. privacy.md §2.10 + the walkthrough §IV permission table document the posture; when a Play reviewer sees the new permission, point them at the on-device-only justification.
 
 _Code refs: `core-sync/.../client/InstantClient.kt` (signOut=token revoke), `feature/.../sync/SyncAuthViewModel.kt` (signOut vs purgeRemoteData #1248), `core-sync/.../coordinator/SyncCoordinator.kt` (purgeRemoteData loops all syncers), `core-sync/.../client/HttpInstantBackend.kt` (admin/transact delete), `core-sync/.../di/SyncModule.kt` (8 syncer domains)._

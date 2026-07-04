@@ -13,7 +13,7 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 > locally; you can delete cloud-synced data via the in-app "Delete cloud
 > data" action.
 
-**Effective date:** 2026-06-26  
+**Effective date:** 2026-07-03  
 **App:** Candela (`org.techempower.candela`)  
 **Publisher:** TechEmpower (501(c)(3) nonprofit, operating Candela)  
 **Maintainer:** JP Hein (`jp@jphein.com`)  
@@ -185,6 +185,23 @@ such a summary, entirely on your terms:
   so a subsequent share reports only the incremental change (never double-counts,
   and never goes negative if you clear app data). That record holds no identity
   and is erased when you clear app data or uninstall.
+
+### 2.10 Calendar (optional)
+
+Candela can read your device calendar and narrate it as an agenda — "My
+Calendar," with Today / Tomorrow / This Week chapters (each event's time,
+title, location, and duration read aloud). It uses Android's on-device
+`CalendarContract` provider, which already aggregates whatever accounts sync
+to your phone (Google, Samsung, Outlook, a local account). **There is no
+calendar cloud API, no OAuth, and no key** — Candela reads the calendar the
+same way your built-in Calendar app does, entirely on-device. Your events are
+**read locally, narrated locally, and never leave your device**; they are
+never uploaded, collected, transmitted, or shared. The `READ_CALENDAR`
+permission is requested **only** when you tap **Grant calendar access** in
+Browse — never at launch — and declining it does not dead-end anything: the
+Calendar source simply stays empty until you choose to grant it. You can
+revoke the permission anytime in Android Settings. The Calendar source is
+read-only: Candela never creates, edits, or deletes calendar events.
 
 ---
 

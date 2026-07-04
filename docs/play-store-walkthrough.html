@@ -377,6 +377,7 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
         <tr><td>API keys &amp; tokens <span class="why plain">(Azure / LLM / source logins, incl. Notion &amp; Google&nbsp;Drive OAuth)</span></td><td class="yes">Sync only · <b>E2E&nbsp;encrypted</b></td><td>AES-256-GCM, PBKDF2 600k, passphrase-derived — InstantDB never sees plaintext. Stored locally in Tink-encrypted prefs; excluded from device backup. The Notion OAuth (#1507) and Google&nbsp;Drive OAuth (#1496, <code>drive.file</code> scope) access/refresh tokens ride this same path; content flows user&nbsp;→&nbsp;Notion/Google directly.</td></tr>
         <tr><td>Photos / Camera (OCR)</td><td class="no">No</td><td>ML Kit runs <i>on-device</i>; images + recognized text never leave the phone. No microphone.</td></tr>
         <tr><td>Files &amp; docs <span class="why plain">(EPUB / PDF / ODT)</span></td><td class="no">No</td><td>Read via the Storage Access Framework; never uploaded.</td></tr>
+        <tr><td>Calendar</td><td class="no">No</td><td>Read on-device via <code>CalendarContract</code> and narrated locally (#1495); events never leave the phone. Optional — the source stays empty until you grant <code>READ_CALENDAR</code>.</td></tr>
         <tr><td>Messages</td><td class="no">No</td><td>Discord/Slack/Matrix/Telegram are read with the user's own credentials, directly to those services.</td></tr>
         <tr><td>AI chat text</td><td class="no">No <span class="why plain">(by the app)</span></td><td>Sent only to the user's own LLM provider via their own key — BYOK, user-initiated.</td></tr>
         <tr><td>Location · Contacts · Financial · Health · Device IDs · Ad ID · Crash logs</td><td class="no">No</td><td>Never requested. No analytics, no crash reporter, no ads.</td></tr>
@@ -392,6 +393,7 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
         <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>Home-screen widget redraws after a reboot.</td></tr>
         <tr><td><code>ACCESS_NOTIFICATION_POLICY</code></td><td>Sleep timer can auto-toggle Do Not Disturb.</td></tr>
         <tr><td><code>CAMERA</code> <span class="pill manual">optional</span></td><td>OCR scan-to-read; on-device; gallery-pick fallback if denied.</td></tr>
+        <tr><td><code>READ_CALENDAR</code> <span class="pill manual">optional</span></td><td>Narrate your agenda (Today / Tomorrow / This Week); on-device only, requested on tap, source stays empty if denied.</td></tr>
         <tr><td><i>no storage permission</i></td><td>EPUB/PDF use SAF. No <code>CALL_PHONE</code>, location, microphone, contacts, or ad ID.</td></tr>
       </table></div>
 
