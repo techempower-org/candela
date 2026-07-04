@@ -20,11 +20,21 @@ import kotlinx.coroutines.flow.map
 private val Context.rssDataStore: DataStore<Preferences> by preferencesDataStore(name = "storyvox_rss")
 
 private object RssKeys {
-    /** Pipe-separated list of feed URLs the user has added. Pipe is a
-     *  safe delimiter — URL spec excludes `|` from any URL component
+    /** Pipe-separated list of feed records the user has added. Pipe is a
+     *  safe record delimiter — URL spec excludes `|` from any URL component
      *  without percent-encoding, so we never collide with a real URL.
-     *  Empty / missing key = no subscriptions. */
+     *  Empty / missing key = no subscriptions.
+     *
+     *  Issue #1498 — each record is `url` or, once autodiscovery has
+     *  resolved a distinct feed URL, `url<space>resolvedUrl`. Space is a
+     *  safe field delimiter for the same reason as pipe: a valid URL never
+     *  carries a literal space (it must be percent-encoded). Legacy records
+     *  (bare `url`, no space) decode with `resolvedUrl = null`. */
     val FEEDS = stringPreferencesKey("pref_rss_feeds")
+
+    /** #1498 — separator between a subscription's identity URL and its
+     *  autodiscovered fetch URL within one pipe-delimited record. */
+    const val RESOLVED_SEP: Char = ' '
 }
 
 /**
@@ -34,10 +44,12 @@ private object RssKeys {
  * churning that file's preference schema (same pattern as
  * [PalaceConfigImpl]).
  *
- * Storage format: pipe-separated URLs. Round-trip is just
- * `split('|').filter { it.isNotBlank() }`. Adding/removing rewrites
- * the whole field — it's a small list (typically <50 feeds) so a
- * full rewrite is cheaper than maintaining structured storage.
+ * Storage format: pipe-separated records, each `url` or (issue #1498)
+ * `url<space>resolvedUrl` once autodiscovery has resolved a distinct
+ * feed URL. Adding/removing/resolving rewrites the whole field — it's a
+ * small list (typically <50 feeds) so a full rewrite is cheaper than
+ * maintaining structured storage. Legacy pipe-only-URL data decodes with
+ * `resolvedUrl = null`, so upgrades re-discover once.
  */
 @Singleton
 class RssConfigImpl(
@@ -80,14 +92,48 @@ class RssConfigImpl(
         }
     }
 
+    override suspend fun setResolvedUrl(fictionId: String, resolvedUrl: String) {
+        val trimmed = resolvedUrl.trim()
+        if (trimmed.isEmpty()) return
+        store.edit { prefs ->
+            val existing = decode(prefs[RssKeys.FEEDS])
+            // No-op if the subscription is gone or the resolved URL is
+            // unchanged / identical to the identity URL (nothing to persist).
+            val target = existing.firstOrNull { it.fictionId == fictionId } ?: return@edit
+            if (target.resolvedUrl == trimmed || target.url == trimmed) return@edit
+            val updated = existing.map {
+                if (it.fictionId == fictionId) it.copy(resolvedUrl = trimmed) else it
+            }
+            prefs[RssKeys.FEEDS] = encode(updated)
+        }
+    }
+
     private fun encode(subs: List<RssSubscription>): String =
-        subs.joinToString("|") { it.url }
+        subs.joinToString("|") { sub ->
+            // #1498 — append the resolved fetch URL only when it differs from
+            // the identity URL; a bare `url` keeps the legacy record shape.
+            val resolved = sub.resolvedUrl
+            if (resolved.isNullOrBlank() || resolved == sub.url) sub.url
+            else "${sub.url}${RssKeys.RESOLVED_SEP}$resolved"
+        }
 
     private fun decode(raw: String?): List<RssSubscription> {
         if (raw.isNullOrBlank()) return emptyList()
         return raw.split('|')
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .map { url -> RssSubscription(fictionId = fictionIdForFeedUrl(url), url = url) }
+            .map { record ->
+                // #1498 — `url` (legacy) or `url<space>resolvedUrl`. Split on
+                // the FIRST separator only; neither field can contain a space.
+                val url = record.substringBefore(RssKeys.RESOLVED_SEP)
+                val resolved = record.substringAfter(RssKeys.RESOLVED_SEP, "")
+                    .trim()
+                    .takeIf { it.isNotEmpty() }
+                RssSubscription(
+                    fictionId = fictionIdForFeedUrl(url),
+                    url = url,
+                    resolvedUrl = resolved,
+                )
+            }
     }
 }

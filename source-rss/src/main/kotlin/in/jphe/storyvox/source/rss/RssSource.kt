@@ -26,7 +26,6 @@ import `in`.jphe.storyvox.source.rss.parse.RssParser
 import `in`.jphe.storyvox.source.rss.parse.discoverFeedUrl
 import `in`.jphe.storyvox.source.rss.cache.TtlCache
 import `in`.jphe.storyvox.source.rss.templates.CraigslistTemplates
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -79,15 +78,6 @@ internal class RssSource @Inject constructor(
      *  read through it (see [fetchAndParse]); the caching decision lives in
      *  the pure, plain-JUnit-tested [TtlCache]. */
     private val feedCache = TtlCache<RssFeed>(FEED_CACHE_TTL_MS, System::currentTimeMillis)
-
-    /** #1489 — subscription URL → autodiscovered feed URL. When a user pastes
-     *  a bare homepage, the first fetch parses the HTML for its `<link
-     *  rel=alternate>` feed; we remember it here so an expired-cache re-fetch
-     *  goes straight to the real feed instead of re-scanning the HTML. Kept in
-     *  memory only — persisting it would mean rewriting the subscription URL,
-     *  which changes the URL-hash-derived fictionId and orphans the Room rows
-     *  (see PR notes; a model-level fix is a follow-up). */
-    private val resolvedFeedUrls = ConcurrentHashMap<String, String>()
 
     /** Issue #472 — RSS / Atom feed URLs. Matched by path/extension
      *  heuristics: `.rss`, `.atom`, `.xml`, or paths containing
@@ -266,7 +256,7 @@ internal class RssSource @Inject constructor(
         val sub = config.snapshot().firstOrNull { it.fictionId == fictionId }
             ?: return FictionResult.NotFound("Feed not subscribed: $fictionId")
 
-        val feed = when (val r = fetchAndParse(sub.url)) {
+        val feed = when (val r = fetchAndParse(sub)) {
             is FictionResult.Success -> r.value
             // #1489 — propagate RateLimited / Cloudflare / NetworkError so the
             // UI can surface the real reason instead of a generic failure.
@@ -310,7 +300,7 @@ internal class RssSource @Inject constructor(
         val sub = config.snapshot().firstOrNull { it.fictionId == fictionId }
             ?: return FictionResult.NotFound("Feed not subscribed: $fictionId")
 
-        val feed = when (val r = fetchAndParse(sub.url)) {
+        val feed = when (val r = fetchAndParse(sub)) {
             is FictionResult.Success -> r.value
             // #1489 — propagate RateLimited / Cloudflare / NetworkError so the
             // UI can surface the real reason instead of a generic failure.
@@ -381,14 +371,21 @@ internal class RssSource @Inject constructor(
      * outage). Propagating the fetcher's [FictionResult.Failure] lets the UI
      * surface rate-limiting / Cloudflare honestly.
      */
-    private suspend fun fetchAndParse(url: String): FictionResult<RssFeed> {
+    private suspend fun fetchAndParse(sub: RssSubscription): FictionResult<RssFeed> {
         // Serve a recently-parsed feed from memory so a chapter tap after the
         // detail list has loaded is instant (no re-download, no re-parse).
-        feedCache.get(url)?.let { return FictionResult.Success(it) }
-        // If we've already autodiscovered the real feed for this subscription,
-        // fetch it directly — skip the HTML round-trip and the re-scan.
-        val target = resolvedFeedUrls[url] ?: url
-        return fetchResolveParse(fetchUrl = target, cacheKey = url, allowDiscovery = target == url)
+        feedCache.get(sub.url)?.let { return FictionResult.Success(it) }
+        // #1498 — if autodiscovery already resolved the real feed for this
+        // subscription (persisted in RssConfig, distinct from the identity
+        // URL), fetch it directly and skip the HTML round-trip + re-scan. Only
+        // attempt discovery when we haven't resolved one yet.
+        val target = sub.resolvedUrl ?: sub.url
+        return fetchResolveParse(
+            fetchUrl = target,
+            cacheKey = sub.url,
+            fictionId = sub.fictionId,
+            allowDiscovery = sub.resolvedUrl == null,
+        )
     }
 
     /**
@@ -397,10 +394,17 @@ internal class RssSource @Inject constructor(
      * treated as an HTML page and run through RSS/Atom autodiscovery —
      * following exactly ONE hop to the advertised feed (the recursion passes
      * `allowDiscovery = false`, so a non-feed discovered URL can't loop).
+     *
+     * #1498 — a discovered feed URL is persisted via [RssConfig.setResolvedUrl]
+     * (keyed by [fictionId]) so a later cold-start fetch goes straight to the
+     * real feed. The identity-bearing subscription URL is never rewritten, so
+     * the URL-hash-derived fictionId — and every Room row keyed to it — stays
+     * put.
      */
     private suspend fun fetchResolveParse(
         fetchUrl: String,
         cacheKey: String,
+        fictionId: String,
         allowDiscovery: Boolean,
     ): FictionResult<RssFeed> {
         return when (val result = fetcher.fetch(fetchUrl)) {
@@ -416,8 +420,10 @@ internal class RssSource @Inject constructor(
                     // homepage; the HTML may advertise its feed. Try once.
                     val discovered = if (allowDiscovery) discoverFeedUrl(body.xml, fetchUrl) else null
                     if (discovered != null && discovered != fetchUrl) {
-                        resolvedFeedUrls[cacheKey] = discovered
-                        fetchResolveParse(discovered, cacheKey, allowDiscovery = false)
+                        // #1498 — persist across launches, keyed by the stable
+                        // fictionId (not the URL) so identity is preserved.
+                        config.setResolvedUrl(fictionId, discovered)
+                        fetchResolveParse(discovered, cacheKey, fictionId, allowDiscovery = false)
                     } else {
                         FictionResult.NetworkError("Couldn't parse feed at $fetchUrl", e)
                     }
