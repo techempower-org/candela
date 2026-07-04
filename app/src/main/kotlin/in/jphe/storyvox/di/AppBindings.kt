@@ -279,6 +279,12 @@ object AppBindings {
     @Provides @Singleton
     fun provideDocPdfExporter(impl: `in`.jphe.storyvox.data.docs.PdfDocumentExporter): `in`.jphe.storyvox.data.docs.DocPdfExporter = impl
 
+    /** Issue #1514 — bridges the :core-data [WalletStore] seam to the
+     *  EncryptedFile-backed impl. Encrypted-at-rest, backup-excluded,
+     *  never synced — the household's most sensitive data. */
+    @Provides @Singleton
+    fun provideWalletStore(impl: `in`.jphe.storyvox.data.wallet.EncryptedFileWalletStore): `in`.jphe.storyvox.data.wallet.WalletStore = impl
+
     /** Bridges the source-pdf [PdfConfig] read interface (#996) to the
      *  concrete app-side SAF-backed impl. Exposed concretely is not
      *  needed here (the Settings/Browse mutators go through

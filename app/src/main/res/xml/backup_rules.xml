@@ -21,4 +21,10 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="storyvox.secrets.xml" />
     <exclude domain="sharedpref" path="storyvox.secrets" />
+    <!-- #1514 — the encrypted document wallet (EncryptedFile blobs + the
+         encrypted metadata manifest) must never be backed up. Same reason
+         as the secrets prefs above: blobs are MAC'd with THIS install's
+         Keystore master key, so a restored copy can't be verified — and
+         it's the household's most sensitive data. On-device only. -->
+    <exclude domain="file" path="wallet/" />
 </full-backup-content>
