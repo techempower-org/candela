@@ -18,6 +18,8 @@ lifecycle = "2.11.0"
 navigation-compose = "2.9.8"
 startup = "1.2.0"
 security-crypto = "1.1.0"
+# #1514 — BiometricPrompt gate on the encrypted document wallet.
+biometric = "1.1.0"
 
 # Compose
 compose-bom = "2026.06.00"
@@ -136,6 +138,8 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-startup = { module = "androidx.startup:startup-runtime", version.ref = "startup" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
+# #1514 — BiometricPrompt (device biometric / credential) for the wallet gate.
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 
 # OCR / scan-to-read (#995). Bundled offline text recognizer + CameraX

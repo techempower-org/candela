@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Choreographer
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +26,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.ContextCompat
+// #1514 — FragmentActivity (not ComponentActivity) so androidx BiometricPrompt
+// can host its dialog on this activity for the encrypted document wallet gate.
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.lifecycleScope
@@ -72,7 +74,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     /**
      * Hot stream of incoming intents. Cold-start intent is seeded in

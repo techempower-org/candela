@@ -154,6 +154,12 @@ fun LibraryScreen(
      * surfaces that don't exercise it still compile.
      */
     onScanDocuments: () -> Unit = {},
+    /**
+     * Issue #1514 — "My Documents" add-flow entry. Routes to the encrypted,
+     * biometric-gated document wallet ([StoryvoxRoutes.WALLET]). Default
+     * no-op so test / preview surfaces that don't exercise it still compile.
+     */
+    onOpenWallet: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -361,6 +367,15 @@ fun LibraryScreen(
                             onClick = {
                                 addMenuOpen = false
                                 onScanDocuments()
+                            },
+                        )
+                        // Issue #1514 — encrypted "My Documents" wallet
+                        // (biometric-gated on-device benefits proofs).
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(R.string.library_open_wallet)) },
+                            onClick = {
+                                addMenuOpen = false
+                                onOpenWallet()
                             },
                         )
                     }

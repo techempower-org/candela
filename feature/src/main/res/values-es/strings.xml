@@ -129,4 +129,42 @@
     <string name="browse_gdrive_connect_body">Vincule Google Drive y elija una carpeta; los documentos que contiene se podrán escuchar aquí. Solo vemos la carpeta que usted elija.</string>
     <string name="browse_gdrive_unavailable_body">Google Drive aún no está configurado en esta versión de la aplicación.</string>
     <string name="browse_gdrive_connect_button">Conectar Google Drive</string>
+    <!-- #1514: billetera cifrada "Mis documentos". Keys alphabetical, same
+         order as values/strings.xml; wrapped for mechanical rebases. -->
+    <string name="library_open_wallet">Mis documentos (billetera cifrada)</string>
+    <string name="wallet_add_gallery">Añadir desde fotos</string>
+    <string name="wallet_add_scan">Escanear un documento</string>
+    <string name="wallet_back_cd">Atrás</string>
+    <string name="wallet_captured_days_ago">Capturado hace %1$d días</string>
+    <string name="wallet_delete_cd">Eliminar %1$s</string>
+    <string name="wallet_empty">Aún no hay documentos. Escanea una identificación, un recibo de pago, una carta de aprobación o una tarjeta de beneficios para tenerlos listos y seguros.</string>
+    <string name="wallet_intro">Tus documentos están cifrados en este dispositivo y nunca salen de tu teléfono. Ten tus comprobantes listos para las solicitudes de beneficios.</string>
+    <string name="wallet_locked_body">Tus documentos están bloqueados. Desbloquéalos con tu huella, rostro o bloqueo de pantalla para verlos.</string>
+    <string name="wallet_no_device_lock">Este dispositivo no tiene bloqueo de pantalla. Tus documentos siguen cifrados, pero añade un bloqueo de pantalla para mayor protección.</string>
+    <string name="wallet_ok">Aceptar</string>
+    <string name="wallet_reexport">Exportar / compartir</string>
+    <string name="wallet_save_cancel">Cancelar</string>
+    <string name="wallet_save_confirm">Guardar en la billetera</string>
+    <string name="wallet_save_name_label">Nombre (opcional)</string>
+    <string name="wallet_save_note_label">Nota (opcional)</string>
+    <string name="wallet_save_title">Guardar estas páginas en tu billetera</string>
+    <string name="wallet_save_type_label">¿Qué tipo de documento es?</string>
+    <string name="wallet_share_chooser">Compartir documento</string>
+    <string name="wallet_staleness_hint">Atención: algunos programas solo aceptan comprobantes de ingresos de los últimos %1$d días. Considera volver a capturarlo.</string>
+    <string name="wallet_title">Mis documentos</string>
+    <string name="wallet_type_address">Comprobante de domicilio</string>
+    <string name="wallet_type_award">Carta de aprobación</string>
+    <string name="wallet_type_card">Tarjeta de beneficios</string>
+    <string name="wallet_type_id">Identificación con foto</string>
+    <string name="wallet_type_income">Comprobante de ingresos (recibo de pago)</string>
+    <string name="wallet_type_other">Otro</string>
+    <string name="wallet_unlock_button">Desbloquear</string>
+    <string name="wallet_unlock_subtitle">Desbloquea tus documentos cifrados</string>
+    <string name="wallet_unlock_title">Mis documentos</string>
+    <string name="wallet_what_proves">¿Qué comprueba esto?</string>
+    <string name="wallet_what_proves_intro">Un(a) %1$s se puede usar como comprobante para:</string>
+    <string name="wallet_what_proves_none">Todavía no tenemos una lista verificada de programas para este tipo de documento.</string>
+    <string name="wallet_what_proves_seed_note">Lista de muestra: la lista verificada de programas la proporciona TechEmpower.</string>
+    <string name="wallet_what_proves_title">¿Qué comprueba esto?</string>
+    <!-- /#1514 -->
 </resources>
