@@ -65,7 +65,7 @@ class WalletViewModelTest {
     // ── pure staleness (AC: 46-day income proof) ───────────────────────
 
     @Test
-    fun `income proof older than 45 days is stale; 44 days is not`() {
+    fun `income proof older than 45 days is stale, 44 days is not`() {
         val now = 1_000_000_000_000L
         val day = WalletDoc.MILLIS_PER_DAY
         val stale = WalletDoc("a", WalletDocType.PROOF_OF_INCOME, "stub", now - 46 * day, 1)
@@ -85,7 +85,7 @@ class WalletViewModelTest {
     // ── verified program catalog (AC: "what does this prove?") ─────────
 
     @Test
-    fun `benefit card maps to accepting programs; unknown type maps to none`() {
+    fun `benefit card maps to accepting programs, unknown type maps to none`() {
         val vm = WalletViewModel(FakeStore(), FakeExporter(okExport()))
         val programs = vm.programsFor(WalletDocType.BENEFIT_CARD)
         assertTrue(programs.isNotEmpty())
