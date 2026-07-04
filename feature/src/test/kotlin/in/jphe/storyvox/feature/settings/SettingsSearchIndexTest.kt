@@ -102,6 +102,30 @@ class SettingsSearchIndexTest {
     }
 
     @Test
+    fun `sleep-timer synonyms surface Voice and Playback (#1577)`() {
+        // The flagship: the sleep-timer + DND settings live in the Voice &
+        // Playback section, so every term a user types for them must reach it.
+        for (q in listOf("sleep", "dnd", "do not disturb", "bedtime", "shake")) {
+            assertTrue(
+                "'$q' should surface Voice & Playback",
+                matchingLabels(q).contains("Voice & Playback"),
+            )
+        }
+    }
+
+    @Test
+    fun `help synonyms surface About (#1577)`() {
+        // The handbook, privacy policy, and impact-sharing explainer all live
+        // under About; keywords make them findable by intent, not just by name.
+        for (q in listOf("handbook", "help", "guide", "privacy", "impact")) {
+            assertTrue(
+                "'$q' should surface About",
+                matchingLabels(q).contains("About"),
+            )
+        }
+    }
+
+    @Test
     fun `every section carries a non-blank label and descriptor`() {
         for (section in SettingsSearchSections) {
             assertFalse("Blank label", section.label.isBlank())

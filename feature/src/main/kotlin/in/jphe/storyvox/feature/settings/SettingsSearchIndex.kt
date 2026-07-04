@@ -38,12 +38,22 @@ val SettingsSearchSections: List<SettingsSearchSection> = listOf(
         keywords = listOf(
             "tts", "engine", "kokoro", "piper", "sonic", "pitch",
             "punctuation", "pause", "pronunciation", "rate", "tempo",
+            // #1577 — the sleep-timer + transport knobs live in this section
+            // too; surface the terms a user actually types for them (the DND
+            // auto-sleep toggle of #1574 is the worked example).
+            "sleep", "timer", "dnd", "do not disturb", "bedtime", "shake",
+            "skip", "rewind", "speed", "cadence", "language",
         ),
     ),
     SettingsSearchSection(
         label = "Reading",
         descriptor = "How chapter text and the reader behave.",
-        keywords = listOf("theme", "dark", "light", "sleep", "timer", "shake"),
+        keywords = listOf(
+            "theme", "dark", "light", "sleep", "timer", "shake",
+            // #1577 — reading-comfort typography + highlight knobs (#992/#993/#994).
+            "font", "typography", "highlight", "karaoke", "dyslexic", "sepia",
+            "size", "spacing", "colour", "color",
+        ),
     ),
     SettingsSearchSection(
         label = "Performance & buffering",
@@ -98,6 +108,10 @@ val SettingsSearchSections: List<SettingsSearchSection> = listOf(
             "version", "sigil", "build", "license", "open source",
             // #1558 — the "Replay the welcome tour" row lives in the About surface.
             "welcome", "tour", "wizard", "replay",
+            // #1577 — the handbook (#1544), privacy policy (#1138), impact-sharing
+            // explainer (#1463), and content-report link all live under About.
+            "handbook", "help", "guide", "manual", "privacy", "impact",
+            "report", "content",
         ),
     ),
 )
