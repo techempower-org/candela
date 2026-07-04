@@ -153,6 +153,11 @@ class MainActivity : ComponentActivity() {
      */
     @Inject lateinit var notionOAuth: Lazy<NotionOAuthManager>
 
+    /** Issue #1496 — Google Drive OAuth redirect handler. [Lazy] for the same
+     *  cold-launch reason as [notionOAuth]; only resolved when a
+     *  `candela://oauth/googledrive` redirect actually arrives. */
+    @Inject lateinit var googleDriveOAuth: Lazy<`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager>
+
     // testTagsAsResourceId is experimental Compose UI API. We opt in at
     // the function holding setContent {} because that's where the flag is
     // applied to the content root.
@@ -303,6 +308,36 @@ class MainActivity : ComponentActivity() {
                                         "Notion connect failed: ${outcome.message}"
                                     NotionOAuthManager.Outcome.Cancelled -> null
                                     NotionOAuthManager.Outcome.InvalidCallback -> null
+                                }
+                                if (msg != null) {
+                                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            intentFlow.value = null
+                            return@let
+                        }
+                        // Issue #1496 — Google Drive OAuth redirect. Same
+                        // verify-and-stop shape as the Notion branch above:
+                        // exchange on the lifecycle scope, then return — never
+                        // fall through to import / resolve. The
+                        // GoogleDriveConfig state flow re-emits on success, so
+                        // any observing UI updates reactively.
+                        val driveCallback = DeepLinkResolver.googleDriveOAuthCallback(i)
+                        if (driveCallback != null) {
+                            this@MainActivity.lifecycleScope.launch {
+                                val outcome = googleDriveOAuth.get().handleCallback(
+                                    code = driveCallback.code,
+                                    state = driveCallback.state,
+                                    error = driveCallback.error,
+                                )
+                                val msg = when (outcome) {
+                                    is `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager.Outcome.Connected ->
+                                        if (outcome.accountLabel.isBlank()) "Google Drive connected"
+                                        else "Connected to ${outcome.accountLabel}"
+                                    is `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager.Outcome.ExchangeFailed ->
+                                        "Google Drive connect failed: ${outcome.message}"
+                                    `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager.Outcome.Cancelled -> null
+                                    `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager.Outcome.InvalidCallback -> null
                                 }
                                 if (msg != null) {
                                     Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()

@@ -137,6 +137,24 @@
             </intent-filter>
 
             <!--
+                Issue #1496 — Google Drive OAuth redirect. The installed-app
+                (PKCE) flow launches in a Chrome Custom Tab and redirects to
+                candela://oauth/googledrive?code=…&state=… (or
+                ?error=access_denied on cancel). Same singleTask → onNewIntent
+                path as Notion; DeepLinkResolver.googleDriveOAuthCallback
+                extracts code + state (verified against the persisted nonce)
+                and GoogleDriveOAuthManager exchanges it with the PKCE verifier.
+                The redirect URI registered in the Google Cloud console must
+                match this scheme+host exactly (see docs/google-drive-setup.md).
+            -->
+            <intent-filter android:label="@string/open_with_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="candela" android:host="oauth" android:pathPrefix="/googledrive" />
+            </intent-filter>
+
+            <!--
                 Issue #472 — Magic-link audiobook. Accept ACTION_SEND
                 with text/plain so the user can share any URL from any
                 app (browser, RSS reader, podcast app, social-media
