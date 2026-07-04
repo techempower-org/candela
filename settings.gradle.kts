@@ -87,6 +87,10 @@ include(":source-google-news")
 include(":source-arxiv")
 include(":source-plos")
 include(":source-discord")
+// Issue #1493 — Epic Games Store weekly free-game giveaways. One fiction
+// ("Epic Free Games"), each current/upcoming giveaway a chapter. Reads the
+// public no-auth freeGamesPromotions JSON endpoint; no follows, no search.
+include(":source-epic-free-games")
 // Issue #462 — Telegram Bot API backend. Public-channel reader (bot
 // gets invited to channels, messages become chapters). Architectural
 // twin to :source-discord but simpler — no thread coalescing, no

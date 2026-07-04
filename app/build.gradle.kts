@@ -617,6 +617,7 @@ dependencies {
     implementation(project(":source-arxiv"))
     implementation(project(":source-plos"))
     implementation(project(":source-discord"))
+    implementation(project(":source-epic-free-games"))
     implementation(project(":source-telegram"))
     // Issue #454 — Slack Web API backend. Channels-as-fictions via
     // Bot Token auth (xoxb-…). Mirrors :source-telegram's leaf
