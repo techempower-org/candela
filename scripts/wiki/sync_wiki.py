@@ -52,6 +52,12 @@ PAGE_MAP: dict[str, str] = {
     "docs/sync.md": "Cloud-sync.md",
     "docs/compose-gotchas.md": "Compose-gotchas.md",
     "docs/ROADMAP.md": "Roadmap.md",
+    # Per-source setup guides (BYOK / OAuth walk-throughs). These are the
+    # canonical source for the same-named wiki pages so the setup steps can't
+    # drift between the repo and the wiki (#1543).
+    "docs/reddit-setup.md": "Reddit-setup.md",
+    "docs/google-drive-setup.md": "Google-Drive-setup.md",
+    "docs/notion-oauth-setup.md": "Notion-OAuth-setup.md",
     "CHANGELOG.md": "Changelog.md",
 }
 
