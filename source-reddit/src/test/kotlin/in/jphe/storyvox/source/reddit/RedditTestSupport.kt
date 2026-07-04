@@ -40,7 +40,7 @@ internal fun testClient(): OkHttpClient = OkHttpClient.Builder().build()
 internal const val TOKEN_JSON: String =
     """{"access_token":"test-token","token_type":"bearer","expires_in":3600,"scope":"*"}"""
 
-/** A `/subreddits/*` Listing with two subreddits. */
+/** A subreddits-listing (popular / new / search) response, two subreddits. */
 internal val SUBREDDIT_LISTING_JSON: String = """
     {
       "kind": "Listing",
