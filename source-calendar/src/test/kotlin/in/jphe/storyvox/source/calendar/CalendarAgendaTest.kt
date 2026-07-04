@@ -142,6 +142,41 @@ class CalendarAgendaTest {
     }
 
     @Test
+    fun overnightEventFromYesterdayStillAppearsToday() {
+        // Starts 23:00 the day before today, ends 01:00 today — its range
+        // overlaps today even though it *started* yesterday. Start-only
+        // grouping dropped it from Today (#1495 review regression).
+        val start = friday.minusDays(1).atTime(23, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val end = friday.atTime(1, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val overnight = CalendarEvent(99, "Red-eye flight", start, end, false, null, "Personal")
+        val today = CalendarAgenda.chapters(listOf(overnight), now, zone)[0]
+        assertEquals(1, today.eventCount)
+        assertTrue(today.plain.contains("Red-eye flight"))
+    }
+
+    @Test
+    fun multiDayAllDayEventSpansEveryDayItCovers() {
+        // Fri–Sun all-day (end = exclusive UTC midnight of Mon). today=Fri,
+        // tomorrow=Sat, week starts Sun — so it must show in all three chapters.
+        val startDate = friday
+        val endExclusive = friday.plusDays(3)
+        val vacation = CalendarEvent(
+            id = 7,
+            title = "Conference",
+            startUtcMillis = startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            endUtcMillis = endExclusive.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            allDay = true,
+            location = null,
+            calendarName = "Work",
+        )
+        val chapters = CalendarAgenda.chapters(listOf(vacation), now, zone)
+        assertEquals(1, chapters[0].eventCount) // Today (Fri)
+        assertEquals(1, chapters[1].eventCount) // Tomorrow (Sat)
+        assertEquals(1, chapters[2].eventCount) // This Week (Sun)
+        assertTrue(chapters[0].plain.contains("All day: Conference"))
+    }
+
+    @Test
     fun blankTitleFallsBackToUntitled() {
         val events = listOf(timed("   ", friday, 11, 0, 15))
         assertTrue(CalendarAgenda.chapters(events, now, zone)[0].plain.contains("Untitled event"))

@@ -27,7 +27,9 @@ class CalendarSourceTest {
     ) : CalendarReader {
         override fun hasPermission(): Boolean = granted
         override suspend fun events(beginUtcMillis: Long, endUtcMillis: Long): List<CalendarEvent> =
-            events.filter { it.startUtcMillis in beginUtcMillis until endUtcMillis }
+            // Mirror CalendarContract.Instances: return instances whose range
+            // OVERLAPS the query window, not just those starting inside it.
+            events.filter { it.startUtcMillis < endUtcMillis && it.endUtcMillis > beginUtcMillis }
     }
 
     private fun source(reader: CalendarReader) =

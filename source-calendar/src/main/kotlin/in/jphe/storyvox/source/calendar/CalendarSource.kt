@@ -187,10 +187,13 @@ internal class CalendarSource(
     private fun chapterId(bucketKey: String): String = "$FICTION_ID::$bucketKey"
 
     private fun wordCount(text: String): Int =
-        text.split(Regex("\\s+")).count { it.isNotBlank() }
+        text.split(WORD_SPLIT).count { it.isNotBlank() }
 
     companion object {
         /** The single, stable fiction id this source exposes. */
         const val FICTION_ID = "device-calendar"
+
+        /** Compiled once — splits on runs of whitespace for the word count. */
+        private val WORD_SPLIT = Regex("\\s+")
     }
 }

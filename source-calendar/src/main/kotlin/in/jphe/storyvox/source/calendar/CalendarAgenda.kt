@@ -65,12 +65,18 @@ object CalendarAgenda {
         val weekStart = today.plusDays(2)
         val weekEndExclusive = today.plusDays(2 + WEEK_TAIL_DAYS)
 
-        val byDay = events.groupBy { dateOf(it, zone) }
-
-        val todayEvents = byDay[today].orEmpty().sortedBy { it.startUtcMillis }
-        val tomorrowEvents = byDay[tomorrow].orEmpty().sortedBy { it.startUtcMillis }
+        // Bucket by time-range OVERLAP, not by start date: an event that began
+        // before a day but runs into it (an overnight event) still belongs to
+        // that day's agenda. Start-only grouping silently dropped it (#1495
+        // review). `tomorrow`'s window is the single day [tomorrow, weekStart).
+        val todayEvents = events
+            .filter { overlapsWindow(it, today, tomorrow, zone) }
+            .sortedBy { it.startUtcMillis }
+        val tomorrowEvents = events
+            .filter { overlapsWindow(it, tomorrow, weekStart, zone) }
+            .sortedBy { it.startUtcMillis }
         val weekEvents = events
-            .filter { val d = dateOf(it, zone); !d.isBefore(weekStart) && d.isBefore(weekEndExclusive) }
+            .filter { overlapsWindow(it, weekStart, weekEndExclusive, zone) }
             .sortedBy { it.startUtcMillis }
 
         return listOf(
@@ -169,6 +175,29 @@ object CalendarAgenda {
 
     private fun today(nowMillis: Long, zone: ZoneId): LocalDate =
         Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+
+    /**
+     * Does the event's time range overlap the half-open date window
+     * `[fromDate, toDateExclusive)`? Overlap (`aStart < bEnd && aEnd > bStart`),
+     * not start-membership — this is what keeps an overnight event on each day
+     * it spans. All-day events are compared as UTC dates (they're stored as UTC
+     * midnight); timed events as instants in the device [zone].
+     */
+    private fun overlapsWindow(
+        e: CalendarEvent,
+        fromDate: LocalDate,
+        toDateExclusive: LocalDate,
+        zone: ZoneId,
+    ): Boolean = if (e.allDay) {
+        val startDate = Instant.ofEpochMilli(e.startUtcMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        // Provider stores the all-day END as exclusive UTC midnight past the last day.
+        val endDateExclusive = Instant.ofEpochMilli(e.endUtcMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        startDate.isBefore(toDateExclusive) && endDateExclusive.isAfter(fromDate)
+    } else {
+        val fromMillis = fromDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val toMillis = toDateExclusive.atStartOfDay(zone).toInstant().toEpochMilli()
+        e.startUtcMillis < toMillis && e.endUtcMillis > fromMillis
+    }
 
     /**
      * The calendar date an event falls on. All-day events are stored as UTC
