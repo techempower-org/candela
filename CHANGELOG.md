@@ -9,6 +9,31 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.11.0] -- 2026-07-04
+
+**Somber Relic.** The app now carries its own handbook, sources declare their settings, and the welcome tour replays on demand.
+
+### Added
+
+- **In-app Candela Handbook** — the user guide as a built-in, fully-offline source: Getting Started, per-source setup, voices, reader & teleprompter, sync & privacy, troubleshooting — every chapter narrated like any book. Compiled from the repo docs at build time and stamped with the app version so it can't drift. (#1544, #1561)
+- **"Replay the welcome tour"** — a findable row in Settings → About that reruns the first-launch wizard immediately, no restart needed (the old debug-only reset stays for QA). (#1558, #1559)
+- **Per-source settings, declared not hand-wired** — sources now declare their config fields (text / secret / URL) and Settings renders them generically; secrets stay on the encrypted store and are never echoed back. reddit's client id, Notion's token, and Prime Gaming's feed-URL override are the first riders. (#1531, #1535, #1553)
+- **Source icons that stick** — a source's declared Browse glyph is finally honored instead of falling back to the generic compass. (#1527, #1555)
+
+### Fixed
+
+- Notion in Browse shows a proper "connected — pull to refresh" state on first fetch instead of a silent empty list. (#1511, #1552)
+- AO3 behind a Cloudflare WAF block (Error 1020) retries instead of wrongly demanding a sign-in. (#1502, #1541)
+- RSS chapters persist their bodies at refresh — tapping an item never re-fetches — and remember their feed even when its URL moves; refreshes no longer risk dropping read-state, bookmarks, or author notes. (#1497, #1498, #1547, #1549, #1554)
+- Voice-engine KSP no longer collides when two engines share a class name across packages. (#1506, #1546)
+
+### Under the hood
+
+- `new-source.sh` grew three scaffold modes — `--local` (on-device providers), `--auth` (credentialed), `--xml` (feeds, with parser errors kept inside the typed contract) — closing the gaps the source wave found. (#1526, #1529, #1533, #1548)
+- The contract kit now fails loudly on a mis-routed list path instead of false-greening. (#1523, #1551)
+- Voice testkit split into `:core-voice-testkit` — source-module test builds no longer drag in `core-playback`. (#1504, #1560)
+- Docs pass: README/microsite at 33 sources, new setup guides in the wiki sync, google-news on the contract kit. (#1491, #1543, #1550, #1557)
+
 ## [1.10.0] -- 2026-07-04
 
 **Draconic Beacon.** Five new sources in one wave — the plugin scaffold's first real exercise — plus anonymous impact sharing and first-class Google Photos.
