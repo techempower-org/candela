@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.testkit.source
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.model.FictionResult
+import `in`.jphe.storyvox.data.source.model.FictionSummary
+import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -148,6 +150,30 @@ abstract class FictionSourceContractTest {
                 "through to the 404 arm). Point listPathFragment() at a substring your " +
                 "popular()/search() endpoint actually requests (#1523).",
             paths.any { it.contains(fragment) },
+        )
+    }
+
+    @Test fun `returned fiction ids carry the source's own id prefix`() {
+        // #1564 — a FictionSource MUST return ids shaped "<pluginId>:<localId>".
+        // FictionSourceIdResolver routes a fiction to its owning source by the
+        // id's colon prefix and DEFAULTS a colon-less id to Royal Road — so a
+        // source returning bare ids has its fictions silently misrouted (their
+        // detail/reader never open). Compiles clean, breaks only at runtime;
+        // this makes it fail honestly in the kit (matching the #1523 philosophy).
+        val src = source()
+        val result = runBlocking { exerciseList(src) }
+        val page = (result as? FictionResult.Success<*>)?.value as? ListPage<*>
+        // The happy-body-served + parsed guarantees live in the checks above;
+        // here we only assert the SHAPE of whatever ids came back.
+        val ids = page?.items?.filterIsInstance<FictionSummary>()?.map { it.id }.orEmpty()
+        val prefix = "${src.id}:"
+        val offenders = ids.filterNot { it.startsWith(prefix) }
+        assertTrue(
+            "FictionSummary ids must be \"<pluginId>:<localId>\" — this source's id is " +
+                "\"${src.id}\", so every returned id must start with \"$prefix\". A colon-less " +
+                "or wrong-prefix id silently routes to Royal Road at runtime " +
+                "(FictionSourceIdResolver), so detail/reader never open (#1564). Offenders: $offenders",
+            offenders.isEmpty(),
         )
     }
 

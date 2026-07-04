@@ -126,6 +126,30 @@ Use `FictionResult.map { … }` to transform a `Success` while passing failures
 through unchanged. `source-hackernews` (`toSummary()` / `toDetail()`) is the
 canonical mapping example.
 
+### Id scheme — the `<pluginId>:<localId>` rule (required)
+
+Every `FictionSummary.id` (and the `fictionId` in `FictionDetail`) **must** be
+shaped `"<pluginId>:<localId>"`, where `<pluginId>` is your source's `@SourcePlugin`
+id (the same string as `FictionSource.id`). Example: a Gutenberg book `84` becomes
+`"gutenberg:84"`; a Notion page becomes `"notion:guides"`.
+
+**Why it's not optional.** `FictionSourceIdResolver` (#981) routes a stored fiction
+back to its owning source by the id's colon prefix (`id.substringBefore(':')`), and
+**defaults a colon-less id to Royal Road**. So a source that returns a bare id (e.g.
+`"my-doc"`) has its fictions silently misrouted to Royal Road — detail and reader
+never open. It compiles clean and passes green tests; it breaks only at runtime.
+As of #1564:
+
+- The contract kit (`FictionSourceContractTest`) asserts every id returned by
+  `popular()`/`search()` starts with `"<yourId>:"` — a bare id **fails the test**.
+- `FictionSourceIdResolver` logs a loud warning when it routes a colon-less,
+  non-numeric id to Royal Road (bare *numeric* ids are the one legitimate
+  colon-less shape — they're Royal Road's).
+
+**Chapter ids are composite too.** A `Chapter.id` must be globally unique across
+fictions — build it as `"$fictionId::<localChapterId>"` (note the `::`), so joins on
+chapter id stay 1:1 (#1261). `source-hackernews` shows both conventions.
+
 ## 4. Turn the contract test green
 
 Open `<Name>ContractTest.kt` and set the two fixture hooks:

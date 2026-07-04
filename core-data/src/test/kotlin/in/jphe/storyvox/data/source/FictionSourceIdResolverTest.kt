@@ -1,7 +1,9 @@
 package `in`.jphe.storyvox.data.source
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -63,6 +65,31 @@ class FictionSourceIdResolverTest {
         assertEquals("royalroad", FictionSourceIdResolver.resolveByShape("8894"))
         assertEquals("gutenberg", FictionSourceIdResolver.resolveByShape("gutenberg:84"))
         assertEquals("somafm-groove-salad", FictionSourceIdResolver.resolveByShape("somafm-groove-salad:live"))
+    }
+
+    @Test fun `issue 1564 - colon-less non-numeric id is flagged as a missing prefix`() {
+        // The trap: a source that returns bare ids (e.g. "candela-handbook")
+        // instead of "<pluginId>:<localId>". A bare NUMBER is a legit Royal
+        // Road id and must NOT be flagged.
+        assertTrue(FictionSourceIdResolver.looksLikeMissingSourcePrefix("candela-handbook"))
+        assertTrue(FictionSourceIdResolver.looksLikeMissingSourcePrefix("guides"))
+        // legit shapes are not flagged:
+        assertFalse(FictionSourceIdResolver.looksLikeMissingSourcePrefix("8894")) // bare RR number
+        assertFalse(FictionSourceIdResolver.looksLikeMissingSourcePrefix("146000"))
+        assertFalse(FictionSourceIdResolver.looksLikeMissingSourcePrefix("notion:guides")) // has prefix
+        assertFalse(FictionSourceIdResolver.looksLikeMissingSourcePrefix("somafm-groove-salad:live"))
+    }
+
+    @Test fun `issue 1564 - colon-less non-numeric id still defaults to royalroad (with a loud warning)`() {
+        // The routing behaviour is unchanged (defaults to Royal Road); #1564
+        // only ADDS a loud Log.w so the misroute is diagnosable. This asserts
+        // the return value; the warning is a side effect (safe here because
+        // core-data unit tests return default values for android.util.Log).
+        assertEquals("royalroad", FictionSourceIdResolver.resolveByShape("candela-handbook"))
+        assertEquals(
+            "royalroad",
+            FictionSourceIdResolver.resolve("candela-handbook", bound, storedSourceId = null),
+        )
     }
 
     @Test fun `issue 988 - placeholder-creation stamps royalroad not the whole number`() {
