@@ -26,16 +26,37 @@ interface RssConfig {
 
     /** Remove a feed by its derived [RssSubscription.fictionId]. */
     suspend fun removeFeed(fictionId: String)
+
+    /**
+     * Issue #1498 — persist the feed URL autodiscovery resolved for a
+     * subscription (e.g. the user pasted a bare homepage and the source
+     * followed its `<link rel="alternate">` hint to the real feed). Stored
+     * separately from the identity-bearing [RssSubscription.url] so the
+     * URL-hash-derived [fictionId] never changes — rewriting `url` would
+     * orphan every Room row keyed to the old id. Fetches then use
+     * [RssSubscription.resolvedUrl] `?: url`. No-op if [fictionId] isn't
+     * subscribed.
+     *
+     * Default is a no-op so hand-rolled test fakes need no change; the
+     * production [RssConfigImpl] overrides it.
+     */
+    suspend fun setResolvedUrl(fictionId: String, resolvedUrl: String) {}
 }
 
 /**
  * One persisted feed subscription. [fictionId] is what storyvox uses
- * everywhere — it's a stable hash of the URL, so the same feed has
- * the same id across re-launches.
+ * everywhere — it's a stable hash of [url], so the same feed has the same
+ * id across re-launches.
+ *
+ * [resolvedUrl] (issue #1498) is the feed URL autodiscovery resolved from
+ * [url] when they differ (bare-homepage paste → advertised feed). Null
+ * until discovery runs; when set, fetches use it while [fictionId] stays
+ * derived from the original [url] so no Room rows are orphaned.
  */
 data class RssSubscription(
     val fictionId: String,
     val url: String,
+    val resolvedUrl: String? = null,
 )
 
 /**
