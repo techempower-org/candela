@@ -640,6 +640,13 @@ fun SettingsScreen(
                 onApiTokenChange = viewModel::setTelegramApiToken,
                 onRefreshProbe = viewModel::refreshTelegramProbe,
             )
+            // #1492 — Reddit installed-app client id (BYOK) + comment epilogue.
+            RedditConfigRow(
+                clientIdConfigured = s.redditClientIdConfigured,
+                appendTopComments = s.redditAppendTopComments,
+                onClientIdChange = viewModel::setRedditClientId,
+                onAppendTopCommentsChange = viewModel::setRedditAppendTopComments,
+            )
             // #1295 — Google News full-article text (opt-in, default OFF).
             SettingsSwitchRow(
                 title = stringResource(R.string.settings_google_news_full_text_title),
@@ -3600,6 +3607,88 @@ private fun NotionConfigRow(
                 ) { Text("Clear token") }
             }
         }
+    }
+}
+
+/**
+ * Issue #1492 — Reddit backend config card. Renders inside the
+ * Library & Sync section.
+ *
+ * Reddit is BYOK: the user creates their own free "installed app" at
+ * reddit.com/prefs/apps and pastes its **client id** (installed apps have
+ * no secret — see docs/reddit-setup.md). Parallel shape to
+ * [NotionConfigRow]: header + explanatory text + client-id field +
+ * save/clear + a comment-epilogue toggle. The client id is not masked —
+ * unlike a token it's a public identifier, and showing it lets the user
+ * verify the paste.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun RedditConfigRow(
+    clientIdConfigured: Boolean,
+    appendTopComments: Boolean,
+    onClientIdChange: (String?) -> Unit,
+    onAppendTopCommentsChange: (Boolean) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    var clientIdDraft by remember { mutableStateOf("") }
+    Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
+        Text(
+            "Reddit (installed-app OAuth)",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = spacing.xs),
+        )
+        Text(
+            text = if (clientIdConfigured) {
+                "Client id configured — Reddit browsing is active. Paste a new " +
+                    "client id to replace it, or clear it to disable Reddit."
+            } else {
+                "Create a free \"installed app\" at reddit.com/prefs/apps (type: " +
+                    "installed app — no secret) and paste its client id. Full post " +
+                    "bodies via Reddit's API, ~100 requests/min. See docs/reddit-setup.md."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = spacing.sm),
+        )
+        androidx.compose.material3.OutlinedTextField(
+            value = clientIdDraft,
+            onValueChange = { clientIdDraft = it.trim().take(64) },
+            label = { Text(if (clientIdConfigured) "Replace client id" else "Client id") },
+            placeholder = { Text("e.g. AbC1dEf2GhI3jK") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            BrassButton(
+                label = "Save",
+                onClick = {
+                    if (clientIdDraft.isNotBlank()) {
+                        onClientIdChange(clientIdDraft)
+                        clientIdDraft = ""
+                    }
+                },
+                variant = BrassButtonVariant.Primary,
+            )
+            if (clientIdConfigured) {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        onClientIdChange(null)
+                        clientIdDraft = ""
+                    },
+                ) { Text("Clear") }
+            }
+        }
+        SettingsSwitchRow(
+            title = "Append top comments",
+            subtitle = "Narrate each post's top comments after its body.",
+            checked = appendTopComments,
+            onCheckedChange = onAppendTopCommentsChange,
+        )
     }
 }
 

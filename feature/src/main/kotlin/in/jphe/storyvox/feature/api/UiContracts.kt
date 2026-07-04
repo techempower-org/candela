@@ -1024,6 +1024,14 @@ data class UiSettings(
      *  token" branch. v1 has no separate server/channel picker — the
      *  channel list is derived from observed `getUpdates` activity. */
     val telegramTokenConfigured: Boolean = false,
+    /** Issue #1492 — true when a Reddit installed-app client id has been
+     *  stored. The client id itself is never surfaced to the UI; only this
+     *  boolean drives the Settings card's "Configured / paste a client id"
+     *  branch. */
+    val redditClientIdConfigured: Boolean = false,
+    /** Issue #1492 — when true, each Reddit chapter appends its top
+     *  comments as a narrated epilogue. Default off. */
+    val redditAppendTopComments: Boolean = false,
     /**
      * Plugin-seam Phase 3 (#384) — per-plugin on/off keyed by stable
      * plugin id ("kvmr", "royalroad", "notion-techempower", ...). Single source of
@@ -2302,6 +2310,16 @@ interface SettingsRepositoryUi {
      *  null/blank to clear. Stored encrypted under
      *  `pref_source_telegram_token` in `storyvox.secrets`. */
     suspend fun setTelegramApiToken(token: String?)
+
+    /** Issue #1492 — persist or clear the Reddit installed-app client id.
+     *  Pass null/blank to clear. Stored encrypted under
+     *  `pref_source_reddit_client_id` in `storyvox.secrets`. Default body
+     *  (no-op) so hand-rolled test fakes needn't implement it. */
+    suspend fun setRedditClientId(clientId: String?) {}
+
+    /** Issue #1492 — toggle appending top comments to each Reddit chapter.
+     *  Default body (no-op) so hand-rolled test fakes needn't implement it. */
+    suspend fun setRedditAppendTopComments(enabled: Boolean) {}
 
     /**
      * Issue #462 — verify the bot token by hitting Telegram's

@@ -245,6 +245,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { repo.setDiscordServer(serverId, serverName) }
     fun setDiscordCoalesceMinutes(minutes: Int) =
         viewModelScope.launch { repo.setDiscordCoalesceMinutes(minutes) }
+    // Issue #1492 — Reddit installed-app client id + comment-epilogue toggle.
+    fun setRedditClientId(clientId: String?) =
+        viewModelScope.launch { repo.setRedditClientId(clientId) }
+    fun setRedditAppendTopComments(enabled: Boolean) =
+        viewModelScope.launch { repo.setRedditAppendTopComments(enabled) }
 
     /** Hot stream of guilds the configured bot has been invited to.
      *  Refreshed manually via [refreshDiscordGuilds]; the UI calls

@@ -93,6 +93,7 @@ import `in`.jphe.storyvox.sigil.Sigil
 import `in`.jphe.storyvox.source.mempalace.net.PalaceDaemonApi
 import `in`.jphe.storyvox.source.mempalace.net.PalaceDaemonResult
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -1100,6 +1101,12 @@ class SettingsRepositoryUiImpl(
      *  at [cacheStats]) need no update; production's @Inject constructor
      *  below always supplies the real impl. */
     private val bookshareConfig: BookshareConfigImpl? = null,
+    /** Issue #1492 — Reddit installed-app config (client id + comment
+     *  epilogue toggle). Nullable + null-default so the primary-ctor test
+     *  harnesses (named args ending at [cacheStats]) need no update, exactly
+     *  like [bookshareConfig]; production's @Inject constructor supplies the
+     *  real impl. When null, Reddit settings project as unconfigured. */
+    private val redditConfig: RedditConfigImpl? = null,
     /** Issue #977 — push-on-write seam. The action [scheduleSettingsPush]
      *  fires after the debounce so every synced preference change reaches
      *  InstantDB without a cold-start/manual sync (and can't be clobbered
@@ -1173,6 +1180,7 @@ class SettingsRepositoryUiImpl(
         pcmCacheConfig: PcmCacheConfig,
         cacheStats: CacheStatsRepository,
         bookshareConfig: BookshareConfigImpl,
+        redditConfig: RedditConfigImpl,
         // Issue #977 — ⚠️ [dagger.Lazy] is load-bearing: the DI graph has
         // a cycle — SyncCoordinator → Set<Syncer> → SettingsSyncer →
         // SettingsSnapshotSource (this class) → SyncCoordinator. Lazy
@@ -1191,6 +1199,7 @@ class SettingsRepositoryUiImpl(
         googleTokenSource,
         pcmCache, pcmCacheConfig, cacheStats,
         bookshareConfig = bookshareConfig,
+        redditConfig = redditConfig,
         pushSettings = { coordinator.get().requestPush(SETTINGS_PUSH_DOMAIN) },
     )
 
@@ -1267,6 +1276,10 @@ class SettingsRepositoryUiImpl(
         val discord: `in`.jphe.storyvox.source.discord.config.DiscordConfigState,
         val telegram: `in`.jphe.storyvox.source.telegram.config.TelegramConfigState,
         val cacheStats: CacheStatsRepository.CacheStats,
+        // Issue #1492 — Reddit config folded in as the outer combine's third
+        // arm (the inner 5-way combine is at the typed-arity limit; the outer
+        // had room, per the NonPrefsConfigs bundle rationale above).
+        val reddit: `in`.jphe.storyvox.source.reddit.config.RedditConfigState,
     )
 
     private val nonPrefsConfigs: Flow<NonPrefsConfigs> =
@@ -1281,7 +1294,9 @@ class SettingsRepositoryUiImpl(
                 arrayOf(palace, wiki, notion, discord, telegram)
             },
             cacheStats.observe(),
-        ) { sourceStates, stats ->
+            // Null redditConfig (primary-ctor test harnesses) → default state.
+            redditConfig?.state ?: flowOf(`in`.jphe.storyvox.source.reddit.config.RedditConfigState()),
+        ) { sourceStates, stats, reddit ->
             NonPrefsConfigs(
                 palace = sourceStates[0] as `in`.jphe.storyvox.source.mempalace.config.PalaceConfigState,
                 wikipedia = sourceStates[1] as `in`.jphe.storyvox.source.wikipedia.config.WikipediaConfigState,
@@ -1289,6 +1304,7 @@ class SettingsRepositoryUiImpl(
                 discord = sourceStates[3] as `in`.jphe.storyvox.source.discord.config.DiscordConfigState,
                 telegram = sourceStates[4] as `in`.jphe.storyvox.source.telegram.config.TelegramConfigState,
                 cacheStats = stats,
+                reddit = reddit,
             )
         }
 
@@ -1304,6 +1320,7 @@ class SettingsRepositoryUiImpl(
         val notion = configs.notion
         val discord = configs.discord
         val telegram = configs.telegram
+        val reddit = configs.reddit
         UiSettings(
             ttsEngine = "VoxSherpa",
             defaultVoiceId = prefs[Keys.DEFAULT_VOICE_ID],
@@ -1367,6 +1384,9 @@ class SettingsRepositoryUiImpl(
             discordServerName = discord.serverName,
             discordCoalesceMinutes = discord.coalesceMinutes,
             telegramTokenConfigured = telegram.apiToken.isNotBlank(),
+            // Issue #1492 — Reddit installed-app config projection.
+            redditClientIdConfigured = reddit.clientId.isNotBlank(),
+            redditAppendTopComments = reddit.appendTopComments,
             // Plugin-seam Phase 1 (#384) — derive the per-plugin map
             // from the JSON blob seeded by SourcePluginsMapMigration.
             // Empty map (parse error / missing key in a race) falls
@@ -2487,6 +2507,15 @@ class SettingsRepositoryUiImpl(
     }
     override suspend fun setNotionApiToken(token: String?) {
         notionConfig.setApiToken(token)
+    }
+
+    // Issue #1492 — Reddit installed-app client id + comment-epilogue toggle.
+    // No-op when redditConfig is absent (primary-ctor test harnesses).
+    override suspend fun setRedditClientId(clientId: String?) {
+        redditConfig?.setClientId(clientId)
+    }
+    override suspend fun setRedditAppendTopComments(enabled: Boolean) {
+        redditConfig?.setAppendTopComments(enabled)
     }
 
     /**
