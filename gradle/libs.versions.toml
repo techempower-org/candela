@@ -119,6 +119,11 @@ documentfile = "1.1.0"
 # settings. CameraX drives the capture surface; the gallery-pick
 # alternative needs no extra dep (ActivityResultContracts.GetContent).
 mlkit-text-recognition = "16.0.1"
+# #1513 — ML Kit Document Scanner (Play services). Supplies the capture
+# UI + edge detection + shadow removal + multipage output on-device; no
+# camera permission needed (runs in Play services). De-Googled devices
+# fall back to the gallery-pick path in DocScanScreen.
+mlkit-document-scanner = "16.0.0"
 camerax = "1.6.1"
 
 [libraries]
@@ -137,6 +142,9 @@ androidx-documentfile = { module = "androidx.documentfile:documentfile", version
 # capture stack. ML Kit lib is consumed by :app (the MlKitOcrTextRecognizer
 # impl); CameraX libs by :feature (the OcrCaptureScreen).
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkit-text-recognition" }
+# #1513 — document scanner (capture UI + cleanup + multipage). Consumed by
+# :feature's DocScanScreen (the scan-to-PDF flow).
+mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "mlkit-document-scanner" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }

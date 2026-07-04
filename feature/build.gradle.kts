@@ -89,6 +89,11 @@ dependencies {
     // the capture surface (camera-view's PreviewView + CameraController).
     implementation(project(":source-ocr"))
     implementation(libs.bundles.camerax)
+    // #1513 — ML Kit Document Scanner (Play services) drives the
+    // scan-to-PDF capture UI (edge detection + shadow removal + multipage).
+    // No camera permission needed; de-Googled devices use the gallery-pick
+    // fallback in DocScanScreen.
+    implementation(libs.mlkit.document.scanner)
     // Issue #1367 — Recording mode adds video capture on top of the OCR
     // preview stack: LifecycleCameraController.startRecording needs the
     // camera-video artifact (Recorder / MediaStoreOutputOptions / AudioConfig).
