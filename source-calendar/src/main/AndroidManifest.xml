@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- #1495 — device calendar source. READ_CALENDAR is a runtime-dangerous
+         permission requested on-demand (Browse → Calendar → "Grant calendar
+         access"), never at launch. Calendar data is read via the on-device
+         CalendarContract provider, narrated locally, and NEVER transmitted off
+         the device — the same on-device-only posture as the CAMERA/OCR flow.
+         Optional: denied → the source simply lists nothing. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
+</manifest>

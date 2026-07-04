@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
@@ -208,6 +209,40 @@ fun BrowseScreen(
     /** Issue #1507 — Notion connect/manage sheet, FAB- and empty-state-
      *  launched, visible only when sourceKey=NotionPat. */
     var showNotionManageSheet by remember { mutableStateOf(false) }
+
+    // Issue #1495 — device-calendar permission gate. READ_CALENDAR is a
+    // runtime-dangerous permission requested ONLY on an explicit tap in the
+    // Calendar empty state below — never at launch, never nagging. The grant
+    // state drives whether the rationale CTA shows; a fresh grant re-runs the
+    // paginator so "My Calendar" appears immediately.
+    val calendarPermissionContext = androidx.compose.ui.platform.LocalContext.current
+    var calendarGranted by remember {
+        mutableStateOf(
+            calendarPermissionContext.checkSelfPermission(
+                android.Manifest.permission.READ_CALENDAR,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val calendarPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        calendarGranted = granted
+        if (granted) viewModel.refresh()
+    }
+    // Re-check on every resume so a grant/revoke made in Android Settings (i.e.
+    // NOT via the in-app CTA) is reflected without waiting for process death —
+    // the once-initialized `remember` above would otherwise stay stale (#1495
+    // review). The launcher callback covers the in-app path; this covers the
+    // rest, and re-runs the paginator when access flips on.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        val nowGranted = calendarPermissionContext.checkSelfPermission(
+            android.Manifest.permission.READ_CALENDAR,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (nowGranted != calendarGranted) {
+            calendarGranted = nowGranted
+            if (nowGranted) viewModel.refresh()
+        }
+    }
 
     // #328 — see LibraryScreen.kt; hoist distinctBy out of the grid
     // builder so allocations happen once per state.items change instead
@@ -520,6 +555,23 @@ fun BrowseScreen(
                         "a fiction storyvox can read to you. Syllabi, papers, " +
                         "manuals, forms. Zero network, your files stay on your device.",
                     onPick = viewModel::setPdfFolderUri,
+                )
+            // Issue #1495 — device-calendar permission gate. The Calendar chip
+            // lands here until READ_CALENDAR is granted: the source returns an
+            // empty page (not a failure) precisely so this rationale CTA shows
+            // instead of an error banner (the RSS/Notion/Local precedent). The
+            // `!calendarGranted` guard suppresses a one-frame CTA flash after a
+            // grant, before refresh() repopulates the grid with "My Calendar".
+            state.sourceId == "calendar" &&
+                state.tab != BrowseTab.Search &&
+                state.items.isEmpty() &&
+                !state.isLoading &&
+                state.error == null &&
+                !calendarGranted ->
+                CalendarPermissionEmptyState(
+                    onGrant = {
+                        calendarPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+                    },
                 )
             // Issue #673 — Readability backend is the always-on last-resort
             // URL matcher; it has no listings of its own. Pre-fix, the chip's
@@ -1131,6 +1183,54 @@ private fun NotionConnectEmptyState(onConnect: () -> Unit) {
             BrassButton(
                 label = "Connect Notion",
                 onClick = onConnect,
+                variant = BrassButtonVariant.Primary,
+            )
+        }
+    }
+}
+
+/**
+ * Issue #1495 — permission-gate empty state for the device-calendar source.
+ *
+ * The Calendar chip is reachable before `READ_CALENDAR` is granted (so the
+ * feature is discoverable); an ungranted chip lands here. This is the app's
+ * trust surface for a dangerous permission, so the copy is explicit about the
+ * privacy posture — read on-device, never transmitted, revocable — and the
+ * grant is *only* requested when the user taps the button. Declining doesn't
+ * dead-end anything: the source simply stays empty until the user chooses to
+ * grant, mirroring the never-nagging camera/OCR flow.
+ */
+@Composable
+private fun CalendarPermissionEmptyState(onGrant: () -> Unit) {
+    val spacing = LocalSpacing.current
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            modifier = Modifier.padding(horizontal = spacing.xl),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CalendarMonth,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp),
+            )
+            Text(
+                stringResource(R.string.browse_calendar_empty_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(R.string.browse_calendar_empty_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(spacing.md))
+            BrassButton(
+                label = stringResource(R.string.browse_calendar_grant_cta),
+                onClick = onGrant,
                 variant = BrassButtonVariant.Primary,
             )
         }
