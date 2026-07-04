@@ -6,7 +6,7 @@ description: Sideload Candela on Android. System requirements, voice download si
 
 # Install
 
-Candela is currently distributed by sideloading. CI builds debug APKs on every push to `main`; tagged releases (`v0.x.x`) attach a signed APK to the corresponding GitHub release.
+Candela is currently distributed by sideloading. CI builds debug APKs on every push to `main`; tagged releases (`vX.Y.Z`) attach a signed APK to the corresponding GitHub release.
 
 ## Quick install
 
@@ -15,13 +15,13 @@ Candela is currently distributed by sideloading. CI builds debug APKs on every p
 3. On the device, enable **Install unknown apps** for whichever browser or file manager you used.
 4. Open the APK to install.
 5. Launch Candela. You'll be asked for **notification permission** (used for the lock-screen tile during playback).
-6. The voice picker appears on first launch — pick a Piper voice for a quick first chapter (~14–30 MB), Kokoro for the multi-speaker model (~330 MB), or KittenTTS for the lightest tier (~24 MB, designed for slow devices).
+6. The voice picker appears on first launch — pick a Piper voice for a quick first chapter (~14–30 MB), Kokoro for the multi-speaker model (~330 MB), or KittenTTS for the lightest tier (~25 MB, designed for slow devices).
 
 That's it. There's no account requirement. Anonymous browsing works for all public Royal Road fictions, every GitHub-sourced fiction, and the TechEmpower-default Notion library (Guides, Resources, About, Donate).
 
 ## First-launch UX
 
-When the app opens you'll see the four-tab dock at the bottom of the screen — **Playing · Library · Voices · Settings** — and Library is the default landing tab. The brass TechEmpower hero card sits at the top of Library: tap it to open **TechEmpower Home** (Discord peer support, dial 211, browse the library, About). The currently-listening rail sits below the hero with smart-resume progress per fiction.
+When the app opens you'll see the five-tab dock at the bottom of the screen — **Playing · Library · Browse · Voices · Settings** — and Library is the default landing tab. The brass TechEmpower hero card sits at the top of Library: tap it to open **TechEmpower Home** (Discord peer support, dial 211, browse the library, About). The currently-listening rail sits below the hero with smart-resume progress per fiction.
 
 The dock layout settled in v0.5.50 after the v0.5.40 nav restructure (which lifted Settings to a primary destination and tucked Browse and Follows under Library). Earlier sideloaded versions show a two-tab Library / Settings dock — upgrading in place preserves your library and switches to the new dock automatically.
 
@@ -30,10 +30,10 @@ The dock layout settled in v0.5.50 after the v0.5.40 nav restructure (which lift
 | Requirement | Minimum |
 |---|---|
 | Android version | 8.0 (API 26) |
-| Free storage (APK only) | ~140 MB |
-| Free storage (APK + one Piper voice) | ~155 MB |
-| Free storage (APK + KittenTTS) | ~165 MB |
-| Free storage (APK + Kokoro) | ~470 MB |
+| Free storage (APK only) | ~210 MB |
+| Free storage (APK + one Piper voice) | ~225 MB |
+| Free storage (APK + KittenTTS) | ~235 MB |
+| Free storage (APK + Kokoro) | ~540 MB |
 | RAM | 2 GB+ recommended; tested on 3 GB Tab A7 Lite |
 | Network | Wi-Fi for first launch and voice download; chapters cache locally |
 | Cold launch | **~0.8 s on Tab A7 Lite** (release build, v0.5.46+ — R8 + Baseline Profile) |

@@ -81,6 +81,26 @@ class RenderDoc(unittest.TestCase):
         )
 
 
+class PageMapAllowlist(unittest.TestCase):
+    def test_setup_guides_in_allowlist(self):
+        # The per-source setup guides must be synced so they appear in the wiki
+        # (#1543). Regression guard: a new setup guide should be added here too.
+        self.assertEqual(sw.PAGE_MAP["docs/reddit-setup.md"], "Reddit-setup.md")
+        self.assertEqual(
+            sw.PAGE_MAP["docs/google-drive-setup.md"], "Google-Drive-setup.md"
+        )
+        self.assertEqual(
+            sw.PAGE_MAP["docs/notion-oauth-setup.md"], "Notion-OAuth-setup.md"
+        )
+
+    def test_setup_guide_cross_links_resolve_to_wiki_slugs(self):
+        # A link between two synced setup guides should rewrite to the wiki
+        # slug, not a Pages-site URL — both are owned pages now.
+        out = sw.rewrite_links("[a](reddit-setup.md) [b](google-drive-setup.md)")
+        self.assertIn("[a](Reddit-setup)", out)
+        self.assertIn("[b](Google-Drive-setup)", out)
+
+
 class ParseModules(unittest.TestCase):
     SETTINGS = (
         'rootProject.name = "x"\n'
