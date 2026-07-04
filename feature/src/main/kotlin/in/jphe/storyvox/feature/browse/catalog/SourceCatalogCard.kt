@@ -177,7 +177,7 @@ internal fun SourceCatalogCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = sourceGlyph(descriptor.id),
+                    imageVector = sourceGlyph(descriptor),
                     contentDescription = null,
                     tint = accent.copy(alpha = contentAlpha),
                     modifier = Modifier.size(26.dp),

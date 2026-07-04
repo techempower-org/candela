@@ -32,11 +32,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Link
@@ -44,9 +46,11 @@ import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Redeem
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Tag
@@ -300,7 +304,7 @@ private fun BrowseSourceCard(
 
     val label = BrowseSourceUi.chipLabel(descriptor.chipLabel, descriptor.displayName)
     val tagline = sourceTagline(descriptor.id)
-    val glyph = sourceGlyph(descriptor.id)
+    val glyph = sourceGlyph(descriptor)
     // Soft brass-tinted gradient on the selected card. Pulls the active
     // surface out of the row without resorting to a saturated fill that
     // would clash with the rest of Library Nocturne.
@@ -475,7 +479,7 @@ private fun SourceContextSheet(
 
     val label = BrowseSourceUi.chipLabel(descriptor.chipLabel, descriptor.displayName)
     val tagline = sourceTagline(descriptor.id)
-    val glyph = sourceGlyph(descriptor.id)
+    val glyph = sourceGlyph(descriptor)
 
     fun dismissThen(action: () -> Unit) {
         // Animate-then-act so the user perceives the sheet acknowledging
@@ -701,6 +705,58 @@ internal fun sourceGlyph(id: String): ImageVector = when (id) {
     SourceIds.PALACE -> Icons.Filled.LocalLibrary
     SourceIds.READABILITY -> Icons.Filled.Link
     else -> Icons.Filled.Explore
+}
+
+/**
+ * Browse glyph for a [descriptor], preferring the source's declared
+ * `@SourcePlugin(iconName = …)` over the id-keyed [sourceGlyph] table (#1527,
+ * #1371). This closes the gap where `iconName` was copied onto the descriptor
+ * by KSP but never read, so a new (or out-of-tree) source that set `iconName`
+ * still fell through to the generic `Explore` compass — the exact per-source
+ * `when` #1371 meant to eliminate. Its sibling descriptor fields already resolve
+ * this prefer-descriptor-then-fallback way (`BrowseSourceUi.chipLabel`,
+ * `.searchHint`); this makes `iconName` consistent with them, so declaring a
+ * glyph now needs no `:feature` edit.
+ */
+internal fun sourceGlyph(descriptor: SourcePluginDescriptor): ImageVector =
+    descriptor.iconName.takeIf { it.isNotBlank() }?.let(::glyphByName)
+        ?: sourceGlyph(descriptor.id)
+
+/**
+ * Resolve an `@SourcePlugin(iconName)` string to a Material glyph, or null when
+ * it's blank/unrecognized (so callers fall back to [sourceGlyph] by id).
+ *
+ * An explicit allow-list, deliberately NOT reflection over `Icons.Filled`: R8
+ * strips icon objects nothing references, so a reflective lookup would resolve
+ * to null (or crash) in release for any name not already hard-referenced, and a
+ * typo'd name should degrade to the id fallback rather than fail. Covers the
+ * names the `@SourcePlugin.iconName` kdoc advertises plus every glyph the
+ * id-keyed table above uses, so a source may declare any of them by name.
+ */
+internal fun glyphByName(name: String): ImageVector? = when (name) {
+    "AutoStories" -> Icons.Filled.AutoStories
+    "LibraryBooks" -> Icons.Filled.LibraryBooks
+    "MenuBook" -> Icons.Filled.MenuBook
+    "Public" -> Icons.Filled.Public
+    "Description" -> Icons.Filled.Description
+    "Workspaces" -> Icons.Filled.Workspaces
+    "RssFeed" -> Icons.Filled.RssFeed
+    "FolderOpen" -> Icons.Filled.FolderOpen
+    "FolderShared" -> Icons.Filled.FolderShared
+    "LocalLibrary" -> Icons.Filled.LocalLibrary
+    "Radio" -> Icons.Filled.Radio
+    "Bolt" -> Icons.Filled.Bolt
+    "Science" -> Icons.Filled.Science
+    "Chat" -> Icons.Filled.Chat
+    "Tag" -> Icons.Filled.Tag
+    "Send" -> Icons.Filled.Send
+    "Forum" -> Icons.Filled.Forum
+    "Link" -> Icons.Filled.Link
+    "CalendarMonth" -> Icons.Filled.CalendarMonth
+    "SportsEsports" -> Icons.Filled.SportsEsports
+    "Redeem" -> Icons.Filled.Redeem
+    "Explore" -> Icons.Filled.Explore
+    else -> null
 }
 
 /** Card width — wide enough for "Standard Ebooks" + an icon column at
