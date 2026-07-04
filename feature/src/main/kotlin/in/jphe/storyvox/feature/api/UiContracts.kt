@@ -852,6 +852,61 @@ data class UiChatGrounding(
     val includeEntireBookSoFar: Boolean = false,
 )
 
+/**
+ * Issue #1531 — UI-facing kind of a per-source config field. Mirrors the
+ * `core-data` `SourceConfigField` sealed hierarchy, flattened to an enum
+ * so `:feature` stays independent of the source-plugin types (the same
+ * posture as `notionMode` being carried as a plain String). The
+ * `:app` repository maps `SourceConfigField` → this enum.
+ */
+enum class SourceConfigFieldType {
+    /** Plain, non-secret text; current [UiSourceConfigField.value] shown. */
+    PLAIN,
+
+    /** Write-only credential; input masked, value never surfaced. */
+    SECRET,
+
+    /** URL override; current value shown, validated as http(s). */
+    URL,
+
+    /** Boolean behaviour toggle. */
+    TOGGLE,
+}
+
+/**
+ * Issue #1531 — one config field projected for the generic Settings
+ * section. The `:app` repository builds these from each source's
+ * `SourceConfigContributor` (declared fields + live values).
+ */
+data class UiSourceConfigField(
+    /** Stable per-source field key, echoed back on writes. */
+    val key: String,
+    val type: SourceConfigFieldType,
+    val label: String,
+    val help: String = "",
+    val placeholder: String = "",
+    /** Current value for [SourceConfigFieldType.PLAIN] / [SourceConfigFieldType.URL];
+     *  always empty for [SourceConfigFieldType.SECRET] (never surfaced). */
+    val value: String = "",
+    /** True when a value is stored (secret present, or plain/url non-blank). */
+    val configured: Boolean = false,
+    /** Current state for [SourceConfigFieldType.TOGGLE]. */
+    val toggled: Boolean = false,
+)
+
+/**
+ * Issue #1531 — one source's config section for the registry-driven
+ * Settings UI. Rendered generically by `SourceConfigSection`; adding a
+ * credentialed source contributes one of these with zero Settings-monolith
+ * edits.
+ */
+data class UiSourceConfigSection(
+    val sourceId: String,
+    val displayName: String,
+    val help: String = "",
+    val fields: List<UiSourceConfigField> = emptyList(),
+)
+
 data class UiSettings(
     val ttsEngine: String,
     val defaultVoiceId: String?,
@@ -1024,14 +1079,16 @@ data class UiSettings(
      *  token" branch. v1 has no separate server/channel picker — the
      *  channel list is derived from observed `getUpdates` activity. */
     val telegramTokenConfigured: Boolean = false,
-    /** Issue #1492 — true when a Reddit installed-app client id has been
-     *  stored. The client id itself is never surfaced to the UI; only this
-     *  boolean drives the Settings card's "Configured / paste a client id"
-     *  branch. */
-    val redditClientIdConfigured: Boolean = false,
-    /** Issue #1492 — when true, each Reddit chapter appends its top
-     *  comments as a narrated epilogue. Default off. */
-    val redditAppendTopComments: Boolean = false,
+    /** Issue #1531 — generic per-source config sections, rendered by the
+     *  registry-driven [SourceConfigSection] composable in Settings. Each
+     *  entry is one source's declared config fields (credentials, URL
+     *  overrides, toggles) plus their current values. Populated by
+     *  `SettingsRepositoryUiImpl` from the injected
+     *  `Set<SourceConfigContributor>`; empty until at least one source
+     *  contributes fields. Reddit (client id + comment epilogue), Notion
+     *  (database id + token), and Prime Gaming (feed-URL override, #1535)
+     *  ride this seam — no bespoke Settings row per source. */
+    val sourceConfigSections: List<UiSourceConfigSection> = emptyList(),
     /**
      * Plugin-seam Phase 3 (#384) — per-plugin on/off keyed by stable
      * plugin id ("kvmr", "royalroad", "notion-techempower", ...). Single source of
@@ -2311,15 +2368,13 @@ interface SettingsRepositoryUi {
      *  `pref_source_telegram_token` in `storyvox.secrets`. */
     suspend fun setTelegramApiToken(token: String?)
 
-    /** Issue #1492 — persist or clear the Reddit installed-app client id.
-     *  Pass null/blank to clear. Stored encrypted under
-     *  `pref_source_reddit_client_id` in `storyvox.secrets`. Default body
-     *  (no-op) so hand-rolled test fakes needn't implement it. */
-    suspend fun setRedditClientId(clientId: String?) {}
-
-    /** Issue #1492 — toggle appending top comments to each Reddit chapter.
-     *  Default body (no-op) so hand-rolled test fakes needn't implement it. */
-    suspend fun setRedditAppendTopComments(enabled: Boolean) {}
+    /** Issue #1531 — generic write path for the per-source config-field
+     *  seam. Routes [raw] to the [sourceId] source's contributor for the
+     *  field [key]. A blank [raw] clears/resets the field; a toggle passes
+     *  `"true"`/`"false"`. Replaces the per-source `setRedditClientId` /
+     *  `setRedditAppendTopComments`-style mutators. Default body (no-op) so
+     *  hand-rolled test fakes needn't implement it. */
+    suspend fun setSourceConfigValue(sourceId: String, key: String, raw: String) {}
 
     /**
      * Issue #462 — verify the bot token by hitting Telegram's

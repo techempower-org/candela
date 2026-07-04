@@ -235,21 +235,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setWikipediaLanguageCode(code: String) =
         viewModelScope.launch { repo.setWikipediaLanguageCode(code) }
-    fun setNotionDatabaseId(id: String) =
-        viewModelScope.launch { repo.setNotionDatabaseId(id) }
-    fun setNotionApiToken(token: String?) =
-        viewModelScope.launch { repo.setNotionApiToken(token) }
     fun setDiscordApiToken(token: String?) =
         viewModelScope.launch { repo.setDiscordApiToken(token) }
     fun setDiscordServer(serverId: String, serverName: String) =
         viewModelScope.launch { repo.setDiscordServer(serverId, serverName) }
     fun setDiscordCoalesceMinutes(minutes: Int) =
         viewModelScope.launch { repo.setDiscordCoalesceMinutes(minutes) }
-    // Issue #1492 — Reddit installed-app client id + comment-epilogue toggle.
-    fun setRedditClientId(clientId: String?) =
-        viewModelScope.launch { repo.setRedditClientId(clientId) }
-    fun setRedditAppendTopComments(enabled: Boolean) =
-        viewModelScope.launch { repo.setRedditAppendTopComments(enabled) }
+    // Issue #1531 — generic per-source config-field write path. Reddit
+    // (client id + comment epilogue), Notion (database id + token), and
+    // Prime Gaming (feed URL) all route through this one seam instead of a
+    // bespoke `setXxx` mutator per source.
+    fun setSourceConfigValue(sourceId: String, key: String, raw: String) =
+        viewModelScope.launch { repo.setSourceConfigValue(sourceId, key, raw) }
 
     /** Hot stream of guilds the configured bot has been invited to.
      *  Refreshed manually via [refreshDiscordGuilds]; the UI calls
