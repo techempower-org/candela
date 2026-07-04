@@ -198,4 +198,58 @@
     <string name="profile_autofill_preview_hint">En un formulario escaneado, los campos que coincidan muestran una etiqueta como estas — toque para rellenar.</string>
     <string name="profile_preview_filled">Rellenado: %1$s</string>
     <!-- /#1519 -->
+  Spanish (es) translations. This file is created by the benefits-suite
+  wave (epic #1520) — Candela's first localized locale. Each lane appends
+  its own keys under a clearly-commented "#<issue>" block; keep additions
+  grouped so cross-lane rebases stay mechanical.
+-->
+<resources>
+
+    <!-- #1515 — notice deadline keeper -->
+    <string name="deadline_title">Control de plazos</string>
+    <string name="deadline_back_cd">Atrás</string>
+    <string name="deadline_intro">Fotografíe una carta de beneficios y Candela encontrará la fecha límite y le recordará antes — todo en su dispositivo.</string>
+    <string name="deadline_recognizing">Leyendo la carta…</string>
+    <string name="deadline_no_dates">No encontramos una fecha en esa carta. Intente una foto más clara o cree un recordatorio desde una renovación común más abajo.</string>
+    <string name="deadline_camera_rationale">Candela usa la cámara solo mientras escanea una carta. La foto se lee en su dispositivo y nunca se sube.</string>
+    <string name="deadline_camera_denied">La cámara está desactivada. Aún puede elegir una foto de su carta desde su galería.</string>
+    <string name="deadline_enable_camera">Activar cámara</string>
+    <string name="deadline_pick_gallery">Elegir una foto</string>
+    <string name="deadline_capture_button">Capturar</string>
+    <string name="deadline_capture_button_cd">Tome una foto del aviso</string>
+    <string name="deadline_candidates_title">Fechas encontradas — elija el plazo</string>
+    <string name="deadline_candidate_cd">%1$s. %2$s. Toque dos veces para crear un recordatorio.</string>
+    <string name="deadline_candidate_past">(pasada)</string>
+    <string name="deadline_presets_title">Renovaciones comunes</string>
+    <string name="deadline_preset_cd">%1$s. Toque dos veces para crear un recordatorio.</string>
+    <string name="deadline_preset_confirm_hint">Confirme la fecha exacta impresa en su aviso.</string>
+    <string name="deadline_reminders_title">Sus recordatorios</string>
+    <string name="deadline_reminders_empty">Aún no hay recordatorios.</string>
+    <string name="deadline_reminder_item_cd">%1$s, vence %2$s</string>
+    <string name="deadline_delete_cd">Eliminar recordatorio %1$s</string>
+    <string name="deadline_draft_title">Crear un recordatorio</string>
+    <string name="deadline_field_label">Nombre del recordatorio</string>
+    <string name="deadline_field_deadline">Fecha límite</string>
+    <string name="deadline_change_date">Cambiar fecha</string>
+    <string name="deadline_field_body">Texto de la notificación</string>
+    <string name="deadline_body_privacy_hint">Se muestra en su pantalla de bloqueo. Evite números de caso o cantidades en dólares.</string>
+    <string name="deadline_offsets_title">Recordarme</string>
+    <string name="deadline_offset_week">1 semana antes</string>
+    <string name="deadline_offset_2days">2 días antes</string>
+    <string name="deadline_offset_day">El mismo día</string>
+    <string name="deadline_save">Crear recordatorio</string>
+    <string name="deadline_cancel">Cancelar</string>
+    <string name="deadline_date_picker_ok">Aceptar</string>
+    <string name="deadline_exact_hint">Para recordatorios a una hora exacta, permita alarmas exactas en Configuración. Los recordatorios funcionan sin ello.</string>
+    <string name="deadline_exact_open_settings">Abrir configuración</string>
+    <string name="deadline_scheduled_announce">Recordatorio creado</string>
+    <string name="deadline_scan_label">Fecha límite de beneficios</string>
+    <string name="deadline_default_body">%1$s vence %2$s. Abra Candela para más detalles.</string>
+    <string name="deadline_program_lifeline">Revisión anual de LifeLine</string>
+    <string name="deadline_program_calfresh">Informe SAR-7 de CalFresh</string>
+    <string name="deadline_program_medi_cal">Renovación de Medi-Cal</string>
+    <string name="deadline_program_sun_bucks">Fecha límite de SUN Bucks</string>
+    <string name="deadline_program_other">Fecha límite de beneficios</string>
+    <string name="deadline_card_title">Control de plazos</string>
+    <string name="deadline_card_body">Fotografíe una carta — le recordaremos antes del plazo.</string>
 </resources>

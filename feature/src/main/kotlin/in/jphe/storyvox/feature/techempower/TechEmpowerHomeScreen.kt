@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
@@ -107,6 +108,9 @@ fun TechEmpowerHomeScreen(
     // Issue #1519 — saved household profile entry point. Defaulted so
     // other call sites / previews keep compiling.
     onOpenHouseholdProfile: () -> Unit = {},
+    // Issue #1515 — notice deadline keeper entry point. Defaulted so any
+    // other call sites / previews keep compiling.
+    onOpenDeadlineKeeper: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     val context = LocalContext.current
@@ -238,6 +242,16 @@ fun TechEmpowerHomeScreen(
                     body = stringResource(FeatureR.string.profile_card_body),
                     icon = Icons.Filled.Badge,
                     onClick = onOpenHouseholdProfile,
+                )
+            }
+            // Issue #1515 — notice deadline keeper. Bilingual (EN/ES) via
+            // stringResource, per the benefits-suite launch invariant.
+            item {
+                TechEmpowerCard(
+                    title = stringResource(FeatureR.string.deadline_card_title),
+                    body = stringResource(FeatureR.string.deadline_card_body),
+                    icon = Icons.Filled.CalendarMonth,
+                    onClick = onOpenDeadlineKeeper,
                 )
             }
             item {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Spanish (es) translations for the :app module. First introduced by the
+  benefits-suite wave (epic #1520). Append per-issue blocks below.
+-->
+<resources>
+
+    <!-- #1515 — notice deadline keeper notification channel -->
+    <string name="deadline_channel_name">Plazos de beneficios</string>
+    <string name="deadline_channel_desc">Recordatorios antes de sus plazos de beneficios</string>
+    <string name="deadline_notif_title_fallback">Fecha límite de beneficios</string>
+</resources>

@@ -18,6 +18,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Issue #1515 — notice deadline keeper. Exact alarms let a benefits
+         renewal reminder fire at a predictable time on its target day
+         (T-7 / T-2 / day-of). SCHEDULE_EXACT_ALARM is the user-grantable
+         variant (not the Play-policy-restricted USE_EXACT_ALARM): the app
+         probes AlarmManager.canScheduleExactAlarms() and, when it's off,
+         falls back to inexact-but-still-delivered alarms and surfaces a
+         one-tap deep link to the exact-alarm settings. POST_NOTIFICATIONS
+         (declared above for playback) is reused; RECEIVE_BOOT_COMPLETED
+         (above) re-arms reminders after a reboot. All on-device. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- Issue #1190 — auto Do Not Disturb with the sleep timer. A normal
          permission (no runtime prompt), but actually toggling DND
          additionally needs the user to grant notification-policy access
@@ -316,6 +327,27 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Issue #1515 — notice deadline keeper. This receiver is fired
+             by the app's own exact-alarm PendingIntent (explicit
+             component) and posts the local reminder notification; the
+             copy travels in the intent extras, so it needs no Hilt /
+             storage. Not exported — only our alarm triggers it. -->
+        <receiver
+            android:name=".deadline.DeadlineReminderReceiver"
+            android:exported="false" />
+
+        <!-- Issue #1515 — re-arm deadline reminders after a reboot
+             (Android clears scheduled alarms on restart). BOOT_COMPLETED
+             is a protected broadcast (system-only sender), so exported
+             is safe. -->
+        <receiver
+            android:name=".deadline.DeadlineBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- WorkManager's SystemForegroundService needs an explicit
              foregroundServiceType on API 34+. The tag-sync worker (#520)
