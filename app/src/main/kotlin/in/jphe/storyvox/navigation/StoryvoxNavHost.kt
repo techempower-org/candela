@@ -345,6 +345,17 @@ object StoryvoxRoutes {
     }
 }
 
+/**
+ * Issue #1563 / #1544 — the bundled Candela Handbook's single fiction id, used
+ * by the Settings → About "Read the handbook" deep link. Inlined as a literal
+ * (mirrors OnboardingHost's `notion:guides` constant) so `:app` doesn't take a
+ * compile dependency on `:source-handbook` just for one string. MUST stay equal
+ * to `CandelaHandbookSource.HANDBOOK_FICTION_ID`; the `handbook:` prefix is what
+ * routes the fiction-detail load to the handbook source (a one-grep audit —
+ * this comment — catches a drift if that id ever changes).
+ */
+private const val HANDBOOK_FICTION_ID = "handbook:guide"
+
 @Composable
 fun StoryvoxNavHost(
     navController: NavHostController,
@@ -1473,6 +1484,14 @@ private fun StoryvoxNavHostContent(
                     onOpenLicenses = { navController.navigate(StoryvoxRoutes.SETTINGS_LICENSES) },
                     // Issue #1463 — route into the impact-sharing explainer.
                     onOpenImpactSharing = { navController.navigate(StoryvoxRoutes.SETTINGS_IMPACT_SHARING) },
+                    // Issue #1563 / #1544 — deep-link into the bundled Candela
+                    // Handbook. The id is a string literal (NOT an import of
+                    // source-handbook's CandelaHandbookSource.HANDBOOK_FICTION_ID)
+                    // to avoid an app→source-handbook module dependency; the
+                    // `handbook:` prefix must stay in lockstep with that source's
+                    // SOURCE_ID. The fiction-detail route auto-loads (the prefix
+                    // resolves to the handbook source), so no startListening/seed.
+                    onReadHandbook = { navController.navigate(StoryvoxRoutes.fictionDetail(HANDBOOK_FICTION_ID)) },
                     // Issue #1558 — clear the whole settings back stack down to
                     // the start destination and land on LIBRARY, so the reactive
                     // root-level OnboardingHost re-shows the welcome over a clean

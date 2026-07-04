@@ -60,6 +60,11 @@ fun AboutSettingsScreen(
     /** Issue #1463 — open the "About impact sharing" explainer subscreen. Default
      *  no-op keeps previews / tests simple; the NavHost passes a real navigate. */
     onOpenImpactSharing: () -> Unit = {},
+    /** Issue #1563 / #1544 — deep-link into the bundled Candela Handbook fiction
+     *  (`handbook:guide`). The NavHost routes to its fiction-detail screen, which
+     *  auto-loads (the `handbook:` id prefix resolves to the handbook source, so
+     *  no pre-seed is needed). Default no-op keeps previews / tests simple. */
+    onReadHandbook: () -> Unit = {},
     /** Issue #1558 — after resetting onboarding, navigate to the LIBRARY route
      *  (the app's start destination) so the root-level [OnboardingHost] — whose
      *  `shouldShow` is a reactive flow — re-shows the welcome overlay over a
@@ -110,6 +115,17 @@ fun AboutSettingsScreen(
                 }
             }
 
+            // Issue #1563 / #1544 — the explicit "Read the handbook" entry point.
+            // Placed first among the link rows: the in-app user guide is the most
+            // useful help affordance to surface. Deep-links to the handbook
+            // fiction's detail page (chapter list), same as tapping its Browse card.
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_handbook),
+                    subtitle = stringResource(R.string.settings_about_handbook_subtitle),
+                    onClick = onReadHandbook,
+                )
+            }
             SettingsGroupCard {
                 SettingsLinkRow(
                     title = stringResource(R.string.settings_about_privacy_policy),
