@@ -1837,6 +1837,49 @@ object DeepLinkResolver {
         return parseNotionOAuthCallback(intent.dataString)
     }
 
+    /** Issue #1496 — query params on a `candela://oauth/googledrive` OAuth
+     *  redirect. Same nullable shape as [NotionOAuthCallback]: a cancel
+     *  carries only [error] (`access_denied`); a success carries [code] +
+     *  [state]. */
+    data class GoogleDriveOAuthCallback(val code: String?, val state: String?, val error: String?)
+
+    /** Issue #1496 — the redirect scheme+host the Google Drive OAuth Custom
+     *  Tab returns to. Must match the AndroidManifest intent-filter and
+     *  [`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthConfig.REDIRECT_URI]. */
+    const val GOOGLE_DRIVE_OAUTH_REDIRECT_PREFIX = "candela://oauth/googledrive"
+
+    /**
+     * Issue #1496 — pure parse of a Google Drive OAuth redirect URI string
+     * (no android.net.Uri, so it runs as a plain JUnit test). Returns null
+     * for any URI that isn't our redirect; a non-null result (even all-null
+     * fields) means "this WAS our redirect, handle it and stop". URL-decodes
+     * each value.
+     */
+    fun parseGoogleDriveOAuthCallback(dataString: String?): GoogleDriveOAuthCallback? {
+        if (dataString == null) return null
+        if (!dataString.startsWith(GOOGLE_DRIVE_OAUTH_REDIRECT_PREFIX)) return null
+        val query = dataString.substringAfter('?', "")
+        if (query.isBlank()) return GoogleDriveOAuthCallback(code = null, state = null, error = null)
+        val params = query.split('&').mapNotNull { pair ->
+            if (pair.isBlank()) return@mapNotNull null
+            val key = pair.substringBefore('=')
+            val rawValue = pair.substringAfter('=', "")
+            val value = runCatching { java.net.URLDecoder.decode(rawValue, "UTF-8") }.getOrDefault(rawValue)
+            key to value
+        }.toMap()
+        return GoogleDriveOAuthCallback(
+            code = params["code"],
+            state = params["state"],
+            error = params["error"],
+        )
+    }
+
+    /** Issue #1496 — Intent wrapper for [parseGoogleDriveOAuthCallback]. */
+    fun googleDriveOAuthCallback(intent: Intent): GoogleDriveOAuthCallback? {
+        if (intent.action != Intent.ACTION_VIEW) return null
+        return parseGoogleDriveOAuthCallback(intent.dataString)
+    }
+
     /** Lightweight URL sniffer — accepts http(s) URLs only. Apps that
      *  share plaintext frequently emit "title\nURL" or "URL extra
      *  text" via Intent.EXTRA_TEXT; we extract the first http(s)

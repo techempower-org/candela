@@ -82,6 +82,8 @@ include(":source-radio")
 include(":source-librivox")
 include(":source-notion")
 include(":source-hackernews")
+// #1496 — Google Drive folder-as-library (drive.file scope; Docs export + files).
+include(":source-google-drive")
 // #1238 — Google News headline feed (Top stories + topic sections + search).
 include(":source-google-news")
 include(":source-arxiv")

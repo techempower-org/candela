@@ -275,6 +275,12 @@ object AppBindings {
     @Provides @Singleton
     fun provideNotionConfig(impl: `in`.jphe.storyvox.data.NotionConfigImpl): `in`.jphe.storyvox.source.notion.config.NotionConfig = impl
 
+    /** Bridges source-google-drive GoogleDriveConfig (#1496) to the app-side
+     *  impl. Google Drive has no plaintext-config leg — the whole session is
+     *  the OAuth token pair, kept in the shared `storyvox.secrets` store. */
+    @Provides @Singleton
+    fun provideGoogleDriveConfig(impl: `in`.jphe.storyvox.data.GoogleDriveConfigImpl): `in`.jphe.storyvox.source.googledrive.config.GoogleDriveConfig = impl
+
     /** Bridges source-discord DiscordConfig (#403) to the app-side
      *  DataStore + EncryptedSharedPreferences impl. Same shape as
      *  Notion / Outline — server id + coalesce window in plaintext,
