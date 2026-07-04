@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
@@ -103,6 +104,9 @@ fun TechEmpowerHomeScreen(
     onOpenDecoder: () -> Unit,
     onOpenCalls: () -> Unit,
     onOpenFiction: (String) -> Unit,
+    // Issue #1519 — saved household profile entry point. Defaulted so
+    // other call sites / previews keep compiling.
+    onOpenHouseholdProfile: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     val context = LocalContext.current
@@ -226,6 +230,16 @@ fun TechEmpowerHomeScreen(
             // card above; the crisis affordances can be reinstated as
             // a new card here once the UX review with intervention
             // experts lands.
+            // Issue #1519 — saved household profile. Bilingual (EN/ES) via
+            // stringResource, per the benefits-suite launch invariant.
+            item {
+                TechEmpowerCard(
+                    title = stringResource(FeatureR.string.profile_card_title),
+                    body = stringResource(FeatureR.string.profile_card_body),
+                    icon = Icons.Filled.Badge,
+                    onClick = onOpenHouseholdProfile,
+                )
+            }
             item {
                 TechEmpowerCard(
                     title = "About TechEmpower",

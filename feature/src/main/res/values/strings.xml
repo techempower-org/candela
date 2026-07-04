@@ -1425,4 +1425,34 @@
     <string name="wallet_what_proves_seed_note">Sample list — the verified program list is provided by TechEmpower.</string>
     <string name="wallet_what_proves_title">What does this prove?</string>
     <!-- /#1514 -->
+    <!-- #1519 — saved household profile (bilingual EN/ES; see values-es) -->
+    <string name="profile_title">Household profile</string>
+    <string name="profile_back_cd">Back</string>
+    <string name="profile_intro">Save the facts you type on every form once. Candela keeps them encrypted on your device and offers to fill matching fields when you scan a form.</string>
+    <string name="profile_card_title">Household profile</string>
+    <string name="profile_card_body">Save your details once — Candela fills matching form fields for you.</string>
+    <string name="profile_field_name">Full name</string>
+    <string name="profile_field_address">Home address</string>
+    <string name="profile_field_household_size">Household size</string>
+    <string name="profile_field_income">Monthly income</string>
+    <string name="profile_field_phone">Phone number</string>
+    <string name="profile_field_email">Email</string>
+    <string name="profile_save">Save</string>
+    <string name="profile_revert">Undo changes</string>
+    <string name="profile_cancel">Cancel</string>
+    <string name="profile_delete">Delete profile</string>
+    <string name="profile_delete_confirm_title">Delete your profile?</string>
+    <string name="profile_delete_confirm_body">This erases your saved details from this device. It can\'t be undone.</string>
+    <string name="profile_locked">Your profile is saved and locked.</string>
+    <string name="profile_unlock">Unlock to edit</string>
+    <string name="profile_auth_title">Unlock your profile</string>
+    <string name="profile_auth_desc">Confirm it\'s you to view or change your saved details.</string>
+    <string name="profile_saved_announce">Profile saved</string>
+    <string name="profile_ssn_policy">Never save your Social Security Number here. When a form asks for it, type it directly — Candela won\'t store it or offer to fill it.</string>
+    <string name="profile_ssn_warning">Social Security Number — type it yourself; never saved.</string>
+    <string name="profile_use_saved">Use saved: %1$s</string>
+    <string name="profile_use_saved_cd">Fill this field with your saved value: %1$s</string>
+    <string name="profile_autofill_preview_title">Autofill preview</string>
+    <string name="profile_autofill_preview_hint">On a scanned form, matching fields show a chip like these — tap to fill.</string>
+    <string name="profile_preview_filled">Filled: %1$s</string>
 </resources>
