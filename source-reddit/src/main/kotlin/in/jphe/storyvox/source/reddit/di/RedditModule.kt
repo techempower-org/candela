@@ -41,5 +41,10 @@ internal object RedditHttpModule {
     @Singleton
     fun provideRedditApi(
         @RedditHttp client: OkHttpClient,
-    ): RedditApi = RedditApi(client)
+        // RedditConfig is bound in :app (RedditConfigImpl) — the source
+        // module only sees the interface, so no :app dep leaks here. The
+        // config carries no back-reference to RedditApi/RedditSource, so
+        // there's no Dagger cycle (#1309 shape) and no dagger.Lazy needed.
+        config: `in`.jphe.storyvox.source.reddit.config.RedditConfig,
+    ): RedditApi = RedditApi(client, config)
 }
