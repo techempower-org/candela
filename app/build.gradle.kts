@@ -644,6 +644,7 @@ dependencies {
     implementation(project(":source-google-news"))
     implementation(project(":source-arxiv"))
     implementation(project(":source-plos"))
+    implementation(project(":source-primegaming"))
     implementation(project(":source-discord"))
     implementation(project(":source-epic-free-games"))
     implementation(project(":source-telegram"))

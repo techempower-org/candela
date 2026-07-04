@@ -213,6 +213,13 @@ object AppBindings {
     @`in`.jphe.storyvox.data.repository.impact.ImpactAppVersion
     fun provideImpactAppVersion(): String = BuildConfig.VERSION_NAME
 
+    /** Issue #1494 — bridges the source-primegaming [PrimeGamingConfig] seam to
+     *  the concrete app-side DataStore-backed impl. Same shape as
+     *  [provideRssConfig]; consumed behind a `dagger.Lazy` in the source so the
+     *  FictionSource -> config edge can't form the #1309 init cycle. */
+    @Provides @Singleton
+    fun providePrimeGamingConfig(impl: `in`.jphe.storyvox.data.PrimeGamingConfigImpl): `in`.jphe.storyvox.source.primegaming.config.PrimeGamingConfig = impl
+
     /** Issue #417 — bridges the source-radio [RadioConfig] interface to
      *  the app-side DataStore-backed impl. Same shape as
      *  [provideRssConfig]: the impl is exposed concretely so the

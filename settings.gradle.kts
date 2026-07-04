@@ -88,6 +88,7 @@ include(":source-google-drive")
 include(":source-google-news")
 include(":source-arxiv")
 include(":source-plos")
+include(":source-primegaming")
 include(":source-discord")
 // Issue #1493 — Epic Games Store weekly free-game giveaways. One fiction
 // ("Epic Free Games"), each current/upcoming giveaway a chapter. Reads the
