@@ -93,6 +93,15 @@ class SettingsSearchIndexTest {
     }
 
     @Test
+    fun `replay-tour synonyms surface the About section`() {
+        // #1558 — the "Replay the welcome tour" row lives in the About surface;
+        // its findability synonyms must resolve to About and nowhere spurious.
+        for (q in listOf("welcome", "tour", "wizard", "replay")) {
+            assertEquals("'$q' should surface only About", listOf("About"), matchingLabels(q))
+        }
+    }
+
+    @Test
     fun `every section carries a non-blank label and descriptor`() {
         for (section in SettingsSearchSections) {
             assertFalse("Blank label", section.label.isBlank())

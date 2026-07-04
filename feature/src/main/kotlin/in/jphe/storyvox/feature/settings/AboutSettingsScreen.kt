@@ -60,6 +60,12 @@ fun AboutSettingsScreen(
     /** Issue #1463 — open the "About impact sharing" explainer subscreen. Default
      *  no-op keeps previews / tests simple; the NavHost passes a real navigate. */
     onOpenImpactSharing: () -> Unit = {},
+    /** Issue #1558 — after resetting onboarding, navigate to the LIBRARY route
+     *  (the app's start destination) so the root-level [OnboardingHost] — whose
+     *  `shouldShow` is a reactive flow — re-shows the welcome overlay over a
+     *  clean base WITHOUT an app restart. Default no-op keeps previews / tests
+     *  simple; the NavHost passes the real navigate. */
+    onReplayTour: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -140,6 +146,20 @@ fun AboutSettingsScreen(
                     title = stringResource(R.string.settings_about_licenses),
                     subtitle = stringResource(R.string.settings_about_licenses_subtitle),
                     onClick = onOpenLicenses,
+                )
+            }
+            // Issue #1558 — user-facing "Replay the welcome tour" affordance.
+            // Reuses the existing resetOnboardingV1() flip (same path as the QA
+            // debug row), then routes to LIBRARY so the reactive OnboardingHost
+            // re-shows the wizard immediately — no app restart.
+            SettingsGroupCard {
+                SettingsLinkRow(
+                    title = stringResource(R.string.settings_about_replay_tour),
+                    subtitle = stringResource(R.string.settings_about_replay_tour_subtitle),
+                    onClick = {
+                        viewModel.resetOnboarding()
+                        onReplayTour()
+                    },
                 )
             }
         }

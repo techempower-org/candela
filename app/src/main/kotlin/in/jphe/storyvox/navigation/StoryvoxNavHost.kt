@@ -1473,6 +1473,16 @@ private fun StoryvoxNavHostContent(
                     onOpenLicenses = { navController.navigate(StoryvoxRoutes.SETTINGS_LICENSES) },
                     // Issue #1463 — route into the impact-sharing explainer.
                     onOpenImpactSharing = { navController.navigate(StoryvoxRoutes.SETTINGS_IMPACT_SHARING) },
+                    // Issue #1558 — clear the whole settings back stack down to
+                    // the start destination and land on LIBRARY, so the reactive
+                    // root-level OnboardingHost re-shows the welcome over a clean
+                    // base (the wizard's own CTAs navigate from there).
+                    onReplayTour = {
+                        navController.navigate(StoryvoxRoutes.LIBRARY) {
+                            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable(
