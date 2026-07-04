@@ -274,6 +274,7 @@
     <string name="form_fill_signature_pad_title">Dibuja tu firma</string>
     <string name="form_fill_signature_save">Guardar</string>
     <string name="form_fill_tap_hint">Toca el formulario para colocar la herramienta seleccionada. Cada campo también aparece en la lista de abajo para editarlo.</string>
+    <string name="form_fill_text_field_label">Texto del campo</string>
     <string name="form_fill_title">Completar un formulario</string>
     <string name="form_fill_title_label">Nombre del archivo</string>
     <string name="form_fill_tool_check">Casilla</string>

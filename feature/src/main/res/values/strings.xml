@@ -1532,6 +1532,7 @@
     <string name="form_fill_signature_pad_title">Draw your signature</string>
     <string name="form_fill_signature_save">Save</string>
     <string name="form_fill_tap_hint">Tap the form to place your selected tool. Every field also appears in the list below for editing.</string>
+    <string name="form_fill_text_field_label">Field text</string>
     <string name="form_fill_title">Fill a form</string>
     <string name="form_fill_title_label">File name</string>
     <string name="form_fill_tool_check">Check</string>
