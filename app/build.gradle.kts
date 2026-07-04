@@ -116,6 +116,25 @@ val notionOAuthClientId: String =
 val notionOAuthClientSecret: String =
     (localProperties.getProperty("NOTION_OAUTH_CLIENT_SECRET") ?: "").trim()
 
+/**
+ * Issue #1496 — Google Drive OAuth client id (+ optional secret). Same
+ * empty-default posture as Notion above: absent → the Connect-Drive path
+ * is hidden (GoogleDriveOAuthConfig.isAvailable == false) and CI is green
+ * with no creds. Unlike Notion, Google's installed-app flow is a PKCE
+ * *public* client — an Android/iOS OAuth client type carries NO secret
+ * (the token endpoint accepts the code_verifier instead), so the id alone
+ * is what gates availability. GOOGLE_OAUTH_CLIENT_SECRET is optional: only
+ * a "Desktop app" client type issues the (non-confidential) secret, and if
+ * present it is added to the token request; a public client omits it. See
+ * docs/google-drive-setup.md. local.properties lines:
+ *   GOOGLE_OAUTH_CLIENT_ID=...
+ *   GOOGLE_OAUTH_CLIENT_SECRET=...   # optional; blank for Android/iOS clients
+ */
+val googleOAuthClientId: String =
+    (localProperties.getProperty("GOOGLE_OAUTH_CLIENT_ID") ?: "").trim()
+val googleOAuthClientSecret: String =
+    (localProperties.getProperty("GOOGLE_OAUTH_CLIENT_SECRET") ?: "").trim()
+
 val releaseStoreFilePath: String? = localProperties.getProperty("storyvox.releaseStoreFile")
 val releaseStorePassword: String? = localProperties.getProperty("storyvox.releaseStorePassword")
 val releaseKeyAlias: String? = localProperties.getProperty("storyvox.releaseKeyAlias")
@@ -231,6 +250,13 @@ android {
         // unconfigured; see the notionOAuthClientId/Secret vals above).
         buildConfigField("String", "NOTION_OAUTH_CLIENT_ID", "\"$notionOAuthClientId\"")
         buildConfigField("String", "NOTION_OAUTH_CLIENT_SECRET", "\"$notionOAuthClientSecret\"")
+
+        // Issue #1496 — Google Drive OAuth client credentials (empty when
+        // unconfigured; see the googleOAuthClientId/Secret vals above).
+        // PKCE public client: the secret is optional (blank for Android/iOS
+        // OAuth client types).
+        buildConfigField("String", "GOOGLE_OAUTH_CLIENT_ID", "\"$googleOAuthClientId\"")
+        buildConfigField("String", "GOOGLE_OAUTH_CLIENT_SECRET", "\"$googleOAuthClientSecret\"")
     }
 
     signingConfigs {
@@ -612,6 +638,8 @@ dependencies {
     implementation(project(":source-librivox"))
     implementation(project(":source-notion"))
     implementation(project(":source-hackernews"))
+    // #1496 — Google Drive folder-as-library source.
+    implementation(project(":source-google-drive"))
     // #1238 — Google News headline feed.
     implementation(project(":source-google-news"))
     implementation(project(":source-arxiv"))
