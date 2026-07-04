@@ -86,7 +86,15 @@ internal class NotionPATSource @Inject constructor(
         if (page > 1) {
             return FictionResult.Success(ListPage(items = emptyList(), page = page, hasNext = false))
         }
-        return api.queryDatabase(cursor = null, pageSize = 100).map { list ->
+        // #1507 — an OAuth grant can span many pages the user picked at
+        // consent time, so list them via /v1/search; a hand-pasted PAT
+        // keeps the original single-database query path.
+        val listing = if (state.viaOAuth) {
+            api.search(query = null, cursor = null, pageSize = 100)
+        } else {
+            api.queryDatabase(cursor = null, pageSize = 100)
+        }
+        return listing.map { list ->
             ListPage(
                 items = list.results.mapNotNull { it.toSummary(SourceIds.NOTION_PAT) },
                 page = 1,
@@ -112,8 +120,18 @@ internal class NotionPATSource @Inject constructor(
         if (state.mode != NotionMode.OFFICIAL_PAT || state.apiToken.isBlank()) {
             return FictionResult.Success(ListPage(items = emptyList(), page = 1, hasNext = false))
         }
-        val term = query.term.trim().lowercase()
-        return api.queryDatabase(cursor = null, pageSize = 100).map { list ->
+        val rawTerm = query.term.trim()
+        val term = rawTerm.lowercase()
+        // #1507 — OAuth: /v1/search does server-side title matching, so
+        // pass the term through; the client-side filter below still runs
+        // (Notion matches title only, we also match description). PAT:
+        // unchanged single-database query + client-side filter.
+        val listing = if (state.viaOAuth) {
+            api.search(query = rawTerm.ifBlank { null }, cursor = null, pageSize = 100)
+        } else {
+            api.queryDatabase(cursor = null, pageSize = 100)
+        }
+        return listing.map { list ->
             val items = list.results.mapNotNull { it.toSummary(SourceIds.NOTION_PAT) }
                 .filter { summary ->
                     term.isEmpty() ||

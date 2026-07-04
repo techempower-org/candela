@@ -119,6 +119,24 @@
             </intent-filter>
 
             <!--
+                Issue #1507 — Notion OAuth redirect. The public-integration
+                consent flow launches in a Chrome Custom Tab and redirects to
+                candela://oauth/notion?code=…&state=… (or ?error=access_denied
+                on cancel). MainActivity is singleTask, so the redirect
+                re-enters the same task via onNewIntent; DeepLinkResolver
+                .notionOAuthCallback extracts the code + state (verified against
+                the persisted nonce) and NotionOAuthManager exchanges it. The
+                redirect URI registered at notion.so/my-integrations must match
+                this scheme+host exactly (see docs/notion-oauth-setup.md).
+            -->
+            <intent-filter android:label="@string/open_with_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="candela" android:host="oauth" android:pathPrefix="/notion" />
+            </intent-filter>
+
+            <!--
                 Issue #472 — Magic-link audiobook. Accept ACTION_SEND
                 with text/plain so the user can share any URL from any
                 app (browser, RSS reader, podcast app, social-media

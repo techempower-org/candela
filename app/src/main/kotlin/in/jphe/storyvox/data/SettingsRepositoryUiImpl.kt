@@ -1408,6 +1408,9 @@ class SettingsRepositoryUiImpl(
             // field is opt-in for private workspaces.
             notionMode = notion.mode.name,
             notionRootPageId = notion.rootPageId,
+            // Issue #1507 — OAuth surface for the Browse manage sheet.
+            notionWorkspaceName = notion.workspaceName,
+            notionOAuthAvailable = `in`.jphe.storyvox.auth.notion.NotionOAuthConfig.isAvailable,
             sleepShakeToExtendEnabled = prefs[Keys.SLEEP_SHAKE_TO_EXTEND_ENABLED] ?: true,
             showDebugOverlay = prefs[Keys.SHOW_DEBUG_OVERLAY] ?: false,
             debugLogging = prefs[Keys.DEBUG_LOGGING_ENABLED] ?: false,
@@ -2484,6 +2487,22 @@ class SettingsRepositoryUiImpl(
     }
     override suspend fun setNotionApiToken(token: String?) {
         notionConfig.setApiToken(token)
+    }
+
+    /**
+     * Issue #1507 — begin the Notion OAuth flow. Generates a random CSRF
+     * `state` nonce, persists it (survives process death — the Custom Tab
+     * can evict the app), and returns the authorize URL. Returns null when
+     * the build has no OAuth client credentials so the caller falls back to
+     * the paste-token path. The redirect is handled by
+     * [`in`.jphe.storyvox.auth.notion.NotionOAuthManager] via MainActivity;
+     * kept off this repo's dependency chain to avoid a Dagger cycle.
+     */
+    override suspend fun beginNotionOAuth(): String? {
+        if (!`in`.jphe.storyvox.auth.notion.NotionOAuthConfig.isAvailable) return null
+        val nonce = java.util.UUID.randomUUID().toString()
+        notionConfig.setOAuthState(nonce)
+        return `in`.jphe.storyvox.auth.notion.NotionOAuthConfig.authorizeUrl(nonce)
     }
 
     /** #246 — bridge to SuggestedFeedsRegistry. The fallback list

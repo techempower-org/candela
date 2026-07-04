@@ -205,6 +205,9 @@ fun BrowseScreen(
     /** Issue #247 — RSS feed management moved out of Settings into a
      *  FAB-launched sheet visible only when sourceKey=Rss. */
     var showRssManageSheet by remember { mutableStateOf(false) }
+    /** Issue #1507 — Notion connect/manage sheet, FAB- and empty-state-
+     *  launched, visible only when sourceKey=NotionPat. */
+    var showNotionManageSheet by remember { mutableStateOf(false) }
 
     // #328 — see LibraryScreen.kt; hoist distinctBy out of the grid
     // builder so allocations happen once per state.items change instead
@@ -475,6 +478,16 @@ fun BrowseScreen(
                 !state.isLoading &&
                 state.error == null ->
                 RssEmptyState(onAdd = { showRssManageSheet = true })
+            // Issue #1507 — Notion chip is visible even when unconfigured
+            // (see BrowseViewModel's NOTION_PAT visibility override). An
+            // unconnected chip lands on an empty grid; surface a connect-me
+            // state whose CTA opens the same manage sheet as the FAB.
+            state.sourceId == SourceIds.NOTION_PAT &&
+                state.tab != BrowseTab.Search &&
+                state.items.isEmpty() &&
+                !state.isLoading &&
+                state.error == null ->
+                NotionConnectEmptyState(onConnect = { showNotionManageSheet = true })
             // Issue #669 — Local backend empty state. Without this branch
             // tapping the Local chip on a fresh install rendered a
             // completely blank content area: no spinner, no message,
@@ -733,6 +746,20 @@ fun BrowseScreen(
             Icon(Icons.Filled.Add, contentDescription = "Add RSS feed")
         }
     }
+    // Issue #1507 — FAB to open the Notion connect/manage sheet (connect,
+    // re-consent, disconnect, or paste a token). Only on the Notion chip.
+    if (state.sourceId == SourceIds.NOTION_PAT) {
+        FloatingActionButton(
+            onClick = { showNotionManageSheet = true },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(spacing.lg),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Connect or manage Notion")
+        }
+    }
     }  // Box
     }  // BrowseScaffoldOrFrame body
 
@@ -740,6 +767,13 @@ fun BrowseScreen(
         BrowseRssManageSheet(
             viewModel = viewModel,
             onDismiss = { showRssManageSheet = false },
+        )
+    }
+
+    if (showNotionManageSheet) {
+        BrowseNotionManageSheet(
+            viewModel = viewModel,
+            onDismiss = { showNotionManageSheet = false },
         )
     }
 
@@ -1052,6 +1086,51 @@ private fun RssEmptyState(onAdd: () -> Unit) {
             BrassButton(
                 label = "Add a feed",
                 onClick = onAdd,
+                variant = BrassButtonVariant.Primary,
+            )
+        }
+    }
+}
+
+/**
+ * Issue #1507 — connect-me empty state for the Notion chip. The chip is
+ * visible even before the user connects (so the feature is discoverable);
+ * an unconnected chip lands here. The CTA opens the same connect/manage
+ * sheet as the FAB (OAuth "Connect Notion" when this build has creds,
+ * otherwise the paste-token fallback).
+ */
+@Composable
+private fun NotionConnectEmptyState(onConnect: () -> Unit) {
+    val spacing = LocalSpacing.current
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            modifier = Modifier.padding(horizontal = spacing.xl),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(48.dp),
+            )
+            Text(
+                "Connect your Notion",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                "Link your Notion workspace and the pages you grant become " +
+                    "listenable here — read your own notes, docs, and databases aloud.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(spacing.md))
+            BrassButton(
+                label = "Connect Notion",
+                onClick = onConnect,
                 variant = BrassButtonVariant.Primary,
             )
         }
