@@ -203,6 +203,24 @@ Calendar source simply stays empty until you choose to grant it. You can
 revoke the permission anytime in Android Settings. The Calendar source is
 read-only: Candela never creates, edits, or deletes calendar events.
 
+### 2.11 Saved household profile (optional)
+
+Candela can save the facts you re-type on every benefits form — name,
+address, household size, monthly income, phone, email — so it can offer to
+fill them in when you scan a form. This profile is **entirely on-device**:
+it is stored **encrypted at rest** (Android's `EncryptedSharedPreferences`),
+**excluded from cloud backup and device-to-device transfer**, and is
+**never uploaded, collected, transmitted, or shared**. It's optional — the
+app works without it — and you can view, edit, or permanently delete it at
+any time; editing and deleting are protected behind your device lock
+(fingerprint / face / PIN).
+
+**Your Social Security Number is never saved.** It is deliberately not a
+profile field: when a form asks for it you type it directly, and Candela
+neither stores it nor offers to fill it — the app actively warns you on any
+SSN/tax-id field. No network is involved in matching a form field to your
+saved value; it's all local text comparison.
+
 ### 2.13 My Documents wallet (optional, encrypted, device-locked)
 
 Candela can store scans of your benefits paperwork — photo ID, proof of
