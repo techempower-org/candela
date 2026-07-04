@@ -22,11 +22,15 @@
         <exclude domain="sharedpref" path="storyvox.secrets" />
         <!-- #1514 — encrypted document wallet: never cloud-backed-up. -->
         <exclude domain="file" path="wallet/" />
+        <!-- Issue #1515 — deadline reminders are on-device only (privacy.md §2.11). -->
+        <exclude domain="file" path="deadline_reminders.json" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="storyvox.secrets.xml" />
         <exclude domain="sharedpref" path="storyvox.secrets" />
         <!-- #1514 — encrypted document wallet: never device-transferred. -->
         <exclude domain="file" path="wallet/" />
+        <!-- Issue #1515 — deadline reminders are on-device only (privacy.md §2.11). -->
+        <exclude domain="file" path="deadline_reminders.json" />
     </device-transfer>
 </data-extraction-rules>
