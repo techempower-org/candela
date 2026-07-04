@@ -149,17 +149,16 @@ fun AboutSettingsScreen(
                 )
             }
             // Issue #1558 — user-facing "Replay the welcome tour" affordance.
-            // Reuses the existing resetOnboardingV1() flip (same path as the QA
-            // debug row), then routes to LIBRARY so the reactive OnboardingHost
-            // re-shows the wizard immediately — no app restart.
+            // replayTour() flips the onboarding flag NonCancellably and only
+            // then navigates, so the nav-pop that clears this ViewModel can't
+            // cancel the write mid-flight (Gemini HIGH on #1559). Routing to
+            // LIBRARY lets the reactive OnboardingHost re-show the wizard
+            // immediately — no app restart.
             SettingsGroupCard {
                 SettingsLinkRow(
                     title = stringResource(R.string.settings_about_replay_tour),
                     subtitle = stringResource(R.string.settings_about_replay_tour_subtitle),
-                    onClick = {
-                        viewModel.resetOnboarding()
-                        onReplayTour()
-                    },
+                    onClick = { viewModel.replayTour(onReplayTour) },
                 )
             }
         }
