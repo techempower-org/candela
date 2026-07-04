@@ -71,7 +71,7 @@ class CalendarSourceTest {
         val detail = (res as FictionResult.Success).value
         assertEquals(3, detail.chapters.size)
         assertEquals("Today", detail.chapters[0].title)
-        assertTrue(detail.chapters[0].wordCount > 0)
+        assertTrue((detail.chapters[0].wordCount ?: 0) > 0)
     }
 
     @Test
