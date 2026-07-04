@@ -107,6 +107,75 @@ internal fun splitOnHeading1(blocks: List<NotionBlock>): List<NotionSection> {
 }
 
 /**
+ * A planned chapter derived from a page's top-level blocks (#1508). Pure —
+ * no I/O — so [planChapters] is unit-testable; the source resolves each
+ * plan to real block content (a [Child] triggers a per-child block fetch).
+ */
+internal sealed interface NotionChapterPlan {
+    val title: String
+
+    /** The non-child top-level blocks rendered as one chapter, or a
+     *  `heading_1`-delimited section. [sectionIndex] indexes into the
+     *  section list the source re-derives when opening the chapter. */
+    data class Section(override val title: String, val sectionIndex: Int) : NotionChapterPlan
+
+    /** A sub-page: its whole block tree is this chapter. [childPageId] is
+     *  compact (dash-stripped) and fetchable via [NotionApi.pageBlocks]. */
+    data class Child(override val title: String, val childPageId: String) : NotionChapterPlan
+}
+
+/**
+ * Turn a page's top-level blocks into a chapter plan (#1508).
+ *
+ * - **Child-page pages** (JP's shorts DB: a lead of notes + N `child_page`
+ *   sub-pages) → an "Introduction" [Section] for the non-child lead (only
+ *   when that lead has blocks) followed by one [Child] per sub-page, in
+ *   document order. This is the case `splitOnHeading1` alone got wrong —
+ *   with no `heading_1` present it collapsed everything into one chapter.
+ * - **Flat pages** (no `child_page` blocks) → the existing
+ *   `heading_1`-split behaviour, one [Section] per split.
+ */
+internal fun planChapters(blocks: List<NotionBlock>): List<NotionChapterPlan> {
+    val childPages = blocks.filter { it.type == "child_page" }
+    if (childPages.isEmpty()) {
+        return splitOnHeading1(blocks)
+            .mapIndexed { i, s -> NotionChapterPlan.Section(s.title, i) }
+    }
+    val plans = mutableListOf<NotionChapterPlan>()
+    // The lead is section 0 — everything that isn't a sub-page. Include it
+    // only when it carries blocks, so a page that is purely sub-pages
+    // doesn't get an empty "Introduction" chapter.
+    if (blocks.any { it.type != "child_page" }) {
+        plans.add(NotionChapterPlan.Section("Introduction", 0))
+    }
+    for (cp in childPages) {
+        plans.add(
+            NotionChapterPlan.Child(
+                title = childPageTitle(cp) ?: "Untitled",
+                childPageId = cp.id.replace("-", ""),
+            ),
+        )
+    }
+    return plans
+}
+
+/** The non-child top-level blocks — the "lead" section 0 in child-page
+ *  mode (the source renders these for a `section-0` chapter request). */
+internal fun leadBlocks(blocks: List<NotionBlock>): List<NotionBlock> =
+    blocks.filter { it.type != "child_page" }
+
+/** Extract a `child_page` block's title (`{"title":"..."}`). */
+internal fun childPageTitle(block: NotionBlock): String? {
+    val obj = block.childPage as? JsonObject ?: return null
+    return obj["title"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+}
+
+/** Chapter id for a child-page chapter — carries a `child-` marker so the
+ *  source routes it to a per-child block fetch (vs `section-N`). */
+internal fun childChapterIdFor(fictionId: String, childPageId: String): String =
+    "${fictionId}::child-${childPageId.replace("-", "")}"
+
+/**
  * Project a NotionPage into a [FictionSummary]. Returns null if no
  * usable title can be extracted (a property of type "title" must
  * exist and contain at least one rich-text segment).

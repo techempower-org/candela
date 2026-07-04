@@ -140,15 +140,29 @@ internal class NotionPATSource @Inject constructor(
             is FictionResult.Success -> blocksResult.value
             is FictionResult.Failure -> return blocksResult
         }
-        val sections = splitOnHeading1(blocks)
-        val chapters = sections.mapIndexed { idx, section ->
-            ChapterInfo(
-                id = chapterIdFor(fictionId, idx),
-                sourceChapterId = "section-$idx",
-                index = idx,
-                title = section.title,
-                publishedAt = null,
-            )
+        // #1508 — child-page-aware chaptering. A page whose sub-pages are
+        // the real chapters (JP's shorts DB) has no heading_1, so the old
+        // splitOnHeading1 collapsed all 20 shorts into one "Intro" chapter.
+        // planChapters emits a lead Section (the notes) + one Child per
+        // sub-page; child titles come from the block inline, so listing
+        // costs no extra fetches — only opening a child fetches its body.
+        val chapters = planChapters(blocks).mapIndexed { idx, plan ->
+            when (plan) {
+                is NotionChapterPlan.Section -> ChapterInfo(
+                    id = chapterIdFor(fictionId, plan.sectionIndex),
+                    sourceChapterId = "section-${plan.sectionIndex}",
+                    index = idx,
+                    title = plan.title,
+                    publishedAt = null,
+                )
+                is NotionChapterPlan.Child -> ChapterInfo(
+                    id = childChapterIdFor(fictionId, plan.childPageId),
+                    sourceChapterId = "child-${plan.childPageId}",
+                    index = idx,
+                    title = plan.title,
+                    publishedAt = null,
+                )
+            }
         }
         val summary = page.toSummary(SourceIds.NOTION_PAT)?.copy(chapterCount = chapters.size)
             ?: FictionSummary(
@@ -169,12 +183,44 @@ internal class NotionPATSource @Inject constructor(
     ): FictionResult<ChapterContent> {
         val pageId = fictionId.toPageId()
             ?: return FictionResult.NotFound("Notion fiction id not recognized: $fictionId")
+
+        // #1508 — a child-page chapter (`::child-<id>`) is its own sub-page:
+        // fetch only THAT page's blocks and render the whole thing as one
+        // chapter. Its title comes from the parent's block list.
+        val childPageId = chapterId.substringAfterLast("::child-", "")
+        if (childPageId.isNotBlank()) {
+            return when (val r = api.pageBlocks(childPageId)) {
+                is FictionResult.Success -> {
+                    val title = childTitleFromParent(pageId, childPageId)
+                    FictionResult.Success(
+                        ChapterContent(
+                            info = ChapterInfo(
+                                id = chapterId,
+                                sourceChapterId = "child-$childPageId",
+                                index = 0,
+                                title = title,
+                            ),
+                            htmlBody = r.value.joinToString("\n") { it.toHtml() },
+                            plainBody = r.value.joinToString("\n\n") { it.toPlainText() }.trim(),
+                        ),
+                    )
+                }
+                is FictionResult.Failure -> r
+            }
+        }
+
         val sectionIndex = chapterId.substringAfterLast("::section-", "")
             .toIntOrNull()
             ?: return FictionResult.NotFound("Notion chapter id not recognized: $chapterId")
         return when (val r = api.pageBlocks(pageId)) {
             is FictionResult.Success -> {
-                val sections = splitOnHeading1(r.value)
+                // In child-page mode section 0 is the non-child lead; in flat
+                // mode fall back to heading_1 splitting.
+                val sections = if (r.value.any { it.type == "child_page" }) {
+                    listOf(NotionSection("Introduction", leadBlocks(r.value)))
+                } else {
+                    splitOnHeading1(r.value)
+                }
                 val section = sections.getOrNull(sectionIndex)
                     ?: return FictionResult.NotFound(
                         "Section $sectionIndex not found in Notion page $pageId",
@@ -198,6 +244,20 @@ internal class NotionPATSource @Inject constructor(
             }
             is FictionResult.Failure -> r
         }
+    }
+
+    /** Recover a child page's title from the parent's block list (the
+     *  `child_page` block carries it inline). Falls back to "Untitled" if
+     *  the parent fetch fails or the child isn't found — the body still
+     *  renders. */
+    private suspend fun childTitleFromParent(parentPageId: String, childPageId: String): String {
+        val parent = api.pageBlocks(parentPageId)
+        if (parent is FictionResult.Success) {
+            parent.value.firstOrNull {
+                it.type == "child_page" && it.id.replace("-", "") == childPageId
+            }?.let { return childPageTitle(it) ?: "Untitled" }
+        }
+        return "Untitled"
     }
 
     // ─── auth-gated ─────────────────────────────────────────────────────
