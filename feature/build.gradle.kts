@@ -3,6 +3,11 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    // #1517 — @Serializable models for the offline benefits corpora
+    // (screener / letter decoder / call cards). Same plugin core-data
+    // and source-notion already apply; the kotlinx-serialization-json
+    // runtime was already a feature dependency.
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {

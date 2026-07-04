@@ -1277,4 +1277,33 @@
     <string name="docs_scan_title_label">Document name</string>
     <string name="library_scan_documents">Scan documents to PDF</string>
     <!-- /#1513 -->
+
+    <!-- #1517 — Offline benefits screener -->
+    <string name="screener_title">Do I qualify?</string>
+    <string name="screener_back">Back</string>
+    <string name="screener_intro">Answer a few questions to find local programs you may qualify for.</string>
+    <string name="screener_offline_note">Works offline. Your answers stay on this device — nothing is sent anywhere.</string>
+    <string name="screener_seed_banner_title">Sample data</string>
+    <string name="screener_seed_banner_body">These programs and questions are a preview. Final program rules come from TechEmpower.</string>
+    <string name="screener_yes">Yes</string>
+    <string name="screener_no">No</string>
+    <string name="screener_show_results">See my results</string>
+    <string name="screener_start_over">Start over</string>
+    <string name="screener_results_title">Programs to look into</string>
+    <string name="screener_results_empty">Answer a few questions above, then tap “See my results.”</string>
+    <string name="screener_bucket_likely">You likely qualify</string>
+    <string name="screener_bucket_maybe">You might qualify</string>
+    <string name="screener_read_aloud">Read aloud</string>
+    <string name="screener_read_all">Read results aloud</string>
+    <string name="screener_stop">Stop</string>
+    <string name="screener_call">Call</string>
+    <string name="screener_call_211">Call 211</string>
+    <string name="screener_learn_more">Learn more</string>
+    <!-- %1$s = the corpus verified-date (from the shipped rules JSON). -->
+    <string name="screener_verified_prefix">Program details last verified: %1$s</string>
+    <string name="screener_verified_unknown">These details are not yet verified.</string>
+    <string name="screener_load_error">We could not open the program list. Please update the app and try again.</string>
+    <!-- Entry card on the TechEmpower Home grid. -->
+    <string name="screener_card_title">Do I qualify?</string>
+    <string name="screener_card_body">Answer a few quick questions to find local help you may be eligible for. Works offline.</string>
 </resources>

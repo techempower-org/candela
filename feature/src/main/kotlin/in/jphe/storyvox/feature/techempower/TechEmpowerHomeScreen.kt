@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Phone
@@ -45,12 +46,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import `in`.jphe.storyvox.data.TechEmpowerLinks
+import `in`.jphe.storyvox.feature.R as FeatureR
 import `in`.jphe.storyvox.ui.R as UiR
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -94,6 +97,7 @@ fun TechEmpowerHomeScreen(
     onBack: () -> Unit,
     onOpenBrowse: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenScreener: () -> Unit,
     onOpenFiction: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -146,6 +150,17 @@ fun TechEmpowerHomeScreen(
             }
 
             // ─── Get-help + content cards ─────────────────────────
+            // Issue #1517 — "Do I qualify?" leads the grid: it's the
+            // highest-value action for the screener audience and works
+            // fully offline. Bilingual copy via string resources.
+            item {
+                TechEmpowerCard(
+                    title = stringResource(FeatureR.string.screener_card_title),
+                    body = stringResource(FeatureR.string.screener_card_body),
+                    icon = Icons.Filled.FactCheck,
+                    onClick = onOpenScreener,
+                )
+            }
             item {
                 TechEmpowerCard(
                     title = "Browse Resources",

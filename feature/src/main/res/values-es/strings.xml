@@ -39,4 +39,33 @@
     <string name="docs_scan_title_label">Nombre del documento</string>
     <string name="library_scan_documents">Escanear documentos a PDF</string>
     <!-- /#1513 -->
+
+    <!-- #1517 — Offline benefits screener -->
+    <string name="screener_title">¿Califico?</string>
+    <string name="screener_back">Atrás</string>
+    <string name="screener_intro">Responda unas preguntas para encontrar programas locales para los que podría calificar.</string>
+    <string name="screener_offline_note">Funciona sin conexión. Sus respuestas se quedan en este dispositivo; no se envían a ningún lugar.</string>
+    <string name="screener_seed_banner_title">Datos de muestra</string>
+    <string name="screener_seed_banner_body">Estos programas y preguntas son una vista previa. Las reglas finales de los programas provienen de TechEmpower.</string>
+    <string name="screener_yes">Sí</string>
+    <string name="screener_no">No</string>
+    <string name="screener_show_results">Ver mis resultados</string>
+    <string name="screener_start_over">Empezar de nuevo</string>
+    <string name="screener_results_title">Programas para investigar</string>
+    <string name="screener_results_empty">Responda unas preguntas arriba y luego toque “Ver mis resultados.”</string>
+    <string name="screener_bucket_likely">Probablemente califica</string>
+    <string name="screener_bucket_maybe">Podría calificar</string>
+    <string name="screener_read_aloud">Leer en voz alta</string>
+    <string name="screener_read_all">Leer resultados en voz alta</string>
+    <string name="screener_stop">Detener</string>
+    <string name="screener_call">Llamar</string>
+    <string name="screener_call_211">Llamar al 211</string>
+    <string name="screener_learn_more">Más información</string>
+    <!-- %1$s = la fecha de verificación del corpus (del JSON de reglas incluido). -->
+    <string name="screener_verified_prefix">Detalles verificados por última vez: %1$s</string>
+    <string name="screener_verified_unknown">Estos detalles aún no están verificados.</string>
+    <string name="screener_load_error">No pudimos abrir la lista de programas. Actualice la aplicación e inténtelo de nuevo.</string>
+    <!-- Tarjeta de entrada en la cuadrícula de Inicio de TechEmpower. -->
+    <string name="screener_card_title">¿Califico?</string>
+    <string name="screener_card_body">Responda unas preguntas rápidas para encontrar ayuda local para la que podría ser elegible. Funciona sin conexión.</string>
 </resources>

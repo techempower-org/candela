@@ -70,6 +70,7 @@ import `in`.jphe.storyvox.feature.settings.VoiceAndPlaybackSettingsScreen
 import `in`.jphe.storyvox.feature.settings.pronunciation.PronunciationDictScreen
 import `in`.jphe.storyvox.feature.techempower.TechEmpowerAboutScreen
 import `in`.jphe.storyvox.feature.techempower.TechEmpowerHomeScreen
+import `in`.jphe.storyvox.feature.techempower.screener.ScreenerScreen
 import `in`.jphe.storyvox.feature.voicelibrary.VoiceLibraryScreen
 import `in`.jphe.storyvox.ui.component.BottomTabBar
 import `in`.jphe.storyvox.ui.component.HomeTab
@@ -247,6 +248,12 @@ object StoryvoxRoutes {
      * attribution. Drill-down from TechEmpower Home.
      */
     const val TECHEMPOWER_ABOUT = "techempower/about"
+
+    /**
+     * Issue #1517 — offline benefits screener ("Do I qualify?"). Bundled,
+     * client-side, zero-connectivity. Drill-down from TechEmpower Home.
+     */
+    const val TECHEMPOWER_SCREENER = "techempower/screener"
     /** Q&A chat about a fiction (#81 follow-up). One chat history per
      *  fictionId; the screen pulls fiction title + current chapter
      *  context internally for the system prompt.
@@ -1668,9 +1675,24 @@ private fun StoryvoxNavHostContent(
                     onOpenAbout = {
                         navController.navigate(StoryvoxRoutes.TECHEMPOWER_ABOUT)
                     },
+                    onOpenScreener = {
+                        navController.navigate(StoryvoxRoutes.TECHEMPOWER_SCREENER)
+                    },
                     onOpenFiction = { fictionId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fictionId))
                     },
+                )
+            }
+            // Issue #1517 — offline benefits screener drill-down.
+            composable(
+                StoryvoxRoutes.TECHEMPOWER_SCREENER,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                ScreenerScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(
