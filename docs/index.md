@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Candela — TechEmpower's accessible resource app, with audiobook everything
-description: Listen to ebooks, follow serial fiction, wake up to a narrated briefing, rehearse with a teleprompter, create audiobooks, scan pages, and hear any link read aloud — twenty-seven sources, four on-device neural voice families, free and open, no account, no tracking.
+description: Listen to ebooks, follow serial fiction, wake up to a narrated briefing, rehearse with a teleprompter, create audiobooks, scan pages, and hear any link read aloud — thirty-three sources, four on-device neural voice families, free and open, no account, no tracking.
 image: /screenshots/03-reader.png
 ---
 
@@ -10,7 +10,7 @@ image: /screenshots/03-reader.png
     <h1>Candela</h1>
     <p class="tagline"><strong><a href="https://techempower.org">TechEmpower</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
     <p>
-      Under the hood: twenty-seven fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
+      Under the hood: thirty-three fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
       <a href="https://github.com">GitHub</a>, RSS feeds, EPUB files on your device,
       <a href="https://www.getoutline.com">Outline</a> wikis, your self-hosted
       <a href="https://github.com/techempower-org/mempalace">Memory Palace</a>,
@@ -129,7 +129,7 @@ image: /screenshots/03-reader.png
   </div>
   <p class="uses-kicker muted">
     All of it free, open source, and on-device — no account, no ads, no tracking.
-    The machinery: <a href="#sources">twenty-seven sources</a> and
+    The machinery: <a href="#sources">thirty-three sources</a> and
     <a href="#voices">four voice families</a>, below.
   </p>
 </section>
@@ -226,7 +226,7 @@ image: /screenshots/03-reader.png
 </section>
 
 <section class="sources">
-  <h2 id="sources">Twenty-seven fiction backends, side by side</h2>
+  <h2 id="sources">Thirty-three fiction backends, side by side</h2>
   <p class="muted">
     A plugin-seam architecture means each backend is ~4 touchpoints. Adding a new one auto-surfaces
     in <strong>Settings → Plugins</strong>. Each has its own on/off toggle.
@@ -361,6 +361,31 @@ image: /screenshots/03-reader.png
       <span class="source-glyph" aria-hidden="true">OCR</span>
       <h3>Scanned text (OCR)</h3>
       <p>Point your camera at a page — on-device ML Kit turns the photo into narrated text. Nothing leaves the phone.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">RD</span>
+      <h3>reddit</h3>
+      <p>Subreddits as books, posts as chapters — full bodies via reddit's sanctioned API with your own free key, not truncated RSS stubs.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">GD</span>
+      <h3>Google Drive</h3>
+      <p>Authorize folders as a library — only what you pick, never your whole Drive. Google Docs read natively.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">CAL</span>
+      <h3>Your calendar</h3>
+      <p>Today, tomorrow, and the week ahead narrated from the phone's own calendar. On-device only — events never leave the phone.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">EPIC</span>
+      <h3>Epic free games</h3>
+      <p>The weekly giveaway rotation as narrated chapters — what's free now and what's coming.</p>
+    </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">PG</span>
+      <h3>Prime Gaming</h3>
+      <p>Claimable titles via the community LootScraper feed — honestly labeled: claiming needs a Prime subscription.</p>
     </a>
     <a class="source-card">
       <span class="source-glyph" aria-hidden="true">URL</span>
@@ -530,7 +555,7 @@ image: /screenshots/03-reader.png
     always resolve to the newest version, so this page never goes stale.
   </p>
   <p>
-    <strong>Where Candela is now:</strong> <strong>twenty-seven fiction backends</strong> behind a
+    <strong>Where Candela is now:</strong> <strong>thirty-three fiction backends</strong> behind a
     plugin-seam architecture (a new backend is ~4 touchpoints — a <code>@SourcePlugin</code> annotation
     plus KSP-generated Hilt registration); <strong>four in-process neural voice families</strong>
     (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>

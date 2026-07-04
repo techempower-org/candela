@@ -1,9 +1,9 @@
 First public release.
 
-• Browse free books, guides, articles, and the web — read aloud by on-device voices
-• 27 content sources: Project Gutenberg, Standard Ebooks, Wikipedia, Royal Road, arXiv, RSS, your own EPUBs, and more
+• Free books, guides, articles, and the web — read aloud by on-device neural voices
+• 33 content sources: Gutenberg, Standard Ebooks, Wikipedia, Royal Road, reddit, Google Drive, your calendar, and more
 • Download whole books over Wi-Fi for offline listening
 • Library Nocturne theme with full TalkBack support
 • Android Auto, lock-screen controls, sleep timer, widget
-• Optional cloud sync — your library follows you across devices
+• Optional encrypted sync — or fully offline
 • Free, no account, no ads, open-source

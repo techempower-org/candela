@@ -1,27 +1,28 @@
 Candela is TechEmpower's free, accessible resource app — read aloud.
 
-Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and read or listen to all of it through high-quality neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
+Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and listen to all of it with neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
 
-Under the hood, Candela is a serious audiobook player for any text you can reach — twenty-five fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio across 30,000+ stations. Share any web link into Candela and a magic-link reader queues the readable text for narration.
+Under the hood, Candela is a serious audiobook player for any text you can reach — 33 fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files, or OCR a photo into text — the gallery picker reaches Google Photos, cloud shots included. Connect a Notion workspace, Google Drive folders, reddit, an Outline wiki, or your Discord, Slack, Matrix, and Telegram channels. Hear today's agenda from your own calendar (read on-device, never uploaded), catch the Epic and Prime Gaming free-game rotations, or tune in to internet radio across 30,000+ stations. Share any web link into Candela and its reader queues the text for narration.
 
-Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 English voices in US and UK accents), Kokoro (53 warm multi-speaker voices across nine languages, from Spanish and French to Hindi, Japanese, and Chinese), KittenTTS (the lightest tier, about 25 MB, for slower phones), and Supertonic (ten expressive, high-quality English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
+Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 US & UK English voices), Kokoro (53 voices across nine languages — Spanish, French, Hindi, Japanese, Chinese, and more), KittenTTS (a 25 MB lightweight tier for slower phones), and Supertonic (ten expressive English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
 
-The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, or local Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
+The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
 
 Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Delete synced data any time with the in-app "Delete cloud data" action. Or stay fully offline; your call.
+Optional cloud sync keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, saved API keys end-to-end encrypted behind your passphrase. Delete synced data any time from inside the app. Or stay fully offline; your call.
 
 FEATURES
-• 25 fiction & reference sources — enable only the ones you want
+• 33 fiction & reference sources — enable only the ones you want
+• Your calendar as a narrated agenda — on-device, never uploaded
 • 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
 • Optional bring-your-own-key cloud voices (Microsoft Azure)
 • Hybrid reader with synced brass highlighting + an auto-scrolling teleprompter
 • Tap-to-define dictionary, in-book search, and listening stats
-• Per-book AI chat & chapter recaps (bring your own key — Anthropic, OpenAI, Ollama)
+• Per-book AI chat & recaps (bring your own key)
 • Android Auto, lock-screen controls, sleep timer, home-screen widget
 • Make-your-own-audiobook (M4B) and EPUB export
-• Gapless chapter auto-advance with smart prerendering
+• Gapless chapter auto-advance
 • Optional end-to-end-encrypted cross-device sync — or fully offline
 • Wear OS companion (playback + teleprompter remote)
 • Dark & light themes; OpenDyslexic & Atkinson fonts; TalkBack-friendly; WCAG AA contrast
