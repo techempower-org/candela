@@ -229,6 +229,20 @@ fun BrowseScreen(
         calendarGranted = granted
         if (granted) viewModel.refresh()
     }
+    // Re-check on every resume so a grant/revoke made in Android Settings (i.e.
+    // NOT via the in-app CTA) is reflected without waiting for process death —
+    // the once-initialized `remember` above would otherwise stay stale (#1495
+    // review). The launcher callback covers the in-app path; this covers the
+    // rest, and re-runs the paginator when access flips on.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        val nowGranted = calendarPermissionContext.checkSelfPermission(
+            android.Manifest.permission.READ_CALENDAR,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (nowGranted != calendarGranted) {
+            calendarGranted = nowGranted
+            if (nowGranted) viewModel.refresh()
+        }
+    }
 
     // #328 — see LibraryScreen.kt; hoist distinctBy out of the grid
     // builder so allocations happen once per state.items change instead
@@ -1202,23 +1216,20 @@ private fun CalendarPermissionEmptyState(onGrant: () -> Unit) {
                 modifier = Modifier.size(48.dp),
             )
             Text(
-                "Read your day aloud",
+                stringResource(R.string.browse_calendar_empty_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
             Text(
-                "Grant calendar access and Candela narrates your agenda — today, " +
-                    "tomorrow, and the week ahead. Your events are read on your device " +
-                    "only and never leave the phone. You can revoke access anytime in " +
-                    "Android Settings.",
+                stringResource(R.string.browse_calendar_empty_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(spacing.md))
             BrassButton(
-                label = "Grant calendar access",
+                label = stringResource(R.string.browse_calendar_grant_cta),
                 onClick = onGrant,
                 variant = BrassButtonVariant.Primary,
             )

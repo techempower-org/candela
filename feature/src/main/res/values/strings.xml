@@ -12,6 +12,10 @@
     <string name="browse_mempalace_wing_chip">Wing: %1$s</string>
     <!-- Issue #782 — realm-vocabulary footer when the Browse grid runs out of pages. -->
     <string name="browse_end_of_list">You\'ve reached the edge of the realm.</string>
+    <!-- #1495 — device-calendar permission-gate empty state -->
+    <string name="browse_calendar_empty_title">Read your day aloud</string>
+    <string name="browse_calendar_empty_body">Grant calendar access and Candela narrates your agenda — today, tomorrow, and the week ahead. Your events are read on your device only and never leave the phone. You can revoke access anytime in Android Settings.</string>
+    <string name="browse_calendar_grant_cta">Grant calendar access</string>
     <string name="filter_tag_search_hint">Search tags…</string>
 
     <!-- Source carousel actions -->
