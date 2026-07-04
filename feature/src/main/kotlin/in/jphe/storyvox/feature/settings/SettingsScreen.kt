@@ -872,14 +872,14 @@ fun SettingsScreen(
             )
             // Issue #599 (v1.0) — manual reset of the first-launch
             // welcome flow. Flips `pref_onboarding_completed_v1` back
-            // to false so the three-screen welcome runs on next cold
-            // launch (or, on a hot re-entry to the LIBRARY route, on
-            // the next OnboardingHost recomposition). Surfaced here
-            // rather than as a top-level affordance because it's
-            // strictly a QA / dress-rehearsal control.
+            // to false; OnboardingHost's `shouldShow` is a reactive flow,
+            // so the welcome re-shows on the next visit to Library with no
+            // restart (#1558 added the user-facing About equivalent).
+            // Surfaced here rather than as a top-level affordance because
+            // it's strictly a QA / dress-rehearsal control.
             SettingsLinkRow(
                 title = "Reset onboarding",
-                subtitle = "Show the first-launch welcome flow again. Restart the app to see it.",
+                subtitle = "Show the first-launch welcome flow again — appears on the next visit to Library.",
                 onClick = { viewModel.resetOnboarding() },
             )
         }

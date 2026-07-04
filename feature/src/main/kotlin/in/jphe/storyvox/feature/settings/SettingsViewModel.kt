@@ -26,6 +26,7 @@ import `in`.jphe.storyvox.llm.LlmRepository
 import `in`.jphe.storyvox.llm.ProbeResult
 import `in`.jphe.storyvox.llm.ProviderId
 import javax.inject.Inject
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Immutable
 data class SettingsUiState(
@@ -179,7 +181,28 @@ class SettingsViewModel @Inject constructor(
      *  so the OnboardingHost shows the three-screen welcome again on
      *  the next composition. Strictly a QA / dress-rehearsal hook;
      *  surfaced in Settings → Developer. */
-    fun resetOnboarding() = viewModelScope.launch { repo.resetOnboardingV1() }
+    fun resetOnboarding() = viewModelScope.launch { resetOnboardingFlagDurably() }
+
+    /**
+     * #1558 — replay the welcome tour from a *navigating* affordance (the About
+     * row). The flag write runs to completion FIRST and [onNavigate] fires only
+     * after it, so popping the settings back stack — which clears this ViewModel
+     * and cancels [viewModelScope] — can no longer cancel the DataStore write
+     * mid-flight. That ordering race (navigate-then-write, write lost on slow
+     * devices) was Gemini's HIGH on #1559; [resetOnboardingFlagDurably]'s
+     * [NonCancellable] guard removes it by construction.
+     */
+    fun replayTour(onNavigate: () -> Unit) = viewModelScope.launch {
+        resetOnboardingFlagDurably()
+        onNavigate()
+    }
+
+    /** #1558 — flip the onboarding flag so the write survives cancellation of
+     *  [viewModelScope] (a fire-and-forget QA tap, or a navigating caller that
+     *  pops this VM immediately after). Without [NonCancellable] the DataStore
+     *  write races the scope teardown and can be dropped. */
+    private suspend fun resetOnboardingFlagDurably() =
+        withContext(NonCancellable) { repo.resetOnboardingV1() }
     /** Issue #85 — Voice-Determinism preset (Steady / Expressive). */
     fun setVoiceSteady(enabled: Boolean) = viewModelScope.launch { repo.setVoiceSteady(enabled) }
     /** Issue #1233 — auto-detect language & switch voice (Kokoro). */

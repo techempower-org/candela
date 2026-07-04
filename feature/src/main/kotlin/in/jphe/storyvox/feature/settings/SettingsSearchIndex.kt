@@ -94,7 +94,11 @@ val SettingsSearchSections: List<SettingsSearchSection> = listOf(
     SettingsSearchSection(
         label = "About",
         descriptor = "Build identity for bug reports.",
-        keywords = listOf("version", "sigil", "build", "license", "open source"),
+        keywords = listOf(
+            "version", "sigil", "build", "license", "open source",
+            // #1558 — the "Replay the welcome tour" row lives in the About surface.
+            "welcome", "tour", "wizard", "replay",
+        ),
     ),
 )
 

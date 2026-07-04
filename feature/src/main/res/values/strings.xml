@@ -801,6 +801,10 @@
     <!-- Settings · About → Report objectionable content (#1140, IARC content-rating compliance) -->
     <string name="settings_about_report_content">Report objectionable content</string>
     <string name="settings_about_report_content_subtitle">Flag inappropriate content from third-party sources</string>
+    <!-- Settings · About → Replay the welcome tour (#1558) -->
+    <string name="settings_about_replay_tour">Replay the welcome tour</string>
+    <string name="settings_about_replay_tour_subtitle">Show the first-launch welcome again — no restart needed.</string>
+
     <!-- Settings · About → Open-source licenses (#1142) -->
     <string name="settings_about_licenses">Open-source licenses</string>
     <string name="settings_about_licenses_subtitle">The libraries that power Candela.</string>
