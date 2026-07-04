@@ -3,10 +3,60 @@
 **Issue:** techempower-org/candela#1463 (`enhancement`, `priority:medium`)
 **Branch:** `docs/1463-impact-metrics-spec`
 **Author:** Luna
-**Status:** 🟡 SPEC FOR REVIEW — no code ships from this branch. This document
-exists to surface product/privacy decisions for JP **before** any
-implementation. Nothing here is committed to until the open questions below are
-answered.
+**Status:** 🟢 DECIDED 2026-07-03 — JP answered the §0 gates; see the Decisions
+addendum below. Implementation may proceed against the amended design.
+
+---
+
+## 0.5 DECISIONS — JP, 2026-07-03 (this addendum overrides conflicting text below)
+
+- **Q1 SHIP-GATE: SHIP.** Opt-in impact sharing is worth building.
+- **Q4 TRANSPORT: (b) NO SERVER AT ALL.** No collector endpoint, no POST, no
+  automatic transmission of any kind. **The feature is reshaped to a
+  user-triggered share/export**: the user taps "Share impact report" on the
+  stats screen, previews the exact coarse payload, and sends it through the
+  Android share sheet (email / message / form — their channel, their choice).
+  TechEmpower receives reports by whatever channel users pick and tallies them
+  in a spreadsheet; automated ingestion can be revisited later without
+  touching the app-side design.
+
+**Consequences for the sections below:**
+
+- **§5 (collector/transport) is SUPERSEDED** — nothing in it ships.
+- **§4.3 active-devices is dropped** as a tracked metric; the count of
+  user-submitted reports per month is a weak floor and is disclosed as such
+  in grant output ("submitted-report count, lower bound").
+- **Q2 deltas: KEPT** — the share payload is the delta since the last share
+  (`lastSharedTotals` DataStore bookkeeping, clamp-at-zero), plus period label.
+- **Q3 nonce: MOOT** — no automated reports, no dedup problem, no identifier.
+- **Q5 source granularity: KEPT** — source ID *set*, not counts.
+- **Q6 formal DP: SKIPPED** (coarse rounding per §4.2 stands).
+- **Q7 cadence: user-triggered, no nudges** — the stats-screen card may show
+  "last shared: 2026-05" but never notifies. There is NO consent toggle and NO
+  monthly background check: with nothing automatic, **the act of sharing is
+  the consent**, so the `impact_sharing_opt_in` flag and the §6.1 toggle are
+  deleted from the design. Settings keeps only a small "About impact sharing"
+  explainer row (findability), not a switch.
+- **Q8 withdrawal honesty: KEPT, reworded** — "a report you shared lives
+  wherever you sent it; Candela keeps no copy and TechEmpower can't trace one
+  back to you."
+- **§8 privacy-copy edits SOFTEN dramatically** (the brand outcome that
+  motivated Q4(b)):
+  - README keeps *"your stats never leave the phone"* and appends: *"— nothing
+    is ever sent automatically. You can choose to share a rounded, anonymous
+    impact summary with TechEmpower yourself, from the stats screen."*
+  - privacy.md §3's *"No 'anonymous usage statistics'"* **stays true and
+    stays** (the app collects nothing); add §2.9 describing the manual
+    share/export.
+  - **Data-Safety: expected NO new declaration** — user-initiated share-sheet
+    egress to a user-chosen destination is not "collection" in Play's
+    taxonomy. Document the reasoning in docs/data-safety-checklist.md in the
+    same PR (mirror the OCR/BYOK argument pattern); walkthrough §IV gets a
+    note only if the checklist audit disagrees.
+- **§9 effort collapses**: Phase 1 (collector) deleted; Phase 2 shrinks to
+  pure delta+coarsen logic (unit-tested) + share-sheet composer; Phase 3
+  shrinks to the stats-screen card + preview sheet (no toggle); Phase 4 as
+  softened above; Phase 5 is a spreadsheet, not code.
 
 ---
 
