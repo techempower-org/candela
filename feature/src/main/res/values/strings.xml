@@ -351,6 +351,10 @@
     <string name="library_title">Library</string>
     <string name="library_resume">Resume</string>
     <string name="library_mark_all_read">Mark all read</string>
+    <!-- Issue #1600 — Inbox tab unread-badge a11y. Folds the tab label and
+         the otherwise context-free count into one curated TalkBack stop, e.g.
+         "Inbox, 3 unread". %1$s = tab label, %2$d = unread count. -->
+    <string name="library_inbox_tab_unread_cd">%1$s, %2$d unread</string>
     <string name="library_shelf_all">All</string>
     <string name="library_add_by_url_label">URL</string>
     <string name="library_add_by_url_placeholder">https://…</string>

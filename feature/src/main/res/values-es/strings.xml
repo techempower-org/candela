@@ -282,4 +282,8 @@
     <string name="form_fill_tool_text">Texto</string>
     <string name="library_fill_form">Completar un formulario (foto → PDF)</string>
     <!-- /#1512 -->
+    <!-- Issue #1600 — accesibilidad de la insignia de no leídos en la pestaña
+         Bandeja de entrada. Une la etiqueta y el conteo en una sola lectura de
+         TalkBack, p. ej. "Inbox, 3 sin leer". %1$s = etiqueta, %2$d = conteo. -->
+    <string name="library_inbox_tab_unread_cd">%1$s, %2$d sin leer</string>
 </resources>

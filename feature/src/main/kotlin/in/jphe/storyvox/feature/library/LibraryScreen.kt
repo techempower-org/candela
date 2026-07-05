@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -457,19 +456,33 @@ fun LibraryScreen(
                             },
                             text = {
                                 // Issue #383 — Inbox tab carries an unread-count
-                                // badge. BadgedBox positions the badge at the
-                                // top-right of the label without disturbing the
-                                // tab row's alignment. Zero unread = no badge
-                                // (same convention as FollowsScreen #290).
+                                // badge. Issue #1600 — the badge used to ride in
+                                // a BadgedBox, which anchors the badge to the
+                                // top-END corner of its content and offsets it
+                                // partly OVER the trailing glyphs. That's the
+                                // intended look over an icon, but over a text
+                                // label it painted the count on top of the last
+                                // letters — the tab read "Inbo②" instead of
+                                // "Inbox ②". Lay the label and the count out
+                                // inline in a Row so the count sits AFTER the
+                                // label with a gap — the same side-by-side Badge
+                                // convention FollowsScreen (#1153) already uses.
+                                // Zero unread = no badge (FollowsScreen #290).
                                 if (tab == LibraryTab.Inbox && state.inboxUnreadCount > 0) {
-                                    BadgedBox(
-                                        badge = {
-                                            Badge(
-                                                containerColor = MaterialTheme.colorScheme.primary,
-                                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                            ) {
-                                                Text(state.inboxUnreadCount.toString())
-                                            }
+                                    // a11y (#1153 pattern) — fold the otherwise
+                                    // bare count into one curated stop so
+                                    // TalkBack speaks "Inbox, 3 unread" rather
+                                    // than the label and a context-free "3".
+                                    val unreadCd = stringResource(
+                                        R.string.library_inbox_tab_unread_cd,
+                                        tab.label,
+                                        state.inboxUnreadCount,
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                                        modifier = Modifier.clearAndSetSemantics {
+                                            contentDescription = unreadCd
                                         },
                                     ) {
                                         Text(
@@ -478,6 +491,12 @@ fun LibraryScreen(
                                             maxLines = 1,
                                             softWrap = false,
                                         )
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                                        ) {
+                                            Text(state.inboxUnreadCount.toString())
+                                        }
                                     }
                                 } else {
                                     Text(
@@ -530,9 +549,22 @@ fun LibraryScreen(
                         // ShelfChipRow takes `weight(1f)` so its horizontal
                         // scroll can grow into the available width without
                         // pushing the sort chip off-screen.
+                        // #793 layered the sort chip trailing in this row and
+                        // gave the ShelfChipRow weight(1f) so the two never
+                        // truly overlap — each owns a slot. But the row had no
+                        // gap between them, so on a narrow width (Flip3 cover)
+                        // the weighted scroll region clipped its last chip
+                        // ("Wishlist") flush against the sort chip, reading as
+                        // if "Title" was crowding on top of "Wishlist".
+                        // spacedBy reserves a real gap between the scroll slot
+                        // and the sort chip, so the clip lands as a clean
+                        // partial-chip "scroll for more →" hint (same
+                        // discoverability idiom as the tab row #532) instead of
+                        // a jammed overlap.
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                         ) {
                             ShelfChipRow(
                                 selected = state.filter,
