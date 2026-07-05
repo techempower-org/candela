@@ -177,6 +177,59 @@ class RealBrowsePaginatorTest {
         assertNull(p.error.first())
     }
 
+    // -- #1588 authRequired axis ------------------------------------------------
+
+    @Test fun `AuthRequired failure raises authRequired alongside the error`() = runTest {
+        val fetch = RecordingFetch().apply {
+            queue(FictionResult.AuthRequired())
+        }
+        val p = RealBrowsePaginator(fetch())
+
+        p.loadNext()
+        assertTrue("AuthRequired must set authRequired", p.authRequired.first())
+        assertNotNull("AuthRequired still surfaces an error string", p.error.first())
+    }
+
+    @Test fun `non-auth Failure leaves authRequired false`() = runTest {
+        val fetch = RecordingFetch().apply {
+            queue(FictionResult.NetworkError("boom"))
+        }
+        val p = RealBrowsePaginator(fetch())
+
+        p.loadNext()
+        assertEquals(false, p.authRequired.first())
+        assertNotNull(p.error.first())
+    }
+
+    @Test fun `Success after AuthRequired clears the authRequired flag`() = runTest {
+        val fetch = RecordingFetch().apply {
+            queue(
+                FictionResult.AuthRequired(),
+                page(listOf(summary("a")), page = 1, hasNext = false),
+            )
+        }
+        val p = RealBrowsePaginator(fetch())
+
+        p.loadNext()
+        assertTrue(p.authRequired.first())
+
+        p.loadNext()
+        assertEquals(false, p.authRequired.first())
+    }
+
+    @Test fun `refresh clears the authRequired flag`() = runTest {
+        val fetch = RecordingFetch().apply {
+            queue(FictionResult.AuthRequired())
+        }
+        val p = RealBrowsePaginator(fetch())
+
+        p.loadNext()
+        assertTrue(p.authRequired.first())
+
+        p.refresh()
+        assertEquals(false, p.authRequired.first())
+    }
+
     @Test fun `loading flags are cleared in finally even on Failure`() = runTest {
         val fetch = RecordingFetch().apply {
             queue(FictionResult.NetworkError("boom"))

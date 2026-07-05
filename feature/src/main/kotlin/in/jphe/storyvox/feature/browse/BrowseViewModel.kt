@@ -72,6 +72,11 @@ data class BrowseUiState(
     val isAppending: Boolean = false,
     val hasMore: Boolean = true,
     val error: String? = null,
+    /** #1588 — true when [error] is specifically an auth-required failure (the
+     *  source needs sign-in), not a transient network/rate-limit/server error.
+     *  Source empty states key off this so, e.g., a Google Drive network blip
+     *  doesn't render the misleading "Connect Google Drive" prompt. */
+    val authRequired: Boolean = false,
     val filterState: FilterState = FilterState(),
     val filterDimensions: List<FilterDimension> = emptyList(),
     val palaceFilter: MemPalaceFilter = MemPalaceFilter(),
@@ -117,6 +122,7 @@ private data class PaginatorView(
     val isAppending: Boolean,
     val hasMore: Boolean,
     val error: String?,
+    val authRequired: Boolean = false,
 )
 
 /** Bundled view of the user-controllable knobs. */
@@ -512,6 +518,11 @@ class BrowseViewModel @Inject constructor(
                 p.error,
             ) { items, loading, appending, more, error ->
                 PaginatorView(items, loading, appending, more, error)
+            }.combine(p.authRequired) { view, authReq ->
+                // #1588 — folded in via a nested combine (the 5-flow combine
+                // overload is maxed out) so the empty-state gate can see the
+                // auth-required axis, not just the collapsed error string.
+                view.copy(authRequired = authReq)
             }
             combine(paginatorView, controls, _palaceWings, notionAnonymousActive) { view, c, wings, notionAnon ->
                 val dims = registry.byId(c.sourceId)?.source?.filterDimensions().orEmpty()
@@ -524,6 +535,7 @@ class BrowseViewModel @Inject constructor(
                     isAppending = view.isAppending,
                     hasMore = view.hasMore,
                     error = view.error,
+                    authRequired = view.authRequired,
                     filterState = c.filterState,
                     filterDimensions = dims,
                     palaceFilter = c.palaceFilter,

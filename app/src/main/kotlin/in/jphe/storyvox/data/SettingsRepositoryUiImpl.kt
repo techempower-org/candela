@@ -1206,8 +1206,9 @@ class SettingsRepositoryUiImpl(
         coordinator: dagger.Lazy<SyncCoordinator>,
         // Issue #1534 — Lazy so construction doesn't pull the OAuth manager
         // into the graph early; `get().beginConnect()` runs only when the user
-        // taps "Connect Google Drive". beginConnect() is non-suspend + returns
-        // null when the build has no client id (button then hidden upstream).
+        // taps "Connect Google Drive". #1588 — beginConnect() is now suspend
+        // (persists PKCE + state on Dispatchers.IO) and returns null when the
+        // build has no client id (button then hidden upstream).
         googleDriveOAuth: dagger.Lazy<`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager>,
     ) : this(
         context.settingsDataStore, auth, hydrator,

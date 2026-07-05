@@ -556,17 +556,23 @@ fun BrowseScreen(
                 NotionConnectEmptyState(onConnect = { showNotionManageSheet = true })
             // Issue #1534 — Google Drive chip lands on AuthRequired until the
             // user connects. AuthRequired is a FictionResult.Failure so it sets
-            // state.error (hence NO `error == null` guard here); this branch
-            // precedes the generic error state so the Connect CTA wins. The
-            // Connect button only shows when the build can run OAuth
-            // (googleDriveOAuthAvailable); otherwise the copy explains the
-            // source isn't set up in this build. Folder-grant Picker is a
-            // deferred follow-up (#1534 item 2 — needs a hosted authorized-JS-
-            // origin page); this surface makes the AuthRequired state actionable.
+            // state.error; this branch precedes the generic error state so the
+            // Connect CTA wins. #1588 — but ONLY for an auth failure (or no
+            // error at all): the paginator collapses every failure into the same
+            // error string, so we gate on state.authRequired to avoid rendering
+            // the misleading "Connect Google Drive" prompt on a transient
+            // network/server error (which must fall through to the generic error
+            // state). It also re-surfaces Connect if a stored token later expires
+            // (the source returns AuthRequired again). The Connect button only
+            // shows when the build can run OAuth (googleDriveOAuthAvailable);
+            // otherwise the copy explains the source isn't set up in this build.
+            // Folder-grant Picker is a deferred follow-up (#1534 item 2 — needs a
+            // hosted authorized-JS-origin page).
             state.sourceId == GOOGLE_DRIVE_SOURCE_ID &&
                 state.tab != BrowseTab.Search &&
                 state.items.isEmpty() &&
-                !state.isLoading ->
+                !state.isLoading &&
+                (state.error == null || state.authRequired) ->
                 GoogleDriveConnectEmptyState(
                     oauthAvailable = googleDriveConnection.oauthAvailable,
                     onConnect = {
