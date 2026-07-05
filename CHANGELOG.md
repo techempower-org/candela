@@ -9,6 +9,36 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.0] -- 2026-07-05
+
+**Lunar Relic.** The TechEmpower benefits paperwork companion — scan a form, fill it on-phone, keep your proofs, decode dense notices, and never miss a deadline — all on-device and bilingual.
+
+### Added
+
+- **Multi-page document scanner → shareable PDF** — capture a stack of pages with the camera and export one clean PDF to share, email, or print. Standalone "no scanner at home" value. (#1513)
+- **Photo → fillable PDF** — photograph a paper benefits form, fill its fields on-phone (tap-anywhere text + draw-signature, plus heuristic field detection) and export a flattened PDF that looks like the completed paper. Fully on-device; TalkBack-navigable field list. (#1512)
+- **"My Documents" encrypted wallet** — keep benefits proofs in a device-credential-gated, encrypted-at-rest store, program-aware and excluded from every backup/sync. (#1514)
+- **Notice deadline keeper** — photograph a letter and Candela reads the date and sets a local reminder before the deadline. On-device. (#1515)
+- **Benefits letter decoder** — a NOA form-number becomes a plain-language + Spanish explainer from a verified corpus; an unknown form says so honestly rather than guessing. (#1516)
+- **Offline benefits screener** — the client-side /qualify (33 programs) bundled on-device, so "what do I qualify for?" works with zero connectivity. (#1517)
+- **"Make the call" guided scripts** — verified call-card scripts with tap-to-dial and optional answer capture. (#1518)
+- **Saved household profile** — a local, encrypted profile that autofills scanned-form fields; a regression fence locks it out of cloud sync. (#1519)
+- **Google Drive Connect** — a Browse Connect entry point + empty state for the Drive source (folder-Picker + refresh follow-ups tracked). (#1534)
+
+Every benefits surface is on-device (provable in airplane mode), bilingual EN/ES at launch, verified-or-silent (content ships from TechEmpower's fact-check pipeline; v1 bundles clearly-flagged, verified-date-stamped seed samples), and TalkBack-labelled with read-aloud. Epic #1520.
+
+### Fixed
+
+- Privacy policy + walkthrough no longer deny microphone access — the app uses on-device speech (recording + teleprompter ASR) and now discloses it correctly (audio never leaves the device). Launch-blocker. (#1589)
+- Wallet store serialized against concurrent access + hardened error handling so decrypted pages always wipe on failure. (#1593)
+- Google Drive OAuth moved off the main thread (ANR risk) and the Connect empty-state only shows on a genuine Drive-auth error, not any network blip. (#1588)
+
+### Under the hood
+
+- Fiction-id `<pluginId>:<localId>` prefix is now enforced with a loud runtime check + a contract-kit assertion (colon-less ids silently routed to the wrong source). (#1564)
+- `new-source.sh --local` generates a Reader-as-interface seam so Context/asset-backed sources stay pure-JVM-testable. (#1562)
+- Browse auto-refreshes when a source's config is saved (e.g. connecting Notion) instead of showing a stale empty page. (#1556)
+
 ## [1.11.0] -- 2026-07-04
 
 **Somber Relic.** The app now carries its own handbook, sources declare their settings, and the welcome tour replays on demand.
