@@ -1720,6 +1720,7 @@ private fun StoryvoxNavHostContent(
                     },
                     onOpenCalls = {
                         navController.navigate(StoryvoxRoutes.TECHEMPOWER_CALLS)
+                    },
                     onOpenHouseholdProfile = {
                         navController.navigate(StoryvoxRoutes.HOUSEHOLD_PROFILE)
                     },
@@ -1731,6 +1732,15 @@ private fun StoryvoxNavHostContent(
             // Issue #1517 — offline benefits screener drill-down.
             composable(
                 StoryvoxRoutes.TECHEMPOWER_SCREENER,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                ScreenerScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
             // Issue #1519 — saved household profile (drill-down depth).
             composable(
                 StoryvoxRoutes.HOUSEHOLD_PROFILE,
@@ -1739,8 +1749,8 @@ private fun StoryvoxNavHostContent(
                 popEnterTransition = popEnter,
                 popExitTransition = popExit,
             ) {
-                ScreenerScreen(
-                    onBack = { navController.popBackStack() },
+                `in`.jphe.storyvox.feature.docs.profile.HouseholdProfileScreen(
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             // Issue #1516 — benefits letter decoder drill-down. "Scan a letter"
@@ -1767,8 +1777,6 @@ private fun StoryvoxNavHostContent(
             ) {
                 CallCardsScreen(
                     onBack = { navController.popBackStack() },
-                `in`.jphe.storyvox.feature.docs.profile.HouseholdProfileScreen(
-                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             composable(
