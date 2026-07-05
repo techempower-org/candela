@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -309,7 +310,10 @@ class DefaultPlaybackController @Inject constructor(
     init {
         scope.launch {
             sleepTimer.remainingMs.collect { remaining ->
-                _state.value = _state.value.copy(sleepTimerRemainingMs = remaining)
+                // Atomic RMW: scope is Dispatchers.Default (multi-threaded)
+                // with three _state writers — a bare value=value.copy() can
+                // lose a concurrent write (Oracle finding, #1595).
+                _state.update { it.copy(sleepTimerRemainingMs = remaining) }
             }
         }
         // #593 / #594 — keep the cached snapshots fresh so skip taps
@@ -347,8 +351,10 @@ class DefaultPlaybackController @Inject constructor(
                 // #1595 — preserve controller-owned fields (shakeToExtendEnabled)
                 // that the engine leaves at data-class defaults; a naive
                 // update.copy(...) clobbered the user's toggle back to true on
-                // every poll. See PlaybackState.withEngineUpdate.
-                _state.value = prev.withEngineUpdate(update, sleepTimer.remainingMs.value)
+                // every poll. See PlaybackState.withEngineUpdate. Atomic
+                // _state.update so a concurrent setShakeToExtendEnabled on
+                // another Default-dispatcher thread isn't lost (Oracle finding).
+                _state.update { current -> current.withEngineUpdate(update, sleepTimer.remainingMs.value) }
                 // #524 — if the engine reports BookFinished via the events
                 // channel (collected below), the listener pipeline goes idle.
                 // We additionally watch for an authoritative isPlaying=false
@@ -887,7 +893,8 @@ class DefaultPlaybackController @Inject constructor(
 
     override fun setShakeToExtendEnabled(enabled: Boolean) {
         if (_state.value.shakeToExtendEnabled == enabled) return
-        _state.value = _state.value.copy(shakeToExtendEnabled = enabled)
+        // Atomic RMW — see the engine-collector note (#1595 / Oracle finding).
+        _state.update { it.copy(shakeToExtendEnabled = enabled) }
     }
 
     override suspend fun speakText(text: String) {
