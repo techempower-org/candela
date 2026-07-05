@@ -276,6 +276,13 @@ object StoryvoxRoutes {
      * cards with tap-to-dial + answer capture. Drill-down from TechEmpower Home.
      */
     const val TECHEMPOWER_CALLS = "techempower/calls"
+
+    /**
+     * Issue #1515 — notice deadline keeper. Photograph a benefits letter,
+     * extract the deadline on-device, and set local T-7 / T-2 / day-of
+     * reminders. Drill-down from TechEmpower Home.
+     */
+    const val DEADLINE_KEEPER = "techempower/deadline"
     /** Q&A chat about a fiction (#81 follow-up). One chat history per
      *  fictionId; the screen pulls fiction title + current chapter
      *  context internally for the system prompt.
@@ -1724,6 +1731,9 @@ private fun StoryvoxNavHostContent(
                     onOpenHouseholdProfile = {
                         navController.navigate(StoryvoxRoutes.HOUSEHOLD_PROFILE)
                     },
+                    onOpenDeadlineKeeper = {
+                        navController.navigate(StoryvoxRoutes.DEADLINE_KEEPER)
+                    },
                     onOpenFiction = { fictionId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fictionId))
                     },
@@ -1777,6 +1787,18 @@ private fun StoryvoxNavHostContent(
             ) {
                 CallCardsScreen(
                     onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #1515 — notice deadline keeper (drill-down depth).
+            composable(
+                StoryvoxRoutes.DEADLINE_KEEPER,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.techempower.deadline.DeadlineKeeperScreen(
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             composable(

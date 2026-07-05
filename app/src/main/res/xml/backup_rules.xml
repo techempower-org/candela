@@ -27,4 +27,7 @@
          Keystore master key, so a restored copy can't be verified — and
          it's the household's most sensitive data. On-device only. -->
     <exclude domain="file" path="wallet/" />
+    <!-- Issue #1515 — deadline reminders are on-device only; never back
+         them up to the cloud (privacy.md §2.11). -->
+    <exclude domain="file" path="deadline_reminders.json" />
 </full-backup-content>

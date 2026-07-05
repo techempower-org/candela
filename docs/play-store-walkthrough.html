@@ -390,12 +390,13 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
         <tr><td><code>INTERNET</code> · <code>ACCESS_NETWORK_STATE</code></td><td>Fetch content, download voices, optional sync, BYOK cloud calls; offline detection.</td></tr>
         <tr><td><code>WAKE_LOCK</code></td><td>Keep synthesis + playback alive with the screen off.</td></tr>
         <tr><td><code>FOREGROUND_SERVICE</code> <span class="why plain">+ MEDIA_PLAYBACK + DATA_SYNC</span></td><td>Playback session; chapter pre-render &amp; sync workers — user-visible &amp; stoppable.</td></tr>
-        <tr><td><code>POST_NOTIFICATIONS</code></td><td>Transport controls in the notification &amp; on the lock screen.</td></tr>
-        <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>Home-screen widget redraws after a reboot.</td></tr>
+        <tr><td><code>POST_NOTIFICATIONS</code></td><td>Transport controls in the notification &amp; on the lock screen; local benefits-deadline reminders (#1515).</td></tr>
+        <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>Home-screen widget redraws after a reboot; re-arms local deadline reminders (#1515).</td></tr>
         <tr><td><code>ACCESS_NOTIFICATION_POLICY</code></td><td>Sleep timer can auto-toggle Do Not Disturb.</td></tr>
         <tr><td><code>CAMERA</code> <span class="pill manual">optional</span></td><td>OCR scan-to-read; on-device; gallery-pick fallback if denied.</td></tr>
         <tr><td><code>READ_CALENDAR</code> <span class="pill manual">optional</span></td><td>Narrate your agenda (Today / Tomorrow / This Week); on-device only, requested on tap, source stays empty if denied.</td></tr>
         <tr><td><i>no permission for the wallet</i></td><td>The "My Documents" wallet (#1514) gates on the device credential via <code>KeyguardManager</code> — no <code>USE_BIOMETRIC</code> or any new permission.</td></tr>
+        <tr><td><code>SCHEDULE_EXACT_ALARM</code></td><td>Fire benefits-deadline reminders at a predictable time on their day (#1515); local only, optional — inexact fallback if not allowed.</td></tr>
         <tr><td><i>no storage permission</i></td><td>EPUB/PDF use SAF. No <code>CALL_PHONE</code>, location, microphone, contacts, or ad ID.</td></tr>
       </table></div>
 
