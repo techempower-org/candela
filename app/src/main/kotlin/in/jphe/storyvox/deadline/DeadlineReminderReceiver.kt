@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import `in`.jphe.storyvox.R
+import `in`.jphe.storyvox.playback.R as PlaybackR
 
 /**
  * Issue #1515 — fires when a deadline alarm goes off and posts the local
@@ -48,7 +49,7 @@ class DeadlineReminderReceiver : BroadcastReceiver() {
             }
 
         val notification = NotificationCompat.Builder(context, DeadlineAlarms.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_storyvox_notif)
+            .setSmallIcon(PlaybackR.drawable.ic_storyvox_notif)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
