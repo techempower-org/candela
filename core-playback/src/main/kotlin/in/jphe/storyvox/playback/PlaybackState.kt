@@ -224,3 +224,31 @@ fun PlaybackState.extrapolatedScrubProgress(elapsedSinceBeaconMs: Long): Float {
 
 const val SPEED_BASELINE_WPM = 150f
 const val SPEED_BASELINE_CHARS_PER_SECOND = SPEED_BASELINE_WPM * 5f / 60f
+
+/**
+ * #1595 corollary — merge a fresh engine [PlaybackState] into the
+ * controller's previous state while preserving the fields the controller
+ * owns and the engine never sets.
+ *
+ * [in.jphe.storyvox.playback.tts.EnginePlayer] emits a full
+ * [PlaybackState] but only ever writes the playback-engine fields
+ * (`isPlaying`, `isBuffering`, sentence range, voice, error, …). Fields
+ * the *controller* owns — notably [shakeToExtendEnabled], which is driven
+ * from Settings via `AppBindings` — sit at their data-class defaults in
+ * the engine's copy. A naive `engine.copy(...)` therefore clobbered the
+ * user's shake-to-extend choice back to the default `true` on every
+ * ~50 ms engine poll, so turning the toggle **off** never stuck (found
+ * during the #1595 investigation). Preserve it from `this` (the prior
+ * controller state).
+ *
+ * [sleepTimerRemainingMs] is passed explicitly because it is owned by a
+ * third writer (the `SleepTimer` collector) and must reflect the timer's
+ * live value, not the engine copy's stale default.
+ */
+internal fun PlaybackState.withEngineUpdate(
+    engine: PlaybackState,
+    sleepTimerRemainingMs: Long?,
+): PlaybackState = engine.copy(
+    sleepTimerRemainingMs = sleepTimerRemainingMs,
+    shakeToExtendEnabled = this.shakeToExtendEnabled,
+)

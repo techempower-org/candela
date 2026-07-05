@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -188,33 +189,54 @@ class StoryvoxPlaybackService : MediaSessionService() {
         shakeDetector = ShakeDetector(
             context = applicationContext,
             onShake = {
-                if (controller.state.value.sleepTimerRemainingMs?.let { it <= SHAKE_FADE_WINDOW_MS } == true) {
-                    // Issue #595 — read the user-tunable extend
-                    // duration from the config contract instead of the
-                    // legacy hardcoded constant. Off-main launch so the
-                    // suspend read doesn't block the accelerometer
-                    // callback. `currentShakeExtendMinutes` falls back
-                    // to 15 (the legacy value) when the store hasn't
-                    // emitted yet.
+                val remaining = controller.state.value.sleepTimerRemainingMs
+                // Issue #1595 — gate the re-arm to the fade tail via the
+                // pure [shouldExtendOnShake] decision so a jolt landing a
+                // beat after the timer paused is ignored.
+                if (shouldExtendOnShake(remaining, SHAKE_FADE_WINDOW_MS)) {
+                    // Issue #595 — read the user-tunable extend duration
+                    // from the config contract instead of the legacy
+                    // hardcoded constant. Off-main launch so the suspend
+                    // read doesn't block the accelerometer callback.
+                    // `currentShakeExtendMinutes` falls back to 15 (the
+                    // legacy value) when the store hasn't emitted yet.
+                    Log.i(TAG, "Shake-to-extend: shake detected in fade tail (remaining=${remaining}ms) — extending")
                     scope.launch {
                         val minutes = sleepExtendConfig.currentShakeExtendMinutes()
                         controller.startSleepTimer(SleepTimerMode.Duration(minutes))
                     }
+                } else {
+                    // #1595 instrumentation — a shake fired but outside the
+                    // fade tail. If an on-device repro shows this line but
+                    // no "extending", the detector is armed too early/late;
+                    // if it shows NO shake lines at all while the fade-tail
+                    // "accelerometer registered" line is present, the
+                    // gesture isn't crossing the detector threshold.
+                    Log.d(TAG, "Shake-to-extend: shake ignored — not in fade tail (remaining=${remaining}ms)")
                 }
             },
         )
         shakeJob = scope.launch {
             controller.state
-                .map { (it.sleepTimerRemainingMs ?: -1L) to it.shakeToExtendEnabled }
+                .map { it.sleepTimerRemainingMs to it.shakeToExtendEnabled }
                 .distinctUntilChanged()
                 .collect { (remaining, enabled) ->
-                    val inFadeWindow = enabled && remaining in 0L..SHAKE_FADE_WINDOW_MS
+                    // Issue #1595 — pure [shouldListenForShake] gate: listen
+                    // only while the user opted in AND an armed timer is in
+                    // its 10s fade tail.
+                    val inFadeWindow = shouldListenForShake(remaining, enabled, SHAKE_FADE_WINDOW_MS)
                     if (inFadeWindow && !shakeListening) {
-                        shakeDetector?.start()
+                        val started = shakeDetector?.start() ?: false
                         shakeListening = true
+                        Log.i(
+                            TAG,
+                            "Shake-to-extend: fade tail entered (remaining=${remaining}ms) — " +
+                                "accelerometer ${if (started) "registered" else "FAILED to register"}",
+                        )
                     } else if (!inFadeWindow && shakeListening) {
                         shakeDetector?.stop()
                         shakeListening = false
+                        Log.d(TAG, "Shake-to-extend: fade tail exited — accelerometer released")
                     }
                 }
         }
@@ -229,11 +251,28 @@ class StoryvoxPlaybackService : MediaSessionService() {
             override fun onReceive(context: Context, intent: Intent?) {
                 if (intent?.action != NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) return
                 val nm = context.getSystemService(NotificationManager::class.java)
-                val filter = nm.currentInterruptionFilter
-                if (filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
-                    controller.state.value.isPlaying &&
-                    controller.state.value.sleepTimerRemainingMs == null
-                ) {
+                // Null nm → treat as ALL so we don't spuriously arm.
+                val filter = nm?.currentInterruptionFilter
+                    ?: NotificationManager.INTERRUPTION_FILTER_ALL
+                val dndActive = filter != NotificationManager.INTERRUPTION_FILTER_ALL
+                val playing = controller.state.value.isPlaying
+                val timerRunning = controller.state.value.sleepTimerRemainingMs != null
+                // #1574 ② — entry-level breadcrumb. The prior code only
+                // logged INSIDE the arm branch, so an on-device repro could
+                // not distinguish "onReceive never fired" (delivery problem:
+                // NO line at all) from "fired but a gate failed" (this line
+                // present with armed=false). Logs the raw filter Int + all
+                // three gate inputs so the failing condition is unambiguous.
+                // (The #557 invariant means `isPlaying` is true whenever the
+                // MediaSession shows PLAYING — so if this logs isPlaying=false
+                // during audible playback, that's a *new* finding.)
+                val arm = shouldArmBedtimeSleep(dndActive, playing, timerRunning)
+                Log.i(
+                    TAG,
+                    "Bedtime auto-sleep: filter changed (filter=$filter dndActive=$dndActive " +
+                        "isPlaying=$playing timerRunning=$timerRunning) → arm=$arm",
+                )
+                if (arm) {
                     scope.launch {
                         val minutes = sleepExtendConfig.currentShakeExtendMinutes()
                         controller.startSleepTimer(SleepTimerMode.Duration(minutes))
@@ -247,14 +286,30 @@ class StoryvoxPlaybackService : MediaSessionService() {
                 .distinctUntilChanged()
                 .collect { enabled ->
                     if (enabled && !dndReceiverRegistered) {
-                        registerReceiver(
-                            dndReceiver,
-                            IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED),
-                        )
-                        dndReceiverRegistered = true
+                        // #1218 / #1574 hygiene — target SDK 36 requires an
+                        // explicit export flag; ContextCompat picks
+                        // RECEIVER_NOT_EXPORTED on T+ and no-ops below it.
+                        // Wrapped in runCatching because Samsung One UI has
+                        // thrown SecurityException on notification-policy
+                        // APIs (#1218); a throw here previously killed the
+                        // collector coroutine so the receiver silently never
+                        // registered even with the setting ON.
+                        val ok = runCatching {
+                            ContextCompat.registerReceiver(
+                                this@StoryvoxPlaybackService,
+                                dndReceiver,
+                                IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED),
+                                ContextCompat.RECEIVER_NOT_EXPORTED,
+                            )
+                        }.onFailure {
+                            Log.w(TAG, "Bedtime auto-sleep: registerReceiver failed: ${it.message}")
+                        }.isSuccess
+                        dndReceiverRegistered = ok
+                        Log.i(TAG, "Bedtime auto-sleep: receiver ${if (ok) "registered" else "registration FAILED"}")
                     } else if (!enabled && dndReceiverRegistered) {
-                        unregisterReceiver(dndReceiver)
+                        runCatching { unregisterReceiver(dndReceiver) }
                         dndReceiverRegistered = false
+                        Log.i(TAG, "Bedtime auto-sleep: receiver unregistered (setting off)")
                     }
                 }
         }
@@ -427,7 +482,9 @@ class StoryvoxPlaybackService : MediaSessionService() {
         shakeDetector = null
         shakeJob = null
         if (dndReceiverRegistered) {
-            unregisterReceiver(dndReceiver)
+            // runCatching: unregister can throw if the receiver never
+            // fully registered (e.g. a SecurityException swallowed above).
+            runCatching { unregisterReceiver(dndReceiver) }
             dndReceiverRegistered = false
         }
         dndReceiver = null

@@ -1,9 +1,50 @@
 package `in`.jphe.storyvox.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackStateTest {
+
+    // ── #1595 — engine-state merge preserves controller-owned fields ──
+
+    @Test fun `withEngineUpdate preserves the user's shake-to-extend OFF choice`() {
+        // Regression for the #1595 clobber: the engine never sets
+        // shakeToExtendEnabled, so its copy carries the data-class default
+        // (true). A naive engine.copy(...) reset the user's OFF back to ON
+        // on every ~50ms poll. withEngineUpdate must keep the controller's
+        // value from `prev`.
+        val prev = PlaybackState(shakeToExtendEnabled = false, isPlaying = false)
+        val engine = PlaybackState(shakeToExtendEnabled = true, isPlaying = true)
+
+        val merged = prev.withEngineUpdate(engine, sleepTimerRemainingMs = null)
+
+        assertFalse("user OFF must survive the engine merge", merged.shakeToExtendEnabled)
+    }
+
+    @Test fun `withEngineUpdate keeps ON when the user has it enabled`() {
+        val prev = PlaybackState(shakeToExtendEnabled = true)
+        val engine = PlaybackState(shakeToExtendEnabled = true)
+        assertTrue(prev.withEngineUpdate(engine, sleepTimerRemainingMs = null).shakeToExtendEnabled)
+    }
+
+    @Test fun `withEngineUpdate takes engine-owned playback fields from the engine copy`() {
+        val prev = PlaybackState(isPlaying = false, isBuffering = false, voiceId = "old")
+        val engine = PlaybackState(isPlaying = true, isBuffering = true, voiceId = "new")
+
+        val merged = prev.withEngineUpdate(engine, sleepTimerRemainingMs = 5_000L)
+
+        assertTrue(merged.isPlaying)
+        assertTrue(merged.isBuffering)
+        assertEquals("new", merged.voiceId)
+    }
+
+    @Test fun `withEngineUpdate uses the explicitly-passed sleep timer value, not the engine default`() {
+        val prev = PlaybackState(sleepTimerRemainingMs = 123L)
+        val engine = PlaybackState(sleepTimerRemainingMs = null) // engine's stale default
+        assertEquals(9_000L, prev.withEngineUpdate(engine, sleepTimerRemainingMs = 9_000L).sleepTimerRemainingMs)
+    }
 
     @Test fun `scrubProgress is zero when duration is zero`() {
         assertEquals(0f, PlaybackState().scrubProgress(), 0f)
