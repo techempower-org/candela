@@ -98,7 +98,7 @@ class FormFillViewModelTest {
     }
 
     @Test
-    fun `signature tap places a clamped box; strokes attach`() = runTest(dispatcher) {
+    fun `signature tap places a clamped box, strokes attach`() = runTest(dispatcher) {
         val vm = FormFillViewModel(FakeExporter(ok()))
         vm.onPageCaptured("content://form")
         vm.setTool(FillTool.Signature)
