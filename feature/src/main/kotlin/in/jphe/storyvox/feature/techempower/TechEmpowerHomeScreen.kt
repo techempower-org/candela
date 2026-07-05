@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FactCheck
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
@@ -174,10 +175,18 @@ fun TechEmpowerHomeScreen(
                 )
             }
             item {
+                // Issue #1600 assessment — this card used to pass icon = null.
+                // The original rationale ("a card without an icon balances the
+                // grid") held when the grid was four cards; it has since grown
+                // to nine and every sibling carries a leading icon, so the lone
+                // icon-less card read as broken rather than balanced. Explore
+                // (the compass) is the app's canonical Browse glyph — it's the
+                // Browse bottom-nav destination's icon — so it doubles as a
+                // preview of where this card lands (onOpenBrowse).
                 TechEmpowerCard(
                     title = "Browse Resources",
                     body = "Free tech guides, EBT support, and digital safety — read or listen.",
-                    icon = null,
+                    icon = Icons.Filled.Explore,
                     onClick = onOpenBrowse,
                 )
             }
@@ -340,10 +349,11 @@ private fun TechEmpowerHero() {
  * shouting; same vocabulary as the brass-edged cards on the Settings
  * hub and Plugin manager landing.
  *
- * The accompanying [icon] is optional — Browse Resources has no
- * single-icon analogue (it's "all of TechEmpower's content"), and a
- * card without an icon balances the grid layout. The other three
- * cards have a leading icon that anchors the affordance.
+ * The [icon] param stays nullable so previews / future cards can opt
+ * out, but every card in the live grid now supplies a leading glyph
+ * that anchors the affordance — an icon-less card among icon'd
+ * siblings reads as broken, not balanced (see #1600 assessment on the
+ * Browse Resources card, which was the last holdout).
  */
 @Composable
 private fun TechEmpowerCard(
