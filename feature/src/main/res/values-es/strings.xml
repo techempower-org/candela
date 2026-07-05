@@ -198,12 +198,6 @@
     <string name="profile_autofill_preview_hint">En un formulario escaneado, los campos que coincidan muestran una etiqueta como estas — toque para rellenar.</string>
     <string name="profile_preview_filled">Rellenado: %1$s</string>
     <!-- /#1519 -->
-  Spanish (es) translations. This file is created by the benefits-suite
-  wave (epic #1520) — Candela's first localized locale. Each lane appends
-  its own keys under a clearly-commented "#<issue>" block; keep additions
-  grouped so cross-lane rebases stay mechanical.
--->
-<resources>
 
     <!-- #1515 — notice deadline keeper -->
     <string name="deadline_title">Control de plazos</string>
