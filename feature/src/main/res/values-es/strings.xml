@@ -246,4 +246,40 @@
     <string name="deadline_program_other">Fecha límite de beneficios</string>
     <string name="deadline_card_title">Control de plazos</string>
     <string name="deadline_card_body">Fotografíe una carta — le recordaremos antes del plazo.</string>
+    <!-- #1512: foto → PDF rellenable. Keys alphabetical, same order as
+         values/strings.xml; wrapped for mechanical cross-lane rebases. -->
+    <string name="form_fill_back_cd">Atrás</string>
+    <string name="form_fill_checkmark_label">Marca de verificación</string>
+    <string name="form_fill_draw_signature">Dibujar firma</string>
+    <string name="form_fill_export">Exportar y compartir PDF</string>
+    <string name="form_fill_exported">Guardado %1$s</string>
+    <string name="form_fill_exporting">Creando tu PDF…</string>
+    <string name="form_fill_fields_header">Campos: %1$d</string>
+    <string name="form_fill_intro">Toma una foto de un formulario en papel, complétalo en tu teléfono y exporta un PDF terminado que puedes enviar por correo o imprimir. Sin necesidad de impresora.</string>
+    <string name="form_fill_no_fields">Aún no hay campos. Elige una herramienta arriba y luego toca el formulario donde quieras escribir, marcar una casilla o firmar.</string>
+    <string name="form_fill_page_cd">Página del formulario. Usa la lista de campos de abajo para añadir y editar entradas.</string>
+    <string name="form_fill_pick_gallery">Elegir una foto</string>
+    <string name="form_fill_privacy_note">Todo permanece en tu dispositivo: el formulario, lo que escribes y tu firma nunca salen de tu teléfono.</string>
+    <string name="form_fill_remove_check_cd">Eliminar la marca de verificación</string>
+    <string name="form_fill_remove_signature_cd">Eliminar la firma</string>
+    <string name="form_fill_remove_text_cd">Eliminar el campo de texto</string>
+    <string name="form_fill_scan">Escanear un formulario</string>
+    <string name="form_fill_share_again">Compartir de nuevo</string>
+    <string name="form_fill_share_chooser">Compartir formulario completado</string>
+    <string name="form_fill_signature_cancel">Cancelar</string>
+    <string name="form_fill_signature_clear">Borrar</string>
+    <string name="form_fill_signature_drawn">Firma añadida</string>
+    <string name="form_fill_signature_empty">Firma (aún sin dibujar)</string>
+    <string name="form_fill_signature_pad_cd">Área para dibujar la firma. Dibuja tu firma con el dedo.</string>
+    <string name="form_fill_signature_pad_title">Dibuja tu firma</string>
+    <string name="form_fill_signature_save">Guardar</string>
+    <string name="form_fill_tap_hint">Toca el formulario para colocar la herramienta seleccionada. Cada campo también aparece en la lista de abajo para editarlo.</string>
+    <string name="form_fill_text_field_label">Texto del campo</string>
+    <string name="form_fill_title">Completar un formulario</string>
+    <string name="form_fill_title_label">Nombre del archivo</string>
+    <string name="form_fill_tool_check">Casilla</string>
+    <string name="form_fill_tool_signature">Firma</string>
+    <string name="form_fill_tool_text">Texto</string>
+    <string name="library_fill_form">Completar un formulario (foto → PDF)</string>
+    <!-- /#1512 -->
 </resources>

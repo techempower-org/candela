@@ -1502,4 +1502,42 @@
     <string name="deadline_program_other">Benefits deadline</string>
     <string name="deadline_card_title">Deadline keeper</string>
     <string name="deadline_card_body">Photograph a letter — we\'ll remind you before the deadline.</string>
+    <!-- #1512: photo → fillable PDF. Scan/pick a paper form, fill it on
+         the phone (tap-anywhere text, checkmarks, drawn signature), export
+         a flattened PDF (verdict: flatten, not AcroForm). On-device only.
+         Keys alphabetical; wrapped for mechanical cross-lane rebases. -->
+    <string name="form_fill_back_cd">Back</string>
+    <string name="form_fill_checkmark_label">Checkmark</string>
+    <string name="form_fill_draw_signature">Draw signature</string>
+    <string name="form_fill_export">Export &amp; share PDF</string>
+    <string name="form_fill_exported">Saved %1$s</string>
+    <string name="form_fill_exporting">Building your PDF…</string>
+    <string name="form_fill_fields_header">Fields: %1$d</string>
+    <string name="form_fill_intro">Photograph a paper form, fill it in on your phone, and export a completed PDF you can email or print. No printer needed.</string>
+    <string name="form_fill_no_fields">No fields yet. Choose a tool above, then tap the form where you want to write, check a box, or sign.</string>
+    <string name="form_fill_page_cd">Form page. Use the field list below to add and edit entries.</string>
+    <string name="form_fill_pick_gallery">Choose a photo</string>
+    <string name="form_fill_privacy_note">Everything stays on your device — the form, what you type, and your signature never leave your phone.</string>
+    <string name="form_fill_remove_check_cd">Remove checkmark</string>
+    <string name="form_fill_remove_signature_cd">Remove signature</string>
+    <string name="form_fill_remove_text_cd">Remove text field</string>
+    <string name="form_fill_scan">Scan a form</string>
+    <string name="form_fill_share_again">Share again</string>
+    <string name="form_fill_share_chooser">Share filled form</string>
+    <string name="form_fill_signature_cancel">Cancel</string>
+    <string name="form_fill_signature_clear">Clear</string>
+    <string name="form_fill_signature_drawn">Signature added</string>
+    <string name="form_fill_signature_empty">Signature (not drawn yet)</string>
+    <string name="form_fill_signature_pad_cd">Signature drawing area. Draw your signature with your finger.</string>
+    <string name="form_fill_signature_pad_title">Draw your signature</string>
+    <string name="form_fill_signature_save">Save</string>
+    <string name="form_fill_tap_hint">Tap the form to place your selected tool. Every field also appears in the list below for editing.</string>
+    <string name="form_fill_text_field_label">Field text</string>
+    <string name="form_fill_title">Fill a form</string>
+    <string name="form_fill_title_label">File name</string>
+    <string name="form_fill_tool_check">Check</string>
+    <string name="form_fill_tool_signature">Signature</string>
+    <string name="form_fill_tool_text">Text</string>
+    <string name="library_fill_form">Fill a form (photo → PDF)</string>
+    <!-- /#1512 -->
 </resources>

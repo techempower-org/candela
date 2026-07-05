@@ -297,6 +297,11 @@ object AppBindings {
     @Provides @Singleton
     fun provideWalletStore(impl: `in`.jphe.storyvox.data.wallet.EncryptedFileWalletStore): `in`.jphe.storyvox.data.wallet.WalletStore = impl
 
+    /** Issue #1512 — same PdfDocumentExporter also fills a photographed
+     *  form → flattened PDF (verdict: flatten, not AcroForm). */
+    @Provides @Singleton
+    fun provideFormPdfExporter(impl: `in`.jphe.storyvox.data.docs.PdfDocumentExporter): `in`.jphe.storyvox.data.docs.FormPdfExporter = impl
+
     /** Bridges the source-pdf [PdfConfig] read interface (#996) to the
      *  concrete app-side SAF-backed impl. Exposed concretely is not
      *  needed here (the Settings/Browse mutators go through
