@@ -11,6 +11,8 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -42,6 +44,25 @@ class EncryptedFileWalletStore @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
+    /**
+     * Issue #1593 — serializes every store operation. This is a
+     * `@Singleton` and the manifest is mutated read-modify-write
+     * (`save`/`delete` do `writeManifest(readManifest() ± doc)`), while
+     * `writeManifest` must delete-then-recreate the file (EncryptedFile
+     * refuses to overwrite). Without this lock two concurrent mutations
+     * lose an update, and a concurrent [list] that hits the delete→write
+     * window sees no manifest and returns empty — documents transiently
+     * "vanish". The same lock covers cache (de)materialization so
+     * [materializePagesToCache] / [clearMaterialized] / [delete] can't
+     * race on `wallet_tmp` or a doc dir. The wallet is user-paced, so full
+     * serialization costs nothing and is correct by construction.
+     *
+     * All public entry points take the lock; the private [readManifest] /
+     * [writeManifest] helpers never do, so there is no re-entrant acquire
+     * (Mutex is non-reentrant — that would deadlock).
+     */
+    private val mutex = Mutex()
+
     private val walletDir: File
         get() = File(context.filesDir, WALLET_DIR).apply { mkdirs() }
 
@@ -65,8 +86,10 @@ class EncryptedFileWalletStore @Inject constructor(
             EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB,
         ).build()
 
-    override suspend fun list(): List<WalletDoc> = withContext(Dispatchers.IO) {
-        readManifest().sortedByDescending { it.capturedAtEpochMs }
+    override suspend fun list(): List<WalletDoc> = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            readManifest().sortedByDescending { it.capturedAtEpochMs }
+        }
     }
 
     override suspend fun save(
@@ -74,57 +97,65 @@ class EncryptedFileWalletStore @Inject constructor(
         title: String,
         note: String,
         pageUris: List<String>,
-    ): WalletDoc = withContext(Dispatchers.IO) {
-        val id = UUID.randomUUID().toString()
-        val docDir = File(walletDir, id).apply { mkdirs() }
-        var pages = 0
-        pageUris.forEach { uriString ->
-            val bytes = runCatching {
-                context.contentResolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }
-            }.getOrNull() ?: return@forEach
-            val pageFile = File(docDir, "page_$pages.enc")
-            if (pageFile.exists()) pageFile.delete()
-            encrypted(pageFile).openFileOutput().use { it.write(bytes) }
-            pages++
+    ): WalletDoc = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val id = UUID.randomUUID().toString()
+            val docDir = File(walletDir, id).apply { mkdirs() }
+            var pages = 0
+            pageUris.forEach { uriString ->
+                val bytes = runCatching {
+                    context.contentResolver.openInputStream(Uri.parse(uriString))?.use { it.readBytes() }
+                }.getOrNull() ?: return@forEach
+                val pageFile = File(docDir, "page_$pages.enc")
+                if (pageFile.exists()) pageFile.delete()
+                encrypted(pageFile).openFileOutput().use { it.write(bytes) }
+                pages++
+            }
+            val doc = WalletDoc(
+                id = id,
+                type = type,
+                title = title.ifBlank { defaultTitle(type) }.trim(),
+                capturedAtEpochMs = System.currentTimeMillis(),
+                pageCount = pages,
+                note = note.trim(),
+            )
+            writeManifest(readManifest() + doc)
+            doc
         }
-        val doc = WalletDoc(
-            id = id,
-            type = type,
-            title = title.ifBlank { defaultTitle(type) }.trim(),
-            capturedAtEpochMs = System.currentTimeMillis(),
-            pageCount = pages,
-            note = note.trim(),
-        )
-        writeManifest(readManifest() + doc)
-        doc
     }
 
-    override suspend fun delete(docId: String): Unit = withContext(Dispatchers.IO) {
-        File(walletDir, docId).deleteRecursively()
-        writeManifest(readManifest().filterNot { it.id == docId })
+    override suspend fun delete(docId: String): Unit = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            File(walletDir, docId).deleteRecursively()
+            writeManifest(readManifest().filterNot { it.id == docId })
+        }
     }
 
     override suspend fun materializePagesToCache(docId: String): List<String> =
-        withContext(Dispatchers.IO) {
-            val doc = readManifest().firstOrNull { it.id == docId } ?: return@withContext emptyList()
-            val docDir = File(walletDir, docId)
-            val outDir = File(tmpDir, docId).apply { mkdirs() }
-            val uris = mutableListOf<String>()
-            for (i in 0 until doc.pageCount) {
-                val enc = File(docDir, "page_$i.enc")
-                if (!enc.exists()) continue
-                val bytes = runCatching {
-                    encrypted(enc).openFileInput().use { it.readBytes() }
-                }.getOrNull() ?: continue
-                val out = File(outDir, "page_$i.jpg")
-                out.writeBytes(bytes)
-                uris += Uri.fromFile(out).toString()
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                val doc = readManifest().firstOrNull { it.id == docId } ?: return@withContext emptyList()
+                val docDir = File(walletDir, docId)
+                val outDir = File(tmpDir, docId).apply { mkdirs() }
+                val uris = mutableListOf<String>()
+                for (i in 0 until doc.pageCount) {
+                    val enc = File(docDir, "page_$i.enc")
+                    if (!enc.exists()) continue
+                    val bytes = runCatching {
+                        encrypted(enc).openFileInput().use { it.readBytes() }
+                    }.getOrNull() ?: continue
+                    val out = File(outDir, "page_$i.jpg")
+                    out.writeBytes(bytes)
+                    uris += Uri.fromFile(out).toString()
+                }
+                uris
             }
-            uris
         }
 
-    override suspend fun clearMaterialized(): Unit = withContext(Dispatchers.IO) {
-        tmpDir.deleteRecursively()
+    override suspend fun clearMaterialized(): Unit = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            tmpDir.deleteRecursively()
+        }
     }
 
     private fun readManifest(): List<WalletDoc> {
