@@ -344,7 +344,11 @@ class DefaultPlaybackController @Inject constructor(
                 // subsequent play() reuse the stale chapter id without an
                 // explicit retry. Don't clear the id here — the sibling
                 // UI uses it to render "Couldn't play '$chapterTitle'."
-                _state.value = update.copy(sleepTimerRemainingMs = sleepTimer.remainingMs.value)
+                // #1595 — preserve controller-owned fields (shakeToExtendEnabled)
+                // that the engine leaves at data-class defaults; a naive
+                // update.copy(...) clobbered the user's toggle back to true on
+                // every poll. See PlaybackState.withEngineUpdate.
+                _state.value = prev.withEngineUpdate(update, sleepTimer.remainingMs.value)
                 // #524 — if the engine reports BookFinished via the events
                 // channel (collected below), the listener pipeline goes idle.
                 // We additionally watch for an authoritative isPlaying=false
