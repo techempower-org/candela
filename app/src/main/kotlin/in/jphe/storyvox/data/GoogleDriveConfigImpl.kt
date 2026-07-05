@@ -5,10 +5,13 @@ import `in`.jphe.storyvox.source.googledrive.config.GoogleDriveConfig
 import `in`.jphe.storyvox.source.googledrive.config.GoogleDriveConfigState
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 /** EncryptedSharedPreferences key for the Google Drive OAuth access token.
  *  Lives next to the Notion / Outline / palace tokens in `storyvox.secrets`. */
@@ -47,10 +50,17 @@ class GoogleDriveConfigImpl @Inject constructor(
     /** Bumped on every write so [state] re-emits with fresh values. */
     private val secretsTick = MutableStateFlow(0L)
 
+    // #1588 — snapshot() reads EncryptedSharedPreferences (synchronous Tink
+    // crypto; the first touch after process start pays a 50-200ms keyset-init
+    // cost). flowOn(IO) keeps that decrypt off whatever thread collects `state`
+    // (SourceConfigContributors, the Settings UI), never the main thread.
     override val state: Flow<GoogleDriveConfigState> =
-        secretsTick.map { snapshot() }.distinctUntilChanged()
+        secretsTick.map { snapshot() }.flowOn(Dispatchers.IO).distinctUntilChanged()
 
-    override suspend fun current(): GoogleDriveConfigState = snapshot()
+    // #1588 — same encrypted read as `state`; both GoogleDriveSource.token()
+    // and the OAuth manager await this, so pin the decrypt to IO.
+    override suspend fun current(): GoogleDriveConfigState =
+        withContext(Dispatchers.IO) { snapshot() }
 
     private fun snapshot(): GoogleDriveConfigState = GoogleDriveConfigState(
         accessToken = secrets.getString(GDRIVE_ACCESS_TOKEN_PREF, "").orEmpty(),

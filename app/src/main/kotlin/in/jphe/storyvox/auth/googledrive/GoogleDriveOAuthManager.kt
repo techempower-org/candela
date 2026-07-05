@@ -7,6 +7,8 @@ import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Issue #1496 — orchestrates the Google Drive OAuth flow end to end:
@@ -53,16 +55,23 @@ class GoogleDriveOAuthManager @Inject constructor(
      * Custom Tab, or null when this build has no OAuth client id (the
      * Connect button should be hidden in that case).
      */
-    fun beginConnect(): String? {
+    suspend fun beginConnect(): String? {
         if (!GoogleDriveOAuthConfig.isAvailable) return null
-        val state = UUID.randomUUID().toString()
-        val verifier = GoogleDrivePkce.newCodeVerifier()
-        config.setOAuthState(state)
-        config.setCodeVerifier(verifier)
-        return GoogleDriveOAuthConfig.authorizeUrl(
-            state = state,
-            codeChallenge = GoogleDrivePkce.challengeFor(verifier),
-        )
+        // #1588 — the PKCE verifier generation (SecureRandom) plus the two
+        // EncryptedSharedPreferences writes below all touch disk / Tink crypto
+        // and can block 50-200ms on first use. This is invoked from the Browse
+        // "Connect" tap on a Main-dispatcher coroutine, so do it on IO to keep
+        // the persist off the main thread (ANR risk).
+        return withContext(Dispatchers.IO) {
+            val state = UUID.randomUUID().toString()
+            val verifier = GoogleDrivePkce.newCodeVerifier()
+            config.setOAuthState(state)
+            config.setCodeVerifier(verifier)
+            GoogleDriveOAuthConfig.authorizeUrl(
+                state = state,
+                codeChallenge = GoogleDrivePkce.challengeFor(verifier),
+            )
+        }
     }
 
     /**
@@ -70,39 +79,46 @@ class GoogleDriveOAuthManager @Inject constructor(
      * single-use nonce + verifier first so a replayed redirect can't reuse
      * them.
      */
-    suspend fun handleCallback(code: String?, state: String?, error: String?): Outcome {
-        val expectedState = config.oauthState()
-        val verifier = config.codeVerifier()
-        config.clearOAuthTransient()
+    suspend fun handleCallback(code: String?, state: String?, error: String?): Outcome =
+        // #1588 — reads/clears the PKCE verifier + CSRF nonce and (on success)
+        // persists the session, all against EncryptedSharedPreferences
+        // (synchronous Tink crypto), plus the network token exchange. Invoked
+        // from MainActivity's lifecycleScope (Main), so run the disk + network
+        // work on IO; the returned Outcome resumes on the caller's dispatcher
+        // for the user-facing Toast.
+        withContext(Dispatchers.IO) {
+            val expectedState = config.oauthState()
+            val verifier = config.codeVerifier()
+            config.clearOAuthTransient()
 
-        if (error != null) {
-            Log.i(TAG, "Google Drive OAuth declined: $error")
-            return Outcome.Cancelled
-        }
-        if (code.isNullOrBlank() || state.isNullOrBlank() ||
-            expectedState.isNullOrBlank() || state != expectedState ||
-            verifier.isNullOrBlank()
-        ) {
-            Log.w(TAG, "Google Drive OAuth callback failed state/verifier verification")
-            return Outcome.InvalidCallback
-        }
+            if (error != null) {
+                Log.i(TAG, "Google Drive OAuth declined: $error")
+                return@withContext Outcome.Cancelled
+            }
+            if (code.isNullOrBlank() || state.isNullOrBlank() ||
+                expectedState.isNullOrBlank() || state != expectedState ||
+                verifier.isNullOrBlank()
+            ) {
+                Log.w(TAG, "Google Drive OAuth callback failed state/verifier verification")
+                return@withContext Outcome.InvalidCallback
+            }
 
-        return when (val r = api.exchangeCode(code = code, codeVerifier = verifier)) {
-            is GoogleDriveOAuthResult.Success -> {
-                config.saveOAuthSession(
-                    accessToken = r.accessToken,
-                    refreshToken = r.refreshToken,
-                )
-                runCatching { settings.get().setSourcePluginEnabled(SOURCE_ID, true) }
-                    .onFailure { Log.w(TAG, "auto-enable google-drive failed", it) }
-                Outcome.Connected(config.current().accountLabel)
-            }
-            is GoogleDriveOAuthResult.Failure -> {
-                Log.w(TAG, "Google Drive token exchange failed: ${r.code} ${r.message}")
-                Outcome.ExchangeFailed(r.message)
+            when (val r = api.exchangeCode(code = code, codeVerifier = verifier)) {
+                is GoogleDriveOAuthResult.Success -> {
+                    config.saveOAuthSession(
+                        accessToken = r.accessToken,
+                        refreshToken = r.refreshToken,
+                    )
+                    runCatching { settings.get().setSourcePluginEnabled(SOURCE_ID, true) }
+                        .onFailure { Log.w(TAG, "auto-enable google-drive failed", it) }
+                    Outcome.Connected(config.current().accountLabel)
+                }
+                is GoogleDriveOAuthResult.Failure -> {
+                    Log.w(TAG, "Google Drive token exchange failed: ${r.code} ${r.message}")
+                    Outcome.ExchangeFailed(r.message)
+                }
             }
         }
-    }
 
     private companion object {
         const val TAG = "GoogleDriveOAuth"

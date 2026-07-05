@@ -34,6 +34,7 @@ class RealBrowsePaginator(
     private val _isAppending = MutableStateFlow(false)
     private val _hasMore = MutableStateFlow(true)
     private val _error = MutableStateFlow<String?>(null)
+    private val _authRequired = MutableStateFlow(false)
     private var nextPage = 1
     private val mutex = Mutex()
 
@@ -42,6 +43,7 @@ class RealBrowsePaginator(
     override val isAppending: Flow<Boolean> = _isAppending.asStateFlow()
     override val hasMore: Flow<Boolean> = _hasMore.asStateFlow()
     override val error: Flow<String?> = _error.asStateFlow()
+    override val authRequired: Flow<Boolean> = _authRequired.asStateFlow()
 
     override suspend fun loadNext() = mutex.withLock {
         if (!_hasMore.value || _isAppending.value || _isLoading.value) return@withLock
@@ -54,10 +56,16 @@ class RealBrowsePaginator(
                     _hasMore.value = res.value.hasNext
                     nextPage++
                     _error.value = null
+                    _authRequired.value = false
                 }
                 is FictionResult.Failure -> {
                     android.util.Log.w("storyvox", "Browse fetch failed: ${res.message}", res.cause)
                     _error.value = res.message
+                    // #1588 — preserve the failure axis the String error erases,
+                    // so an unconnected source can surface a "connect" CTA while a
+                    // transient network/server error falls through to the generic
+                    // error state.
+                    _authRequired.value = res is FictionResult.AuthRequired
                     // do NOT bump nextPage — next near-end retries the same page
                 }
             }
@@ -71,6 +79,7 @@ class RealBrowsePaginator(
         _items.value = emptyList()
         _hasMore.value = true
         _error.value = null
+        _authRequired.value = false
         nextPage = 1
     }
 }

@@ -436,6 +436,14 @@ interface BrowsePaginator {
     val hasMore: Flow<Boolean>
     val error: Flow<String?>
 
+    /** #1588 — true when the most recent failure was specifically an
+     *  auth-required one (the source needs sign-in), as opposed to a network /
+     *  rate-limit / server error. Both otherwise collapse into a non-null
+     *  [error] string, so source-specific empty states (e.g. Browse's "Connect
+     *  Google Drive") need this to tell "sign in" apart from "the fetch failed".
+     *  Defaulted so non-paginating fakes/impls need no change. */
+    val authRequired: Flow<Boolean> get() = kotlinx.coroutines.flow.flowOf(false)
+
     suspend fun loadNext()
     /** Reset to page 1 (caller should follow with [loadNext]). Wired up
      *  for future pull-to-refresh; not used in v1 of the feature. */
