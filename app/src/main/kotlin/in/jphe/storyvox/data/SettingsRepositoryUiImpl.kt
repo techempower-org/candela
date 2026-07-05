@@ -1625,7 +1625,7 @@ class SettingsRepositoryUiImpl(
             sleepShakeExtendMinutes = snapSleepShakeExtendMinutes(
                 prefs[Keys.SLEEP_SHAKE_EXTEND_MINUTES] ?: 15,
             ),
-            sleepBedtimeAutoEnabled = prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: false,
+            sleepBedtimeAutoEnabled = prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: true,
             // Issue #1190 — auto Do Not Disturb while a sleep timer runs.
             dndWithSleepTimerEnabled = prefs[Keys.SLEEP_TIMER_DND_ENABLED] ?: false,
             // Issue #596 — pre-render window in chapters.
@@ -1937,7 +1937,7 @@ class SettingsRepositoryUiImpl(
     //     StoryvoxPlaybackService to auto-arm sleep timer on DND) ---
 
     override val bedtimeAutoSleepEnabled: Flow<Boolean> = store.data.map { prefs ->
-        prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: false
+        prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: true
     }
 
     override suspend fun isBedtimeAutoSleepEnabled(): Boolean =
