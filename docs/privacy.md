@@ -281,6 +281,29 @@ The "what does this prove?" hints (which programs accept a given proof) are a
 built-in, TechEmpower-verified reference list bundled with the app; they are
 static content, involve no lookup, and send nothing off the device.
 
+### 2.14 Microphone / on-device speech capture (optional)
+
+Two optional features use the device microphone, and **both keep the audio on
+your device**:
+
+- **Recording mode** (#1367) lets you capture your own narration; the recording
+  is saved to your device.
+- **Voice-paced teleprompter** (#1368) listens while you read aloud and scrolls
+  the text to match your voice. It converts speech to text with an **on-device**
+  recognition model (sherpa-onnx); the audio is transcribed in memory to move
+  the cursor and is not retained.
+
+Candela requests the `RECORD_AUDIO` permission at runtime — with a plain-language
+explanation, and **only when you start one of these features**, never at launch.
+Declining it simply leaves that feature unavailable and dead-ends nothing else.
+The captured audio and any on-device transcription **never leave your device**:
+they are never uploaded, collected, or shared. The **only** related network
+request is a one-time download of the on-device recognition model (from the same
+GitHub release path as voices, §2.3); after that, recognition runs locally, even
+offline. A legacy `WRITE_EXTERNAL_STORAGE` permission, **scoped to Android 9
+(API 28) and older** (`maxSdkVersion="28"`), lets recording mode save through the
+system media store on those older devices; it is unused on Android 10+.
+
 ---
 
 ## 3. What we do NOT collect
@@ -297,8 +320,12 @@ static content, involve no lookup, and send nothing off the device.
   the manifest.
 - **No tracking pixels.** No third-party JavaScript loaded into the reader.
 - **No location data.** Candela never asks for location permission.
-- **No microphone access.** Candela never asks for microphone permission.
-  (The TTS engine generates audio; it doesn't record any.)
+- **No audio is collected or transmitted.** Candela does use the microphone
+  for two optional, on-device features — recording mode and the voice-paced
+  teleprompter's speech-to-text (§2.14) — but the captured audio is processed
+  **entirely on your device** and **never leaves it**: it is never uploaded,
+  collected, or shared. (The TTS engine also generates its audio locally; that,
+  too, is never sent anywhere.)
 - **No contacts access.** Candela never reads your contact book.
 - **No background data collection.** When the app isn't running, it isn't
   doing anything (with one exception: the now-playing widget reads its own
