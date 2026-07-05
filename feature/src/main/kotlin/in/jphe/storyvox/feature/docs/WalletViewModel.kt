@@ -13,11 +13,14 @@ import `in`.jphe.storyvox.data.wallet.WalletDocType
 import `in`.jphe.storyvox.data.wallet.WalletProgramCatalog
 import `in`.jphe.storyvox.data.wallet.WalletStore
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Issue #1514 — drives the encrypted "My Documents" wallet.
@@ -67,16 +70,30 @@ class WalletViewModel @Inject constructor(
         if (pageUris.isEmpty()) return
         _state.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
-            store.save(type, title, note, pageUris)
-            val docs = store.list()
-            _state.update { it.copy(isSaving = false, docs = docs) }
+            try {
+                store.save(type, title, note, pageUris)
+                val docs = store.list()
+                _state.update { it.copy(isSaving = false, docs = docs) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Encrypt/write can throw (disk full, keystore/MAC failure).
+                // Clear the spinner and surface it instead of crashing. (#1593)
+                _state.update { it.copy(isSaving = false, error = "Couldn't save that document.") }
+            }
         }
     }
 
     fun delete(docId: String) {
         viewModelScope.launch {
-            store.delete(docId)
-            _state.update { it.copy(docs = store.list()) }
+            try {
+                store.delete(docId)
+                _state.update { it.copy(docs = store.list()) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(error = "Couldn't delete that document.") }
+            }
         }
     }
 
@@ -87,24 +104,36 @@ class WalletViewModel @Inject constructor(
         if (_state.value.isExporting) return
         _state.update { it.copy(isExporting = true, error = null) }
         viewModelScope.launch {
-            val uris = store.materializePagesToCache(docId)
-            if (uris.isEmpty()) {
-                _state.update { it.copy(isExporting = false, error = "Couldn't open that document.") }
-                return@launch
-            }
-            val result = pdfExporter.exportToPdf(
-                DocPdfRequest(title = title.ifBlank { "Document" }, pages = uris.map { DocPageRef(it) }),
-            )
-            store.clearMaterialized()
-            when (result) {
-                is DocPdfResult.Success -> {
-                    val ready = DocExportReady(result.filePath, result.fileName, result.pageCount, result.byteSize)
-                    _state.update { it.copy(isExporting = false, exportResult = ready, shareRequest = ready) }
+            try {
+                val uris = store.materializePagesToCache(docId)
+                if (uris.isEmpty()) {
+                    _state.update { it.copy(isExporting = false, error = "Couldn't open that document.") }
+                    return@launch
                 }
+                val result = pdfExporter.exportToPdf(
+                    DocPdfRequest(title = title.ifBlank { "Document" }, pages = uris.map { DocPageRef(it) }),
+                )
+                when (result) {
+                    is DocPdfResult.Success -> {
+                        val ready = DocExportReady(result.filePath, result.fileName, result.pageCount, result.byteSize)
+                        _state.update { it.copy(isExporting = false, exportResult = ready, shareRequest = ready) }
+                    }
 
-                is DocPdfResult.Failure -> _state.update {
-                    it.copy(isExporting = false, error = result.message)
+                    is DocPdfResult.Failure -> _state.update {
+                        it.copy(isExporting = false, error = result.message)
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // materializePagesToCache / exportToPdf can throw on IO
+                // failure. Clear the spinner and surface it, don't crash. (#1593)
+                _state.update { it.copy(isExporting = false, error = "Couldn't export that document.") }
+            } finally {
+                // Always wipe the decrypted temp pages — on success, on
+                // failure, and even if the screen closes mid-export
+                // (NonCancellable) — so nothing decrypted lingers. (#1593)
+                withContext(NonCancellable) { runCatching { store.clearMaterialized() } }
             }
         }
     }

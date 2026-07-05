@@ -7,6 +7,7 @@ import `in`.jphe.storyvox.data.wallet.WalletDoc
 import `in`.jphe.storyvox.data.wallet.WalletDocType
 import `in`.jphe.storyvox.data.wallet.WalletProgramCatalog
 import `in`.jphe.storyvox.data.wallet.WalletStore
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -40,22 +41,29 @@ class WalletViewModelTest {
         var materialized: List<String> = listOf("file:///cache/p0.jpg", "file:///cache/p1.jpg")
         var cleared = 0
         var counter = 0
+        var throwOnSave = false
+        var throwOnMaterialize = false
         override suspend fun list(): List<WalletDoc> = docs.sortedByDescending { it.capturedAtEpochMs }
         override suspend fun save(type: WalletDocType, title: String, note: String, pageUris: List<String>): WalletDoc {
+            if (throwOnSave) throw IOException("encrypt/write failed")
             val doc = WalletDoc("id${counter++}", type, title.ifBlank { "Doc" }, 1000L + counter, pageUris.size, note)
             docs += doc
             return doc
         }
         override suspend fun delete(docId: String) { docs.removeAll { it.id == docId } }
-        override suspend fun materializePagesToCache(docId: String): List<String> =
-            if (docs.any { it.id == docId }) materialized else emptyList()
+        override suspend fun materializePagesToCache(docId: String): List<String> {
+            if (throwOnMaterialize) throw IOException("cache write failed")
+            return if (docs.any { it.id == docId }) materialized else emptyList()
+        }
         override suspend fun clearMaterialized() { cleared++ }
     }
 
     private class FakeExporter(var next: DocPdfResult) : DocPdfExporter {
         var lastRequest: DocPdfRequest? = null
+        var throwOnExport = false
         override suspend fun exportToPdf(request: DocPdfRequest): DocPdfResult {
             lastRequest = request
+            if (throwOnExport) throw IOException("pdf compose failed")
             return next
         }
     }
@@ -171,5 +179,62 @@ class WalletViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         assertNull(vm.state.value.shareRequest)
         assertTrue(vm.state.value.error != null)
+    }
+
+    // ── error handling (#1593): a throwing store/exporter must not crash ─
+    //  the VM or wedge a spinner, and re-export must still wipe temp files.
+
+    @Test
+    fun `addDocument surfaces an error and clears the saving flag when the store throws`() = runTest(dispatcher) {
+        val store = FakeStore().apply { throwOnSave = true }
+        val vm = WalletViewModel(store, FakeExporter(okExport()))
+        vm.onUnlocked()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.addDocument(WalletDocType.ID, "License", "", listOf("content://a"))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.state.value.isSaving)
+        assertTrue(vm.state.value.error != null)
+        assertTrue(vm.state.value.docs.isEmpty())
+    }
+
+    @Test
+    fun `reExport recovers, clears exporting, and still wipes temp files when materialize throws`() =
+        runTest(dispatcher) {
+            val store = FakeStore().apply {
+                docs += WalletDoc("doc1", WalletDocType.AWARD_LETTER, "Award letter", 5000L, 2)
+                throwOnMaterialize = true
+            }
+            val vm = WalletViewModel(store, FakeExporter(okExport()))
+            vm.onUnlocked()
+            dispatcher.scheduler.advanceUntilIdle()
+
+            vm.reExport("doc1", "Award letter")
+            dispatcher.scheduler.advanceUntilIdle()
+
+            assertFalse(vm.state.value.isExporting)
+            assertTrue(vm.state.value.error != null)
+            assertNull(vm.state.value.shareRequest)
+            assertEquals(1, store.cleared) // decrypted temp files wiped even on failure
+        }
+
+    @Test
+    fun `reExport recovers and still wipes temp files when the exporter throws`() = runTest(dispatcher) {
+        val store = FakeStore().apply {
+            docs += WalletDoc("doc1", WalletDocType.AWARD_LETTER, "Award letter", 5000L, 2)
+        }
+        val exporter = FakeExporter(okExport()).apply { throwOnExport = true }
+        val vm = WalletViewModel(store, exporter)
+        vm.onUnlocked()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        vm.reExport("doc1", "Award letter")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.state.value.isExporting)
+        assertTrue(vm.state.value.error != null)
+        assertNull(vm.state.value.shareRequest)
+        assertEquals(1, store.cleared)
     }
 }
