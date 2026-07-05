@@ -9,6 +9,20 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.1] -- 2026-07-05
+
+**Infernal Quartz.** A QA-pass follow-up to the benefits wave: the Library Inbox badge sits right, the shake-to-extend toggle obeys you, and the sleep timer is now instrumented to root-cause two on-device reports.
+
+### Fixed
+
+- **Library Inbox tab badge overlap** — the unread count no longer paints over the tab label (`Inbo②` → `Inbox ②`). It now lays out inline using the same `Badge` convention Follows already uses, and folds the count into a curated `contentDescription` so TalkBack speaks "Inbox, N unread". (#1600)
+- **"Shake to extend" toggle was stuck on** — a per-poll engine-state merge (`update.copy(...)`) reset the preference back to ON every ~50 ms, because `EnginePlayer` never writes that controller-owned field, so turning it off never stuck. The controller now preserves its own fields across engine updates via `PlaybackState.withEngineUpdate`, with a regression test. (#1595)
+
+### Under the hood
+
+- **Sleep-timer diagnostics** — bedtime auto-arm and shake-to-extend now emit precise, content-free breadcrumbs (fade-tail enter/exit, accelerometer registration success/failure, and the raw gate inputs) so the two open on-device reports (#1574 auto-sleep didn't arm, #1595 doesn't extend) can be root-caused decisively on a real device. The gate logic is extracted to pure, unit-tested functions (`shouldArmBedtimeSleep`, `shouldListenForShake`, `shouldExtendOnShake`).
+- Library filter-chip spacing and a leading glyph on the TechEmpower "Browse resources" card. (#1600)
+
 ## [1.12.0] -- 2026-07-05
 
 **Lunar Relic.** The TechEmpower benefits paperwork companion — scan a form, fill it on-phone, keep your proofs, decode dense notices, and never miss a deadline — all on-device and bilingual.
