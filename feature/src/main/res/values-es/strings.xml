@@ -167,4 +167,35 @@
     <string name="wallet_what_proves_seed_note">Lista de muestra: la lista verificada de programas la proporciona TechEmpower.</string>
     <string name="wallet_what_proves_title">¿Qué comprueba esto?</string>
     <!-- /#1514 -->
+    <!-- #1519 — saved household profile -->
+    <string name="profile_title">Perfil del hogar</string>
+    <string name="profile_back_cd">Atrás</string>
+    <string name="profile_intro">Guarde una sola vez los datos que escribe en cada formulario. Candela los mantiene cifrados en su dispositivo y ofrece rellenar los campos que coincidan cuando escanea un formulario.</string>
+    <string name="profile_card_title">Perfil del hogar</string>
+    <string name="profile_card_body">Guarde sus datos una vez — Candela rellena los campos que coincidan.</string>
+    <string name="profile_field_name">Nombre completo</string>
+    <string name="profile_field_address">Domicilio</string>
+    <string name="profile_field_household_size">Tamaño del hogar</string>
+    <string name="profile_field_income">Ingreso mensual</string>
+    <string name="profile_field_phone">Número de teléfono</string>
+    <string name="profile_field_email">Correo electrónico</string>
+    <string name="profile_save">Guardar</string>
+    <string name="profile_revert">Deshacer cambios</string>
+    <string name="profile_cancel">Cancelar</string>
+    <string name="profile_delete">Eliminar perfil</string>
+    <string name="profile_delete_confirm_title">¿Eliminar su perfil?</string>
+    <string name="profile_delete_confirm_body">Esto borra sus datos guardados de este dispositivo. No se puede deshacer.</string>
+    <string name="profile_locked">Su perfil está guardado y bloqueado.</string>
+    <string name="profile_unlock">Desbloquear para editar</string>
+    <string name="profile_auth_title">Desbloquee su perfil</string>
+    <string name="profile_auth_desc">Confirme que es usted para ver o cambiar sus datos guardados.</string>
+    <string name="profile_saved_announce">Perfil guardado</string>
+    <string name="profile_ssn_policy">Nunca guarde aquí su Número de Seguro Social. Cuando un formulario lo pida, escríbalo directamente — Candela no lo almacena ni ofrece rellenarlo.</string>
+    <string name="profile_ssn_warning">Número de Seguro Social — escríbalo usted mismo; nunca se guarda.</string>
+    <string name="profile_use_saved">Usar guardado: %1$s</string>
+    <string name="profile_use_saved_cd">Rellenar este campo con su valor guardado: %1$s</string>
+    <string name="profile_autofill_preview_title">Vista previa de autocompletar</string>
+    <string name="profile_autofill_preview_hint">En un formulario escaneado, los campos que coincidan muestran una etiqueta como estas — toque para rellenar.</string>
+    <string name="profile_preview_filled">Rellenado: %1$s</string>
+    <!-- /#1519 -->
 </resources>

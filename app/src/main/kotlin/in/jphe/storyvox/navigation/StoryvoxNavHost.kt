@@ -110,6 +110,9 @@ object StoryvoxRoutes {
      *  on-device wallet for benefits proofs (epic #1520). Reached from the
      *  Library add-flow ("My Documents"). */
     const val WALLET = "docs/wallet"
+
+    /** Issue #1519 — saved household profile (autofill scanned forms). */
+    const val HOUSEHOLD_PROFILE = "docs/profile"
     const val FICTION_DETAIL = "fiction/{fictionId}"
     const val READER = "reader/{fictionId}/{chapterId}"
     const val AUDIOBOOK = "audiobook/{fictionId}/{chapterId}"
@@ -1718,6 +1721,9 @@ private fun StoryvoxNavHostContent(
                     onOpenCalls = {
                         navController.navigate(StoryvoxRoutes.TECHEMPOWER_CALLS)
                     },
+                    onOpenHouseholdProfile = {
+                        navController.navigate(StoryvoxRoutes.HOUSEHOLD_PROFILE)
+                    },
                     onOpenFiction = { fictionId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fictionId))
                     },
@@ -1733,6 +1739,18 @@ private fun StoryvoxNavHostContent(
             ) {
                 ScreenerScreen(
                     onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #1519 — saved household profile (drill-down depth).
+            composable(
+                StoryvoxRoutes.HOUSEHOLD_PROFILE,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.docs.profile.HouseholdProfileScreen(
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
             // Issue #1516 — benefits letter decoder drill-down. "Scan a letter"
