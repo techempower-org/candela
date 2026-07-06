@@ -52,25 +52,31 @@ class DeadlineReminderReconciler @Inject constructor(
                 .map { it.deadlineRemindersEnabled }
                 .distinctUntilChanged()
                 .drop(1) // skip the current value; react only to in-session flips
-                .collect { enabled -> reconcile(enabled) }
-        }
-    }
-
-    /**
-     * Cancel-all (OFF) or re-arm-all-from-store (ON). Extracted for unit
-     * tests; never deletes from the store.
-     */
-    internal suspend fun reconcile(enabled: Boolean) {
-        val reminders = store.all()
-        if (enabled) {
-            scheduler.rescheduleAll(reminders)
-        } else {
-            reminders.forEach { scheduler.cancel(it) }
+                .collect { enabled -> reconcileDeadlineAlarms(scheduler, store, enabled) }
         }
     }
 
     internal fun stop() {
         job?.cancel()
         job = null
+    }
+}
+
+/**
+ * Cancel-all (OFF) or re-arm-all-from-store (ON) for the master deadline-
+ * reminders toggle. Top-level with explicit [scheduler] / [store] params so
+ * it's unit-testable without faking the fat [SettingsRepositoryUi]. Never
+ * deletes from the store — the toggle only adds/removes *derived* alarms.
+ */
+internal suspend fun reconcileDeadlineAlarms(
+    scheduler: DeadlineReminderScheduler,
+    store: DeadlineReminderStore,
+    enabled: Boolean,
+) {
+    val reminders = store.all()
+    if (enabled) {
+        scheduler.rescheduleAll(reminders)
+    } else {
+        reminders.forEach { scheduler.cancel(it) }
     }
 }
