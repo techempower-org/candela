@@ -1489,6 +1489,10 @@ data class UiSettings(
      * Per-device pref (NOT synced).
      */
     val sleepShakeExtendMinutes: Int = 15,
+    /** Issue #1590 — default duration (minutes) a sleep timer runs when
+     *  armed via the quick toggle. Consumed by core-playback's
+     *  PlaybackController.toggleSleepTimer via SleepTimerDefaultConfig. */
+    val sleepTimerDefaultMinutes: Int = 15,
     /** Auto-arm the sleep timer when the phone enters Bedtime / Sleep
      *  / DND mode during playback. Uses [sleepShakeExtendMinutes] as
      *  the timer duration. Per-device pref (NOT synced). */
@@ -2071,6 +2075,9 @@ interface SettingsRepositoryUi {
      * a no-op so existing test fakes compile without overrides.
      */
     suspend fun setSleepShakeExtendMinutes(minutes: Int) = Unit
+
+    /** Issue #1590 — set the default sleep-timer duration (minutes). */
+    suspend fun setSleepTimerDefaultMinutes(minutes: Int) = Unit
     /** Auto-arm sleep timer on Bedtime / DND mode. Default no-op. */
     suspend fun setSleepBedtimeAutoEnabled(enabled: Boolean) = Unit
     /** Issue #1190 — auto Do Not Disturb with the sleep timer. Default

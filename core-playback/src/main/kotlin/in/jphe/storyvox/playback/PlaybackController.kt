@@ -203,6 +203,11 @@ class DefaultPlaybackController @Inject constructor(
      *  time, and a snapshot read is fine because skip taps are user-
      *  driven and inherently bursty (not a hot loop). */
     private val skipConfig: `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
+    /** #1590 — user-tunable default sleep-timer duration. Snapshot-read
+     *  (via [cachedDefaultSleepMinutes]) inside [toggleSleepTimer]; the
+     *  quick toggle is user-driven and bursty, not a hot loop — the same
+     *  rationale as [skipConfig]. */
+    private val sleepTimerDefaultConfig: `in`.jphe.storyvox.data.repository.playback.SleepTimerDefaultConfig,
 ) : PlaybackController {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -306,6 +311,9 @@ class DefaultPlaybackController @Inject constructor(
      */
     @Volatile private var cachedSkipDistanceSec: Int = 30
     @Volatile private var cachedRewindToStartThresholdSec: Int = 3
+    // #1590 — default sleep-timer duration for the quick toggle. Kept fresh
+    // by the collector below so toggleSleepTimer picks up pref changes live.
+    @Volatile private var cachedDefaultSleepMinutes: Int = 15
 
     init {
         scope.launch {
@@ -324,6 +332,13 @@ class DefaultPlaybackController @Inject constructor(
         scope.launch {
             skipConfig.rewindToStartThresholdSec.collect { v ->
                 cachedRewindToStartThresholdSec = v
+            }
+        }
+        // #1590 — keep the default sleep duration fresh so the quick toggle
+        // picks up the user's pref the moment they change it.
+        scope.launch {
+            sleepTimerDefaultConfig.sleepTimerDefaultMinutes.collect { v ->
+                cachedDefaultSleepMinutes = v
             }
         }
     }
@@ -898,7 +913,8 @@ class DefaultPlaybackController @Inject constructor(
 
     override fun toggleSleepTimer() {
         if (state.value.sleepTimerRemainingMs != null) cancelSleepTimer()
-        else startSleepTimer(SleepTimerMode.Duration(15))
+        // #1590 — was hardcoded 15; now the user's default (Voice & Playback).
+        else startSleepTimer(SleepTimerMode.Duration(cachedDefaultSleepMinutes))
     }
 
     override fun setShakeToExtendEnabled(enabled: Boolean) {

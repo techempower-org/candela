@@ -485,6 +485,13 @@ object AppBindings {
     fun provideSleepTimerDndConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.playback.SleepTimerDndConfig = impl
 
+    /** Issue #1590 — user-tunable default sleep-timer duration. Same
+     *  singleton; consumed by `:core-playback`'s
+     *  `DefaultPlaybackController.toggleSleepTimer`. */
+    @Provides @Singleton
+    fun provideSleepTimerDefaultConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.playback.SleepTimerDefaultConfig = impl
+
     /** Issue #596 — user-tunable PCM-cache pre-render window size.
      *  Same singleton; consumed by `:core-playback`'s
      *  `PrerenderTriggers`. */
