@@ -181,7 +181,11 @@ internal class EpubSource @Inject constructor(
             ChapterContent(
                 info = info,
                 htmlBody = chapter.htmlBody,
-                plainBody = chapter.htmlBody.stripHtml(),
+                // #1619 — prefer a source-provided plaintext body when the
+                // chapter carries one (the plaintext-import path sets it so
+                // paragraph/line structure survives). Real EPUB chapters
+                // leave it null and fall back to the HTML stripper.
+                plainBody = chapter.plainBody ?: chapter.htmlBody.stripHtml(),
             ),
         )
     }
@@ -217,11 +221,23 @@ internal class EpubSource @Inject constructor(
     }
 }
 
-/** Issue #1000 — wrap a plaintext file's bytes into a one-chapter
- *  [EpubBook]. The body is HTML-escaped and dropped into a `<pre>`
- *  block so the downstream HTML→plaintext stripper (which the engine
- *  feeds from) round-trips it without mangling angle brackets or
- *  collapsing the prose. Title is the filename sans extension. */
+/** Issue #1000 / #1619 — wrap a plaintext file's bytes into a one-chapter
+ *  [EpubBook]. Title is the filename sans extension.
+ *
+ *  Two bodies, two consumers:
+ *   - [EpubChapter.htmlBody] keeps the HTML-escaped text in a `<pre>` block
+ *     purely for export fidelity (`ExportFictionToEpubUseCase` prefers
+ *     htmlBody, and `<pre>` preserves whitespace in the exported EPUB).
+ *   - [EpubChapter.plainBody] is what actually gets read — reader, TTS
+ *     chunker, and paragraph-nav all consume `ChapterContent.plainBody`.
+ *
+ *  #1619: the original code left plainBody to be derived by running the
+ *  `<pre>` htmlBody through [String.stripHtml], whose `\s+`→" " collapse
+ *  flattened every newline to a space (run-on blob — fatal for scripts,
+ *  verse, teleprompter) and, because stripHtml never decodes entities,
+ *  leaked literal `&amp;`/`&lt;`/`&gt;` into the prose. We now derive
+ *  plainBody straight from the raw file via [normalizePlainText] so the
+ *  file's paragraph and line structure survives untouched. */
 private fun textBook(entry: EpubFileEntry, bytes: ByteArray): EpubBook {
     val text = bytes.toString(Charsets.UTF_8)
     val title = entry.displayName
@@ -240,10 +256,41 @@ private fun textBook(entry: EpubFileEntry, bytes: ByteArray): EpubBook {
                 title = title,
                 index = 0,
                 htmlBody = "<pre>$escaped</pre>",
+                plainBody = normalizePlainText(text),
             ),
         ),
     )
 }
+
+/**
+ * Issue #1619 — normalize a raw imported text file into the plaintext
+ * chapter body the reader, the TTS `SentenceChunker`, and paragraph-level
+ * navigation all read (`ChapterContent.plainBody`).
+ *
+ * What it preserves (the whole point): a lone `\n` stays a line break;
+ * a blank line (`\n\n`) stays a paragraph break — `paragraphHeadIndices`
+ * keys on exactly that. Leading/interior spaces and tabs are left intact
+ * so verse and script indentation survives; the `SentenceChunker` trims
+ * each utterance anyway, so indentation never reaches the synthesizer.
+ *
+ * What it normalizes (cosmetic, structure-safe):
+ *  - CRLF / lone CR → LF, so blank-line detection (which counts `\n`) is
+ *    independent of the file's origin OS.
+ *  - Trailing spaces/tabs per line are dropped.
+ *  - Runs of 3+ newlines collapse to a single blank line, so an oddly
+ *    spaced file doesn't open with a wall of empty space.
+ *  - Leading/trailing blank lines are trimmed.
+ *
+ * Deliberately does NOT collapse interior horizontal whitespace — unlike
+ * an HTML stripper, a raw text file's spacing is authorial intent.
+ */
+internal fun normalizePlainText(raw: String): String =
+    raw.replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .lineSequence()
+        .joinToString("\n") { it.trimEnd(' ', '\t') }
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trim('\n')
 
 /** Compose a stable chapter id from the fictionId + the per-EPUB
  *  spine idref. Keeps chapter ids unique across books. */

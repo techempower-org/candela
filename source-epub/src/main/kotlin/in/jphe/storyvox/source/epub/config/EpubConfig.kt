@@ -52,8 +52,10 @@ enum class EpubEntryKind {
     Epub,
 
     /** A plaintext file — synthesise a one-chapter book from the UTF-8
-     *  body (the reader/engine pipeline downstream is HTML-tolerant, so
-     *  the body is wrapped in a `<pre>` block). */
+     *  body. The reader + TTS read `ChapterContent.plainBody`, which the
+     *  text path derives straight from the raw file so paragraph/line
+     *  structure survives (#1619); the `<pre>`-wrapped htmlBody is kept
+     *  only for export fidelity (#1000). */
     Text,
 }
 

@@ -38,4 +38,23 @@ data class EpubChapter(
     val index: Int,
     /** Sanitized HTML body of the chapter file. */
     val htmlBody: String,
+    /**
+     * Issue #1619 — optional pre-computed plaintext body. When non-null,
+     * [`in`.jphe.storyvox.source.epub.EpubSource.chapter] uses it verbatim
+     * as [`in`.jphe.storyvox.data.source.model.ChapterContent.plainBody]
+     * instead of running [htmlBody] through the tag-stripper.
+     *
+     * The reader, the TTS `SentenceChunker`, and paragraph-level navigation
+     * (`paragraphHeadIndices`) all consume `plainBody`, and paragraph nav
+     * infers paragraph breaks from blank lines (`\n\n`) in that string. The
+     * plaintext-import path (#1000) sets this straight from the raw UTF-8
+     * file so paragraph and hard line breaks — the whole point of scripts,
+     * verse, and teleprompter text — survive. Routing plaintext through the
+     * whitespace-collapsing stripper flattened every newline to a space
+     * (#1619) and leaked literal `&`-entities from the `<pre>` escaping.
+     *
+     * Real EPUB chapters leave this null and keep the byte-for-byte
+     * `stripHtml` behaviour — this change does not touch that path.
+     */
+    val plainBody: String? = null,
 )
