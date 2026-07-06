@@ -1,15 +1,12 @@
 package `in`.jphe.storyvox.source.palace.di
 
 import android.content.Context
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import `in`.jphe.storyvox.data.network.UserAgentHeader
-import `in`.jphe.storyvox.source.palace.InMemoryPalaceLibraryConfig
-import `in`.jphe.storyvox.source.palace.PalaceLibraryConfig
 import `in`.jphe.storyvox.source.palace.PalaceSource
 import `in`.jphe.storyvox.source.palace.net.PalaceApi
 import okhttp3.Interceptor
@@ -82,30 +79,8 @@ internal object PalaceHttpModule {
         File(ctx.cacheDir, "palace").apply { mkdirs() }
 }
 
-/**
- * Binds [PalaceLibraryConfig] to the in-memory default. The
- * DataStore-backed real implementation lives in `:app` / `:feature`
- * and is wired up by issue #501's settings refactor — until then, the
- * in-memory binding returns `null` for the library URL and the source
- * surfaces "configure a library" copy on every browse call.
- *
- * When #501's settings binding lands, it will provide its own
- * `@Module @InstallIn(SingletonComponent::class)` with a `@Provides`
- * for `PalaceLibraryConfig` and a `@TestInstallIn` to replace this
- * binding. We don't put it behind a `@Singleton` rebinder here so that
- * a downstream module-level override works without a `@TestInstallIn`
- * pragma in the production code path. The
- * `(@Suppress("DaggerProductionScope"))` posture mirrors how
- * `:source-radio` provides a default `RadioConfig` overridden by
- * `:app`'s real implementation.
- */
-@Module
-@InstallIn(SingletonComponent::class)
-internal abstract class PalaceConfigBindings {
-
-    /** Default in-memory binding. Replace with a DataStore-backed
-     *  implementation in `:app` / `:feature` (issue #501). */
-    @Binds
-    @Singleton
-    abstract fun bindConfig(impl: InMemoryPalaceLibraryConfig): PalaceLibraryConfig
-}
+// Issue #1591 / #501 — the DataStore-backed PalaceLibraryConfig now lives in
+// `:app` (PalaceLibraryConfigImpl, bound in AppBindings), so the previous
+// in-memory default binding is gone. `:source-palace` stays DataStore-free and
+// reads through the PalaceLibraryConfig contract — same posture as source-radio,
+// where `:app` is the sole RadioConfig provider.
