@@ -1,13 +1,10 @@
 package `in`.jphe.storyvox.deadline
 
-import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
-import `in`.jphe.storyvox.feature.api.UiSettings
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminder
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminderScheduler
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminderStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -19,6 +16,9 @@ import org.junit.Test
  * bar: OFF cancels every armed alarm, ON re-arms from the store, and the
  * store is never mutated (a saved benefits deadline is never deleted by
  * flipping the master toggle).
+ *
+ * Exercises [reconcileDeadlineAlarms] directly — it takes the scheduler +
+ * store explicitly, so no fake of the fat `SettingsRepositoryUi` is needed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeadlineReminderReconcilerTest {
@@ -30,9 +30,8 @@ class DeadlineReminderReconcilerTest {
     fun `enabling re-arms every stored reminder`() = runTest {
         val store = FakeStore(mutableListOf(r1, r2))
         val scheduler = FakeScheduler()
-        val reconciler = DeadlineReminderReconciler(FakeSettings(), scheduler, store)
 
-        reconciler.reconcile(enabled = true)
+        reconcileDeadlineAlarms(scheduler, store, enabled = true)
 
         assertEquals(listOf("a", "b"), scheduler.scheduled.map { it.id })
         assertTrue("nothing cancelled on ON", scheduler.cancelled.isEmpty())
@@ -43,9 +42,8 @@ class DeadlineReminderReconcilerTest {
     fun `disabling cancels every stored reminder but never deletes the store`() = runTest {
         val store = FakeStore(mutableListOf(r1, r2))
         val scheduler = FakeScheduler()
-        val reconciler = DeadlineReminderReconciler(FakeSettings(), scheduler, store)
 
-        reconciler.reconcile(enabled = false)
+        reconcileDeadlineAlarms(scheduler, store, enabled = false)
 
         assertEquals(listOf("a", "b"), scheduler.cancelled.map { it.id })
         assertTrue("nothing armed on OFF", scheduler.scheduled.isEmpty())
@@ -64,12 +62,6 @@ class DeadlineReminderReconcilerTest {
         notificationBody = id,
         createdEpochDay = 19_000L,
     )
-
-    /** reconcile() never reads [settings], so an empty flow suffices (avoids
-     *  constructing the 90+-field UiSettings). */
-    private class FakeSettings : SettingsRepositoryUi {
-        override val settings: Flow<UiSettings> = emptyFlow()
-    }
 
     private class FakeStore(private val items: MutableList<DeadlineReminder>) : DeadlineReminderStore {
         override fun reminders(): Flow<List<DeadlineReminder>> = flowOf(items)
