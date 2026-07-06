@@ -15,6 +15,7 @@ import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.data.source.model.map
 import `in`.jphe.storyvox.source.epub.parse.EpubBook
 import `in`.jphe.storyvox.source.epub.parse.EpubParseException
@@ -252,7 +253,7 @@ internal class StandardEbooksSource @Inject constructor(
             ChapterContent(
                 info = info,
                 htmlBody = ch.htmlBody,
-                plainBody = ch.htmlBody.stripTags(),
+                plainBody = ch.htmlBody.htmlToPlainText(),
             ),
         )
     }
@@ -451,11 +452,8 @@ private fun String.slugToDisplay(): String =
         piece.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
     }
 
-/** Cheap HTML→plaintext for the chapter body the engine receives.
- *  The downstream pipeline normalizes further; this just gets the
- *  visible text out of the wrapper tags so the TTS engine doesn't
- *  read out angle-bracket noise. */
-private fun String.stripTags(): String =
-    Regex("<[^>]+>").replace(this, " ")
-        .replace(Regex("\\s+"), " ")
-        .trim()
+// #1627 / #1628 — chapter-body HTML→plaintext now uses the shared,
+// paragraph-preserving, entity-decoding `htmlToPlainText` in core-data
+// (jsoup). The old local `stripTags` collapsed every newline to a space
+// (run-on blob across a whole literary chapter, broke paragraph-nav) and
+// never decoded entities (curly quotes/em-dashes leaked into narration).

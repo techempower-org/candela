@@ -75,6 +75,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
+    // #1628 — shared HTML→plaintext (htmlToPlainText) for chapter bodies.
+    implementation(libs.jsoup)
+
     // Android KTX (provides SharedPreferences.edit { ... })
     implementation(libs.androidx.core.ktx)
 

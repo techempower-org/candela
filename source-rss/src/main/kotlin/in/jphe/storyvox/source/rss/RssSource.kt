@@ -16,6 +16,7 @@ import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.source.rss.config.RssConfig
 import `in`.jphe.storyvox.source.rss.config.RssSubscription
 import `in`.jphe.storyvox.source.rss.net.FetchResult
@@ -286,7 +287,7 @@ internal class RssSource @Inject constructor(
             if (html.isBlank()) null
             else item.toChapterId(fictionId) to ChapterBody(
                 htmlBody = html,
-                plainBody = html.stripHtml(),
+                plainBody = html.htmlToPlainText(),
             )
         }.toMap()
 
@@ -355,7 +356,7 @@ internal class RssSource @Inject constructor(
             ChapterContent(
                 info = info,
                 htmlBody = item.htmlBody,
-                plainBody = item.htmlBody.stripHtml(),
+                plainBody = item.htmlBody.htmlToPlainText(),
             ),
         )
     }
@@ -489,18 +490,7 @@ private fun RssItem.toChapterInfo(index: Int, fictionId: String): ChapterInfo {
     )
 }
 
-/** #1547 review — hoisted out of [stripHtml] so the patterns compile once
- *  at class-load instead of on every call. [stripHtml] runs per feed item
- *  during a detail refresh (#1497), so per-call `Regex(...)` construction
- *  was needless allocation on the hot path. */
-private val HTML_TAG_REGEX = Regex("<[^>]+>")
-private val WHITESPACE_REGEX = Regex("\\s+")
-
-/** Naive HTML strip for the TTS plaintext. EngineStreamingSource
- *  applies further normalization downstream — this just removes
- *  tags and collapses whitespace so the engine doesn't speak
- *  `<p>...</p>`. */
-private fun String.stripHtml(): String =
-    replace(HTML_TAG_REGEX, " ")
-        .replace(WHITESPACE_REGEX, " ")
-        .trim()
+// #1626 / #1628 — HTML→plaintext now uses the shared, paragraph-preserving,
+// entity-decoding `htmlToPlainText` in core-data (jsoup). The old local
+// `stripHtml` collapsed every newline to a space (run-on blob, broke
+// paragraph-nav) and never decoded entities.
