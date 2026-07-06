@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,10 +19,12 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
@@ -29,7 +32,10 @@ import androidx.compose.material.icons.outlined.Podcasts
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Spellcheck
+import androidx.compose.material.icons.outlined.Toc
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -101,49 +107,40 @@ internal fun matchesHubQuery(
  * "Voice & Playback" while the user scrolled through Reading, Performance,
  * AI, etc., so the title disagreed with what was actually on screen.
  *
- * The hub is the new gear-icon destination: a short list of section
- * cards, each carrying a one-line subtitle that previews its
- * contents and routes to a dedicated subscreen:
+ * The hub is the gear-icon destination: a search box + a set of link
+ * rows, each carrying a one-line subtitle that previews its contents and
+ * routes to a dedicated subscreen.
  *
- *  - Voice & Playback → [VoiceAndPlaybackSettingsScreen]
- *  - Voice library → [VoiceLibraryScreen][in.jphe.storyvox.feature.voicelibrary.VoiceLibraryScreen]
- *  - Reading → [ReadingSettingsScreen]
- *  - Listening stats → [ListeningStatsScreen][in.jphe.storyvox.feature.stats.ListeningStatsScreen]
- *  - Performance → [PerformanceSettingsScreen]
- *  - AI → [AiSettingsScreen]
- *  - Accessibility → [AccessibilitySettingsScreen] (Phase 1 scaffold)
- *  - AI sessions → [SessionsScreen][in.jphe.storyvox.feature.sessions.SessionsScreen]
- *  - Plugins → [PluginManagerScreen][in.jphe.storyvox.feature.settings.plugins.PluginManagerScreen]
- *  - Pronunciation dictionary → [PronunciationDictScreen][in.jphe.storyvox.feature.settings.pronunciation.PronunciationDictScreen]
- *  - Account → [AccountSettingsScreen]
- *  - Memory Palace → [MemoryPalaceSettingsScreen]
- *  - Developer → [DebugScreen][in.jphe.storyvox.feature.debug.DebugScreen]
- *  - About → [AboutSettingsScreen]
+ * ## Grouping (#1624)
  *
- * The long [SettingsScreen] is preserved as an "All settings" escape
- * hatch for power users who want everything on one searchable page;
- * a dedicated row at the bottom of the hub routes there explicitly
- * so the affordance isn't lost.
+ * v1.12 the hub had grown to a flat 20-row list — every new feature
+ * appended a row, so scanning it meant reading twenty undifferentiated
+ * lines. The rows are now organised into labelled categories (a
+ * [SectionHeading] above its own [SettingsGroupCard] via [HubGroup]), so
+ * the eye can jump to a category instead of scanning the whole list. The
+ * end-state IA (JP-approved mockup, epic #1624) is eight groups; the two
+ * that don't fit yet — Notifications and Downloads & Storage — hold
+ * settings still buried in the legacy monolith and materialise when their
+ * gap PRs (#1631 / #1632) add subscreens. This reorg lands the seven
+ * groups whose rows exist today, in most-touched-first order:
  *
- * ## Section row order
+ * 1. **Voice & Audio** — Voice & Playback · Voice library · Cloud Voices · Pronunciation.
+ * 2. **Reading & Display** — Reading · Appearance · Accessibility.
+ * 3. **Content & Sources** — Plugins · Account · Memory Palace · Bookshare.
+ * 4. **AI** — AI · AI sessions.
+ * 5. **Tools & Features** — Listening stats · Morning Briefing · Scripts.
+ * 6. **System** — Performance · Advanced · Developer.
+ * 7. **About & Help** — About.
  *
- * Most-touched first (matches the section ribbon order in
- * [SettingsScreen]):
+ * The long [SettingsScreen] is preserved as an "All settings" escape hatch
+ * for power users who want everything on one searchable page; a dedicated
+ * row below a divider at the very bottom routes there explicitly so the
+ * affordance isn't lost.
  *
- * 1. Voice & Playback — voice, speed, cadence, pitch.
- * 2. Voice library — dedicated subscreen.
- * 3. Reading — theme, sleep timer.
- * 4. Performance — buffering, parallel synth, decoder choice.
- * 5. AI — chat model, grounding, recap.
- * 6. Accessibility — TalkBack / Switch Access scaffolding (Phase 1).
- * 7. AI sessions — dedicated subscreen.
- * 8. Plugins — registry-driven plugin manager (#404 surface).
- * 9. Pronunciation dictionary — dedicated subscreen.
- * 10. Account — Royal Road / GitHub sign-ins.
- * 11. Memory Palace — daemon host config + probe.
- * 12. Developer — Debug screen + advanced toggles.
- * 13. About — version sigil + open-source notices.
- * 14. All settings (legacy long page) — escape hatch.
+ * Search (#773 / #1577) is unchanged: each [SettingsHubRow] self-hides on a
+ * non-matching query, and each [HubGroup] additionally hides its heading +
+ * card when *none* of its rows match, so a filtered search never strands an
+ * orphan heading over an empty card.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,6 +187,14 @@ fun SettingsHubScreen(
      * in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenScripts: () -> Unit = {},
+    /**
+     * Issue #1624 — Cloud Voices (Azure HD / Dragon HD). The subscreen +
+     * [`SETTINGS_CLOUD_VOICES`] route already shipped, but there was no hub
+     * row — the only path to an Azure key was Plugins → Azure family →
+     * Configure. Default no-op so existing callers / smoke tests compile;
+     * production wiring lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
+     */
+    onOpenCloudVoices: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var query by remember { mutableStateOf("") }
@@ -219,11 +224,6 @@ fun SettingsHubScreen(
                 .padding(spacing.md),
             verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
-            // The hub renders as a single brass-edged group card. Same
-            // brass surface as the rest of Settings — SettingsGroupCard
-            // wraps Card(surfaceContainerHigh, shapes.large) and a 1-dp
-            // inter-row peek. One card with many link rows reads as a
-            // navigation index rather than a fragmented card grid.
             SectionHeading(
                 label = stringResource(R.string.settings_hub_heading),
                 icon = Icons.Outlined.AutoAwesome,
@@ -249,182 +249,234 @@ fun SettingsHubScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+            // Issue #1624 — grouped hub. Each [HubGroup] renders a labelled
+            // [SectionHeading] + [SettingsGroupCard], and hides itself when the
+            // query matches none of its rows (so no orphan headings). Rows
+            // still self-hide individually via [LocalSettingsHubQuery].
             CompositionLocalProvider(LocalSettingsHubQuery provides query) {
-            SettingsGroupCard {
-                // Voice & Playback — most-touched, first.
-                SettingsHubRow(
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_voice_audio),
                     icon = Icons.Outlined.RecordVoiceOver,
-                    title = stringResource(R.string.settings_hub_voice_playback_title),
-                    subtitle = stringResource(R.string.settings_hub_voice_playback_subtitle),
-                    onClick = onOpenVoicePlayback,
-                    keywords = HubKeywords.voicePlayback,
-                )
-                // Voice library — dedicated subscreen.
-                SettingsHubRow(
-                    icon = Icons.Outlined.RecordVoiceOver,
-                    title = stringResource(R.string.settings_hub_voice_library_title),
-                    subtitle = stringResource(R.string.settings_hub_voice_library_subtitle),
-                    onClick = onOpenVoiceLibrary,
-                    keywords = HubKeywords.voiceLibrary,
-                )
-                SettingsHubRow(
+                    sections = voiceAudioSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.RecordVoiceOver,
+                        title = stringResource(R.string.settings_hub_voice_playback_title),
+                        subtitle = stringResource(R.string.settings_hub_voice_playback_subtitle),
+                        onClick = onOpenVoicePlayback,
+                        keywords = HubKeywords.voicePlayback,
+                    )
+                    // #1624 — distinct glyph (was RecordVoiceOver, colliding
+                    // with Voice & Playback above).
+                    SettingsHubRow(
+                        icon = Icons.Outlined.GraphicEq,
+                        title = stringResource(R.string.settings_hub_voice_library_title),
+                        subtitle = stringResource(R.string.settings_hub_voice_library_subtitle),
+                        onClick = onOpenVoiceLibrary,
+                        keywords = HubKeywords.voiceLibrary,
+                    )
+                    // #1624 — Cloud Voices, newly exposed (subscreen + route
+                    // shipped, but no hub row until now; Azure key was only
+                    // reachable via Plugins → Azure → Configure).
+                    SettingsHubRow(
+                        icon = Icons.Outlined.CloudSync,
+                        title = stringResource(R.string.settings_hub_cloud_voices_title),
+                        subtitle = stringResource(R.string.settings_hub_cloud_voices_subtitle),
+                        onClick = onOpenCloudVoices,
+                        keywords = HubKeywords.cloudVoices,
+                    )
+                    // #1624 — distinct glyph (was LibraryBooks, colliding with
+                    // Bookshare + All settings).
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Spellcheck,
+                        title = stringResource(R.string.settings_hub_pronunciation_title),
+                        subtitle = stringResource(R.string.settings_hub_pronunciation_subtitle),
+                        onClick = onOpenPronunciationDict,
+                        keywords = HubKeywords.pronunciation,
+                    )
+                }
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_reading_display),
                     icon = Icons.AutoMirrored.Outlined.MenuBook,
-                    title = stringResource(R.string.settings_hub_reading_title),
-                    subtitle = stringResource(R.string.settings_hub_reading_subtitle),
-                    onClick = onOpenReading,
-                    keywords = HubKeywords.reading,
-                )
-                // Issue #1235 — Listening stats dashboard. Sits next to
-                // Reading: both are about the user's own reading, one the
-                // knobs, the other the retrospective.
-                SettingsHubRow(
-                    icon = Icons.Outlined.Insights,
-                    title = stringResource(R.string.settings_hub_stats_title),
-                    subtitle = stringResource(R.string.settings_hub_stats_subtitle),
-                    onClick = onOpenStats,
-                    keywords = HubKeywords.stats,
-                )
-                // Issue #1467 — morning briefing / personal-podcast queue.
-                // Reading-adjacent: a curated listen-through of your sources'
-                // latest, stitched into one hands-free episode. (Copy inline
-                // for slice 1; string extraction is a follow-up.)
-                SettingsHubRow(
-                    icon = Icons.Outlined.Podcasts,
-                    title = "Morning Briefing",
-                    subtitle = "One episode from your sources — HN, arXiv, RSS, GitHub",
-                    onClick = onOpenBriefing,
-                    keywords = HubKeywords.briefing,
-                )
-                // Issue #1369 — teleprompter script manager. Reading-adjacent:
-                // save/edit/organize scripts the teleprompter can load.
-                SettingsHubRow(
-                    icon = Icons.Outlined.Description,
-                    title = stringResource(R.string.settings_hub_scripts_title),
-                    subtitle = stringResource(R.string.settings_hub_scripts_subtitle),
-                    onClick = onOpenScripts,
-                    keywords = HubKeywords.scripts,
-                )
-                // v0.5.59 (#cover-style-toggle) — Appearance. Book-
-                // cover fallback style (Monogram / Branded / Cover
-                // only). Sits next to Reading because both are
-                // visual-style knobs; future visual rows land here.
-                SettingsHubRow(
-                    icon = Icons.Outlined.Palette,
-                    title = stringResource(R.string.settings_hub_appearance_title),
-                    subtitle = stringResource(R.string.settings_hub_appearance_subtitle),
-                    onClick = onOpenAppearance,
-                    keywords = HubKeywords.appearance,
-                )
-                SettingsHubRow(
-                    icon = Icons.Outlined.Speed,
-                    title = stringResource(R.string.settings_hub_performance_title),
-                    subtitle = stringResource(R.string.settings_hub_performance_subtitle),
-                    onClick = onOpenPerformance,
-                    keywords = HubKeywords.performance,
-                )
-                SettingsHubRow(
-                    icon = Icons.Outlined.AutoAwesome,
-                    title = stringResource(R.string.settings_hub_ai_title),
-                    subtitle = stringResource(R.string.settings_hub_ai_subtitle),
-                    onClick = onOpenAi,
-                    keywords = HubKeywords.ai,
-                )
-                // Accessibility — Phase 1 scaffold (v0.5.42). Positioned
-                // between AI and AI sessions per spec: user-facing tier,
-                // not buried with the advanced rows further down.
-                SettingsHubRow(
-                    icon = Icons.Outlined.Accessibility,
-                    title = stringResource(R.string.settings_hub_accessibility_title),
-                    subtitle = stringResource(R.string.settings_hub_accessibility_subtitle),
-                    onClick = onOpenAccessibility,
-                    keywords = HubKeywords.accessibility,
-                )
-                SettingsHubRow(
-                    icon = Icons.Outlined.AutoStories,
-                    title = stringResource(R.string.settings_hub_ai_sessions_title),
-                    subtitle = stringResource(R.string.settings_hub_ai_sessions_subtitle),
-                    onClick = onOpenAiSessions,
-                    keywords = HubKeywords.aiSessions,
-                )
-                // Plugin manager (#404). Dedicated subscreen with its own
-                // search + filter chips + capability legend.
-                SettingsHubRow(
+                    sections = readingDisplaySections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.AutoMirrored.Outlined.MenuBook,
+                        title = stringResource(R.string.settings_hub_reading_title),
+                        subtitle = stringResource(R.string.settings_hub_reading_subtitle),
+                        onClick = onOpenReading,
+                        keywords = HubKeywords.reading,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Palette,
+                        title = stringResource(R.string.settings_hub_appearance_title),
+                        subtitle = stringResource(R.string.settings_hub_appearance_subtitle),
+                        onClick = onOpenAppearance,
+                        keywords = HubKeywords.appearance,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Accessibility,
+                        title = stringResource(R.string.settings_hub_accessibility_title),
+                        subtitle = stringResource(R.string.settings_hub_accessibility_subtitle),
+                        onClick = onOpenAccessibility,
+                        keywords = HubKeywords.accessibility,
+                    )
+                }
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_content_sources),
                     icon = Icons.Outlined.Extension,
-                    title = stringResource(R.string.settings_hub_plugins_title),
-                    subtitle = stringResource(R.string.settings_hub_plugins_subtitle),
-                    onClick = onOpenPluginManager,
-                    keywords = HubKeywords.plugins,
-                )
-                SettingsHubRow(
-                    icon = Icons.AutoMirrored.Outlined.LibraryBooks,
-                    title = stringResource(R.string.settings_hub_pronunciation_title),
-                    subtitle = stringResource(R.string.settings_hub_pronunciation_subtitle),
-                    onClick = onOpenPronunciationDict,
-                    keywords = HubKeywords.pronunciation,
-                )
-                SettingsHubRow(
-                    icon = Icons.Outlined.AccountCircle,
-                    title = stringResource(R.string.settings_hub_account_title),
-                    subtitle = stringResource(R.string.settings_hub_account_subtitle),
-                    onClick = onOpenAccount,
-                    keywords = HubKeywords.account,
-                )
-                SettingsHubRow(
-                    icon = Icons.Outlined.Cloud,
-                    title = stringResource(R.string.settings_hub_memory_palace_title),
-                    subtitle = stringResource(R.string.settings_hub_memory_palace_subtitle),
-                    onClick = onOpenMemoryPalace,
-                    keywords = HubKeywords.memoryPalace,
-                )
-                // Issue #1471 — Bookshare partner-key entry. Source-
-                // credential subscreen, adjacent to Memory Palace (both
-                // configure a source's access).
-                SettingsHubRow(
-                    icon = Icons.AutoMirrored.Outlined.LibraryBooks,
-                    title = stringResource(R.string.settings_hub_bookshare_title),
-                    subtitle = stringResource(R.string.settings_hub_bookshare_subtitle),
-                    onClick = onOpenBookshare,
-                    keywords = HubKeywords.bookshare,
-                )
-                // v1 settings-bundle-7 — Advanced subscreen. Power-
-                // user knobs (Android Auto bucket size, future
-                // integration tunables). Sits next to Developer
-                // because both are infrequently-touched surfaces;
-                // Advanced is user-facing while Developer is for
-                // debugging.
-                SettingsHubRow(
-                    icon = Icons.Outlined.Tune,
-                    title = stringResource(R.string.settings_hub_advanced_title),
-                    subtitle = stringResource(R.string.settings_hub_advanced_subtitle),
-                    onClick = onOpenAdvanced,
-                    keywords = HubKeywords.advanced,
-                )
-                SettingsHubRow(
-                    icon = Icons.Outlined.BugReport,
-                    title = stringResource(R.string.settings_hub_developer_title),
-                    subtitle = stringResource(R.string.settings_hub_developer_subtitle),
-                    onClick = onOpenDebug,
-                    keywords = HubKeywords.developer,
-                )
-                SettingsHubRow(
+                    sections = contentSourcesSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Extension,
+                        title = stringResource(R.string.settings_hub_plugins_title),
+                        subtitle = stringResource(R.string.settings_hub_plugins_subtitle),
+                        onClick = onOpenPluginManager,
+                        keywords = HubKeywords.plugins,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.AccountCircle,
+                        title = stringResource(R.string.settings_hub_account_title),
+                        subtitle = stringResource(R.string.settings_hub_account_subtitle),
+                        onClick = onOpenAccount,
+                        keywords = HubKeywords.account,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Cloud,
+                        title = stringResource(R.string.settings_hub_memory_palace_title),
+                        subtitle = stringResource(R.string.settings_hub_memory_palace_subtitle),
+                        onClick = onOpenMemoryPalace,
+                        keywords = HubKeywords.memoryPalace,
+                    )
+                    // Bookshare keeps LibraryBooks — now unique after Pronunciation
+                    // + All settings moved off it (#1624).
+                    SettingsHubRow(
+                        icon = Icons.AutoMirrored.Outlined.LibraryBooks,
+                        title = stringResource(R.string.settings_hub_bookshare_title),
+                        subtitle = stringResource(R.string.settings_hub_bookshare_subtitle),
+                        onClick = onOpenBookshare,
+                        keywords = HubKeywords.bookshare,
+                    )
+                }
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_ai),
+                    icon = Icons.Outlined.AutoAwesome,
+                    sections = aiSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.AutoAwesome,
+                        title = stringResource(R.string.settings_hub_ai_title),
+                        subtitle = stringResource(R.string.settings_hub_ai_subtitle),
+                        onClick = onOpenAi,
+                        keywords = HubKeywords.ai,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.AutoStories,
+                        title = stringResource(R.string.settings_hub_ai_sessions_title),
+                        subtitle = stringResource(R.string.settings_hub_ai_sessions_subtitle),
+                        onClick = onOpenAiSessions,
+                        keywords = HubKeywords.aiSessions,
+                    )
+                }
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_tools),
+                    icon = Icons.Outlined.Insights,
+                    sections = toolsSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Insights,
+                        title = stringResource(R.string.settings_hub_stats_title),
+                        subtitle = stringResource(R.string.settings_hub_stats_subtitle),
+                        onClick = onOpenStats,
+                        keywords = HubKeywords.stats,
+                    )
+                    // #1624 — Morning Briefing copy extracted from inline
+                    // hardcoded strings to resources (EN + ES) — the last
+                    // hub row that wasn't localised.
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Podcasts,
+                        title = stringResource(R.string.settings_hub_briefing_title),
+                        subtitle = stringResource(R.string.settings_hub_briefing_subtitle),
+                        onClick = onOpenBriefing,
+                        keywords = HubKeywords.briefing,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Description,
+                        title = stringResource(R.string.settings_hub_scripts_title),
+                        subtitle = stringResource(R.string.settings_hub_scripts_subtitle),
+                        onClick = onOpenScripts,
+                        keywords = HubKeywords.scripts,
+                    )
+                }
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_system),
+                    icon = Icons.Outlined.Speed,
+                    sections = systemSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Speed,
+                        title = stringResource(R.string.settings_hub_performance_title),
+                        subtitle = stringResource(R.string.settings_hub_performance_subtitle),
+                        onClick = onOpenPerformance,
+                        keywords = HubKeywords.performance,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Tune,
+                        title = stringResource(R.string.settings_hub_advanced_title),
+                        subtitle = stringResource(R.string.settings_hub_advanced_subtitle),
+                        onClick = onOpenAdvanced,
+                        keywords = HubKeywords.advanced,
+                    )
+                    SettingsHubRow(
+                        icon = Icons.Outlined.BugReport,
+                        title = stringResource(R.string.settings_hub_developer_title),
+                        subtitle = stringResource(R.string.settings_hub_developer_subtitle),
+                        onClick = onOpenDebug,
+                        keywords = HubKeywords.developer,
+                    )
+                }
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_about),
                     icon = Icons.Outlined.Info,
-                    title = stringResource(R.string.settings_hub_about_title),
-                    subtitle = stringResource(R.string.settings_hub_about_subtitle),
-                    onClick = onOpenAbout,
-                    keywords = HubKeywords.about,
-                )
-                // Escape hatch — the legacy flat-scroll SettingsScreen
-                // still works; users who want the old experience reach
-                // it via this row. Subtitle pre-empts confusion: "yes,
-                // everything you used to scroll through is still here".
-                SettingsHubRow(
-                    icon = Icons.AutoMirrored.Outlined.LibraryBooks,
-                    title = stringResource(R.string.settings_hub_all_settings_title),
-                    subtitle = stringResource(R.string.settings_hub_all_settings_subtitle),
-                    onClick = onOpenAllSettings,
-                    keywords = HubKeywords.allSettings,
-                )
-            }
+                    sections = aboutSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Info,
+                        title = stringResource(R.string.settings_hub_about_title),
+                        subtitle = stringResource(R.string.settings_hub_about_subtitle),
+                        onClick = onOpenAbout,
+                        keywords = HubKeywords.about,
+                    )
+                }
+                // Escape hatch — the legacy flat-scroll SettingsScreen still
+                // works; it trails below a divider so it doesn't compete with
+                // the curated groups (#440). Self-hides on a non-matching query
+                // like any other row; distinct Toc glyph (was LibraryBooks).
+                if (matchesHubQuery(
+                        query,
+                        escapeHatchSection.title,
+                        escapeHatchSection.subtitle,
+                        escapeHatchSection.keywords,
+                    )
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsGroupCard {
+                        SettingsHubRow(
+                            icon = Icons.Outlined.Toc,
+                            title = stringResource(R.string.settings_hub_all_settings_title),
+                            subtitle = stringResource(R.string.settings_hub_all_settings_subtitle),
+                            onClick = onOpenAllSettings,
+                            keywords = HubKeywords.allSettings,
+                        )
+                    }
+                }
             }
             // #1160: rows self-hide on a non-matching query, so a search with
             // no hits collapsed to a blank card with no feedback. Surface a
@@ -446,6 +498,28 @@ fun SettingsHubScreen(
             }
         }
     }
+}
+
+/**
+ * Issue #1624 — one labelled category on the hub: a [SectionHeading] (which
+ * carries `heading()` semantics, so TalkBack heading-navigation lands on the
+ * category name) above its own [SettingsGroupCard]. The whole group hides when
+ * the current [query] matches none of its [sections], so search never leaves an
+ * orphan heading over an empty card. Individual rows still self-hide via
+ * [LocalSettingsHubQuery], so a partially-matching group shows only its
+ * matching rows.
+ */
+@Composable
+private fun HubGroup(
+    query: String,
+    heading: String,
+    icon: ImageVector,
+    sections: List<SettingsHubSection>,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (sections.none { matchesHubQuery(query, it.title, it.subtitle, it.keywords) }) return
+    SectionHeading(label = heading, icon = icon)
+    SettingsGroupCard(content = content)
 }
 
 /**
@@ -532,6 +606,9 @@ internal object HubKeywords {
         "pause", "tts", "language", "pronunciation", "narration",
     )
     val voiceLibrary = listOf("voice", "narrator", "speaker", "download", "kokoro", "piper", "azure")
+    // Issue #1624 — Cloud Voices (Azure HD / Dragon HD BYOK). Title/subtitle
+    // already carry "cloud", "azure", "hd", "dragon"; add the non-obvious.
+    val cloudVoices = listOf("neural", "byok", "region", "tts key", "fallback", "cloud voice")
     val reading = listOf(
         "font", "text size", "dyslexic", "opendyslexic", "sepia", "cream",
         "highlight", "karaoke", "theme", "dark", "light", "focus", "auto-scroll",
@@ -575,32 +652,57 @@ internal object HubKeywords {
     val allSettings = listOf("everything", "all", "legacy", "full list")
 }
 
-val SettingsHubSections: List<SettingsHubSection> = listOf(
+// Issue #1624 — the catalog, partitioned into the seven rendered groups. Each
+// group's list drives BOTH the [HubGroup] "hide when no row matches" check and
+// (concatenated below) the flat [SettingsHubSections] the "No results" line +
+// tests read. The composable mirrors these rows manually (with real click
+// handlers). Subtitles here must match the rendered stringResource values so
+// search behaves identically over catalog and screen.
+internal val voiceAudioSections = listOf(
     SettingsHubSection("Voice & Playback", "Voice, speed, sleep timer, Do Not Disturb.", HubKeywords.voicePlayback),
     SettingsHubSection("Voice library", "Browse and switch between available voices.", HubKeywords.voiceLibrary),
-    SettingsHubSection("Reading", "Theme, fonts, colours, highlight, focus.", HubKeywords.reading),
-    // Issue #1235 — Listening stats dashboard.
-    SettingsHubSection("Listening stats", "Time listened, streaks, books finished.", HubKeywords.stats),
-    // Issue #1467 — morning briefing / personal-podcast queue. Rendered inline
-    // in the composable; catalogued here (#1577) so search + "No results" agree.
-    SettingsHubSection("Morning Briefing", "One episode from your sources — HN, arXiv, RSS, GitHub.", HubKeywords.briefing),
-    // Issue #1369 — teleprompter script manager. Also rendered inline.
-    SettingsHubSection("Scripts", "Save, edit, and organize teleprompter scripts.", HubKeywords.scripts),
-    // v0.5.59 (#cover-style-toggle) — Appearance.
-    SettingsHubSection("Appearance", "Book cover style, animation, particles.", HubKeywords.appearance),
-    SettingsHubSection("Performance", "Buffer, parallel synth, decoder choice.", HubKeywords.performance),
-    SettingsHubSection("AI", "Chat model, grounding, recap.", HubKeywords.ai),
-    // Phase 1 scaffold — v0.5.42. Phase 2 wires the actual behavior.
-    SettingsHubSection("Accessibility", "TalkBack, contrast, motion, font scale.", HubKeywords.accessibility),
-    SettingsHubSection("AI sessions", "Review past chats and delete history.", HubKeywords.aiSessions),
-    SettingsHubSection("Plugins", "Toggle backends — Fiction, Audio streams, Voice bundles.", HubKeywords.plugins),
+    // #1624 — newly exposed (subscreen shipped, no hub row before).
+    SettingsHubSection("Cloud Voices", "Azure HD & Dragon HD — bring your own key.", HubKeywords.cloudVoices),
     SettingsHubSection("Pronunciation dictionary", "Per-word phonetic overrides.", HubKeywords.pronunciation),
+)
+internal val readingDisplaySections = listOf(
+    SettingsHubSection("Reading", "Theme, fonts, colours, highlight, focus.", HubKeywords.reading),
+    SettingsHubSection("Appearance", "Book cover style, animation, particles.", HubKeywords.appearance),
+    SettingsHubSection("Accessibility", "TalkBack, contrast, motion, font scale.", HubKeywords.accessibility),
+)
+internal val contentSourcesSections = listOf(
+    SettingsHubSection("Plugins", "Toggle backends — Fiction, Audio streams, Voice bundles.", HubKeywords.plugins),
     SettingsHubSection("Account", "Royal Road, GitHub.", HubKeywords.account),
     SettingsHubSection("Memory Palace", "Daemon host, probe, integration.", HubKeywords.memoryPalace),
-    // Issue #1471 — Bookshare partner-key entry. Rendered inline; catalogued (#1577).
     SettingsHubSection("Bookshare", "Accessible DAISY library · partner API key.", HubKeywords.bookshare),
+)
+internal val aiSections = listOf(
+    SettingsHubSection("AI", "Chat model, grounding, recap.", HubKeywords.ai),
+    SettingsHubSection("AI sessions", "Review past chats and delete history.", HubKeywords.aiSessions),
+)
+internal val toolsSections = listOf(
+    SettingsHubSection("Listening stats", "Time listened, streaks, books finished.", HubKeywords.stats),
+    SettingsHubSection("Morning Briefing", "One episode from your sources — HN, arXiv, RSS, GitHub.", HubKeywords.briefing),
+    SettingsHubSection("Scripts", "Save, edit, and organize teleprompter scripts.", HubKeywords.scripts),
+)
+internal val systemSections = listOf(
+    SettingsHubSection("Performance", "Buffer, parallel synth, decoder choice.", HubKeywords.performance),
     SettingsHubSection("Advanced", "Android Auto, integration tunables.", HubKeywords.advanced),
     SettingsHubSection("Developer", "Debug overlay, log ring, advanced toggles.", HubKeywords.developer),
-    SettingsHubSection("About", "Version, sigil, handbook, privacy, licenses.", HubKeywords.about),
-    SettingsHubSection("All settings", "Every setting on one long page (legacy).", HubKeywords.allSettings),
 )
+internal val aboutSections = listOf(
+    SettingsHubSection("About", "Version, sigil, handbook, privacy, licenses.", HubKeywords.about),
+)
+// Escape hatch — rendered last, below a divider, outside the groups.
+internal val escapeHatchSection =
+    SettingsHubSection("All settings", "Every setting on one long page (legacy).", HubKeywords.allSettings)
+
+val SettingsHubSections: List<SettingsHubSection> =
+    voiceAudioSections +
+        readingDisplaySections +
+        contentSourcesSections +
+        aiSections +
+        toolsSections +
+        systemSections +
+        aboutSections +
+        escapeHatchSection

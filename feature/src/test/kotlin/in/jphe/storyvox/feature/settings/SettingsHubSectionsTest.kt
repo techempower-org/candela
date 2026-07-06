@@ -27,8 +27,8 @@ import org.junit.Test
 class SettingsHubSectionsTest {
 
     @Test
-    fun `hub catalog renders twenty sections in fixed order`() {
-        // 19 named sections + 1 escape hatch ("All settings"). The
+    fun `hub catalog renders all sections in fixed order`() {
+        // 20 named sections + 1 escape hatch ("All settings"). The
         // count bumped 13 → 14 in v0.5.42 (Accessibility scaffold);
         // 14 → 15 in v0.5.59 (Appearance / book cover style); 15 →
         // 16 in the v1 settings-bundle-7 (Advanced subscreen — #598
@@ -39,9 +39,12 @@ class SettingsHubSectionsTest {
         // (#1467), Scripts (#1369), and Bookshare (#1471). That drift
         // meant a search hitting only those rows still showed a false
         // "No results" line, since the message reads the catalog.
+        // 20 → 21 in #1624, which grouped the hub and exposed the Cloud
+        // Voices row (its subscreen + route already shipped, but the hub
+        // had no way in — you had to dig through Plugins → Azure).
         // Adding a new section requires updating both this assertion AND
         // the composable's row list — that drift is the point of pinning.
-        assertEquals(20, SettingsHubSections.size)
+        assertEquals(21, SettingsHubSections.size)
     }
 
     @Test
@@ -69,6 +72,10 @@ class SettingsHubSectionsTest {
             "Advanced",
             "Developer",
             "About",
+            // #1624 — Cloud Voices exposed as a hub row (was reachable only
+            // via Plugins → Azure → Configure). Pin it so a regression can't
+            // silently drop it back into invisibility.
+            "Cloud Voices",
         )
         val actual = SettingsHubSections.map { it.title.lowercase() }.toSet()
         for (expected in expectedSectionTitles) {
