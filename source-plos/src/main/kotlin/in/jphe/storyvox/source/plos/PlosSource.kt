@@ -14,6 +14,7 @@ import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchOrder
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.model.map
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.data.source.plugin.SourceCategory
 import `in`.jphe.storyvox.data.source.plugin.SourcePlugin
 import `in`.jphe.storyvox.source.plos.net.PlosApi
@@ -530,41 +531,7 @@ private fun escapeInlineParagraphs(plain: String): String =
         .filter { it.isNotBlank() }
         .joinToString(separator = "") { "<p>$it</p>" }
 
-/**
- * Naive HTML → plain-text stripper. Same shape as the Wikipedia and
- * Notion strippers — the TTS pipeline downstream handles sentence
- * segmentation, abbreviation expansion, etc., so this only needs to
- * drop tags and decode the half-dozen entities PLOS actually emits.
- */
-internal fun String.htmlToPlainText(): String {
-    var out = this
-        .replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-        .replace(
-            Regex("<script\\b.*?</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
-            "",
-        )
-        .replace(
-            Regex("<style\\b.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
-            "",
-        )
-    out = out.replace(
-        Regex("</?(p|div|section|h[1-6]|li|tr|br)\\b[^>]*>", RegexOption.IGNORE_CASE),
-        "\n",
-    )
-    out = out.replace(Regex("<[^>]+>"), "")
-    out = out
-        .replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&mdash;", "—")
-        .replace("&ndash;", "–")
-        .replace("&hellip;", "…")
-    out = out.replace(Regex("[ \\t]+"), " ")
-        .replace(Regex("\\n{3,}"), "\n\n")
-        .trim()
-    return out
-}
+// #1628 — HTML→plaintext consolidated into the shared core-data
+// `htmlToPlainText` (jsoup): full entity decode (the old table missed
+// curly quotes / numeric refs / Greek letters like &alpha;) and proper
+// `\n\n` paragraph breaks, replacing this module's regex stripper.

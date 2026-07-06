@@ -265,18 +265,6 @@ class PlosSourceTest {
         assertNotNull("plos:10.1371/journal.pone.0000001".toPlosDoi())
     }
 
-    @Test
-    fun `htmlToPlainText strips PLOS-style markup`() {
-        val html = """
-            <article>
-              <h2>Methods</h2>
-              <p>We measured &mdash; carefully &mdash; the &alpha;-decay rate.</p>
-            </article>
-        """.trimIndent()
-        val plain = html.htmlToPlainText()
-        assertTrue(plain.contains("Methods"))
-        assertTrue(plain.contains("We measured — carefully — the"))
-        assertFalse(plain.contains("<p>"))
-        assertFalse(plain.contains("&mdash;"))
-    }
+    // #1628 — htmlToPlainText moved to the shared core-data util; its
+    // transformation is covered by core-data HtmlPlainTextTest.
 }

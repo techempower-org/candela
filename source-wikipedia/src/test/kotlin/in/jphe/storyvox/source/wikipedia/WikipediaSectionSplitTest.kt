@@ -132,15 +132,8 @@ class WikipediaSectionSplitTest {
         assertFalse(cleaned.contains("reference"))
     }
 
-    @Test
-    fun `htmlToPlainText handles entities and block tags`() {
-        val html = "<p>A &mdash; B&nbsp;C.</p><p>Second &amp; final.</p>"
-        val plain = html.htmlToPlainText()
-        assertTrue(plain.contains("A — B C."))
-        assertTrue(plain.contains("Second & final."))
-        assertFalse(plain.contains("&nbsp;"))
-        assertFalse(plain.contains("&mdash;"))
-    }
+    // #1628 — htmlToPlainText moved to the shared core-data util; its
+    // transformation is covered by core-data HtmlPlainTextTest.
 
     @Test
     fun `fictionId roundtrip preserves underscored title`() {
