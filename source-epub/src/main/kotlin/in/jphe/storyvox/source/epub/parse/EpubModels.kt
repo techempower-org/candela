@@ -53,8 +53,9 @@ data class EpubChapter(
      * whitespace-collapsing stripper flattened every newline to a space
      * (#1619) and leaked literal `&`-entities from the `<pre>` escaping.
      *
-     * Real EPUB chapters leave this null and keep the byte-for-byte
-     * `stripHtml` behaviour — this change does not touch that path.
+     * Real EPUB chapters leave this null and let `EpubSource.chapter` derive
+     * plainBody from the XHTML via the HTML→text parser (`htmlToPlainText`,
+     * jsoup-based since #1623) — #1619 does not touch that fallback path.
      */
     val plainBody: String? = null,
 )

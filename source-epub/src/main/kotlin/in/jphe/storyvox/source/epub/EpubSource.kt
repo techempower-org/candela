@@ -21,6 +21,11 @@ import `in`.jphe.storyvox.source.epub.parse.EpubParseException
 import `in`.jphe.storyvox.source.epub.parse.EpubParser
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
+import org.jsoup.nodes.Node
+import org.jsoup.nodes.TextNode
+import org.jsoup.select.NodeVisitor
 
 /**
  * Issue #235 — local EPUB files as a fiction backend. Each indexed
@@ -183,9 +188,10 @@ internal class EpubSource @Inject constructor(
                 htmlBody = chapter.htmlBody,
                 // #1619 — prefer a source-provided plaintext body when the
                 // chapter carries one (the plaintext-import path sets it so
-                // paragraph/line structure survives). Real EPUB chapters
-                // leave it null and fall back to the HTML stripper.
-                plainBody = chapter.plainBody ?: chapter.htmlBody.stripHtml(),
+                // paragraph/line structure survives). #1623 — real EPUB
+                // chapters leave it null and fall back to the jsoup HTML→text
+                // parser, which preserves paragraph structure from the XHTML.
+                plainBody = chapter.plainBody ?: chapter.htmlBody.htmlToPlainText(),
             ),
         )
     }
@@ -232,12 +238,13 @@ internal class EpubSource @Inject constructor(
  *     chunker, and paragraph-nav all consume `ChapterContent.plainBody`.
  *
  *  #1619: the original code left plainBody to be derived by running the
- *  `<pre>` htmlBody through [String.stripHtml], whose `\s+`→" " collapse
+ *  `<pre>` htmlBody through the old HTML stripper, whose `\s+`→" " collapse
  *  flattened every newline to a space (run-on blob — fatal for scripts,
- *  verse, teleprompter) and, because stripHtml never decodes entities,
- *  leaked literal `&amp;`/`&lt;`/`&gt;` into the prose. We now derive
- *  plainBody straight from the raw file via [normalizePlainText] so the
- *  file's paragraph and line structure survives untouched. */
+ *  verse, teleprompter) and, because it never decoded entities, leaked
+ *  literal `&amp;`/`&lt;`/`&gt;` into the prose. We now derive plainBody
+ *  straight from the raw file via [normalizePlainText] so the file's
+ *  paragraph and line structure survives untouched. (The real-EPUB path's
+ *  stripper was itself replaced with [String.htmlToPlainText] in #1623.) */
 private fun textBook(entry: EpubFileEntry, bytes: ByteArray): EpubBook {
     val text = bytes.toString(Charsets.UTF_8)
     val title = entry.displayName
@@ -308,17 +315,79 @@ private fun EpubFileEntry.toSummary(): FictionSummary = FictionSummary(
     status = FictionStatus.COMPLETED,
 )
 
-/** Naive HTML strip mirroring RssSource — the EngineStreamingSource
- *  applies further normalization downstream. */
-private fun String.stripHtml(): String =
-    replace(Regex("<[^>]+>"), " ")
-        .replace(Regex("\\s+"), " ")
+/**
+ * Issue #1623 — parse a real EPUB chapter's XHTML into paragraph-preserving
+ * plaintext for the reader, the TTS `SentenceChunker`, and paragraph-level
+ * navigation (all read `ChapterContent.plainBody`).
+ *
+ * A real EPUB `htmlBody` is the ENTIRE chapter XHTML document
+ * (`EpubParser` stores `String(bodyBytes)` — `<html><head><style>…</body>`).
+ * The previous naive stripper (`<tag>`→" ", `\s+`→" ") collapsed the whole
+ * chapter into one run-on line, leaked `<head>`/`<style>`/`<script>` text
+ * into the prose, and never decoded HTML entities (curly quotes, em-dashes,
+ * accents all showed as `&…;`).
+ *
+ * jsoup — already this repo's chapter-HTML→text tool (`source-royalroad`) —
+ * parses to a DOM so we can drop non-content nodes and add a blank line
+ * (`\n\n`) after each block element, which is exactly the signal
+ * `paragraphHeadIndices` keys on. `<br>` becomes a single `\n` (soft line).
+ * Entities decode natively. Plaintext-import chapters never reach this: #1619
+ * gives them a precomputed `plainBody`, so this is the real-EPUB path only.
+ *
+ * Known limitation: whitespace INSIDE `<pre>` is collapsed like ordinary
+ * prose (jsoup `TextNode.text()` normalizes it). EPUB prose rarely uses
+ * `<pre>`; preserving it verbatim is a follow-up if a real book needs it.
+ */
+internal fun String.htmlToPlainText(): String {
+    if (isBlank()) return ""
+    val doc = Jsoup.parse(this)
+    // Non-content: strip so their text never reaches the narration.
+    doc.select("head, script, style, noscript, svg, title").remove()
+    val sb = StringBuilder()
+    doc.body().traverse(object : NodeVisitor {
+        override fun head(node: Node, depth: Int) {
+            when {
+                node is TextNode -> sb.append(node.text())
+                node is Element && node.normalName() == "br" -> sb.append('\n')
+            }
+        }
+
+        override fun tail(node: Node, depth: Int) {
+            // Blank line after each block so paragraph-nav sees the break;
+            // runs of block-closes collapse to one gap in normalization.
+            if (node is Element && node.normalName() in HTML_BLOCK_TAGS) {
+                sb.append("\n\n")
+            }
+        }
+    })
+    return sb.toString().normalizeChapterWhitespace()
+}
+
+/** Block-level tags whose close introduces a paragraph break. Inline tags
+ *  (`<em>`, `<strong>`, `<a>`, …) are intentionally absent so their text
+ *  stays on the same line. */
+private val HTML_BLOCK_TAGS: Set<String> = setOf(
+    "p", "div", "section", "article", "header", "footer", "aside", "main",
+    "blockquote", "pre", "figure", "figcaption",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "dl", "dt", "dd",
+    "table", "tr", "hr",
+)
+
+/** Collapse horizontal whitespace, trim each line's edges, cap blank runs,
+ *  and trim — while preserving `\n` (line) and `\n\n` (paragraph). Mirrors
+ *  #1619's plaintext normalization for jsoup-extracted text. */
+private fun String.normalizeChapterWhitespace(): String =
+    replace('\r', '\n')
+        .replace(Regex("[ \\t\\x0B\\u000C]+"), " ")
+        .replace(Regex(" *\n *"), "\n")
+        .replace(Regex("\n{3,}"), "\n\n")
         .trim()
 
-/** Word count from raw HTML — strip tags, split on whitespace.
+/** Word count from raw HTML — strip to plaintext, split on whitespace.
  *  Cheap heuristic for surfacing chapter length in the picker. */
 private fun String.estimatedWordCount(): Int {
-    val plain = stripHtml()
+    val plain = htmlToPlainText()
     if (plain.isEmpty()) return 0
     return plain.split(Regex("\\s+")).size
 }
