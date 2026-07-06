@@ -73,6 +73,22 @@ class NotionNestedBlocksTest {
     }
 
     @Test
+    fun `flattenNested keeps a child_page marker but does not descend into it`() = runTest {
+        // #1621 — a child_page sub-page has has_children=true, but it's a
+        // chapter boundary: its body is fetched lazily when the chapter is
+        // opened, NOT spliced into the parent listing. flattenNested must
+        // keep the marker (so planChapters splits on it) and NOT fetch its
+        // children at list time.
+        val subPage = container("child_page", "short1", hasChildren = true)
+        val lead = paragraph("Lead", "p1")
+        var fetches = 0
+        val flat = flattenNested(listOf(subPage, lead)) { fetches++; emptyList() }
+        assertEquals(listOf("short1", "p1"), flat.map { it.id })
+        assertEquals("child_page body must NOT be fetched at list time", 0, fetches)
+        assertTrue("child_page marker survives the flatten", flat.any { it.type == "child_page" })
+    }
+
+    @Test
     fun `flattenNested honours the depth cap`() = runTest {
         // A chain deeper than the cap: each level claims a child.
         val root = container("toggle", "d0", hasChildren = true)

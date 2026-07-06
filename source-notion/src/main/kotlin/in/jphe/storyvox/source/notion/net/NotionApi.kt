@@ -410,6 +410,15 @@ internal suspend fun flattenNested(
         for (block in blocks) {
             out.add(block.copy(depth = depth))
             if (!block.hasChildren) continue
+            // #1621 — a child_page sub-page is a CHAPTER boundary, not inline
+            // content. Keep its marker (added above, so planChapters still
+            // splits on it) but do NOT descend: its body is fetched lazily
+            // when the chapter opens (NotionPATSource.chapter → pageBlocks on
+            // the child id). Without this guard, listing a page of N sub-pages
+            // eagerly fetched every short's body and spliced it into the lead,
+            // bloating the "Introduction" chapter with every short's full text
+            // and risking the MAX_CHILD_REQUESTS ceiling on the list call.
+            if (block.type == "child_page") continue
             if (depth >= maxDepth) continue
             if (requests >= maxRequests) continue
             requests++
