@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Podcasts
@@ -212,6 +213,12 @@ fun SettingsHubScreen(
      *  / smoke tests compile without wiring it; production wiring in
      *  [`in`.jphe.storyvox.navigation.StoryvoxNavHost]. */
     onOpenDownloads: () -> Unit = {},
+    /**
+     * Issue #1631 — Notifications subscreen (new-chapter alerts + system
+     * permission). Default no-op so callers / smoke tests compile; production
+     * wiring lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
+     */
+    onOpenNotifications: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var query by remember { mutableStateOf("") }
@@ -403,6 +410,23 @@ fun SettingsHubScreen(
                         subtitle = stringResource(R.string.settings_hub_downloads_subtitle),
                         onClick = onOpenDownloads,
                         keywords = HubKeywords.downloadsStorage,
+                    )
+                }
+                // #1631 — Notifications (group 5, after Downloads & Storage per
+                // the approved 8-group mockup: …Content & Sources · Downloads &
+                // Storage · Notifications · AI…).
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_notifications),
+                    icon = Icons.Outlined.Notifications,
+                    sections = notificationsSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Notifications,
+                        title = stringResource(R.string.settings_hub_notifications_title),
+                        subtitle = stringResource(R.string.settings_hub_notifications_subtitle),
+                        onClick = onOpenNotifications,
+                        keywords = HubKeywords.notifications,
                     )
                 }
                 HubGroup(
@@ -710,6 +734,11 @@ internal object HubKeywords {
         "download", "downloads", "storage", "cache", "offline", "wifi", "wi-fi",
         "data saver", "unmetered", "clear cache", "quota", "update interval", "poll",
     )
+    // #1631 — Notifications: new-chapter alerts + system permission.
+    val notifications = listOf(
+        "notification", "notifications", "alert", "alerts", "new chapter", "push",
+        "inbox", "royal road", "kvmr", "wikipedia", "permission", "system settings",
+    )
     val advanced = listOf("android auto", "car", "items per category", "integration")
     val developer = listOf("debug", "overlay", "log", "diagnostics", "reset onboarding", "verbose")
     val about = listOf(
@@ -756,6 +785,14 @@ internal val downloadsStorageSections = listOf(
         HubKeywords.downloadsStorage,
     ),
 )
+// #1631 — Notifications (group 5). Subtitle matches R.string.settings_hub_notifications_subtitle.
+internal val notificationsSections = listOf(
+    SettingsHubSection(
+        "Notifications",
+        "New-chapter alerts and system permission.",
+        HubKeywords.notifications,
+    ),
+)
 internal val aiSections = listOf(
     SettingsHubSection("AI", "Chat model, grounding, recap.", HubKeywords.ai),
     SettingsHubSection("AI sessions", "Review past chats and delete history.", HubKeywords.aiSessions),
@@ -784,6 +821,7 @@ val SettingsHubSections: List<SettingsHubSection> =
         readingDisplaySections +
         contentSourcesSections +
         downloadsStorageSections +
+        notificationsSections +
         aiSections +
         toolsSections +
         systemSections +

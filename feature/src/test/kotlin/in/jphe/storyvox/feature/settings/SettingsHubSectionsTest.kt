@@ -46,9 +46,11 @@ class SettingsHubSectionsTest {
         // per-source config seam, un-buried from the legacy monolith).
         // 22 → 23 in #1632, which added the Downloads & Storage group + row.
         // 23 → 24 in #1634, which added the Benefits row to the Tools group.
+        // 24 → 25 in #1631, which added the Notifications group + row (the
+        // buried inboxNotify* toggles + a system-permission affordance).
         // Adding a new section requires updating both this assertion AND
         // the composable's row list — that drift is the point of pinning.
-        assertEquals(24, SettingsHubSections.size)
+        assertEquals(25, SettingsHubSections.size)
     }
 
     @Test
@@ -88,6 +90,9 @@ class SettingsHubSectionsTest {
             "Downloads & Storage",
             // #1634 — Benefits re-discovery row (Screener/Decoder) in Tools.
             "Benefits",
+            // #1631 — Notifications group (buried inboxNotify* toggles + a
+            // system-permission affordance, un-buried into its own hub group).
+            "Notifications",
         )
         val actual = SettingsHubSections.map { it.title.lowercase() }.toSet()
         for (expected in expectedSectionTitles) {

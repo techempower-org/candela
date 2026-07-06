@@ -60,6 +60,7 @@ import `in`.jphe.storyvox.feature.settings.AiSettingsScreen
 import `in`.jphe.storyvox.feature.settings.BookshareSettingsScreen
 import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ContentSourcesSettingsScreen
+import `in`.jphe.storyvox.feature.settings.NotificationsSettingsScreen
 import `in`.jphe.storyvox.feature.settings.DownloadsStorageSettingsScreen
 import `in`.jphe.storyvox.feature.settings.TeleprompterSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
@@ -213,9 +214,10 @@ object StoryvoxRoutes {
 
     /** Issue #1632 — Downloads & Storage subscreen (hub group 4). */
     const val SETTINGS_DOWNLOADS = "settings/downloads"
-
     /** Issue #1633 — teleprompter recording presets, reached from the Scripts gear. */
     const val SETTINGS_TELEPROMPTER = "settings/teleprompter"
+    /** Issue #1631 — Notifications subscreen (hub group 5). */
+    const val SETTINGS_NOTIFICATIONS = "settings/notifications"
     /** Settings → Account. Royal Road sign-in, GitHub OAuth + scope. */
     const val SETTINGS_ACCOUNT = "settings/account"
     /** Settings → Memory Palace. Daemon host, API key, test probe. */
@@ -1263,6 +1265,8 @@ private fun StoryvoxNavHostContent(
                     // #1630 — Content Sources subscreen.
                     onOpenContentSources = { navController.navigate(StoryvoxRoutes.SETTINGS_CONTENT_SOURCES) },
                     onOpenDownloads = { navController.navigate(StoryvoxRoutes.SETTINGS_DOWNLOADS) },
+                    // #1631 — Notifications subscreen.
+                    onOpenNotifications = { navController.navigate(StoryvoxRoutes.SETTINGS_NOTIFICATIONS) },
                 )
             }
 
@@ -1571,6 +1575,19 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 DownloadsStorageSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #1631 — Notifications subscreen (new-chapter alerts + system
+            // permission), un-buried into hub group 5.
+            composable(
+                StoryvoxRoutes.SETTINGS_NOTIFICATIONS,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                NotificationsSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
