@@ -602,57 +602,23 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_legacy_plugins_subtitle),
                 onClick = onOpenPluginManager,
             )
-            // Inline config rows that hang off specific plugins —
-            // EPUB folder picker, Outline host/token, Wikipedia
-            // language code, Notion db+token, Discord bot+server.
-            // These stay accessible from the same section so the user
-            // doesn't have to bounce through the plugin manager for
-            // routine adjustments; the manager's per-plugin detail
-            // sheet links here too.
-            EpubFolderPickerRow(viewModel = viewModel)
-            PdfFolderPickerRow(viewModel = viewModel)
-            // #1624 — Outline (#245) + Wikipedia (#377) migrated to the generic
-            // config seam; they now render in [SourceConfigSection] below (and
-            // in the Content Sources subscreen). Bespoke rows removed.
-            val discordGuilds by viewModel.discordGuilds.collectAsStateWithLifecycle()
-            DiscordConfigRow(
-                tokenConfigured = s.discordTokenConfigured,
-                serverId = s.discordServerId,
-                serverName = s.discordServerName,
-                coalesceMinutes = s.discordCoalesceMinutes,
-                guilds = discordGuilds,
-                onApiTokenChange = viewModel::setDiscordApiToken,
-                onServerSelected = viewModel::setDiscordServer,
-                onCoalesceMinutesChange = viewModel::setDiscordCoalesceMinutes,
-                onRefreshGuilds = viewModel::refreshDiscordGuilds,
-            )
-            val telegramBot by viewModel.telegramBotUsername.collectAsStateWithLifecycle()
-            val telegramChannels by viewModel.telegramChannels.collectAsStateWithLifecycle()
-            TelegramConfigRow(
-                tokenConfigured = s.telegramTokenConfigured,
-                botUsername = telegramBot,
-                channels = telegramChannels,
-                onApiTokenChange = viewModel::setTelegramApiToken,
-                onRefreshProbe = viewModel::refreshTelegramProbe,
-            )
-            // #1531 — generic per-source config-field seam. Renders every
-            // source's declared config fields (Reddit client id + comment
-            // epilogue, Notion database id + token, Prime Gaming feed-URL
-            // override #1535, and any future credentialed source) from the
-            // registry with ZERO bespoke rows here. This is the whole point
-            // of the seam: a new authed source contributes a
-            // SourceConfigContributor and appears below with no edit to this
-            // monolith.
+            // #1531 — generic per-source config-field seam. Renders each
+            // source's declared config fields (Reddit, Notion, Prime Gaming
+            // feed-URL override #1535, Outline/Wikipedia via #1645, and any
+            // future credentialed source) from the registry with ZERO bespoke
+            // rows here.
+            //
+            // #1624 / #1644 — the bespoke rows that used to sit alongside this
+            // (Epub/Pdf folder pickers, Discord, Telegram, and the Google News
+            // toggle) moved to the Content Sources hub subscreen
+            // ([ContentSourcesSettingsScreen]) so source config has a single
+            // home, matching the §B Outline/Wikipedia migration (#1645). Their
+            // composables are unchanged (now `internal`, rendered from there);
+            // only the duplicate call sites are gone. The seam still renders
+            // here too — the legacy screen is a deliberate escape hatch.
             SourceConfigSection(
                 sections = s.sourceConfigSections,
                 onValueChange = viewModel::setSourceConfigValue,
-            )
-            // #1295 — Google News full-article text (opt-in, default OFF).
-            SettingsSwitchRow(
-                title = stringResource(R.string.settings_google_news_full_text_title),
-                subtitle = stringResource(R.string.settings_google_news_full_text_subtitle),
-                checked = s.googleNewsFullArticleText,
-                onCheckedChange = viewModel::setGoogleNewsFullArticleText,
             )
         }
 
@@ -3200,8 +3166,10 @@ private fun AnthropicTeamsProviderRows(
  * persistable so we don't have to re-prompt the user across
  * launches.
  */
+// #1644 — internal (was private) so the Content Sources subscreen renders the
+// same folder-picker rows without duplicating them. Still called here too.
 @Composable
-private fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
+internal fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
     val folder by viewModel.epubFolderUri.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -3263,7 +3231,7 @@ private fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
  * resolved URI is persistable so we don't re-prompt across launches.
  */
 @Composable
-private fun PdfFolderPickerRow(viewModel: SettingsViewModel) {
+internal fun PdfFolderPickerRow(viewModel: SettingsViewModel) {
     val folder by viewModel.pdfFolderUri.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -3492,9 +3460,12 @@ internal fun SourceConfigTextField(
  * once a token is configured (no point listing servers when the bot
  * isn't authenticated).
  */
+// #1644 — internal (was private) so the Content Sources subscreen renders the
+// same bespoke card (guild-fetch dropdown can't live behind the static seam).
+// Still called from this legacy screen too.
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun DiscordConfigRow(
+internal fun DiscordConfigRow(
     tokenConfigured: Boolean,
     serverId: String,
     serverName: String,
@@ -3689,9 +3660,12 @@ private fun DiscordConfigRow(
  * onboarding doesn't produce a visible "your bot is" surface
  * elsewhere in the flow.
  */
+// #1644 — internal (was private) so the Content Sources subscreen renders the
+// same bespoke card (channel-discovery probe can't live behind the static seam).
+// Still called from this legacy screen too.
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun TelegramConfigRow(
+internal fun TelegramConfigRow(
     tokenConfigured: Boolean,
     botUsername: String?,
     channels: List<Pair<String, String>>,
