@@ -9,6 +9,18 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.3] -- 2026-07-05
+
+**Lunar Pulsar.** Fixes a crash when a sleep timer runs out. Still carries the v1.12.2 sleep diagnostics (reverted in the next release, once shake-to-extend is confirmed on-device).
+
+### Fixed
+
+- **App crashed every time a sleep timer expired** — the timer-expiry pause touched the Media3 player off the main thread, which Media3 forbids (`verifyApplicationThread`), so the process died and restarted instead of gently pausing. Pre-existing since #1190; it only started surfacing when #1596 made auto-sleep fire by default on real devices. The pause is now marshalled to the main thread (`Dispatchers.Main.immediate` — inline for the UI/media-button callers, a hop only for the off-main timer caller), matching the existing #553/#969 fixes. This was the real symptom behind the "auto sleep timer not working" report. (#1606, #1574)
+
+### Under the hood
+
+- Retains the v1.12.2 sleep-timer `Log.w` diagnostics + shake peak logging (#1604) so shake-to-extend (#1595) can be root-caused on-device in the same build; reverted in the next release.
+
 ## [1.12.2] -- 2026-07-05
 
 **Ancient Raven.** A diagnostic build: sleep-timer log levels are raised so the two open on-device reports (#1574 auto-sleep, #1595 shake-to-extend) can be root-caused on a real device. No user-facing change — the verbose logging is reverted alongside the symptom fixes in the next release.
