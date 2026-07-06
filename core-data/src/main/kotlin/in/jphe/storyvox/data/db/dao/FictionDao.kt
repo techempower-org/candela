@@ -241,6 +241,11 @@ interface FictionDao {
                 // poll worker writes this column. Preserve so a browse
                 // upsert doesn't reset the cheap-poll state.
                 lastSeenRevision = existing.lastSeenRevision,
+                // #1621 — the chapter-plan version stamps the chapter LIST
+                // structure, which a listing doesn't re-plan. Preserve it so
+                // a browse upsert doesn't spuriously mark a detail-fetched
+                // row plan-stale and trigger a needless re-fetch on open.
+                chapterPlanVersion = existing.chapterPlanVersion,
             )
         }
         upsertMany(merged)

@@ -551,6 +551,19 @@ val MIGRATION_17_18: Migration = object : Migration(17, 18) {
     }
 }
 
+// v19 (#1621 chapter-plan version) — additive column stamping which
+// CHAPTER_PLAN_VERSION a row's cached chapter LIST was planned under.
+// Default 0 (the implicit pre-stamp version) marks every existing row
+// plan-stale, so it revalidates once on next open and re-plans its chapter
+// list (e.g. picking up #1508's Notion child_page split). Purely additive.
+val MIGRATION_18_19: Migration = object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `fiction` ADD COLUMN `chapterPlanVersion` INTEGER NOT NULL DEFAULT 0",
+        )
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -569,4 +582,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_15_16,
     MIGRATION_16_17,
     MIGRATION_17_18,
+    MIGRATION_18_19,
 )

@@ -120,6 +120,27 @@ data class Fiction(
      * browse-listing upserts in [FictionDao.upsertAllPreservingUserState].
      */
     val playbackSpeed: Float? = null,
+    /**
+     * Issue #1621 — the [in.jphe.storyvox.data.repository.FictionRepositoryImpl.CHAPTER_PLAN_VERSION]
+     * this row's cached chapter LIST was planned under.
+     *
+     * When a source's chapter-list planning logic improves (e.g. #1508
+     * taught Notion to split `child_page` sub-pages into chapters), lists
+     * cached by the older logic are structurally stale — even though
+     * chapter *bodies* self-heal on logic changes via `CHUNKER_VERSION`
+     * (baked into the PCM cache key) and `bodyChecksum`. The chapter LIST
+     * had no such stamp, so a pre-improvement cache kept showing the old
+     * structure (e.g. JP's shorts collapsed to 1 chapter) until the #1314
+     * TTL lapsed and a refresh happened to fire.
+     *
+     * `refreshDetail` force-revalidates any row whose stamp is below the
+     * current version (bypassing the TTL), so a pre-improvement cache
+     * re-fetches once on next open and re-plans. Defaults to 0 (the
+     * implicit pre-stamp version) so every existing row revalidates once
+     * after the migration. Preserved across browse-listing upserts — a
+     * listing doesn't re-plan chapters, so it must not reset the stamp.
+     */
+    val chapterPlanVersion: Int = 0,
 ) {
     companion object {
         /**
