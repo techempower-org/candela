@@ -200,7 +200,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     // read doesn't block the accelerometer callback.
                     // `currentShakeExtendMinutes` falls back to 15 (the
                     // legacy value) when the store hasn't emitted yet.
-                    Log.i(TAG, "Shake-to-extend: shake detected in fade tail (remaining=${remaining}ms) — extending")
+                    Log.w(TAG, "Shake-to-extend: shake detected in fade tail (remaining=${remaining}ms) — extending")
                     scope.launch {
                         val minutes = sleepExtendConfig.currentShakeExtendMinutes()
                         controller.startSleepTimer(SleepTimerMode.Duration(minutes))
@@ -212,7 +212,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     // if it shows NO shake lines at all while the fade-tail
                     // "accelerometer registered" line is present, the
                     // gesture isn't crossing the detector threshold.
-                    Log.d(TAG, "Shake-to-extend: shake ignored — not in fade tail (remaining=${remaining}ms)")
+                    Log.w(TAG, "Shake-to-extend: shake ignored — not in fade tail (remaining=${remaining}ms)")
                 }
             },
         )
@@ -228,7 +228,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     if (inFadeWindow && !shakeListening) {
                         val started = shakeDetector?.start() ?: false
                         shakeListening = true
-                        Log.i(
+                        Log.w(
                             TAG,
                             "Shake-to-extend: fade tail entered (remaining=${remaining}ms) — " +
                                 "accelerometer ${if (started) "registered" else "FAILED to register"}",
@@ -236,7 +236,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     } else if (!inFadeWindow && shakeListening) {
                         shakeDetector?.stop()
                         shakeListening = false
-                        Log.d(TAG, "Shake-to-extend: fade tail exited — accelerometer released")
+                        Log.w(TAG, "Shake-to-extend: fade tail exited — accelerometer released")
                     }
                 }
         }
@@ -267,7 +267,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
                 // MediaSession shows PLAYING — so if this logs isPlaying=false
                 // during audible playback, that's a *new* finding.)
                 val arm = shouldArmBedtimeSleep(dndActive, playing, timerRunning)
-                Log.i(
+                Log.w(
                     TAG,
                     "Bedtime auto-sleep: filter changed (filter=$filter dndActive=$dndActive " +
                         "isPlaying=$playing timerRunning=$timerRunning) → arm=$arm",
@@ -276,7 +276,7 @@ class StoryvoxPlaybackService : MediaSessionService() {
                     scope.launch {
                         val minutes = sleepExtendConfig.currentShakeExtendMinutes()
                         controller.startSleepTimer(SleepTimerMode.Duration(minutes))
-                        Log.i(TAG, "Bedtime auto-sleep: armed ${minutes}min (DND filter=$filter)")
+                        Log.w(TAG, "Bedtime auto-sleep: armed ${minutes}min (DND filter=$filter)")
                     }
                 }
             }
@@ -305,11 +305,11 @@ class StoryvoxPlaybackService : MediaSessionService() {
                             Log.w(TAG, "Bedtime auto-sleep: registerReceiver failed: ${it.message}")
                         }.isSuccess
                         dndReceiverRegistered = ok
-                        Log.i(TAG, "Bedtime auto-sleep: receiver ${if (ok) "registered" else "registration FAILED"}")
+                        Log.w(TAG, "Bedtime auto-sleep: receiver ${if (ok) "registered" else "registration FAILED"}")
                     } else if (!enabled && dndReceiverRegistered) {
                         runCatching { unregisterReceiver(dndReceiver) }
                         dndReceiverRegistered = false
-                        Log.i(TAG, "Bedtime auto-sleep: receiver unregistered (setting off)")
+                        Log.w(TAG, "Bedtime auto-sleep: receiver unregistered (setting off)")
                     }
                 }
         }
