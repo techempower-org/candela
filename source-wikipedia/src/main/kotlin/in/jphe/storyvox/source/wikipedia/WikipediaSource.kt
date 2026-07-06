@@ -15,6 +15,7 @@ import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
 import `in`.jphe.storyvox.data.source.model.map
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.source.wikipedia.net.WikipediaApi
 import `in`.jphe.storyvox.source.wikipedia.net.WikipediaFeaturedArticle
 import `in`.jphe.storyvox.source.wikipedia.net.WikipediaMostReadArticle
@@ -696,48 +697,8 @@ private fun cleanWikipediaTitle(raw: String): String {
     return out.trim()
 }
 
-/**
- * Naive HTML → plain-text stripper for the TTS-side `plainBody`. The
- * playback layer applies further normalization downstream (sentence
- * segmentation, abbreviation expansion), so this only needs to remove
- * tags + decode the most common entities — anything fancier would
- * duplicate work.
- */
-internal fun String.htmlToPlainText(): String {
-    // Drop comments + script/style blocks first; they have no narrating
-    // value and stripping tags leaves their content behind.
-    var out = this
-        .replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-        .replace(
-            Regex("<script\\b.*?</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
-            "",
-        )
-        .replace(
-            Regex("<style\\b.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
-            "",
-        )
-    // Block-level tags → paragraph break.
-    out = out.replace(
-        Regex("</?(p|div|section|h[1-6]|li|tr|br)\\b[^>]*>", RegexOption.IGNORE_CASE),
-        "\n",
-    )
-    // Strip every remaining tag.
-    out = out.replace(Regex("<[^>]+>"), "")
-    // Decode the half-dozen entities Wikipedia actually emits.
-    out = out
-        .replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&mdash;", "—")
-        .replace("&ndash;", "–")
-        .replace("&hellip;", "…")
-    // Collapse runs of whitespace + blank lines.
-    out = out.replace(Regex("[ \\t]+"), " ")
-        .replace(Regex("\\n{3,}"), "\n\n")
-        .trim()
-    return out
-}
+// #1628 — HTML→plaintext consolidated into the shared core-data
+// `htmlToPlainText` (jsoup). Replaces the old regex stripper's limited
+// entity table (which leaked curly quotes / numeric refs into narration)
+// and its single-`\n` block breaks (which paragraph-nav couldn't see)
+// with full entity decoding and proper `\n\n` paragraph breaks.

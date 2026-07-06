@@ -14,6 +14,7 @@ import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.source.wikisource.net.WikisourceApi
 import `in`.jphe.storyvox.source.wikisource.net.WikisourceCategoryMember
 import `in`.jphe.storyvox.source.wikisource.net.WikisourceSearchHit
@@ -785,42 +786,7 @@ internal fun scrubWikisourceCruft(html: String): String {
     return cleaned
 }
 
-/**
- * Naive HTML → plain-text stripper for the TTS-side `plainBody`. Same
- * shape as `:source-wikipedia.htmlToPlainText` — kept as a local
- * function to avoid coupling the two source modules. The playback
- * layer applies further normalization downstream (sentence
- * segmentation, abbreviation expansion).
- */
-internal fun String.htmlToPlainText(): String {
-    var out = this
-        .replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-        .replace(
-            Regex("<script\\b.*?</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
-            "",
-        )
-        .replace(
-            Regex("<style\\b.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)),
-            "",
-        )
-    out = out.replace(
-        Regex("</?(p|div|section|h[1-6]|li|tr|br)\\b[^>]*>", RegexOption.IGNORE_CASE),
-        "\n",
-    )
-    out = out.replace(Regex("<[^>]+>"), "")
-    out = out
-        .replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&mdash;", "—")
-        .replace("&ndash;", "–")
-        .replace("&hellip;", "…")
-    out = out.replace(Regex("[ \\t]+"), " ")
-        .replace(Regex("\\n{3,}"), "\n\n")
-        .trim()
-    return out
-}
+// #1628 — HTML→plaintext consolidated into the shared core-data
+// `htmlToPlainText` (jsoup): full entity decode (curly quotes/em-dashes,
+// pervasive in the classic literature Wikisource serves) and proper
+// `\n\n` paragraph breaks, replacing this module's regex stripper.

@@ -357,15 +357,8 @@ class WikisourceSourceTest {
         assertFalse(cleaned.contains("[1]"))
     }
 
-    @Test
-    fun `htmlToPlainText handles entities and block tags`() {
-        val html = "<p>O Romeo &mdash; Romeo&nbsp;Romeo.</p><p>Wherefore &amp; thou.</p>"
-        val plain = html.htmlToPlainText()
-        assertTrue(plain.contains("O Romeo — Romeo Romeo."))
-        assertTrue(plain.contains("Wherefore & thou."))
-        assertFalse(plain.contains("&nbsp;"))
-        assertFalse(plain.contains("&mdash;"))
-    }
+    // #1628 — htmlToPlainText moved to the shared core-data util; its
+    // transformation is covered by core-data HtmlPlainTextTest.
 
     @Test
     fun `fictionId round-trips through title extraction`() {

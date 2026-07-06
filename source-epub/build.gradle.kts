@@ -28,9 +28,6 @@ kotlin {
 dependencies {
     implementation(project(":core-data"))
     implementation(libs.kotlinx.coroutines.android)
-    // #1623 — parse real EPUB chapter XHTML into paragraph-preserving
-    // plaintext. Already the chapter-HTML→text tool in source-royalroad.
-    implementation(libs.jsoup)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
