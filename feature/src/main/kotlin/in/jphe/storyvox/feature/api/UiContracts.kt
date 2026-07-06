@@ -1608,6 +1608,20 @@ data class UiSettings(
      */
     val teleprompterWpm: Int = 130,
     /**
+     * Issue #1633 — persisted teleprompter recording-overlay knobs. These reset
+     * every session today (session `StateFlow`s in `RecordingViewModel`); persist
+     * them (device-local, not synced — like [teleprompterWpm]) and make the
+     * hardcoded countdown user-settable. Defaults mirror the current
+     * `RecordingViewModel` constants, so seeding from these preserves today's
+     * behaviour until the user changes one. `RecordingViewModel` seeds its flows
+     * from these on init and writes back on change (dual-write, like speed/pitch).
+     */
+    val teleprompterCountdownSec: Int = 3,
+    val teleprompterOverlayOpacity: Float = 0.7f,
+    val teleprompterFontSizeSp: Int = 26,
+    val teleprompterMirror: Boolean = false,
+    val teleprompterFrontCamera: Boolean = true,
+    /**
      * Issue #1632 — app-wide default [DownloadMode] applied to newly-added
      * fictions that don't specify one. The effective per-book mode is the
      * `Fiction.downloadMode` column; this is the default the "add to library"
@@ -2113,6 +2127,13 @@ interface SettingsRepositoryUi {
      * without overriding it.
      */
     suspend fun setTeleprompterWpm(wpm: Int) = Unit
+    /** Issue #1633 — persist the teleprompter recording-overlay knobs. Defaulted
+     *  no-op so hand-rolled [SettingsRepositoryUi] fakes don't break. */
+    suspend fun setTeleprompterCountdownSec(seconds: Int) = Unit
+    suspend fun setTeleprompterOverlayOpacity(opacity: Float) = Unit
+    suspend fun setTeleprompterFontSizeSp(sp: Int) = Unit
+    suspend fun setTeleprompterMirror(enabled: Boolean) = Unit
+    suspend fun setTeleprompterFrontCamera(front: Boolean) = Unit
     /**
      * Issue #992 — reader-surface typography setters. Each clamps into the safe
      * range from [ReaderTypography] on write. Default impls are no-ops so tests

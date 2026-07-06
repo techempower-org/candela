@@ -61,6 +61,7 @@ import `in`.jphe.storyvox.feature.settings.BookshareSettingsScreen
 import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ContentSourcesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.DownloadsStorageSettingsScreen
+import `in`.jphe.storyvox.feature.settings.TeleprompterSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
@@ -212,6 +213,9 @@ object StoryvoxRoutes {
 
     /** Issue #1632 — Downloads & Storage subscreen (hub group 4). */
     const val SETTINGS_DOWNLOADS = "settings/downloads"
+
+    /** Issue #1633 — teleprompter recording presets, reached from the Scripts gear. */
+    const val SETTINGS_TELEPROMPTER = "settings/teleprompter"
     /** Settings → Account. Royal Road sign-in, GitHub OAuth + scope. */
     const val SETTINGS_ACCOUNT = "settings/account"
     /** Settings → Memory Palace. Daemon host, API key, test probe. */
@@ -1305,6 +1309,22 @@ private fun StoryvoxNavHostContent(
                     onOpenTeleprompter = {
                         navController.navigate(StoryvoxRoutes.PLAYING) { launchSingleTop = true }
                     },
+                    onOpenTeleprompterSettings = {
+                        navController.navigate(StoryvoxRoutes.SETTINGS_TELEPROMPTER)
+                    },
+                )
+            }
+            // #1633 — teleprompter recording presets (reached from the Scripts gear;
+            // off the settings-hub chain, settings-family scaffold).
+            composable(
+                StoryvoxRoutes.SETTINGS_TELEPROMPTER,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                TeleprompterSettingsScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(

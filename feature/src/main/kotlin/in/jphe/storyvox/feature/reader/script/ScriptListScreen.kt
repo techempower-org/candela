@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
@@ -74,6 +75,9 @@ fun ScriptListScreen(
     onBack: () -> Unit,
     onOpenScript: (String) -> Unit,
     onOpenTeleprompter: () -> Unit,
+    // #1633 — gear → dedicated TeleprompterSettingsScreen (recording presets).
+    //  Default no-op so existing callers / the smoke test still compile.
+    onOpenTeleprompterSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ScriptManagerViewModel = hiltViewModel(),
 ) {
@@ -108,6 +112,16 @@ fun ScriptListScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // #1633 — teleprompter recording presets (countdown, overlay
+                    // opacity/font, mirror, camera, scroll speed).
+                    IconButton(onClick = onOpenTeleprompterSettings) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = "Teleprompter settings",
+                        )
                     }
                 },
             )

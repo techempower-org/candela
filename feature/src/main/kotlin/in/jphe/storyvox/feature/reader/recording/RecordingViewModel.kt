@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
+import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.playback.RecordingController
 import `in`.jphe.storyvox.playback.RecordingRequest
 import `in`.jphe.storyvox.playback.TeleprompterController
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -54,6 +56,10 @@ class RecordingViewModel @Inject constructor(
      *  owner: it acts on inbound [RecordingController.requests] and writes back
      *  `armed` / `recording` / `elapsedMs`. */
     private val recordingController: RecordingController,
+    /** Issue #1633 — persist the recording-overlay knobs across sessions: seed
+     *  the flows below from the stored defaults on init and write back on change
+     *  (dual-write, mirroring how per-fiction speed/pitch persist). */
+    private val settings: SettingsRepositoryUi,
 ) : ViewModel() {
 
     /** The chapter text to read — the same script the reader's teleprompter
@@ -104,11 +110,27 @@ class RecordingViewModel @Inject constructor(
     private var countdownJob: Job? = null
     private var elapsedJob: Job? = null
 
+    /** Issue #1633 — countdown length in seconds, seeded from the persisted pref
+     *  on init (replaces the hardcoded [COUNTDOWN_SECONDS]). 0 = skip the
+     *  countdown and begin recording immediately. */
+    private var countdownSec: Int = COUNTDOWN_SECONDS
+
     init {
         // This VM's lifetime ≈ the RecordingScreen being on-screen with the
         // camera bound, so `armed` tells the Wear remote when its record button
         // is live ("open Recording on your phone first" otherwise).
         recordingController.setArmed(true)
+
+        // #1633 — seed the overlay knobs from their persisted defaults so they
+        // survive across sessions; each setter below writes the change back.
+        viewModelScope.launch {
+            val s = settings.settings.first()
+            countdownSec = s.teleprompterCountdownSec
+            _opacity.value = s.teleprompterOverlayOpacity
+            _fontSize.value = s.teleprompterFontSizeSp
+            _mirror.value = s.teleprompterMirror
+            _frontCamera.value = s.teleprompterFrontCamera
+        }
 
         // Inbound remote intents (watch): Start only begins a fresh take from
         // Preview; Stop defers to stopRecording()'s own Recording-only guard.
@@ -170,7 +192,7 @@ class RecordingViewModel @Inject constructor(
     private fun startCountdown() {
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
-            for (s in COUNTDOWN_SECONDS downTo 1) {
+            for (s in countdownSec downTo 1) {
                 _uiState.value = RecordingState.Countdown(s)
                 delay(1_000)
             }
@@ -224,21 +246,33 @@ class RecordingViewModel @Inject constructor(
     fun flipCamera() {
         when (_uiState.value) {
             is RecordingState.Recording, is RecordingState.Saving -> return
-            else -> _frontCamera.value = !_frontCamera.value
+            else -> {
+                _frontCamera.value = !_frontCamera.value
+                persist { setTeleprompterFrontCamera(_frontCamera.value) }
+            }
         }
     }
 
     fun setOpacity(value: Float) {
         _opacity.value = value.coerceIn(MIN_OPACITY, MAX_OPACITY)
+        persist { setTeleprompterOverlayOpacity(_opacity.value) }
     }
 
     /** Step the script font size (A− / A+) within the supported band. */
     fun adjustFontSize(deltaSp: Int) {
         _fontSize.value = (_fontSize.value + deltaSp).coerceIn(MIN_FONT_SP, MAX_FONT_SP)
+        persist { setTeleprompterFontSizeSp(_fontSize.value) }
     }
 
     fun toggleMirror() {
         _mirror.value = !_mirror.value
+        persist { setTeleprompterMirror(_mirror.value) }
+    }
+
+    /** #1633 — write an overlay-knob change back to the persisted defaults so it
+     *  seeds the next recording session (dual-write, like speed/pitch). */
+    private fun persist(write: suspend SettingsRepositoryUi.() -> Unit) {
+        viewModelScope.launch { settings.write() }
     }
 
     /** Back to a clean live preview (after a save, an error, or "record

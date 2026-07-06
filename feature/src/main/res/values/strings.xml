@@ -701,6 +701,21 @@
     <!-- #1634 — Benefits hub entry (re-discover Screener/Decoder) -->
     <string name="settings_hub_benefits_title">Benefits</string>
     <string name="settings_hub_benefits_subtitle">Do-I-qualify screener &amp; letter decoder.</string>
+    <!-- #1633 — Teleprompter recording presets subscreen (gear in Scripts; EN-only #1583) -->
+    <string name="teleprompter_settings_title">Teleprompter</string>
+    <string name="scripts_recording_wpm_title">Scroll speed</string>
+    <string name="scripts_recording_wpm_value">%1$d wpm</string>
+    <string name="scripts_recording_countdown_title">Countdown before recording</string>
+    <string name="scripts_recording_countdown_off">Off</string>
+    <string name="scripts_recording_countdown_value">%1$d s</string>
+    <string name="scripts_recording_opacity_title">Script overlay opacity</string>
+    <string name="scripts_recording_opacity_value">%1$d%%</string>
+    <string name="scripts_recording_fontsize_title">Script text size</string>
+    <string name="scripts_recording_fontsize_value">%1$d sp</string>
+    <string name="scripts_recording_mirror_title">Mirror script</string>
+    <string name="scripts_recording_mirror_subtitle">Flip horizontally for beam-splitter teleprompter glass.</string>
+    <string name="scripts_recording_camera_title">Front camera</string>
+    <string name="scripts_recording_camera_subtitle">Record with the selfie camera (off = rear camera).</string>
     <string name="settings_hub_all_settings_title">All settings</string>
     <string name="settings_hub_all_settings_subtitle">Every setting on one long page (legacy).</string>
     <!-- #1624 — grouped-hub category headings. Settings-ES is a dedicated

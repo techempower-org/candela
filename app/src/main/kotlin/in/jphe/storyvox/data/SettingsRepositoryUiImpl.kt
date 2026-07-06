@@ -905,6 +905,12 @@ private object Keys {
 
     /** Issue #1287 — persisted teleprompter (#1239) auto-scroll pace (WPM). */
     val TELEPROMPTER_WPM = intPreferencesKey("pref_teleprompter_wpm_v1")
+    // #1633 — teleprompter recording-overlay knobs (persisted; session-only before).
+    val TELEPROMPTER_COUNTDOWN_SEC = intPreferencesKey("pref_teleprompter_countdown_sec")
+    val TELEPROMPTER_OVERLAY_OPACITY = floatPreferencesKey("pref_teleprompter_overlay_opacity")
+    val TELEPROMPTER_FONT_SIZE_SP = intPreferencesKey("pref_teleprompter_font_size_sp")
+    val TELEPROMPTER_MIRROR = booleanPreferencesKey("pref_teleprompter_mirror")
+    val TELEPROMPTER_FRONT_CAMERA = booleanPreferencesKey("pref_teleprompter_front_camera")
 
     // ── Reader-surface typography (issue #992) ──────────────────────
     /** Reader font family — stored as the [ReaderFontFamily] enum's name.
@@ -1685,6 +1691,13 @@ class SettingsRepositoryUiImpl(
             // #1287 — clamp on read so a legacy / corrupt value can't drive the
             // teleprompter out of its supported band (defensive; writes clamp too).
             teleprompterWpm = (prefs[Keys.TELEPROMPTER_WPM] ?: 130).coerceIn(30, 500),
+            // #1633 — teleprompter recording knobs; coerce to the RecordingViewModel bands.
+            teleprompterCountdownSec = prefs[Keys.TELEPROMPTER_COUNTDOWN_SEC] ?: 3,
+            teleprompterOverlayOpacity =
+                (prefs[Keys.TELEPROMPTER_OVERLAY_OPACITY] ?: 0.7f).coerceIn(0.3f, 1.0f),
+            teleprompterFontSizeSp = (prefs[Keys.TELEPROMPTER_FONT_SIZE_SP] ?: 26).coerceIn(16, 64),
+            teleprompterMirror = prefs[Keys.TELEPROMPTER_MIRROR] ?: false,
+            teleprompterFrontCamera = prefs[Keys.TELEPROMPTER_FRONT_CAMERA] ?: true,
             // Issue #992 — reader-surface typography. Unknown enum strings
             // fall back to Default; numeric fields are clamped by
             // ReaderTypography.clamped() via UiSettings.readerTypography so we
@@ -2872,6 +2885,29 @@ class SettingsRepositoryUiImpl(
         // /MAX_WPM in ReaderView, #1239) so a bad caller can't persist an
         // out-of-range pace the reader would have to re-clamp on read.
         store.edit { it[Keys.TELEPROMPTER_WPM] = wpm.coerceIn(30, 500) }
+    }
+
+    // #1633 — persist the teleprompter recording-overlay knobs (bands mirror
+    // RecordingViewModel's MIN/MAX constants so a bad caller can't store an
+    // out-of-range value the overlay would re-clamp on read).
+    override suspend fun setTeleprompterCountdownSec(seconds: Int) {
+        store.edit { it[Keys.TELEPROMPTER_COUNTDOWN_SEC] = seconds.coerceIn(0, 10) }
+    }
+
+    override suspend fun setTeleprompterOverlayOpacity(opacity: Float) {
+        store.edit { it[Keys.TELEPROMPTER_OVERLAY_OPACITY] = opacity.coerceIn(0.3f, 1.0f) }
+    }
+
+    override suspend fun setTeleprompterFontSizeSp(sp: Int) {
+        store.edit { it[Keys.TELEPROMPTER_FONT_SIZE_SP] = sp.coerceIn(16, 64) }
+    }
+
+    override suspend fun setTeleprompterMirror(enabled: Boolean) {
+        store.edit { it[Keys.TELEPROMPTER_MIRROR] = enabled }
+    }
+
+    override suspend fun setTeleprompterFrontCamera(front: Boolean) {
+        store.edit { it[Keys.TELEPROMPTER_FRONT_CAMERA] = front }
     }
 
     // ── Azure Speech Services BYOK (#182, PR-3) ────────────────────
