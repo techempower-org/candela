@@ -3486,8 +3486,11 @@ private fun WikipediaLanguageRow(
  * plain editable value (PLAIN), an http(s)-validated URL override (URL, e.g.
  * the Prime Gaming feed override #1535), or a behaviour toggle (TOGGLE).
  */
+// #1630 — internal (was private) so the dedicated Content Sources subscreen
+// ([ContentSourcesSettingsScreen]) renders the same generic seam without
+// duplicating the field editors. Still called from this legacy screen too.
 @Composable
-private fun SourceConfigSection(
+internal fun SourceConfigSection(
     sections: List<UiSourceConfigSection>,
     onValueChange: (sourceId: String, key: String, raw: String) -> Unit,
 ) {
@@ -3544,7 +3547,7 @@ private fun SourceConfigSection(
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun SourceConfigTextField(
+internal fun SourceConfigTextField(
     sourceId: String,
     field: UiSourceConfigField,
     onValueChange: (sourceId: String, key: String, raw: String) -> Unit,

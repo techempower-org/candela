@@ -59,6 +59,7 @@ import `in`.jphe.storyvox.feature.settings.AppearanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.AiSettingsScreen
 import `in`.jphe.storyvox.feature.settings.BookshareSettingsScreen
 import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
+import `in`.jphe.storyvox.feature.settings.ContentSourcesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
@@ -203,6 +204,10 @@ object StoryvoxRoutes {
      *  Azure plugin row. Hosts the same [AzureSection] composable as the
      *  legacy page, so the two surfaces stay byte-identical. */
     const val SETTINGS_CLOUD_VOICES = "settings/cloud-voices"
+    /** Settings → Content Sources (#1630). Per-source keys/tokens/URLs — the
+     *  generic SourceConfigContributor seam, un-buried from the legacy
+     *  [SETTINGS] monolith into a dedicated route under Content & Sources. */
+    const val SETTINGS_CONTENT_SOURCES = "settings/content-sources"
     /** Settings → Account. Royal Road sign-in, GitHub OAuth + scope. */
     const val SETTINGS_ACCOUNT = "settings/account"
     /** Settings → Memory Palace. Daemon host, API key, test probe. */
@@ -1246,6 +1251,8 @@ private fun StoryvoxNavHostContent(
                     // #1624 — Cloud Voices hub row (screen + route already
                     // existed; the hub just never surfaced it).
                     onOpenCloudVoices = { navController.navigate(StoryvoxRoutes.SETTINGS_CLOUD_VOICES) },
+                    // #1630 — Content Sources subscreen.
+                    onOpenContentSources = { navController.navigate(StoryvoxRoutes.SETTINGS_CONTENT_SOURCES) },
                 )
             }
 
@@ -1511,6 +1518,20 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 CloudVoicesSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #1630 — Content Sources subscreen (the per-source config
+            // seam), un-buried from the legacy page into the Content & Sources
+            // group. Push transitions like the other Settings drill-downs.
+            composable(
+                StoryvoxRoutes.SETTINGS_CONTENT_SOURCES,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                ContentSourcesSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
