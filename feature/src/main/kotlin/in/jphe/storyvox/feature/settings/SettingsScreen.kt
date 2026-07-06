@@ -611,11 +611,9 @@ fun SettingsScreen(
             // sheet links here too.
             EpubFolderPickerRow(viewModel = viewModel)
             PdfFolderPickerRow(viewModel = viewModel)
-            OutlineConfigRow(viewModel = viewModel)
-            WikipediaLanguageRow(
-                languageCode = s.wikipediaLanguageCode,
-                onLanguageCodeChange = viewModel::setWikipediaLanguageCode,
-            )
+            // #1624 — Outline (#245) + Wikipedia (#377) migrated to the generic
+            // config seam; they now render in [SourceConfigSection] below (and
+            // in the Content Sources subscreen). Bespoke rows removed.
             val discordGuilds by viewModel.discordGuilds.collectAsStateWithLifecycle()
             DiscordConfigRow(
                 tokenConfigured = s.discordTokenConfigured,
@@ -3327,151 +3325,10 @@ private fun abbreviateSafUri(raw: String): String {
 }
 
 
-/**
- * Issue #245 — host + API-key entry for the Outline self-hosted-wiki
- * backend. Inline section under the toggle in Library & Sync, mirroring
- * the EPUB folder picker / RSS feed manager. Keeps the user inside
- * Library & Sync rather than navigating to a sub-screen.
- */
-@Composable
-private fun OutlineConfigRow(viewModel: SettingsViewModel) {
-    val host by viewModel.outlineHost.collectAsStateWithLifecycle()
-    val spacing = LocalSpacing.current
-    val context = LocalContext.current
-    var hostDraft by remember(host) { mutableStateOf(host) }
-    var apiKeyDraft by remember { mutableStateOf("") }
-
-    Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
-        Text(
-            "Outline instance",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.xs),
-        )
-        Text(
-            text = if (host.isBlank()) "Set your Outline host + API token below."
-            else "Currently configured: $host",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.sm),
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = hostDraft,
-            onValueChange = { hostDraft = it },
-            label = { Text("Outline host") },
-            placeholder = { Text("wiki.example.com") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = apiKeyDraft,
-            onValueChange = { apiKeyDraft = it },
-            label = { Text("API token") },
-            placeholder = { Text("From Outline → Account → API Tokens") },
-            singleLine = true,
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth().padding(top = spacing.xs),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            BrassButton(
-                label = "Save",
-                onClick = {
-                    val trimmedHost = hostDraft.trim()
-                    // Issue #455 — empty required fields used to silently
-                    // no-op the Save action with no feedback. JP design
-                    // (issue comment): apply defaults silently to the
-                    // model but surface a transient toast naming the
-                    // skipped field(s) so the user sees that something
-                    // was missing. Lighter than Material 3 supported-
-                    // error chips, no save-blocking.
-                    val skipped = buildList {
-                        if (trimmedHost.isEmpty()) add("Outline host")
-                        if (apiKeyDraft.isBlank()) add("API token")
-                    }
-                    if (trimmedHost.isNotEmpty()) viewModel.setOutlineHost(trimmedHost)
-                    if (apiKeyDraft.isNotBlank()) {
-                        viewModel.setOutlineApiKey(apiKeyDraft)
-                        apiKeyDraft = ""
-                    }
-                    if (skipped.isNotEmpty()) {
-                        Toast.makeText(
-                            context,
-                            "Saved. Skipped (defaults applied): ${skipped.joinToString(", ")}",
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    }
-                },
-                variant = BrassButtonVariant.Primary,
-            )
-            if (host.isNotBlank()) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        viewModel.clearOutlineConfig()
-                        hostDraft = ""
-                        apiKeyDraft = ""
-                    },
-                ) { Text("Clear") }
-            }
-        }
-    }
-}
-
-/**
- * Issue #377 — Wikipedia language-code picker. Inline row under the
- * Wikipedia toggle in Library & Sync. Single short text field — `en`,
- * `de`, `ja`, `simple`, etc. — resolves to the matching Wikipedia
- * host (`<lang>.wikipedia.org`). Mirrors the inline-config shape of
- * [OutlineConfigRow] / [EpubFolderPickerRow]; nothing to save
- * imperatively because the language code is short and the impl
- * accepts any non-blank value.
- *
- * The Save button keeps the row's interaction visible — users can
- * type without persisting on every keystroke, and a deliberate Save
- * action mirrors what they see on Outline / Memory Palace below.
- */
-@Composable
-private fun WikipediaLanguageRow(
-    languageCode: String,
-    onLanguageCodeChange: (String) -> Unit,
-) {
-    val spacing = LocalSpacing.current
-    var draft by remember(languageCode) { mutableStateOf(languageCode) }
-    Column(modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm)) {
-        Text(
-            "Wikipedia language",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.xs),
-        )
-        Text(
-            text = "Pick a Wikipedia. Use the URL prefix: en, de, ja, simple, fr, ...",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = spacing.sm),
-        )
-        androidx.compose.material3.OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it.trim().lowercase().take(16) },
-            label = { Text("Language code") },
-            placeholder = { Text("en") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            BrassButton(
-                label = "Save",
-                onClick = { onLanguageCodeChange(draft) },
-                variant = BrassButtonVariant.Primary,
-            )
-        }
-    }
-}
+// #1624 — OutlineConfigRow (#245) and WikipediaLanguageRow (#377) removed:
+// both migrated onto the generic config seam (OutlineConfigContributor /
+// WikipediaConfigContributor), so they now render via SourceConfigSection +
+// the Content Sources subscreen (#1630) instead of bespoke rows here.
 
 /**
  * Issue #1531 — generic, registry-driven per-source config section.

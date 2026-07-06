@@ -133,6 +133,18 @@ object AppBindings {
         impl: `in`.jphe.storyvox.data.MatrixConfigContributor,
     ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
 
+    // #1624 — Outline (#245) + Wikipedia (#377) migrated from bespoke legacy
+    // Settings rows onto the generic config seam (Content Sources subscreen).
+    @Provides @Singleton @IntoSet
+    fun provideOutlineConfigContributor(
+        impl: `in`.jphe.storyvox.data.OutlineConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
+    @Provides @Singleton @IntoSet
+    fun provideWikipediaConfigContributor(
+        impl: `in`.jphe.storyvox.data.WikipediaConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
     /** Issue #1228 — bridges the `:feature` [DocumentImporterUi] seam to
      *  the app-side single-file import path (the same one MainActivity's
      *  "Open With" ingest uses), so the Library "Import a file…" picker can
