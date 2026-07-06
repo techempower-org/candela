@@ -338,8 +338,19 @@ class FictionRepositoryImpl @Inject constructor(
         // next open re-fetches and repopulates the chapter rows.
         val chaptersOrphan = existing != null && existing.chapterCount > 0 &&
             chapterDao.chapterIdsForFiction(id).isEmpty()
-        if (!force && !chaptersOrphan && existing != null && existing.metadataFetchedAt > 0L &&
-            System.currentTimeMillis() - existing.metadataFetchedAt < METADATA_TTL_MS
+        // #1621 — a row whose chapter LIST was planned by an older
+        // CHAPTER_PLAN_VERSION is structurally stale (e.g. a pre-#1508
+        // Notion list that collapsed sub-pages into one chapter). Force a
+        // re-plan even within the TTL — same bypass shape as `chaptersOrphan`.
+        val planStale = existing != null && existing.chapterPlanVersion < CHAPTER_PLAN_VERSION
+        if (existing != null && shouldServeCachedDetail(
+                force = force,
+                chaptersOrphan = chaptersOrphan,
+                planStale = planStale,
+                metadataFetchedAt = existing.metadataFetchedAt,
+                ageMs = System.currentTimeMillis() - existing.metadataFetchedAt,
+                ttlMs = METADATA_TTL_MS,
+            )
         ) {
             return@withContext FictionResult.Success(Unit)
         }
@@ -733,6 +744,45 @@ internal fun Fiction.toSummary(supportsFollow: Boolean = false): FictionSummary 
     backfillFailed = metadataBackfillFailedAt != null,
 )
 
+/**
+ * Issue #1621 — version of the chapter-LIST planning logic
+ * (`FictionDetail.chapters`), across all sources. **Bump this in the same
+ * change that alters how any source builds its chapter list** (e.g. #1508's
+ * Notion `child_page` split). A row whose [Fiction.chapterPlanVersion] is
+ * below this is force-revalidated by [FictionRepositoryImpl.refreshDetail]
+ * on next open (bypassing the metadata TTL), so a list cached under the old
+ * logic re-fetches once and re-plans — the structural-list analog of
+ * `CHUNKER_VERSION` for body audio.
+ *
+ * Top-level (like `CHUNKER_VERSION`) so the pure [shouldServeCachedDetail]
+ * guard, the `toEntity` stamp, and tests can read it without widening the
+ * repository's private companion. Started at 1: pre-existing rows carry the
+ * migration default 0 and revalidate once after this ships.
+ */
+internal const val CHAPTER_PLAN_VERSION: Int = 1
+
+/**
+ * Issue #1314 / #1621 — the stale-while-revalidate skip decision for
+ * [FictionRepositoryImpl.refreshDetail], extracted pure so the exact guard
+ * conditions are unit-testable without standing up the whole repository.
+ *
+ * Serve the cached detail (skip the network round-trip) iff ALL hold: the
+ * caller didn't [force]; the chapter rows aren't orphaned (#1433
+ * [chaptersOrphan]); the cached list isn't from an older plan version
+ * (#1621 [planStale]); the row is fully hydrated ([metadataFetchedAt] > 0,
+ * excluding #981 placeholders); and that hydrate is younger than the TTL
+ * ([ageMs] < [ttlMs]). [ageMs] may be negative under clock skew, which is
+ * still < TTL and safely skips (don't hammer the source).
+ */
+internal fun shouldServeCachedDetail(
+    force: Boolean,
+    chaptersOrphan: Boolean,
+    planStale: Boolean,
+    metadataFetchedAt: Long,
+    ageMs: Long,
+    ttlMs: Long,
+): Boolean = !force && !chaptersOrphan && !planStale && metadataFetchedAt > 0L && ageMs < ttlMs
+
 internal fun FictionSummary.toEntity(now: Long): Fiction = Fiction(
     id = id,
     sourceId = sourceId,
@@ -794,6 +844,10 @@ internal fun FictionDetail.toEntity(existing: Fiction?, now: Long): Fiction {
         followers = followers ?: base.followers,
         lastUpdatedAt = lastUpdatedAt ?: base.lastUpdatedAt,
         metadataFetchedAt = if (hydrated) now else base.metadataFetchedAt,
+        // #1621 — stamp the plan version only on a real hydrate (same gate
+        // as metadataFetchedAt): the chapter list we just wrote was planned
+        // by the current logic, so it's no longer plan-stale.
+        chapterPlanVersion = if (hydrated) CHAPTER_PLAN_VERSION else base.chapterPlanVersion,
     )
 }
 

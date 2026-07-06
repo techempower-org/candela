@@ -102,7 +102,14 @@ import `in`.jphe.storyvox.data.db.entity.TeleprompterScript
     // user-authored teleprompter scripts (save/edit/organize). Purely additive
     // new table; no FK (scripts are independent of fiction/chapter). See
     // MIGRATION_17_18.
-    version = 18,
+    //
+    // v19 (#1621 chapter-plan version) — adds `fiction.chapterPlanVersion`,
+    // stamping which chapter-LIST planning version a row was cached under so
+    // a source's list-logic improvement (e.g. #1508's Notion child_page
+    // split) force-revalidates pre-improvement caches on next open instead of
+    // serving a structurally-stale list. Purely additive NOT NULL DEFAULT 0
+    // column. See MIGRATION_18_19.
+    version = 19,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
