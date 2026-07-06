@@ -95,7 +95,11 @@ object AppBindings {
     fun provideFictionRepositoryUi(
         repo: FictionRepository,
         chapters: ChapterRepository,
-    ): FictionRepositoryUi = RealFictionRepositoryUi(repo, chapters)
+        // #1632 — dagger.Lazy to stay clear of any settings↔repo init cycle
+        // (the documented consumer↔settings Dagger-cycle trap); resolved lazily
+        // inside follow() to read the global default download mode.
+        settings: dagger.Lazy<SettingsRepositoryUi>,
+    ): FictionRepositoryUi = RealFictionRepositoryUi(repo, chapters, settings)
 
     // Issue #1531 — generic config-field seam contributors. Each is added to
     // the `Set<SourceConfigContributor>` that SettingsRepositoryUiImpl
@@ -716,6 +720,7 @@ object AppBindings {
 private class RealFictionRepositoryUi(
     private val repo: FictionRepository,
     private val chapters: ChapterRepository,
+    private val settings: dagger.Lazy<SettingsRepositoryUi>,
 ) : FictionRepositoryUi {
 
     override val library: Flow<List<UiFiction>> =
@@ -848,7 +853,20 @@ private class RealFictionRepositoryUi(
     }
 
     override suspend fun follow(fictionId: String, follow: Boolean) {
-        if (follow) repo.addToLibrary(fictionId, mode = null) else repo.removeFromLibrary(fictionId)
+        if (follow) {
+            // #1632 — a newly-added fiction inherits the global default download
+            // mode. Lazy is today's implicit default (the Fiction.downloadMode
+            // column defaults to null, treated as Lazy), so we pass null for Lazy
+            // to keep the stored state byte-identical to pre-#1632; only an
+            // explicit Eager/Subscribe default writes a non-null mode.
+            val default = settings.get().settings.first().defaultDownloadMode
+            repo.addToLibrary(
+                fictionId,
+                mode = default.takeIf { it != DownloadMode.Lazy }?.toData(),
+            )
+        } else {
+            repo.removeFromLibrary(fictionId)
+        }
     }
 
     override suspend fun setFollowedRemote(
