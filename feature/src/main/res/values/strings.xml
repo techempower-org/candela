@@ -745,6 +745,16 @@
     <string name="settings_hub_group_downloads">Downloads &amp; Storage</string>
     <string name="settings_hub_downloads_title">Downloads &amp; Storage</string>
     <string name="settings_hub_downloads_subtitle">Default download mode, Wi-Fi, update interval, cache.</string>
+    <!-- #1631 — Notifications subscreen (new-chapter alerts + system permission).
+         EN-only per the #1583 settings-ES track. Subtitle matches the catalog
+         literal in SettingsHubScreen (notificationsSections). -->
+    <string name="settings_hub_group_notifications">Notifications</string>
+    <string name="settings_hub_notifications_title">Notifications</string>
+    <string name="settings_hub_notifications_subtitle">New-chapter alerts and system permission.</string>
+    <string name="settings_notifications_new_chapter_heading">New chapter alerts</string>
+    <string name="settings_notifications_permission_title">System notifications</string>
+    <string name="settings_notifications_permission_on">Allowed. Tap to manage in Android settings.</string>
+    <string name="settings_notifications_permission_off">Blocked — tap to allow in Android settings.</string>
     <string name="settings_content_sources_empty">No configurable sources yet — enable a source under Plugins to set it up here.</string>
 
     <!-- Settings · Reading subscreen -->
