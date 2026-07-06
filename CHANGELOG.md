@@ -9,6 +9,14 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.2] -- 2026-07-05
+
+**Ancient Raven.** A diagnostic build: sleep-timer log levels are raised so the two open on-device reports (#1574 auto-sleep, #1595 shake-to-extend) can be root-caused on a real device. No user-facing change — the verbose logging is reverted alongside the symptom fixes in the next release.
+
+### Under the hood
+
+- Raised the bedtime-auto-sleep and shake-to-extend diagnostic breadcrumbs from `Log.i`/`Log.d` to `Log.w` so they survive release minification (release strips `Log.v/d/i` via `-assumenosideeffects`, #1276), plus content-free sub-threshold shake-peak logging in `ShakeDetector` (`mag/maxMag/thr/peaks`) so a single on-device shake is diagnostically definitive. Temporary; reverted with the fixes. (#1574, #1595, #1604)
+
 ## [1.12.1] -- 2026-07-05
 
 **Infernal Quartz.** A QA-pass follow-up to the benefits wave: the Library Inbox badge sits right, the shake-to-extend toggle obeys you, and the sleep timer is now instrumented to root-cause two on-device reports.
