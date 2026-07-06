@@ -1,0 +1,44 @@
+name: Screener drift check
+
+# Advisory drift detector for the OFFLINE benefits screener (#1517, #1605).
+#
+# Candela bundles the /qualify rules as an on-device asset
+# (feature/src/main/assets/techempower/screener_corpus.json). The live web
+# screener at techempower.org/qualify is edited continuously; the two silently
+# drift. This job fetches the web corpus, extracts a COARSE fingerprint (newest
+# verified date, corpus size, question set), and compares it to the bundled
+# asset — surfacing drift as GitHub annotations.
+#
+# ADVISORY BY DESIGN: it runs the checker WITHOUT --strict, so it never fails a
+# run and is not a required check (only "Build APK" gates merges). Benefits
+# content is TechEmpower-supplied (epic #1520 "verified or silent"); a stale
+# corpus is a signal for a human, not a build breakage. The checker never writes
+# or copies rules — see docs/screener-sync.md.
+
+on:
+  pull_request:
+    paths:
+      - 'feature/src/main/assets/techempower/screener_corpus.json'
+      - 'scripts/screener-drift-check.py'
+      - '.github/workflows/screener-drift-check.yml'
+  schedule:
+    # Weekly, Mondays 06:31 UTC — catches web-side updates between app releases.
+    - cron: '31 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: screener-drift-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check screener corpus drift vs techempower.org/qualify
+        run: |
+          python3 --version
+          # Advisory: emits ::error::/::warning::/::notice:: annotations but
+          # always exits 0 so it never blocks a merge.
+          python3 scripts/screener-drift-check.py | tee "$GITHUB_STEP_SUMMARY"
