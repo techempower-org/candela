@@ -829,6 +829,13 @@ private object Keys {
     val INBOX_NOTIFY_KVMR = booleanPreferencesKey("pref_inbox_notify_kvmr")
     val INBOX_NOTIFY_WIKIPEDIA = booleanPreferencesKey("pref_inbox_notify_wikipedia")
 
+    // ── Deadline reminders master enable (issue #1631 / #1515) ─────
+    // Device-local (NOT synced): the deadline reminders themselves live in
+    // on-device storage that never syncs or backs up, so their enable flag
+    // stays per-device too (mirrors the #992 reader-typography ruling).
+    // Deliberately ABSENT from the sync allowlist + SyncedType map below.
+    val DEADLINE_REMINDERS_ENABLED = booleanPreferencesKey("pref_deadline_reminders_enabled")
+
     // ── InstantDB magical sign-in onboarding (issue #500) ──────────
     /** Has the user seen and dismissed (or completed) the first-launch
      *  InstantDB sync onboarding card mounted after the
@@ -1591,6 +1598,9 @@ class SettingsRepositoryUiImpl(
             inboxNotifyRoyalRoad = prefs[Keys.INBOX_NOTIFY_ROYALROAD] ?: true,
             inboxNotifyKvmr = prefs[Keys.INBOX_NOTIFY_KVMR] ?: true,
             inboxNotifyWikipedia = prefs[Keys.INBOX_NOTIFY_WIKIPEDIA] ?: true,
+            // Issue #1631 / #1515 — deadline-reminder master enable.
+            // Default ON so existing users keep their reminders on upgrade.
+            deadlineRemindersEnabled = prefs[Keys.DEADLINE_REMINDERS_ENABLED] ?: true,
             // Accessibility scaffold (Phase 1) — all defaults are the
             // no-op state so an upgrading user sees identical behavior
             // until they explicitly opt in. Enum keys fall back to
@@ -3205,6 +3215,12 @@ class SettingsRepositoryUiImpl(
     override suspend fun setInboxNotifyWikipedia(enabled: Boolean) {
         store.edit { it[Keys.INBOX_NOTIFY_WIKIPEDIA] = enabled }
         stampSyncedWrite()
+    }
+
+    // ── Issue #1631 / #1515 — deadline-reminder master enable ──────
+    // Device-local: no stampSyncedWrite() (the reminders never sync).
+    override suspend fun setDeadlineRemindersEnabled(enabled: Boolean) {
+        store.edit { it[Keys.DEADLINE_REMINDERS_ENABLED] = enabled }
     }
 
     // ── Issue #500 — magical InstantDB sign-in onboarding ──────────
