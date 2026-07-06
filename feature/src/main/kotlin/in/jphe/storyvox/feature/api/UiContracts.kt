@@ -1369,12 +1369,13 @@ data class UiSettings(
      * reminders (the Deadline keeper's local AlarmManager notifications).
      *
      * Default ON, so a user who scanned deadlines before this pref existed
-     * keeps being reminded (behavior-neutral upgrade). Turning it OFF gates
-     * only *new* scheduling — confirming a new deadline no longer arms an
-     * alarm — while reminders already armed, and the boot re-arm that
-     * survives a reboot, are intentionally left alone so a benefits deadline
-     * the user already set is never silently lost. Device-local (the
-     * reminders themselves never sync / back up), so this flag isn't synced.
+     * keeps being reminded (behavior-neutral upgrade). Turning it OFF cancels
+     * every scheduled deadline alarm and stops the boot re-arm and new-reminder
+     * arming; turning it back ON re-arms every reminder from the store. The
+     * saved deadlines are the durable source of truth — the toggle only adds or
+     * removes the *derived* alarms, so a benefits deadline the user set is never
+     * silently deleted. Device-local (the reminders themselves never sync / back
+     * up), so this flag isn't synced either.
      */
     val deadlineRemindersEnabled: Boolean = true,
     /**
@@ -2605,8 +2606,9 @@ interface SettingsRepositoryUi {
     suspend fun setInboxNotifyWikipedia(enabled: Boolean) {}
     /**
      * Issue #1631 — master enable for benefits deadline reminders (#1515).
-     * Gates only *new* alarm scheduling; already-armed reminders and the
-     * boot re-arm are untouched. Device-local (not synced). Default impl is
+     * OFF cancels all scheduled alarms + stops re-arming; ON re-arms from the
+     * store (reconciled by `DeadlineReminderReconciler` / `DeadlineBootReceiver`).
+     * Never deletes saved deadlines. Device-local (not synced). Default impl is
      * a no-op so existing test fakes compile without overrides.
      */
     suspend fun setDeadlineRemindersEnabled(enabled: Boolean) = Unit

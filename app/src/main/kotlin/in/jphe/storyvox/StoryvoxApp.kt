@@ -19,6 +19,7 @@ import `in`.jphe.storyvox.data.repository.ShelfRepository
 import `in`.jphe.storyvox.data.work.MetadataBackfillScheduler
 import `in`.jphe.storyvox.data.work.NewChapterNotifier
 import `in`.jphe.storyvox.data.work.WorkScheduler
+import `in`.jphe.storyvox.deadline.DeadlineReminderReconciler
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.playback.VoiceEngineQualityBridge
 import `in`.jphe.storyvox.sync.coordinator.SyncCoordinator
@@ -141,6 +142,14 @@ class StoryvoxApp : Application(), Configuration.Provider {
      * rest of init (Issue #409 cold-launch posture).
      */
     @Inject lateinit var metadataBackfillScheduler: Lazy<MetadataBackfillScheduler>
+
+    /**
+     * Issue #1631 — keeps the on-device deadline alarms in sync with the
+     * master `deadlineRemindersEnabled` pref. Reacts to in-session toggle
+     * flips (OFF cancels armed alarms; ON re-arms from the store). Lazy + IO
+     * like the rest of init (Issue #409 cold-launch posture).
+     */
+    @Inject lateinit var deadlineReminderReconciler: Lazy<DeadlineReminderReconciler>
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -303,6 +312,12 @@ class StoryvoxApp : Application(), Configuration.Provider {
         // P22T-class hardware. Idempotent — re-starting is a no-op.
         initScope.launch {
             widgetStateObserver.get().start()
+        }
+        // Issue #1631 — reconcile deadline alarms with the master enable
+        // pref on every in-session flip. Idempotent start; off the cold-
+        // launch critical path like the rest of deferred init.
+        initScope.launch {
+            deadlineReminderReconciler.get().start()
         }
         // Issue #178 — Royal Road tag-sync. Two coroutines:
         //   1. Schedule the 24h periodic worker (idempotent, KEEP).

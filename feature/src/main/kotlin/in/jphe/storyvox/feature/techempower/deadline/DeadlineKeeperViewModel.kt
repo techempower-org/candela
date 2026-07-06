@@ -153,11 +153,11 @@ class DeadlineKeeperViewModel @Inject constructor(
         )
         viewModelScope.launch {
             store.upsert(reminder)
-            // Issue #1631 — the master enable gates ONLY new scheduling.
-            // When off we still persist (the reminder shows in the list),
-            // just don't arm its alarm. Already-armed reminders and the
-            // boot re-arm are intentionally untouched, so a deadline the
-            // user set before turning this off is never silently dropped.
+            // Issue #1631 — gate arming of this NEW reminder on the master
+            // enable. When off we still persist it (saved in the store, shown
+            // in the list) but don't arm the alarm; re-enabling re-arms it from
+            // the store via DeadlineReminderReconciler. The store is the durable
+            // source of truth — the toggle never deletes a saved deadline.
             if (remindersEnabled.enabled()) {
                 scheduler.schedule(reminder)
             }
