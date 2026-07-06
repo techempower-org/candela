@@ -214,6 +214,26 @@ fun VoiceAndPlaybackSettingsScreen(
             // enable → duration → auto-arm → Do Not Disturb.
             SettingsSectionHeader(label = stringResource(R.string.settings_voice_sleep_group_title))
             SettingsGroupCard {
+                // Issue #1590 — default sleep-timer duration. This is what the
+                // quick sleep toggle arms (pre-#1590 hardcoded 15 in
+                // core-playback's PlaybackController); the presets mirror the
+                // player-sheet options (5 / 15 / 30 / 60).
+                val sleepDefaultOptions = listOf(5, 15, 30, 60)
+                val sleepDefaultIndex = sleepDefaultOptions
+                    .indexOfFirst { it == s.sleepTimerDefaultMinutes }
+                    .let { if (it < 0) sleepDefaultOptions.indexOf(15) else it }
+                SettingsSegmentedBlock(
+                    title = stringResource(R.string.settings_voice_sleep_default_title),
+                    subtitle = stringResource(R.string.settings_voice_sleep_default_subtitle),
+                    options = sleepDefaultOptions.map {
+                        stringResource(R.string.settings_voice_sleep_default_option, it)
+                    },
+                    selectedIndex = sleepDefaultIndex,
+                    onSelected = { idx ->
+                        viewModel.setSleepTimerDefaultMinutes(sleepDefaultOptions[idx])
+                    },
+                )
+
                 // #150 — shake-to-extend enable (moved here from Reading in
                 // #1577 so it sits directly above the duration it governs).
                 SettingsSwitchRow(

@@ -4,14 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.auth.SessionHydrator
+import `in`.jphe.storyvox.data.auth.SessionState
 import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -53,6 +58,23 @@ class AuthViewModel @Inject constructor(
 
     private val _captureState = MutableStateFlow<CaptureState>(CaptureState.Idle)
     val captureState: StateFlow<CaptureState> = _captureState.asStateFlow()
+
+    /** #1592 — AO3 signed-in state for the Account screen row, observed off
+     *  [AuthRepository.sessionState] (the same source Browse reads for its
+     *  auth-only AO3 tabs). */
+    val ao3SignedIn: StateFlow<Boolean> = auth.sessionState(SourceIds.AO3)
+        .map { it is SessionState.Authenticated }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** #1592 — sign out a web-session source: clear the stored cookie header
+     *  (AuthRepository) AND the live OkHttp jar (per-source hydrator), mirroring
+     *  SettingsRepositoryUiImpl.signOut() for Royal Road. Without the jar clear
+     *  the source keeps sending the stale session cookie until app restart. */
+    fun signOut(sourceId: String) = viewModelScope.launch {
+        auth.clearSession(sourceId)
+        hydrators[sourceId]?.clear()
+    }
 
     /**
      * Persist the captured cookie map for [sourceId].

@@ -145,6 +145,12 @@ object AppBindings {
         impl: `in`.jphe.storyvox.data.WikipediaConfigContributor,
     ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
 
+    // #1591 — Palace Project library config (public-library OPDS root URL).
+    @Provides @Singleton @IntoSet
+    fun providePalaceConfigContributor(
+        impl: `in`.jphe.storyvox.data.PalaceConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
     /** Issue #1228 — bridges the `:feature` [DocumentImporterUi] seam to
      *  the app-side single-file import path (the same one MainActivity's
      *  "Open With" ingest uses), so the Library "Import a file…" picker can
@@ -276,6 +282,14 @@ object AppBindings {
      *  directly. */
     @Provides @Singleton
     fun provideRadioConfig(impl: `in`.jphe.storyvox.data.RadioConfigImpl): `in`.jphe.storyvox.source.radio.config.RadioConfig = impl
+
+    /** Issue #1591 / #501 — DataStore-backed Palace Project library config,
+     *  replacing source-palace's in-memory fallback. `:app` is the sole
+     *  provider (mirrors [provideRadioConfig]). */
+    @Provides @Singleton
+    fun providePalaceLibraryConfig(
+        impl: `in`.jphe.storyvox.data.PalaceLibraryConfigImpl,
+    ): `in`.jphe.storyvox.source.palace.PalaceLibraryConfig = impl
 
     /** Bridges the source-epub [EpubConfig] read interface (#235) to
      *  the concrete app-side SAF-backed impl. */
@@ -484,6 +498,13 @@ object AppBindings {
     @Provides @Singleton
     fun provideSleepTimerDndConfig(impl: SettingsRepositoryUiImpl):
         `in`.jphe.storyvox.data.repository.playback.SleepTimerDndConfig = impl
+
+    /** Issue #1590 — user-tunable default sleep-timer duration. Same
+     *  singleton; consumed by `:core-playback`'s
+     *  `DefaultPlaybackController.toggleSleepTimer`. */
+    @Provides @Singleton
+    fun provideSleepTimerDefaultConfig(impl: SettingsRepositoryUiImpl):
+        `in`.jphe.storyvox.data.repository.playback.SleepTimerDefaultConfig = impl
 
     /** Issue #596 — user-tunable PCM-cache pre-render window size.
      *  Same singleton; consumed by `:core-playback`'s

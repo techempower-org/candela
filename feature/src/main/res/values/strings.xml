@@ -937,6 +937,9 @@
     <!-- #1577 — Voice &amp; Playback section headers + the shake-to-extend enable row moved here from Reading so the whole sleep-timer feature lives on one screen. -->
     <string name="settings_voice_transport_group_title">Playback controls</string>
     <string name="settings_voice_sleep_group_title">Sleep timer</string>
+    <string name="settings_voice_sleep_default_title">Default duration</string>
+    <string name="settings_voice_sleep_default_subtitle">How long a new sleep timer runs when you start one without picking a time.</string>
+    <string name="settings_voice_sleep_default_option">%1$d min</string>
     <string name="settings_voice_shake_enable_title">Shake to extend</string>
     <string name="settings_voice_shake_enable_subtitle">Shake your device during the timer\'s fade-out to keep listening.</string>
 
@@ -1086,6 +1089,11 @@
     <string name="settings_account_royal_road_title">Royal Road</string>
     <string name="settings_account_royal_road_signed_in_subtitle">Signed in</string>
     <string name="settings_account_royal_road_signin_subtitle">Sign-in unlocks Premium chapters and your Follows list.</string>
+    <string name="settings_account_ao3_title">Archive of Our Own</string>
+    <string name="settings_account_ao3_signed_in">AO3: signed in</string>
+    <string name="settings_account_ao3_not_signed_in">AO3: not signed in</string>
+    <string name="settings_account_ao3_signed_in_subtitle">Your AO3 session unlocks Subscriptions and Marked for Later in Browse.</string>
+    <string name="settings_account_ao3_signin_subtitle">Sign in to AO3 to read your Subscriptions and Marked for Later.</string>
     <string name="settings_account_github_not_signed_in">GitHub · not signed in</string>
     <string name="settings_account_github_signed_in_as">GitHub · signed in as @%1$s</string>
     <string name="settings_account_github_signed_in">GitHub · signed in</string>

@@ -51,6 +51,7 @@ import `in`.jphe.storyvox.data.repository.GoogleNewsConfig
 import `in`.jphe.storyvox.data.repository.playback.AutoBrowserConfig
 import `in`.jphe.storyvox.data.repository.playback.PrerenderChapterCountConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerDndConfig
+import `in`.jphe.storyvox.data.repository.playback.SleepTimerDefaultConfig
 import `in`.jphe.storyvox.data.repository.playback.SleepTimerExtendConfig
 import `in`.jphe.storyvox.feature.api.PalaceProbeResult
 import `in`.jphe.storyvox.feature.api.ReadingDirection
@@ -494,6 +495,11 @@ private object Keys {
      *  `SHAKE_EXTEND_MINUTES` constant in StoryvoxPlaybackService. */
     val SLEEP_SHAKE_EXTEND_MINUTES =
         intPreferencesKey("pref_sleep_shake_extend_min_v1")
+
+    /** Issue #1590 — default sleep-timer duration in minutes (Int).
+     *  Snapped to [SLEEP_TIMER_DEFAULT_TIERS_MIN]. */
+    val SLEEP_TIMER_DEFAULT_MIN =
+        intPreferencesKey("pref_sleep_timer_default_min_v1")
 
     /** Auto-arm sleep timer when phone enters DND / Bedtime mode.
      *  Per-device (NOT synced). Default false. */
@@ -1013,6 +1019,14 @@ internal val SLEEP_SHAKE_EXTEND_TIERS_MIN: List<Int> = listOf(5, 10, 15, 30)
 internal fun snapSleepShakeExtendMinutes(minutes: Int): Int =
     SLEEP_SHAKE_EXTEND_TIERS_MIN.minBy { kotlin.math.abs(it - minutes) }
 
+// Issue #1590 — the default sleep-timer duration snaps to the same presets
+// the player sheet offers (SLEEP_TIMER_PRESETS_MIN), so a synced or legacy
+// value always lands on a pickable option.
+internal val SLEEP_TIMER_DEFAULT_TIERS_MIN: List<Int> = listOf(5, 15, 30, 60)
+
+internal fun snapSleepTimerDefaultMinutes(minutes: Int): Int =
+    SLEEP_TIMER_DEFAULT_TIERS_MIN.minBy { kotlin.math.abs(it - minutes) }
+
 /**
  * Issue #596 — supported pre-render chapter-count tiers. Chip-row
  * spec is "N+1 / N+2 / N+3 / N+5"; we store the raw integer count
@@ -1168,6 +1182,7 @@ class SettingsRepositoryUiImpl(
     `in`.jphe.storyvox.data.repository.playback.PlaybackSkipConfig,
     SleepTimerExtendConfig,
     SleepTimerDndConfig,
+    SleepTimerDefaultConfig,
     `in`.jphe.storyvox.data.repository.playback.BedtimeSleepConfig,
     PrerenderChapterCountConfig,
     AutoBrowserConfig,
@@ -1650,6 +1665,9 @@ class SettingsRepositoryUiImpl(
             sleepShakeExtendMinutes = snapSleepShakeExtendMinutes(
                 prefs[Keys.SLEEP_SHAKE_EXTEND_MINUTES] ?: 15,
             ),
+            sleepTimerDefaultMinutes = snapSleepTimerDefaultMinutes(
+                prefs[Keys.SLEEP_TIMER_DEFAULT_MIN] ?: 15,
+            ),
             sleepBedtimeAutoEnabled = prefs[Keys.SLEEP_BEDTIME_AUTO_ENABLED] ?: true,
             // Issue #1190 — auto Do Not Disturb while a sleep timer runs.
             dndWithSleepTimerEnabled = prefs[Keys.SLEEP_TIMER_DND_ENABLED] ?: false,
@@ -1957,6 +1975,16 @@ class SettingsRepositoryUiImpl(
     override val shakeExtendMinutes: Flow<Int> = store.data.map { prefs ->
         snapSleepShakeExtendMinutes(prefs[Keys.SLEEP_SHAKE_EXTEND_MINUTES] ?: 15)
     }
+
+    // --- SleepTimerDefaultConfig (issue #1590, consumed by core-playback's
+    //     PlaybackController.toggleSleepTimer) ---
+
+    override val sleepTimerDefaultMinutes: Flow<Int> = store.data.map { prefs ->
+        snapSleepTimerDefaultMinutes(prefs[Keys.SLEEP_TIMER_DEFAULT_MIN] ?: 15)
+    }
+
+    override suspend fun currentSleepTimerDefaultMinutes(): Int =
+        sleepTimerDefaultMinutes.first()
 
     override suspend fun currentShakeExtendMinutes(): Int = shakeExtendMinutes.first()
 
@@ -2796,6 +2824,14 @@ class SettingsRepositoryUiImpl(
     override suspend fun setSleepShakeExtendMinutes(minutes: Int) {
         store.edit {
             it[Keys.SLEEP_SHAKE_EXTEND_MINUTES] = snapSleepShakeExtendMinutes(minutes)
+        }
+        stampSyncedWrite()
+    }
+
+    // Issue #1590 — default sleep-timer duration for the quick toggle.
+    override suspend fun setSleepTimerDefaultMinutes(minutes: Int) {
+        store.edit {
+            it[Keys.SLEEP_TIMER_DEFAULT_MIN] = snapSleepTimerDefaultMinutes(minutes)
         }
         stampSyncedWrite()
     }

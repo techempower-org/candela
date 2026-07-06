@@ -599,6 +599,10 @@ class SettingsViewModel @Inject constructor(
     fun setSleepShakeExtendMinutes(minutes: Int) =
         viewModelScope.launch { repo.setSleepShakeExtendMinutes(minutes) }
 
+    // Issue #1590 — default sleep-timer duration.
+    fun setSleepTimerDefaultMinutes(minutes: Int) =
+        viewModelScope.launch { repo.setSleepTimerDefaultMinutes(minutes) }
+
     fun setSleepBedtimeAutoEnabled(enabled: Boolean) =
         viewModelScope.launch { repo.setSleepBedtimeAutoEnabled(enabled) }
 

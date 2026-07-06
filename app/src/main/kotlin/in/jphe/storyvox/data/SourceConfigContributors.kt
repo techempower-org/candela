@@ -248,6 +248,43 @@ class MatrixConfigContributor @Inject constructor(
 }
 
 /**
+ * Issue #1591 — Palace Project (public-library OPDS) library config. Palace has
+ * no canonical default library — each library is its own OPDS root — so the user
+ * supplies their library's catalog URL. Surfaced through the generic seam
+ * (renders in the Content Sources subscreen) as a single URL field wrapping
+ * [PalaceLibraryConfigImpl], which the source reads via the PalaceLibraryConfig
+ * contract. URL-only: Palace v1 reads public feeds, so no credentials.
+ */
+@Singleton
+class PalaceConfigContributor @Inject constructor(
+    private val config: PalaceLibraryConfigImpl,
+) : SourceConfigContributor {
+    override val sourceId: String = SourceIds.PALACE
+    override val displayName: String = "Palace Project"
+    override val sectionHelp: String =
+        "Read ebooks from a public library's Palace Project (OPDS) catalog. " +
+            "Paste your library's catalog root URL — some are at " +
+            "<library>.palaceproject.io, some at a custom domain."
+
+    override fun fields(): List<SourceConfigField> = listOf(
+        SourceConfigField.UrlText(
+            key = "libraryRootUrl",
+            label = "Library catalog URL",
+            help = "Your library's Palace / OPDS catalog root.",
+            placeholder = "https://catalog.example.org",
+        ),
+    )
+
+    override val values: Flow<Map<String, SourceConfigValue>> = config.libraryRootUrl.map { url ->
+        mapOf("libraryRootUrl" to SourceConfigValue.Text(url ?: ""))
+    }
+
+    override suspend fun set(key: String, raw: String) {
+        if (key == "libraryRootUrl") config.setRootUrl(raw.ifBlank { null })
+    }
+}
+
+/**
  * Issue #1624 — Outline (#245) migrated onto the generic seam. Was a bespoke
  * `OutlineConfigRow` (host + API key) in the legacy Settings monolith; now a
  * host URL + write-only key through the seam, so it renders in the Content
