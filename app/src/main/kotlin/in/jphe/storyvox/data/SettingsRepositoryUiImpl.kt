@@ -56,6 +56,7 @@ import `in`.jphe.storyvox.feature.api.PalaceProbeResult
 import `in`.jphe.storyvox.feature.api.ReadingDirection
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.api.SpeakChapterMode
+import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.feature.api.ThemeOverride
 import `in`.jphe.storyvox.feature.api.UiAiSettings
 import `in`.jphe.storyvox.feature.api.UiAzureConfig
@@ -428,6 +429,8 @@ private object Keys {
     val THEME_OVERRIDE = stringPreferencesKey("pref_theme_override")
     val DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("pref_download_wifi_only")
     val POLL_INTERVAL_HOURS = intPreferencesKey("pref_poll_interval_hours")
+    // #1632 — global default download mode, persisted as the DownloadMode name.
+    val DEFAULT_DOWNLOAD_MODE = stringPreferencesKey("pref_default_download_mode")
     val SIGNED_IN = booleanPreferencesKey("pref_signed_in")
     /** Issue #109 — continuous inter-sentence pause multiplier (Float).
      *  Replaces the pre-#109 enum-string key `pref_punctuation_pause`; the
@@ -1376,6 +1379,11 @@ class SettingsRepositoryUiImpl(
                 ?: ThemeOverride.System,
             downloadOnWifiOnly = prefs[Keys.DOWNLOAD_WIFI_ONLY] ?: true,
             pollIntervalHours = prefs[Keys.POLL_INTERVAL_HOURS] ?: 6,
+            // #1632 — global default download mode; falls back to Lazy (today's
+            // implicit default) when unset or on an unknown persisted value.
+            defaultDownloadMode = prefs[Keys.DEFAULT_DOWNLOAD_MODE]
+                ?.let { runCatching { DownloadMode.valueOf(it) }.getOrNull() }
+                ?: DownloadMode.Lazy,
             isSignedIn = prefs[Keys.SIGNED_IN] ?: false,
             pitchInterpolationHighQuality = prefs[Keys.PITCH_INTERP_HIGH_QUALITY] ?: true,
             punctuationPauseMultiplier = (prefs[Keys.PUNCTUATION_PAUSE_MULTIPLIER]
@@ -1818,6 +1826,11 @@ class SettingsRepositoryUiImpl(
 
     override suspend fun setPollIntervalHours(hours: Int) {
         store.edit { it[Keys.POLL_INTERVAL_HOURS] = hours.coerceIn(1, 24) }
+    }
+
+    // #1632 — persist the global default download mode (enum name).
+    override suspend fun setDefaultDownloadMode(mode: DownloadMode) {
+        store.edit { it[Keys.DEFAULT_DOWNLOAD_MODE] = mode.name }
     }
 
     override suspend fun setPunctuationPauseMultiplier(multiplier: Float) {

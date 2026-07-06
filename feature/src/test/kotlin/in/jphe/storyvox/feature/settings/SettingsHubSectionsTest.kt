@@ -44,9 +44,10 @@ class SettingsHubSectionsTest {
         // had no way in — you had to dig through Plugins → Azure).
         // 21 → 22 in #1630, which added the Content Sources row (the
         // per-source config seam, un-buried from the legacy monolith).
+        // 22 → 23 in #1632, which added the Downloads & Storage group + row.
         // Adding a new section requires updating both this assertion AND
         // the composable's row list — that drift is the point of pinning.
-        assertEquals(22, SettingsHubSections.size)
+        assertEquals(23, SettingsHubSections.size)
     }
 
     @Test
@@ -81,6 +82,9 @@ class SettingsHubSectionsTest {
             // #1630 — Content Sources subscreen (per-source config seam),
             // un-buried from the legacy monolith into the Content & Sources group.
             "Content Sources",
+            // #1632 — Downloads & Storage subscreen (default download mode +
+            // Wi-Fi/interval + cache), un-buried into hub group 4.
+            "Downloads & Storage",
         )
         val actual = SettingsHubSections.map { it.title.lowercase() }.toSet()
         for (expected in expectedSectionTitles) {

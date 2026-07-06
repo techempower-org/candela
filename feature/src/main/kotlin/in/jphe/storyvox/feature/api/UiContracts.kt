@@ -1607,6 +1607,15 @@ data class UiSettings(
      * band (`TELEPROMPTER_MIN_WPM`/`MAX_WPM`). Per-device pref (NOT synced).
      */
     val teleprompterWpm: Int = 130,
+    /**
+     * Issue #1632 — app-wide default [DownloadMode] applied to newly-added
+     * fictions that don't specify one. The effective per-book mode is the
+     * `Fiction.downloadMode` column; this is the default the "add to library"
+     * flow passes when the user hasn't chosen. Surfaced in the Downloads &
+     * Storage subscreen. Defaults to [DownloadMode.Lazy] (fetch a chapter's
+     * body on first play).
+     */
+    val defaultDownloadMode: DownloadMode = DownloadMode.Lazy,
 ) {
     /**
      * Resolved reading-surface colours for the reader (#993). Inactive when
@@ -2119,6 +2128,13 @@ interface SettingsRepositoryUi {
     suspend fun setDefaultVoice(voiceId: String?)
     suspend fun setDownloadOnWifiOnly(enabled: Boolean)
     suspend fun setPollIntervalHours(hours: Int)
+    /**
+     * Issue #1632 — persist the app-wide default download mode applied to
+     * newly-added fictions. Defaulted no-op so the many hand-rolled
+     * [SettingsRepositoryUi] test fakes don't have to implement it (same
+     * pattern as the other defaulted setters here); the real impl overrides it.
+     */
+    suspend fun setDefaultDownloadMode(mode: DownloadMode) = Unit
     /**
      * Issue #109 — set the inter-sentence pause multiplier (continuous,
      * coerced to [PUNCTUATION_PAUSE_MIN_MULTIPLIER]..[PUNCTUATION_PAUSE_MAX_MULTIPLIER]).

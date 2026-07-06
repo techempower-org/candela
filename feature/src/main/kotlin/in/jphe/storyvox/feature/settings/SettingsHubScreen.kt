@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Info
@@ -203,6 +204,10 @@ fun SettingsHubScreen(
      * [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenContentSources: () -> Unit = {},
+    /** Issue #1632 — Downloads & Storage subscreen. Default no-op so callers
+     *  / smoke tests compile without wiring it; production wiring in
+     *  [`in`.jphe.storyvox.navigation.StoryvoxNavHost]. */
+    onOpenDownloads: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var query by remember { mutableStateOf("") }
@@ -377,6 +382,23 @@ fun SettingsHubScreen(
                         subtitle = stringResource(R.string.settings_hub_bookshare_subtitle),
                         onClick = onOpenBookshare,
                         keywords = HubKeywords.bookshare,
+                    )
+                }
+                // #1632 — Downloads & Storage (group 4, between Content &
+                // Sources and AI per the #1624 IA; Notifications slots in
+                // after this when #1631 lands).
+                HubGroup(
+                    query = query,
+                    heading = stringResource(R.string.settings_hub_group_downloads),
+                    icon = Icons.Outlined.Download,
+                    sections = downloadsStorageSections,
+                ) {
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Download,
+                        title = stringResource(R.string.settings_hub_downloads_title),
+                        subtitle = stringResource(R.string.settings_hub_downloads_subtitle),
+                        onClick = onOpenDownloads,
+                        keywords = HubKeywords.downloadsStorage,
                     )
                 }
                 HubGroup(
@@ -666,6 +688,10 @@ internal object HubKeywords {
     val account = listOf("royal road", "github", "sign in", "login", "cloud sync", "oauth")
     val memoryPalace = listOf("mempalace", "memory palace", "daemon", "host", "lan", "probe")
     val bookshare = listOf("bookshare", "daisy", "accessible", "partner", "api key")
+    val downloadsStorage = listOf(
+        "download", "downloads", "storage", "cache", "offline", "wifi", "wi-fi",
+        "data saver", "unmetered", "clear cache", "quota", "update interval", "poll",
+    )
     val advanced = listOf("android auto", "car", "items per category", "integration")
     val developer = listOf("debug", "overlay", "log", "diagnostics", "reset onboarding", "verbose")
     val about = listOf(
@@ -703,6 +729,15 @@ internal val contentSourcesSections = listOf(
     SettingsHubSection("Memory Palace", "Daemon host, probe, integration.", HubKeywords.memoryPalace),
     SettingsHubSection("Bookshare", "Accessible DAISY library · partner API key.", HubKeywords.bookshare),
 )
+// #1632 — Downloads & Storage (group 4). Subtitle matches the rendered
+// R.string.settings_hub_downloads_subtitle.
+internal val downloadsStorageSections = listOf(
+    SettingsHubSection(
+        "Downloads & Storage",
+        "Default download mode, Wi-Fi, update interval, cache.",
+        HubKeywords.downloadsStorage,
+    ),
+)
 internal val aiSections = listOf(
     SettingsHubSection("AI", "Chat model, grounding, recap.", HubKeywords.ai),
     SettingsHubSection("AI sessions", "Review past chats and delete history.", HubKeywords.aiSessions),
@@ -728,6 +763,7 @@ val SettingsHubSections: List<SettingsHubSection> =
     voiceAudioSections +
         readingDisplaySections +
         contentSourcesSections +
+        downloadsStorageSections +
         aiSections +
         toolsSections +
         systemSections +

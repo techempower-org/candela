@@ -218,7 +218,9 @@ fun PerformanceSettingsScreen(
  * row in the legacy SettingsScreen).
  */
 @Composable
-private fun CacheSizeSelector(
+// #1632 — internal so the Downloads & Storage subscreen reuses the same
+// cache-quota control instead of reimplementing it.
+internal fun CacheSizeSelector(
     quotaBytes: Long,
     onQuotaChange: (Long) -> Unit,
 ) {
@@ -267,7 +269,9 @@ private fun CacheSizeSelector(
  * mess.
  */
 @Composable
-private fun CacheUsageRow(
+// #1632 — internal so the Downloads & Storage subscreen reuses the same
+// cache-usage + clear-cache control.
+internal fun CacheUsageRow(
     usedBytes: Long,
     quotaBytes: Long,
     onClearCache: () -> Unit,
