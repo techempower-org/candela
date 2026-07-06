@@ -602,22 +602,6 @@ class FictionRepositoryImpl @Inject constructor(
          * manual Retry button pass `force = true` to bypass it entirely.
          */
         const val METADATA_TTL_MS: Long = 5 * 60 * 1000L
-
-        /**
-         * Issue #1621 — version of the chapter-LIST planning logic
-         * (`FictionDetail.chapters`), across all sources. **Bump this in the
-         * same change that alters how any source builds its chapter list**
-         * (e.g. #1508's Notion `child_page` split). A row whose
-         * [Fiction.chapterPlanVersion] is below this is force-revalidated by
-         * [refreshDetail] on next open (bypassing [METADATA_TTL_MS]), so a
-         * list cached under the old logic re-fetches once and re-plans — the
-         * structural-list analog of `CHUNKER_VERSION` for body audio.
-         *
-         * Started at 1: pre-existing rows carry the migration default 0 and
-         * so revalidate once after this ships (fixing #1621's shorts and any
-         * other pre-#1508 cached list).
-         */
-        const val CHAPTER_PLAN_VERSION: Int = 1
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────
@@ -761,6 +745,23 @@ internal fun Fiction.toSummary(supportsFollow: Boolean = false): FictionSummary 
 )
 
 /**
+ * Issue #1621 — version of the chapter-LIST planning logic
+ * (`FictionDetail.chapters`), across all sources. **Bump this in the same
+ * change that alters how any source builds its chapter list** (e.g. #1508's
+ * Notion `child_page` split). A row whose [Fiction.chapterPlanVersion] is
+ * below this is force-revalidated by [FictionRepositoryImpl.refreshDetail]
+ * on next open (bypassing the metadata TTL), so a list cached under the old
+ * logic re-fetches once and re-plans — the structural-list analog of
+ * `CHUNKER_VERSION` for body audio.
+ *
+ * Top-level (like `CHUNKER_VERSION`) so the pure [shouldServeCachedDetail]
+ * guard, the `toEntity` stamp, and tests can read it without widening the
+ * repository's private companion. Started at 1: pre-existing rows carry the
+ * migration default 0 and revalidate once after this ships.
+ */
+internal const val CHAPTER_PLAN_VERSION: Int = 1
+
+/**
  * Issue #1314 / #1621 — the stale-while-revalidate skip decision for
  * [FictionRepositoryImpl.refreshDetail], extracted pure so the exact guard
  * conditions are unit-testable without standing up the whole repository.
@@ -846,7 +847,7 @@ internal fun FictionDetail.toEntity(existing: Fiction?, now: Long): Fiction {
         // #1621 — stamp the plan version only on a real hydrate (same gate
         // as metadataFetchedAt): the chapter list we just wrote was planned
         // by the current logic, so it's no longer plan-stale.
-        chapterPlanVersion = if (hydrated) FictionRepositoryImpl.CHAPTER_PLAN_VERSION else base.chapterPlanVersion,
+        chapterPlanVersion = if (hydrated) CHAPTER_PLAN_VERSION else base.chapterPlanVersion,
     )
 }
 

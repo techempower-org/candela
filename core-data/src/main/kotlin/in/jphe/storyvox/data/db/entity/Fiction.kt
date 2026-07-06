@@ -121,7 +121,7 @@ data class Fiction(
      */
     val playbackSpeed: Float? = null,
     /**
-     * Issue #1621 — the [in.jphe.storyvox.data.repository.FictionRepositoryImpl.CHAPTER_PLAN_VERSION]
+     * Issue #1621 — the [in.jphe.storyvox.data.repository.CHAPTER_PLAN_VERSION]
      * this row's cached chapter LIST was planned under.
      *
      * When a source's chapter-list planning logic improves (e.g. #1508

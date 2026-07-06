@@ -10,7 +10,7 @@ import org.junit.Test
  */
 class ShouldServeCachedDetailTest {
 
-    private val ttl = FictionRepositoryImpl.METADATA_TTL_MS
+    private val ttl = 300_000L // mirrors METADATA_TTL_MS; the guard takes it as a param
     private val fresh = 1_000L // age well within the TTL
 
     @Test fun `serves cache when hydrated, current plan, within TTL`() {
@@ -81,6 +81,6 @@ class ShouldServeCachedDetailTest {
     @Test fun `CHAPTER_PLAN_VERSION is positive so migration-default-0 rows revalidate once`() {
         // The v19 migration adds the column with DEFAULT 0; every pre-existing
         // row must read as older-than-current (planStale) so it re-plans once.
-        assertTrue(0 < FictionRepositoryImpl.CHAPTER_PLAN_VERSION)
+        assertTrue(0 < CHAPTER_PLAN_VERSION)
     }
 }
