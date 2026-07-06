@@ -718,6 +718,12 @@
          strings. Bilingual (EN + ES) since it was already a user-facing row. -->
     <string name="settings_hub_briefing_title">Morning Briefing</string>
     <string name="settings_hub_briefing_subtitle">One episode from your sources — HN, arXiv, RSS, GitHub.</string>
+    <!-- #1630 — Content Sources hub row + subscreen (per-source config seam,
+         un-buried from the legacy monolith). EN-only per the #1583 settings-ES
+         track. Subtitle must match the catalog literal in SettingsHubScreen. -->
+    <string name="settings_hub_content_sources_title">Content Sources</string>
+    <string name="settings_hub_content_sources_subtitle">Per-source keys, tokens, and options.</string>
+    <string name="settings_content_sources_empty">No configurable sources yet — enable a source under Plugins to set it up here.</string>
 
     <!-- Settings · Reading subscreen -->
     <string name="settings_reading_title">Reading</string>

@@ -42,9 +42,11 @@ class SettingsHubSectionsTest {
         // 20 → 21 in #1624, which grouped the hub and exposed the Cloud
         // Voices row (its subscreen + route already shipped, but the hub
         // had no way in — you had to dig through Plugins → Azure).
+        // 21 → 22 in #1630, which added the Content Sources row (the
+        // per-source config seam, un-buried from the legacy monolith).
         // Adding a new section requires updating both this assertion AND
         // the composable's row list — that drift is the point of pinning.
-        assertEquals(21, SettingsHubSections.size)
+        assertEquals(22, SettingsHubSections.size)
     }
 
     @Test
@@ -76,6 +78,9 @@ class SettingsHubSectionsTest {
             // via Plugins → Azure → Configure). Pin it so a regression can't
             // silently drop it back into invisibility.
             "Cloud Voices",
+            // #1630 — Content Sources subscreen (per-source config seam),
+            // un-buried from the legacy monolith into the Content & Sources group.
+            "Content Sources",
         )
         val actual = SettingsHubSections.map { it.title.lowercase() }.toSet()
         for (expected in expectedSectionTitles) {

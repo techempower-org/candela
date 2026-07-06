@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Podcasts
@@ -195,6 +196,13 @@ fun SettingsHubScreen(
      * production wiring lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenCloudVoices: () -> Unit = {},
+    /**
+     * Issue #1630 — Content Sources subscreen (per-source keys / tokens / URLs,
+     * un-buried from the legacy monolith). Default no-op so existing callers /
+     * smoke tests compile; production wiring lives in
+     * [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
+     */
+    onOpenContentSources: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var query by remember { mutableStateOf("") }
@@ -330,6 +338,16 @@ fun SettingsHubScreen(
                     icon = Icons.Outlined.Extension,
                     sections = contentSourcesSections,
                 ) {
+                    // #1630 — Content Sources: per-source keys/tokens/URLs,
+                    // un-buried from the legacy monolith into a dedicated
+                    // subscreen (renders the generic sourceConfigSections seam).
+                    SettingsHubRow(
+                        icon = Icons.Outlined.Key,
+                        title = stringResource(R.string.settings_hub_content_sources_title),
+                        subtitle = stringResource(R.string.settings_hub_content_sources_subtitle),
+                        onClick = onOpenContentSources,
+                        keywords = HubKeywords.contentSources,
+                    )
                     SettingsHubRow(
                         icon = Icons.Outlined.Extension,
                         title = stringResource(R.string.settings_hub_plugins_title),
@@ -638,6 +656,12 @@ internal object HubKeywords {
         "sources", "backends", "voice families", "voice bundles", "enable", "disable",
         "reddit", "notion", "prime gaming", "slack", "matrix", "discord", "telegram",
     )
+    // #1630 — Content Sources aggregates every credentialed source's config.
+    val contentSources = listOf(
+        "source config", "credentials", "token", "api key", "discord", "telegram",
+        "outline", "epub", "pdf", "wikipedia", "google news", "reddit", "notion",
+        "slack", "matrix", "prime gaming", "feed url",
+    )
     val pronunciation = listOf("pronunciation", "phonetic", "lexicon", "word override", "ipa")
     val account = listOf("royal road", "github", "sign in", "login", "cloud sync", "oauth")
     val memoryPalace = listOf("mempalace", "memory palace", "daemon", "host", "lan", "probe")
@@ -671,6 +695,9 @@ internal val readingDisplaySections = listOf(
     SettingsHubSection("Accessibility", "TalkBack, contrast, motion, font scale.", HubKeywords.accessibility),
 )
 internal val contentSourcesSections = listOf(
+    // #1630 — Content Sources subscreen (per-source keys/tokens/URLs). Subtitle
+    // matches the rendered R.string.settings_hub_content_sources_subtitle.
+    SettingsHubSection("Content Sources", "Per-source keys, tokens, and options.", HubKeywords.contentSources),
     SettingsHubSection("Plugins", "Toggle backends — Fiction, Audio streams, Voice bundles.", HubKeywords.plugins),
     SettingsHubSection("Account", "Royal Road, GitHub.", HubKeywords.account),
     SettingsHubSection("Memory Palace", "Daemon host, probe, integration.", HubKeywords.memoryPalace),
