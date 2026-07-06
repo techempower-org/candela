@@ -2,8 +2,6 @@ package `in`.jphe.storyvox.feature.settings
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -30,11 +28,17 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * credentialed source that contributes a `SourceConfigContributor` appears
  * here with zero edits to this file.
  *
- * Scope note (#1630 slice 1): renders every source already on the generic
- * seam (Reddit, Notion, Prime Gaming, Slack, Matrix). Migrating the remaining
- * bespoke legacy rows (Telegram, Outline, Google News, Wikipedia) onto the
- * seam, and the bespoke tail (Discord server-select, Epub/Pdf folder pickers),
- * are follow-up slices — each an independently shippable contributor.
+ * Scope (#1624 / #1644): renders the generic config seam (Reddit, Notion,
+ * Slack, Matrix, Outline, Wikipedia, Prime Gaming) PLUS the bespoke rows the
+ * static seam can't express — Discord (runtime guild-fetch dropdown), Telegram
+ * (channel-discovery probe), the Google News full-article toggle, and the
+ * Epub/Pdf local-folder SAF pickers. The bespoke rows are the SAME composables
+ * the legacy monolith renders (widened `private` → `internal` in #1644),
+ * threaded with their ViewModel state here — deliberately NOT seam
+ * contributors: their imperative refresh/probe actions can't live behind the
+ * declarative seam, and a Google-News bridge contributor would need
+ * `SettingsRepositoryUi` injected into a contributor, forming a settings↔repo
+ * Dagger cycle.
  */
 @Composable
 fun ContentSourcesSettingsScreen(
@@ -53,22 +57,62 @@ fun ContentSourcesSettingsScreen(
             return@SettingsSubscreenScaffold
         }
         SettingsSubscreenBody(padding) {
-            if (s.sourceConfigSections.isEmpty()) {
-                // Defensive: the live contributor set (#1531) always registers
-                // the credentialed sources, so this rarely shows — but if a
-                // build ships with none, a bare screen would read as broken.
-                Text(
-                    text = stringResource(R.string.settings_content_sources_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // #1624 / #1644 — un-bury the bespoke source-config rows the legacy
+            // "All settings" monolith owned so they're reachable from the
+            // grouped hub. These call the SAME composables the monolith does
+            // (widened `private` → `internal`), not a fork.
+            val discordGuilds by viewModel.discordGuilds.collectAsStateWithLifecycle()
+            val telegramBot by viewModel.telegramBotUsername.collectAsStateWithLifecycle()
+            val telegramChannels by viewModel.telegramChannels.collectAsStateWithLifecycle()
+            SettingsGroupCard {
+                // Generic seam. An empty list renders nothing — defensive; the
+                // live #1531 contributor set always registers the credentialed
+                // sources, and the bespoke rows below keep the screen non-empty
+                // regardless.
+                SourceConfigSection(
+                    sections = s.sourceConfigSections,
+                    onValueChange = viewModel::setSourceConfigValue,
                 )
-            } else {
-                SettingsGroupCard {
-                    SourceConfigSection(
-                        sections = s.sourceConfigSections,
-                        onValueChange = viewModel::setSourceConfigValue,
-                    )
-                }
+                // Discord — bespoke: runtime guild-fetch dropdown + coalesce
+                // slider the static seam can't express.
+                DiscordConfigRow(
+                    tokenConfigured = s.discordTokenConfigured,
+                    serverId = s.discordServerId,
+                    serverName = s.discordServerName,
+                    coalesceMinutes = s.discordCoalesceMinutes,
+                    guilds = discordGuilds,
+                    onApiTokenChange = viewModel::setDiscordApiToken,
+                    onServerSelected = viewModel::setDiscordServer,
+                    onCoalesceMinutesChange = viewModel::setDiscordCoalesceMinutes,
+                    onRefreshGuilds = viewModel::refreshDiscordGuilds,
+                )
+                // Telegram — bespoke: getMe/getUpdates channel-discovery probe.
+                TelegramConfigRow(
+                    tokenConfigured = s.telegramTokenConfigured,
+                    botUsername = telegramBot,
+                    channels = telegramChannels,
+                    onApiTokenChange = viewModel::setTelegramApiToken,
+                    onRefreshProbe = viewModel::refreshTelegramProbe,
+                )
+                // #1295 — Google News full-article text (opt-in, default OFF).
+                // Rendered inline (not a seam contributor): a bridge would need
+                // SettingsRepositoryUi injected into a contributor → Dagger cycle.
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_google_news_full_text_title),
+                    subtitle = stringResource(R.string.settings_google_news_full_text_subtitle),
+                    checked = s.googleNewsFullArticleText,
+                    onCheckedChange = viewModel::setGoogleNewsFullArticleText,
+                )
+            }
+            // Local folder reader-sources — SAF OpenDocumentTree pickers for
+            // reading .epub / .pdf files off device storage. Bespoke: no seam
+            // field type expresses a native folder picker + persistable URI
+            // grant. (#1644 assessment: these carry reader-source folder config
+            // — they are NOT the export writers — so they belong here.)
+            SettingsSectionHeader(label = "Local folders")
+            SettingsGroupCard {
+                EpubFolderPickerRow(viewModel = viewModel)
+                PdfFolderPickerRow(viewModel = viewModel)
             }
         }
     }

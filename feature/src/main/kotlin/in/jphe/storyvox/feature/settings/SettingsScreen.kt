@@ -3200,8 +3200,10 @@ private fun AnthropicTeamsProviderRows(
  * persistable so we don't have to re-prompt the user across
  * launches.
  */
+// #1644 — internal (was private) so the Content Sources subscreen renders the
+// same folder-picker rows without duplicating them. Still called here too.
 @Composable
-private fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
+internal fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
     val folder by viewModel.epubFolderUri.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -3263,7 +3265,7 @@ private fun EpubFolderPickerRow(viewModel: SettingsViewModel) {
  * resolved URI is persistable so we don't re-prompt across launches.
  */
 @Composable
-private fun PdfFolderPickerRow(viewModel: SettingsViewModel) {
+internal fun PdfFolderPickerRow(viewModel: SettingsViewModel) {
     val folder by viewModel.pdfFolderUri.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -3492,9 +3494,12 @@ internal fun SourceConfigTextField(
  * once a token is configured (no point listing servers when the bot
  * isn't authenticated).
  */
+// #1644 — internal (was private) so the Content Sources subscreen renders the
+// same bespoke card (guild-fetch dropdown can't live behind the static seam).
+// Still called from this legacy screen too.
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun DiscordConfigRow(
+internal fun DiscordConfigRow(
     tokenConfigured: Boolean,
     serverId: String,
     serverName: String,
@@ -3689,9 +3694,12 @@ private fun DiscordConfigRow(
  * onboarding doesn't produce a visible "your bot is" surface
  * elsewhere in the flow.
  */
+// #1644 — internal (was private) so the Content Sources subscreen renders the
+// same bespoke card (channel-discovery probe can't live behind the static seam).
+// Still called from this legacy screen too.
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun TelegramConfigRow(
+internal fun TelegramConfigRow(
     tokenConfigured: Boolean,
     botUsername: String?,
     channels: List<Pair<String, String>>,
