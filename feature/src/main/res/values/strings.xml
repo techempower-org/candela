@@ -698,6 +698,9 @@
     <!-- Issue #1369 — teleprompter script manager hub row -->
     <string name="settings_hub_scripts_title">Scripts</string>
     <string name="settings_hub_scripts_subtitle">Save, edit, and organize teleprompter scripts.</string>
+    <!-- #1634 — Benefits hub entry (re-discover Screener/Decoder) -->
+    <string name="settings_hub_benefits_title">Benefits</string>
+    <string name="settings_hub_benefits_subtitle">Do-I-qualify screener &amp; letter decoder.</string>
     <string name="settings_hub_all_settings_title">All settings</string>
     <string name="settings_hub_all_settings_subtitle">Every setting on one long page (legacy).</string>
     <!-- #1624 — grouped-hub category headings. Settings-ES is a dedicated

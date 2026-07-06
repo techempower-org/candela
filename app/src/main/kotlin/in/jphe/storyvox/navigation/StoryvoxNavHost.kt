@@ -1252,6 +1252,7 @@ private fun StoryvoxNavHostContent(
                     onOpenStats = { navController.navigate(StoryvoxRoutes.STATS) },
                     onOpenBriefing = { navController.navigate(StoryvoxRoutes.MORNING_BRIEFING) },
                     onOpenScripts = { navController.navigate(StoryvoxRoutes.SCRIPT_LIST) },
+                    onOpenBenefits = { navController.navigate(StoryvoxRoutes.TECHEMPOWER_HOME) },
                     // #1624 — Cloud Voices hub row (screen + route already
                     // existed; the hub just never surfaced it).
                     onOpenCloudVoices = { navController.navigate(StoryvoxRoutes.SETTINGS_CLOUD_VOICES) },

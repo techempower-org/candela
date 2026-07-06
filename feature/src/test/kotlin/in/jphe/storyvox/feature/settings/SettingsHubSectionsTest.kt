@@ -45,9 +45,10 @@ class SettingsHubSectionsTest {
         // 21 → 22 in #1630, which added the Content Sources row (the
         // per-source config seam, un-buried from the legacy monolith).
         // 22 → 23 in #1632, which added the Downloads & Storage group + row.
+        // 23 → 24 in #1634, which added the Benefits row to the Tools group.
         // Adding a new section requires updating both this assertion AND
         // the composable's row list — that drift is the point of pinning.
-        assertEquals(23, SettingsHubSections.size)
+        assertEquals(24, SettingsHubSections.size)
     }
 
     @Test
@@ -85,6 +86,8 @@ class SettingsHubSectionsTest {
             // #1632 — Downloads & Storage subscreen (default download mode +
             // Wi-Fi/interval + cache), un-buried into hub group 4.
             "Downloads & Storage",
+            // #1634 — Benefits re-discovery row (Screener/Decoder) in Tools.
+            "Benefits",
         )
         val actual = SettingsHubSections.map { it.title.lowercase() }.toSet()
         for (expected in expectedSectionTitles) {

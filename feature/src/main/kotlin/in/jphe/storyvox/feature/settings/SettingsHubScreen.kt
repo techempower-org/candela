@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Podcasts
+import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Speed
@@ -189,6 +190,9 @@ fun SettingsHubScreen(
      * in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenScripts: () -> Unit = {},
+    /** Issue #1634 — Benefits suite (Screener/Decoder) re-discovery entry.
+     *  Default no-op so callers / the smoke test compile without wiring it. */
+    onOpenBenefits: () -> Unit = {},
     /**
      * Issue #1624 — Cloud Voices (Azure HD / Dragon HD). The subscreen +
      * [`SETTINGS_CLOUD_VOICES`] route already shipped, but there was no hub
@@ -452,6 +456,16 @@ fun SettingsHubScreen(
                         onClick = onOpenScripts,
                         keywords = HubKeywords.scripts,
                     )
+                    // #1634 — Benefits suite (Screener/Decoder) re-discovery: a
+                    // hub row for users who dismissed the Library hero card.
+                    // Links the existing TECHEMPOWER_HOME route (no new screen).
+                    SettingsHubRow(
+                        icon = Icons.Outlined.VolunteerActivism,
+                        title = stringResource(R.string.settings_hub_benefits_title),
+                        subtitle = stringResource(R.string.settings_hub_benefits_subtitle),
+                        onClick = onOpenBenefits,
+                        keywords = HubKeywords.benefits,
+                    )
                 }
                 HubGroup(
                     query = query,
@@ -657,6 +671,10 @@ internal object HubKeywords {
     val stats = listOf("stats", "streak", "history", "finished", "time listened", "progress")
     val briefing = listOf("briefing", "podcast", "digest", "morning", "episode", "queue")
     val scripts = listOf("teleprompter", "script", "prompter", "rehearsal", "wpm", "words per minute")
+    val benefits = listOf(
+        "benefits", "qualify", "screener", "decoder", "calfresh", "medi-cal",
+        "snap", "assistance", "aid", "notice", "letter", "techempower",
+    )
     val appearance = listOf(
         "cover", "monogram", "animation", "motion", "particle", "confetti",
         "skeleton", "shimmer", "brass pulse", "theme",
@@ -746,6 +764,8 @@ internal val toolsSections = listOf(
     SettingsHubSection("Listening stats", "Time listened, streaks, books finished.", HubKeywords.stats),
     SettingsHubSection("Morning Briefing", "One episode from your sources — HN, arXiv, RSS, GitHub.", HubKeywords.briefing),
     SettingsHubSection("Scripts", "Save, edit, and organize teleprompter scripts.", HubKeywords.scripts),
+    // #1634 — Benefits re-discovery. Subtitle matches R.string.settings_hub_benefits_subtitle.
+    SettingsHubSection("Benefits", "Do-I-qualify screener & letter decoder.", HubKeywords.benefits),
 )
 internal val systemSections = listOf(
     SettingsHubSection("Performance", "Buffer, parallel synth, decoder choice.", HubKeywords.performance),
