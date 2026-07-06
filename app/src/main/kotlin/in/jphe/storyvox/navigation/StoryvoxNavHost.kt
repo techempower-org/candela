@@ -60,6 +60,7 @@ import `in`.jphe.storyvox.feature.settings.AiSettingsScreen
 import `in`.jphe.storyvox.feature.settings.BookshareSettingsScreen
 import `in`.jphe.storyvox.feature.settings.CloudVoicesSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ContentSourcesSettingsScreen
+import `in`.jphe.storyvox.feature.settings.DownloadsStorageSettingsScreen
 import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
@@ -208,6 +209,9 @@ object StoryvoxRoutes {
      *  generic SourceConfigContributor seam, un-buried from the legacy
      *  [SETTINGS] monolith into a dedicated route under Content & Sources. */
     const val SETTINGS_CONTENT_SOURCES = "settings/content-sources"
+
+    /** Issue #1632 — Downloads & Storage subscreen (hub group 4). */
+    const val SETTINGS_DOWNLOADS = "settings/downloads"
     /** Settings → Account. Royal Road sign-in, GitHub OAuth + scope. */
     const val SETTINGS_ACCOUNT = "settings/account"
     /** Settings → Memory Palace. Daemon host, API key, test probe. */
@@ -1253,6 +1257,7 @@ private fun StoryvoxNavHostContent(
                     onOpenCloudVoices = { navController.navigate(StoryvoxRoutes.SETTINGS_CLOUD_VOICES) },
                     // #1630 — Content Sources subscreen.
                     onOpenContentSources = { navController.navigate(StoryvoxRoutes.SETTINGS_CONTENT_SOURCES) },
+                    onOpenDownloads = { navController.navigate(StoryvoxRoutes.SETTINGS_DOWNLOADS) },
                 )
             }
 
@@ -1532,6 +1537,19 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 ContentSourcesSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            // #1632 — Downloads & Storage subscreen (default download mode +
+            // Wi-Fi/interval + cache), un-buried into hub group 4.
+            composable(
+                StoryvoxRoutes.SETTINGS_DOWNLOADS,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                DownloadsStorageSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

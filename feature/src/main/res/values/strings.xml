@@ -723,6 +723,10 @@
          track. Subtitle must match the catalog literal in SettingsHubScreen. -->
     <string name="settings_hub_content_sources_title">Content Sources</string>
     <string name="settings_hub_content_sources_subtitle">Per-source keys, tokens, and options.</string>
+    <!-- #1632 — Downloads & Storage hub group + row -->
+    <string name="settings_hub_group_downloads">Downloads &amp; Storage</string>
+    <string name="settings_hub_downloads_title">Downloads &amp; Storage</string>
+    <string name="settings_hub_downloads_subtitle">Default download mode, Wi-Fi, update interval, cache.</string>
     <string name="settings_content_sources_empty">No configurable sources yet — enable a source under Plugins to set it up here.</string>
 
     <!-- Settings · Reading subscreen -->
@@ -906,6 +910,23 @@
 
     <!-- Settings · Performance subscreen -->
     <string name="settings_performance_title">Performance</string>
+
+    <!-- #1632 — Downloads &amp; Storage subscreen (EN-only, #1583) -->
+    <string name="settings_downloads_title">Downloads &amp; Storage</string>
+    <string name="settings_downloads_mode_heading">Default download mode</string>
+    <string name="settings_downloads_mode_lazy">On demand</string>
+    <string name="settings_downloads_mode_lazy_desc">Download each chapter when you start playing it. Uses the least storage.</string>
+    <string name="settings_downloads_mode_eager">Whole book</string>
+    <string name="settings_downloads_mode_eager_desc">Download every chapter as soon as you add a book, so it\'s ready offline.</string>
+    <string name="settings_downloads_mode_subscribe">New chapters</string>
+    <string name="settings_downloads_mode_subscribe_desc">Download the current chapters, then auto-fetch new ones as they\'re published.</string>
+    <string name="settings_downloads_network_heading">Network</string>
+    <string name="settings_downloads_wifi_title">Download over Wi-Fi only</string>
+    <string name="settings_downloads_wifi_subtitle">Defer downloads until you\'re on an unmetered network.</string>
+    <string name="settings_downloads_poll_title">Update check interval</string>
+    <string name="settings_downloads_poll_subtitle">How often to check followed books for new chapters.</string>
+    <string name="settings_downloads_poll_value">Every %1$d h</string>
+    <string name="settings_downloads_storage_heading">Storage</string>
     <string name="settings_performance_catchup_title">Catch-up Pause</string>
     <string name="settings_performance_catchup_on">Pause briefly when the voice falls behind, then resume cleanly.</string>
     <string name="settings_performance_catchup_off">Drain through underruns; no buffering spinner.</string>
