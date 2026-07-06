@@ -34,6 +34,7 @@ class DeadlineKeeperViewModelTest {
     private lateinit var recognizer: FakeRecognizer
     private lateinit var store: FakeStore
     private lateinit var scheduler: FakeScheduler
+    private lateinit var remindersEnabled: FakeRemindersEnabled
     private lateinit var vm: DeadlineKeeperViewModel
 
     @Before
@@ -44,7 +45,8 @@ class DeadlineKeeperViewModelTest {
         )
         store = FakeStore()
         scheduler = FakeScheduler()
-        vm = DeadlineKeeperViewModel(recognizer, store, scheduler, DeadlineClock { today })
+        remindersEnabled = FakeRemindersEnabled()
+        vm = DeadlineKeeperViewModel(recognizer, store, scheduler, DeadlineClock { today }, remindersEnabled)
     }
 
     @After
@@ -75,6 +77,21 @@ class DeadlineKeeperViewModelTest {
         // Scheduler got exactly the persisted reminder.
         assertEquals(1, scheduler.scheduled.size)
         assertEquals(reminder.id, scheduler.scheduled.first().id)
+    }
+
+    @Test
+    fun `disabled master toggle persists the reminder but arms no alarm`() = runTest {
+        // Issue #1631 — the enable gate wraps only NEW scheduling.
+        remindersEnabled.isEnabled = false
+        vm.onImageCaptured(ByteArray(0))
+        vm.selectCandidate(vm.state.value.candidates.first(), label = "L", defaultBody = "b")
+
+        vm.confirmDraft()
+
+        // Still persisted + shown in the list (never silently dropped)…
+        assertEquals(1, vm.state.value.reminders.size)
+        // …but no alarm armed while deadline reminders are turned off.
+        assertEquals(0, scheduler.scheduled.size)
     }
 
     @Test
@@ -142,5 +159,9 @@ class DeadlineKeeperViewModelTest {
         override fun cancel(reminder: DeadlineReminder) { cancelled += reminder }
         override fun rescheduleAll(reminders: List<DeadlineReminder>) { scheduled += reminders }
         override fun canScheduleExact(): Boolean = exact
+    }
+
+    private class FakeRemindersEnabled(var isEnabled: Boolean = true) : DeadlineRemindersEnabledSource {
+        override suspend fun enabled(): Boolean = isEnabled
     }
 }

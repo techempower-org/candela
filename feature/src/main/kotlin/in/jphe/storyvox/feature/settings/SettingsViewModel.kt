@@ -545,6 +545,9 @@ class SettingsViewModel @Inject constructor(
     fun setInboxNotifyWikipedia(enabled: Boolean) =
         viewModelScope.launch { repo.setInboxNotifyWikipedia(enabled) }
 
+    fun setDeadlineRemindersEnabled(enabled: Boolean) =
+        viewModelScope.launch { repo.setDeadlineRemindersEnabled(enabled) }
+
     // ── Accessibility scaffold (Phase 1) ───────────────────────────
     // Phase 1 forwards the user's intent to the repo; no behavior is
     // wired yet. Phase 2 agents read [UiSettings.a11y*] + the

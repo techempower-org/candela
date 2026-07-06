@@ -68,3 +68,21 @@ interface DeadlineReminderStore {
 fun interface DeadlineClock {
     fun today(): LocalDate
 }
+
+/**
+ * Issue #1631 — reads the user's master "deadline reminders" enable pref
+ * (from settings) without dragging the whole `SettingsRepositoryUi` /
+ * `UiSettings` surface into this plain-JVM lane. The production binding
+ * (`:app`) reads it off the settings DataStore; tests pass a fixed lambda.
+ *
+ * Same tiny-seam posture as [DeadlineClock] — keeps the VM unit-testable
+ * with a one-line fake and immune to unrelated `UiSettings` churn.
+ *
+ * Only the *new-scheduling* path consults this ([DeadlineKeeperViewModel.
+ * confirmDraft]); the boot re-arm and already-armed alarms are deliberately
+ * left alone so a deadline the user already set is never silently dropped.
+ */
+fun interface DeadlineRemindersEnabledSource {
+    /** Current value of the master enable pref (default true). */
+    suspend fun enabled(): Boolean
+}

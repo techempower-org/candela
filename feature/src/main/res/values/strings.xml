@@ -755,6 +755,10 @@
     <string name="settings_notifications_permission_title">System notifications</string>
     <string name="settings_notifications_permission_on">Allowed. Tap to manage in Android settings.</string>
     <string name="settings_notifications_permission_off">Blocked — tap to allow in Android settings.</string>
+    <!-- #1631 slice 2 — deadline-reminder master enable (gates #1515). EN-only per #1583. -->
+    <string name="settings_notifications_deadline_heading">Deadline reminders</string>
+    <string name="settings_deadline_reminders_title">Remind me before deadlines</string>
+    <string name="settings_deadline_reminders_subtitle">A local reminder before benefits deadlines you scan with the Deadline keeper. Turning this off stops new reminders; ones you\'ve already set keep working.</string>
     <string name="settings_content_sources_empty">No configurable sources yet — enable a source under Plugins to set it up here.</string>
 
     <!-- Settings · Reading subscreen -->

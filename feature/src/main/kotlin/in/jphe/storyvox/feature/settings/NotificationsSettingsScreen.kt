@@ -33,12 +33,16 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  *    Reuses the existing `setInboxNotify*` setters, so this and the legacy page
  *    write the same prefs (single source of truth); each toggle suppresses both
  *    the Android notification and the in-app Inbox event for that source.
+ *  - **Deadline reminders** — a master `deadlineRemindersEnabled` pref (#1515).
+ *    Default ON; toggling it OFF gates only *new* deadline scheduling in the
+ *    Deadline keeper. Reminders already armed — and the boot re-arm — are left
+ *    alone, so a benefits deadline the user already set is never silently dropped.
  *
- * Scope note (#1631 slice 1): the buried `inboxNotify*` un-bury + the permission
- * affordance. A global **`deadlineRemindersEnabled`** pref that gates the
- * unconditional deadline alarms (#1515) is a follow-up slice — it's data+logic
- * (new pref across UiContracts/repo/VM + `DeadlineAlarms` gating), spec'd in
- * `scratch/candela-1631-notifications/`.
+ * Scope note: slice 1 (#1647) landed the `inboxNotify*` un-bury + the permission
+ * affordance; slice 2 (this change) adds the `deadlineRemindersEnabled` gate — a
+ * new pref across UiContracts / repo / VM plus a VM-side scheduling gate in
+ * [DeadlineKeeperViewModel][in.jphe.storyvox.feature.techempower.deadline.DeadlineKeeperViewModel],
+ * per the spec in `scratch/candela-1631-notifications/`.
  */
 @Composable
 fun NotificationsSettingsScreen(
@@ -106,6 +110,16 @@ fun NotificationsSettingsScreen(
                     subtitle = stringResource(R.string.settings_inbox_wikipedia_subtitle),
                     checked = s.inboxNotifyWikipedia,
                     onCheckedChange = viewModel::setInboxNotifyWikipedia,
+                )
+            }
+
+            SectionHeading(label = stringResource(R.string.settings_notifications_deadline_heading))
+            SettingsGroupCard {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_deadline_reminders_title),
+                    subtitle = stringResource(R.string.settings_deadline_reminders_subtitle),
+                    checked = s.deadlineRemindersEnabled,
+                    onCheckedChange = viewModel::setDeadlineRemindersEnabled,
                 )
             }
         }

@@ -1365,6 +1365,19 @@ data class UiSettings(
     val inboxNotifyKvmr: Boolean = true,
     val inboxNotifyWikipedia: Boolean = true,
     /**
+     * Issue #1631 / #1515 — master enable for on-device benefits deadline
+     * reminders (the Deadline keeper's local AlarmManager notifications).
+     *
+     * Default ON, so a user who scanned deadlines before this pref existed
+     * keeps being reminded (behavior-neutral upgrade). Turning it OFF gates
+     * only *new* scheduling — confirming a new deadline no longer arms an
+     * alarm — while reminders already armed, and the boot re-arm that
+     * survives a reboot, are intentionally left alone so a benefits deadline
+     * the user already set is never silently lost. Device-local (the
+     * reminders themselves never sync / back up), so this flag isn't synced.
+     */
+    val deadlineRemindersEnabled: Boolean = true,
+    /**
      * Accessibility scaffold (Phase 1) — opt-in switches that adapt
      * storyvox for users on TalkBack, Switch Access, or other
      * assistive services. The toggles persist user intent here in
@@ -2590,6 +2603,13 @@ interface SettingsRepositoryUi {
     suspend fun setInboxNotifyRoyalRoad(enabled: Boolean) {}
     suspend fun setInboxNotifyKvmr(enabled: Boolean) {}
     suspend fun setInboxNotifyWikipedia(enabled: Boolean) {}
+    /**
+     * Issue #1631 — master enable for benefits deadline reminders (#1515).
+     * Gates only *new* alarm scheduling; already-armed reminders and the
+     * boot re-arm are untouched. Device-local (not synced). Default impl is
+     * a no-op so existing test fakes compile without overrides.
+     */
+    suspend fun setDeadlineRemindersEnabled(enabled: Boolean) = Unit
 
     // ── Accessibility scaffold (Phase 1) ───────────────────────────
     /**

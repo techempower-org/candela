@@ -38,6 +38,7 @@ class DeadlineKeeperViewModel @Inject constructor(
     private val store: DeadlineReminderStore,
     private val scheduler: DeadlineReminderScheduler,
     private val clock: DeadlineClock,
+    private val remindersEnabled: DeadlineRemindersEnabledSource,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -152,7 +153,14 @@ class DeadlineKeeperViewModel @Inject constructor(
         )
         viewModelScope.launch {
             store.upsert(reminder)
-            scheduler.schedule(reminder)
+            // Issue #1631 — the master enable gates ONLY new scheduling.
+            // When off we still persist (the reminder shows in the list),
+            // just don't arm its alarm. Already-armed reminders and the
+            // boot re-arm are intentionally untouched, so a deadline the
+            // user set before turning this off is never silently dropped.
+            if (remindersEnabled.enabled()) {
+                scheduler.schedule(reminder)
+            }
             _state.update {
                 it.copy(
                     draft = null,

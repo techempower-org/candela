@@ -7,11 +7,14 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import `in`.jphe.storyvox.deadline.AlarmDeadlineReminderScheduler
 import `in`.jphe.storyvox.deadline.JsonFileDeadlineReminderStore
+import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineClock
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminderScheduler
+import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineRemindersEnabledSource
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminderStore
 import java.time.LocalDate
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
 
 /**
  * Issue #1515 — binds the deadline-keeper seams (defined in :feature) to
@@ -36,5 +39,17 @@ abstract class DeadlineBindingsModule {
         @Provides
         @Singleton
         fun provideClock(): DeadlineClock = DeadlineClock { LocalDate.now() }
+
+        /**
+         * Issue #1631 — reads the master deadline-reminders enable pref off
+         * the settings DataStore (same singleton [SettingsRepositoryUi] as
+         * the rest of the app). Device-local pref; default true.
+         */
+        @Provides
+        @Singleton
+        fun provideRemindersEnabledSource(
+            settings: SettingsRepositoryUi,
+        ): DeadlineRemindersEnabledSource =
+            DeadlineRemindersEnabledSource { settings.settings.first().deadlineRemindersEnabled }
     }
 }
