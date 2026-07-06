@@ -16,6 +16,7 @@ import `in`.jphe.storyvox.feature.api.HighlightMode
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.api.SpeakChapterMode
 import `in`.jphe.storyvox.ui.theme.ReaderTheme
+import `in`.jphe.storyvox.feature.api.DownloadMode
 import `in`.jphe.storyvox.feature.api.ThemeOverride
 import `in`.jphe.storyvox.ui.theme.ReaderFontFamily
 import `in`.jphe.storyvox.feature.api.UiLlmProvider
@@ -142,6 +143,9 @@ class SettingsViewModel @Inject constructor(
     fun setDefaultVoice(id: String?) = viewModelScope.launch { repo.setDefaultVoice(id) }
     fun setWifiOnly(enabled: Boolean) = viewModelScope.launch { repo.setDownloadOnWifiOnly(enabled) }
     fun setPollHours(h: Int) = viewModelScope.launch { repo.setPollIntervalHours(h) }
+    // #1632 — Downloads & Storage: global default download mode for new fictions.
+    fun setDefaultDownloadMode(mode: DownloadMode) =
+        viewModelScope.launch { repo.setDefaultDownloadMode(mode) }
     // #1295 — Google News full-article-text opt-in.
     fun setGoogleNewsFullArticleText(enabled: Boolean) =
         viewModelScope.launch { repo.setGoogleNewsFullArticleText(enabled) }
