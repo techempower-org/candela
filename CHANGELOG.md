@@ -9,6 +9,27 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.4] -- 2026-07-05
+
+**Kindled Pinnacle.** Text lands clean — imported files, EPUBs, RSS feeds, and Standard Ebooks all keep their paragraph breaks now — Settings is grouped and searchable with per-source config surfaced, and a Notion book that gained chapters after a parser upgrade stops showing its stale one-chapter list.
+
+### Fixed
+
+- **A source served a stale, collapsed chapter list after a parser upgrade** — e.g. a Notion page whose sub-pages became chapters (#1508) kept rendering as a single chapter until a manual refresh. Chapter *bodies* already self-heal on parser changes (via `CHUNKER_VERSION`), but the chapter *list* had no equivalent stamp. A new `CHAPTER_PLAN_VERSION` on the fiction row force-revalidates a list cached under an older planning version on next open (bypassing the 5-minute metadata TTL), so it re-fetches once and re-plans automatically — no manual refresh, and general across all sources. (#1621)
+- **Imported text files lost their line & paragraph breaks** — the text-import path now preserves them. (#1619)
+- **EPUB chapters lost paragraph structure** — paragraph boundaries now survive EPUB body parsing. (#1623)
+- **RSS and Standard Ebooks dropped paragraphs and mangled HTML entities** — both now route through a shared, correct HTML→text conversion. (#1626, #1627)
+
+### Changed
+
+- **Settings, reorganised** — the hub is grouped into 7 categories with Cloud Voices surfaced, plus a new **Content Sources** subscreen that un-buries per-source configuration. (#1624, #1630)
+
+### Under the hood
+
+- Consolidated the per-module HTML strippers onto one shared `core-data` `htmlToPlainText`, retiring the divergent copies behind the RSS/EPUB/Standard-Ebooks fidelity drift. (#1628)
+- Notion: `flattenNested` no longer descends into `child_page` sub-pages, so listing a page of sub-pages stops eagerly fetching every child body into the Introduction chapter. (#1621)
+- Reverted the temporary v1.12.2/v1.12.3 sleep-timer `Log.w` diagnostics + shake peak logging now that auto-sleep (#1574) and shake-to-extend (#1595) are confirmed on-device. (#1620)
+
 ## [1.12.3] -- 2026-07-05
 
 **Lunar Pulsar.** Fixes a crash when a sleep timer runs out. Still carries the v1.12.2 sleep diagnostics (reverted in the next release, once shake-to-extend is confirmed on-device).
