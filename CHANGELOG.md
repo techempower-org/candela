@@ -9,6 +9,22 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.6] -- 2026-07-06
+
+**Luminous Aegis.** Closes out the Settings overhaul (#1624): a deadline-reminder enable toggle, plus the last of the buried source configuration — Discord, Telegram, Google News, and local .epub/.pdf folders — moved into the Content Sources subscreen.
+
+### Added
+
+- **Deadline reminders enable toggle** (#1631) — a master switch in the Notifications subscreen. Turning it off stops *new* deadline reminders from being scheduled; ones you've already set keep working (never drops an existing alarm). Default on.
+
+### Changed
+
+- **Content Sources — the bespoke tail** (#1630 §C) — Discord (guild select), Telegram (channel-discovery probe), Google News (full-article toggle), and local .epub/.pdf folder pickers now live in the Content Sources subscreen instead of the legacy long-scroll page. Per-source config now lives in exactly one place, consistent with the §B migration.
+
+### Under the hood
+
+- Completes the #1624 settings-IA epic + the #1630 source-migration tail (#1644): every per-source config and previously-buried setting now has a discoverable home in the grouped hub. The deadline toggle gates only new scheduling — the boot re-arm path is untouched, so existing reminders can't be dropped.
+
 ## [1.12.5] -- 2026-07-06
 
 **Kindled Quartz.** The Settings hub gains its remaining gap subscreens — Downloads & Storage, Notifications, Benefits, and Teleprompter recording — and more per-source config moves out of the legacy long-scroll. Every buried setting now has a discoverable home.
