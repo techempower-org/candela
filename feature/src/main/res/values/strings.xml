@@ -1089,6 +1089,11 @@
     <string name="settings_account_royal_road_title">Royal Road</string>
     <string name="settings_account_royal_road_signed_in_subtitle">Signed in</string>
     <string name="settings_account_royal_road_signin_subtitle">Sign-in unlocks Premium chapters and your Follows list.</string>
+    <string name="settings_account_ao3_title">Archive of Our Own</string>
+    <string name="settings_account_ao3_signed_in">AO3: signed in</string>
+    <string name="settings_account_ao3_not_signed_in">AO3: not signed in</string>
+    <string name="settings_account_ao3_signed_in_subtitle">Your AO3 session unlocks Subscriptions and Marked for Later in Browse.</string>
+    <string name="settings_account_ao3_signin_subtitle">Sign in to AO3 to read your Subscriptions and Marked for Later.</string>
     <string name="settings_account_github_not_signed_in">GitHub · not signed in</string>
     <string name="settings_account_github_signed_in_as">GitHub · signed in as @%1$s</string>
     <string name="settings_account_github_signed_in">GitHub · signed in</string>

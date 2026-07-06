@@ -1603,6 +1603,7 @@ private fun StoryvoxNavHostContent(
                     onBack = { navController.popBackStack() },
                     onOpenSyncSignIn = { navController.navigate(StoryvoxRoutes.SYNC) },
                     onOpenRoyalRoadSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
+                    onOpenAo3SignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.AO3)) },
                     onOpenGitHubSignIn = { navController.navigate(StoryvoxRoutes.GITHUB_SIGN_IN) },
                     onOpenGitHubRevoke = {
                         // Mirrors the SETTINGS legacy page's revoke handler:

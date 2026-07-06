@@ -24,8 +24,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.api.UiGitHubAuthState
+import `in`.jphe.storyvox.feature.auth.AuthViewModel
 import `in`.jphe.storyvox.feature.settings.components.StatusPill
 import `in`.jphe.storyvox.feature.settings.components.StatusTone
 import `in`.jphe.storyvox.feature.sync.DomainStatusRow
@@ -47,13 +49,16 @@ fun AccountSettingsScreen(
     onBack: () -> Unit,
     onOpenSyncSignIn: () -> Unit,
     onOpenRoyalRoadSignIn: () -> Unit,
+    onOpenAo3SignIn: () -> Unit,
     onOpenGitHubSignIn: () -> Unit,
     onOpenGitHubRevoke: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     syncViewModel: AccountSyncViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val syncState by syncViewModel.state.collectAsStateWithLifecycle()
+    val ao3SignedIn by authViewModel.ao3SignedIn.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
 
     SettingsSubscreenScaffold(title = stringResource(R.string.settings_account_title), onBack = onBack) { padding ->
@@ -167,6 +172,37 @@ fun AccountSettingsScreen(
                         },
                     )
                 }
+
+                // #1592 — AO3 (web-session cookie auth). State observed off
+                // AuthRepository (the same source Browse reads); sign-in via
+                // the generic auth WebView; sign-out clears the cookie header
+                // + the live OkHttp jar.
+                StatusPill(
+                    text = if (ao3SignedIn) stringResource(R.string.settings_account_ao3_signed_in) else stringResource(R.string.settings_account_ao3_not_signed_in),
+                    tone = if (ao3SignedIn) StatusTone.Connected else StatusTone.Neutral,
+                )
+                SettingsRow(
+                    title = stringResource(R.string.settings_account_ao3_title),
+                    subtitle = stringResource(
+                        if (ao3SignedIn) R.string.settings_account_ao3_signed_in_subtitle
+                        else R.string.settings_account_ao3_signin_subtitle,
+                    ),
+                    trailing = {
+                        if (ao3SignedIn) {
+                            BrassButton(
+                                label = stringResource(R.string.settings_sign_out),
+                                onClick = { authViewModel.signOut(SourceIds.AO3) },
+                                variant = BrassButtonVariant.Secondary,
+                            )
+                        } else {
+                            BrassButton(
+                                label = stringResource(R.string.settings_sign_in),
+                                onClick = onOpenAo3SignIn,
+                                variant = BrassButtonVariant.Primary,
+                            )
+                        }
+                    },
+                )
 
                 StatusPill(
                     text = when (val g = s.github) {
