@@ -246,3 +246,91 @@ class MatrixConfigContributor @Inject constructor(
         }
     }
 }
+
+/**
+ * Issue #1624 — Outline (#245) migrated onto the generic seam. Was a bespoke
+ * `OutlineConfigRow` (host + API key) in the legacy Settings monolith; now a
+ * host URL + write-only key through the seam, so it renders in the Content
+ * Sources subscreen (#1630) with no bespoke row. Wraps the same
+ * [OutlineConfigImpl] that `SettingsRepositoryUi.setOutlineHost/ApiKey` write
+ * to, so storage keeps a single source of truth.
+ */
+@Singleton
+class OutlineConfigContributor @Inject constructor(
+    private val config: OutlineConfigImpl,
+) : SourceConfigContributor {
+    override val sourceId: String = SourceIds.OUTLINE
+    override val displayName: String = "Outline"
+    override val sectionHelp: String =
+        "Read documents from an Outline knowledge base. Enter your instance " +
+            "URL and a personal API token (Outline → Settings → API Tokens)."
+
+    override fun fields(): List<SourceConfigField> = listOf(
+        SourceConfigField.UrlText(
+            key = "host",
+            label = "Outline URL",
+            help = "Your Outline instance, e.g. https://wiki.example.com.",
+            placeholder = "https://outline.example.com",
+        ),
+        SourceConfigField.SecretText(
+            key = "apiKey",
+            label = "API key",
+            help = "A personal API token from your Outline account.",
+        ),
+    )
+
+    override val values: Flow<Map<String, SourceConfigValue>> = config.state.map { s ->
+        mapOf(
+            "host" to SourceConfigValue.Text(s.host),
+            "apiKey" to SourceConfigValue.Secret(s.apiKey.isNotBlank()),
+        )
+    }
+
+    override suspend fun set(key: String, raw: String) {
+        when (key) {
+            "host" -> config.setHost(raw)
+            "apiKey" -> config.setApiKey(raw)
+        }
+    }
+}
+
+/**
+ * Issue #1624 — Wikipedia (#377) migrated onto the generic seam. Was a bespoke
+ * `WikipediaLanguageRow` (free-text language code) in the legacy monolith; now
+ * a single plain field through the seam. Wraps the same [WikipediaConfigImpl]
+ * that `SettingsRepositoryUi.setWikipediaLanguageCode` writes to (single source
+ * of truth). Blank reverts to the default language.
+ *
+ * Free text here matches the pre-migration behaviour; a validated dropdown
+ * wants a `Choice` field type the seam doesn't have yet (deferred — see
+ * content-sources-fields.md §D).
+ */
+@Singleton
+class WikipediaConfigContributor @Inject constructor(
+    private val config: WikipediaConfigImpl,
+) : SourceConfigContributor {
+    override val sourceId: String = SourceIds.WIKIPEDIA
+    override val displayName: String = "Wikipedia"
+    override val sectionHelp: String =
+        "Read Wikipedia articles. Set the language edition to read from " +
+            "(e.g. en, de, ja, simple). Leave blank for the default."
+
+    override fun fields(): List<SourceConfigField> = listOf(
+        SourceConfigField.PlainText(
+            key = "languageCode",
+            label = "Language code",
+            help = "Wikipedia language edition, e.g. en or es. Blank uses the default.",
+            placeholder = "en",
+        ),
+    )
+
+    override val values: Flow<Map<String, SourceConfigValue>> = config.state.map { s ->
+        mapOf("languageCode" to SourceConfigValue.Text(s.languageCode))
+    }
+
+    override suspend fun set(key: String, raw: String) {
+        when (key) {
+            "languageCode" -> config.setLanguageCode(raw)
+        }
+    }
+}
