@@ -110,7 +110,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 - **"My Documents" encrypted wallet** — keep benefits proofs in a device-credential-gated, encrypted-at-rest store, program-aware and excluded from every backup/sync. (#1514)
 - **Notice deadline keeper** — photograph a letter and Candela reads the date and sets a local reminder before the deadline. On-device. (#1515)
 - **Benefits letter decoder** — a NOA form-number becomes a plain-language + Spanish explainer from a verified corpus; an unknown form says so honestly rather than guessing. (#1516)
-- **Offline benefits screener** — the client-side /qualify (33 programs) bundled on-device, so "what do I qualify for?" works with zero connectivity. (#1517)
+- **Offline benefits screener** — the client-side /qualify screener bundled on-device (a preview set of programs; the full verified corpus is coming), so "what do I qualify for?" works with zero connectivity. (#1517)
 - **"Make the call" guided scripts** — verified call-card scripts with tap-to-dial and optional answer capture. (#1518)
 - **Saved household profile** — a local, encrypted profile that autofills scanned-form fields; a regression fence locks it out of cloud sync. (#1519)
 - **Google Drive Connect** — a Browse Connect entry point + empty state for the Drive source (folder-Picker + refresh follow-ups tracked). (#1534)
