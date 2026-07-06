@@ -143,6 +143,13 @@ class SettingsViewModel @Inject constructor(
     fun setDefaultVoice(id: String?) = viewModelScope.launch { repo.setDefaultVoice(id) }
     fun setWifiOnly(enabled: Boolean) = viewModelScope.launch { repo.setDownloadOnWifiOnly(enabled) }
     fun setPollHours(h: Int) = viewModelScope.launch { repo.setPollIntervalHours(h) }
+    // #1633 — teleprompter recording presets (Scripts subscreen "Teleprompter" section).
+    fun setTeleprompterWpm(wpm: Int) = viewModelScope.launch { repo.setTeleprompterWpm(wpm) }
+    fun setTeleprompterCountdownSec(s: Int) = viewModelScope.launch { repo.setTeleprompterCountdownSec(s) }
+    fun setTeleprompterOverlayOpacity(o: Float) = viewModelScope.launch { repo.setTeleprompterOverlayOpacity(o) }
+    fun setTeleprompterFontSizeSp(sp: Int) = viewModelScope.launch { repo.setTeleprompterFontSizeSp(sp) }
+    fun setTeleprompterMirror(on: Boolean) = viewModelScope.launch { repo.setTeleprompterMirror(on) }
+    fun setTeleprompterFrontCamera(front: Boolean) = viewModelScope.launch { repo.setTeleprompterFrontCamera(front) }
     // #1632 — Downloads & Storage: global default download mode for new fictions.
     fun setDefaultDownloadMode(mode: DownloadMode) =
         viewModelScope.launch { repo.setDefaultDownloadMode(mode) }
