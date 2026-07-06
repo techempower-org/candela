@@ -286,4 +286,8 @@
          Bandeja de entrada. Une la etiqueta y el conteo en una sola lectura de
          TalkBack, p. ej. "Inbox, 3 sin leer". %1$s = etiqueta, %2$d = conteo. -->
     <string name="library_inbox_tab_unread_cd">%1$s, %2$d sin leer</string>
+    <!-- #1624 — fila de Resumen matutino (extraída de cadenas fijas en EN;
+         bilingüe porque ya era una fila visible para el usuario). -->
+    <string name="settings_hub_briefing_title">Resumen matutino</string>
+    <string name="settings_hub_briefing_subtitle">Un episodio de tus fuentes — HN, arXiv, RSS, GitHub.</string>
 </resources>

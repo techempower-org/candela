@@ -700,6 +700,24 @@
     <string name="settings_hub_scripts_subtitle">Save, edit, and organize teleprompter scripts.</string>
     <string name="settings_hub_all_settings_title">All settings</string>
     <string name="settings_hub_all_settings_subtitle">Every setting on one long page (legacy).</string>
+    <!-- #1624 — grouped-hub category headings. Settings-ES is a dedicated
+         wholesale localization track (#1583); these ship EN-only to match it
+         (ES is added there in bulk, not piecemeal per-PR). -->
+    <string name="settings_hub_group_voice_audio">Voice &amp; Audio</string>
+    <string name="settings_hub_group_reading_display">Reading &amp; Display</string>
+    <string name="settings_hub_group_content_sources">Content &amp; Sources</string>
+    <string name="settings_hub_group_ai">AI</string>
+    <string name="settings_hub_group_tools">Tools &amp; Features</string>
+    <string name="settings_hub_group_system">System</string>
+    <string name="settings_hub_group_about">About &amp; Help</string>
+    <!-- #1624 — Cloud Voices hub row (newly exposed; screen + route already
+         shipped). EN-only per the #1583 settings-ES track. -->
+    <string name="settings_hub_cloud_voices_title">Cloud Voices</string>
+    <string name="settings_hub_cloud_voices_subtitle">Azure HD &amp; Dragon HD — bring your own key.</string>
+    <!-- #1624 — Morning Briefing row copy, extracted from inline hardcoded
+         strings. Bilingual (EN + ES) since it was already a user-facing row. -->
+    <string name="settings_hub_briefing_title">Morning Briefing</string>
+    <string name="settings_hub_briefing_subtitle">One episode from your sources — HN, arXiv, RSS, GitHub.</string>
 
     <!-- Settings · Reading subscreen -->
     <string name="settings_reading_title">Reading</string>
