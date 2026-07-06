@@ -716,7 +716,17 @@ class DefaultPlaybackController @Inject constructor(
         // chapters need the ExoPlayer's playWhenReady=false branch.
         // (Not named `pause()` on EnginePlayer to avoid colliding with
         // the BasePlayer override.)
-        player?.pauseRouted()
+        //
+        // #1606 — pause() is invoked both from Main (UI, media button, focus
+        // loss) AND from the SleepTimer fire path on Dispatchers.Default
+        // (SleepTimer.fadeAndPause → PauseAction → here). Media3's Player is
+        // Main-thread-confined (verifyApplicationThread), so a direct call
+        // from Default crashed the process every time a sleep timer expired.
+        // Marshal the player op to Main — Main.immediate runs inline when the
+        // caller is already on Main (no reordering for the UI path) and hops
+        // only for the off-main sleep-timer caller. Same class of fix as the
+        // #553 advanceChapter Main-hop above.
+        scope.launch(Dispatchers.Main.immediate) { player?.pauseRouted() }
     }
 
     override fun resume() {
