@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.deadline
 
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
+import `in`.jphe.storyvox.feature.api.ThemeOverride
 import `in`.jphe.storyvox.feature.api.UiSettings
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminder
 import `in`.jphe.storyvox.feature.techempower.deadline.DeadlineReminderScheduler
@@ -69,6 +70,23 @@ class DeadlineReminderReconcilerTest {
      *  constructing the 90+-field UiSettings). */
     private class FakeSettings : SettingsRepositoryUi {
         override val settings: Flow<UiSettings> = emptyFlow()
+
+        // The remaining abstract setters on SettingsRepositoryUi (the ~90 other
+        // members are `= Unit`-defaulted; these 12 are not). reconcile() touches
+        // none of them, so they are inert no-ops. Per project convention, new
+        // SettingsRepositoryUi methods should default to `= Unit` to keep fakes green.
+        override suspend fun setTheme(themeOverride: ThemeOverride) {}
+        override suspend fun setDefaultSpeed(speed: Float) {}
+        override suspend fun setDefaultPitch(pitch: Float) {}
+        override suspend fun setDefaultVoice(voiceId: String?) {}
+        override suspend fun setDownloadOnWifiOnly(enabled: Boolean) {}
+        override suspend fun setPollIntervalHours(hours: Int) {}
+        override suspend fun setPunctuationPauseMultiplier(multiplier: Float) {}
+        override suspend fun setPitchInterpolationHighQuality(enabled: Boolean) {}
+        override suspend fun setVoiceLexicon(voiceId: String, path: String?) {}
+        override suspend fun setVoicePhonemizerLang(voiceId: String, langCode: String?) {}
+        override suspend fun setPlaybackBufferChunks(chunks: Int) {}
+        override suspend fun setWarmupWait(enabled: Boolean) {}
     }
 
     private class FakeStore(private val items: MutableList<DeadlineReminder>) : DeadlineReminderStore {
