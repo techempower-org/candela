@@ -9,6 +9,25 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.12.5] -- 2026-07-06
+
+**Kindled Quartz.** The Settings hub gains its remaining gap subscreens — Downloads & Storage, Notifications, Benefits, and Teleprompter recording — and more per-source config moves out of the legacy long-scroll. Every buried setting now has a discoverable home.
+
+### Added
+
+- **Downloads & Storage subscreen** (#1632) — a global default download mode (Lazy / Eager / Subscribe) applied to newly-added books, plus Wi-Fi-only downloads, update-check interval, and cache controls, gathered in one place. Ships as a no-op until you opt into Eager/Subscribe.
+- **Notifications subscreen** (#1631) — un-buries the per-source new-chapter inbox toggles (Royal Road / KVMR / Wikipedia) and adds a system-notification permission status with a one-tap deep-link to the OS settings.
+- **Benefits hub entry** (#1634) — a Settings row to re-discover the Screener / Decoder benefits suite.
+- **Persisted teleprompter recording settings** (#1633) — the recording-overlay knobs (countdown, opacity, font size, mirror, camera) and scroll speed now survive across sessions, reached via a gear on the Scripts screen.
+
+### Changed
+
+- **Content Sources** (#1630 §B) — Outline and Wikipedia per-source config now live in the shared Content Sources subscreen instead of the legacy long-scroll page.
+
+### Under the hood
+
+- Completes the #1624 settings-IA epic's grouped, searchable hub end-state. New prefs use defaulted interface setters (fakes-safe); the download-mode consumer uses `dagger.Lazy` to avoid a settings↔repo init cycle; teleprompter knobs seed once from persisted defaults (behavior-neutral until adjusted).
+
 ## [1.12.4] -- 2026-07-05
 
 **Kindled Pinnacle.** Text lands clean — imported files, EPUBs, RSS feeds, and Standard Ebooks all keep their paragraph breaks now — Settings is grouped and searchable with per-source config surfaced, and a Notion book that gained chapters after a parser upgrade stops showing its stale one-chapter list.
