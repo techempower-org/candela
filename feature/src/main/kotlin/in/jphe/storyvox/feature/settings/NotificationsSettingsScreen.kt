@@ -34,15 +34,16 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  *    write the same prefs (single source of truth); each toggle suppresses both
  *    the Android notification and the in-app Inbox event for that source.
  *  - **Deadline reminders** — a master `deadlineRemindersEnabled` pref (#1515).
- *    Default ON; toggling it OFF gates only *new* deadline scheduling in the
- *    Deadline keeper. Reminders already armed — and the boot re-arm — are left
- *    alone, so a benefits deadline the user already set is never silently dropped.
+ *    Default ON; toggling OFF cancels every scheduled deadline alarm (and stops
+ *    the boot re-arm + new-reminder arming), ON re-arms them from the store. The
+ *    saved deadlines are never deleted, so it silences reminders reversibly.
  *
  * Scope note: slice 1 (#1647) landed the `inboxNotify*` un-bury + the permission
  * affordance; slice 2 (this change) adds the `deadlineRemindersEnabled` gate — a
- * new pref across UiContracts / repo / VM plus a VM-side scheduling gate in
- * [DeadlineKeeperViewModel][in.jphe.storyvox.feature.techempower.deadline.DeadlineKeeperViewModel],
- * per the spec in `scratch/candela-1631-notifications/`.
+ * new pref (UiContracts / repo / VM) plus alarm reconciliation across the
+ * new-schedule path ([DeadlineKeeperViewModel][in.jphe.storyvox.feature.techempower.deadline.DeadlineKeeperViewModel]),
+ * an app-side reconciler for toggle flips, and the boot / fire receivers — per
+ * the spec in `scratch/candela-1631-notifications/`.
  */
 @Composable
 fun NotificationsSettingsScreen(

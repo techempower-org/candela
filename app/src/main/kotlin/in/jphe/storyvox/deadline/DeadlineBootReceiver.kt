@@ -12,6 +12,13 @@ import android.content.Intent
  * BOOT_COMPLETED we read the persisted reminders straight off disk (no
  * Hilt needed) and re-schedule each one via [DeadlineAlarms]. All local,
  * no network.
+ *
+ * Issue #1631 — gated on the master `deadlineRemindersEnabled` pref, read
+ * **race-safe** ([deadlineRemindersEnabledOrTrue] defaults TRUE on any
+ * failure). This is the regression hotspot: a boot read that fell through
+ * to "disabled" would silently drop every existing user's reminders. The
+ * store is only ever read here — reminders are never deleted, so a disabled
+ * user who re-enables gets them all back on the next boot / flip.
  */
 class DeadlineBootReceiver : BroadcastReceiver() {
 
@@ -21,8 +28,12 @@ class DeadlineBootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         Thread {
             try {
-                DeadlineReminderJson.readAll(appContext).forEach {
-                    DeadlineAlarms.schedule(appContext, it)
+                // Off the main thread already (goAsync worker), so the
+                // awaited pref read is safe. Default-TRUE on any failure.
+                if (deadlineRemindersEnabledOrTrue(appContext)) {
+                    DeadlineReminderJson.readAll(appContext).forEach {
+                        DeadlineAlarms.schedule(appContext, it)
+                    }
                 }
             } finally {
                 pending.finish()

@@ -20,9 +20,16 @@ import `in`.jphe.storyvox.playback.R as PlaybackR
  * PendingIntent (explicit component) triggers it.
  *
  * The notification copy travels in the intent extras (set when the alarm
- * was armed), so this receiver needs neither Hilt nor storage access. The
- * banner shows the user's chosen text — by default a program label +
- * "deadline", never dollar amounts or case numbers (issue's Privacy note).
+ * was armed), so this receiver needs no storage access. The banner shows
+ * the user's chosen text — by default a program label + "deadline", never
+ * dollar amounts or case numbers (issue's Privacy note).
+ *
+ * Issue #1631 — suppressed when the master `deadlineRemindersEnabled` pref
+ * is off (read race-safe via [deadlineRemindersEnabledOrTrue], the only
+ * Hilt touch). Toggling off cancels pending alarms up front, so this is a
+ * belt-and-suspenders guard for an alarm already in flight; either way the
+ * reminder in the store is never deleted. The post is moved onto a
+ * `goAsync()` worker so the awaited pref read never blocks the main thread.
  */
 class DeadlineReminderReceiver : BroadcastReceiver() {
 
@@ -35,33 +42,47 @@ class DeadlineReminderReceiver : BroadcastReceiver() {
         val body = intent.getStringExtra(DeadlineAlarms.EXTRA_BODY).orEmpty()
         val notifId = intent.getIntExtra(DeadlineAlarms.EXTRA_NOTIF_ID, title.hashCode())
 
-        DeadlineAlarms.ensureChannel(context)
+        val appContext = context.applicationContext
+        val pending = goAsync()
+        Thread {
+            try {
+                // Issue #1631 — suppress if deadline reminders are off.
+                // Race-safe (default TRUE) and on a worker thread so the
+                // awaited pref read never blocks the main thread. The
+                // reminder in the store is untouched regardless — an alarm
+                // that slips past a just-flipped toggle drops at most one
+                // banner, never a saved deadline.
+                if (deadlineRemindersEnabledOrTrue(appContext) && notificationsAllowed(appContext)) {
+                    DeadlineAlarms.ensureChannel(appContext)
 
-        val contentIntent = context.packageManager
-            .getLaunchIntentForPackage(context.packageName)
-            ?.let { launch ->
-                PendingIntent.getActivity(
-                    context,
-                    notifId,
-                    launch,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                )
+                    val contentIntent = appContext.packageManager
+                        .getLaunchIntentForPackage(appContext.packageName)
+                        ?.let { launch ->
+                            PendingIntent.getActivity(
+                                appContext,
+                                notifId,
+                                launch,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                            )
+                        }
+
+                    val notification = NotificationCompat.Builder(appContext, DeadlineAlarms.CHANNEL_ID)
+                        .setSmallIcon(PlaybackR.drawable.ic_storyvox_notif)
+                        .setContentTitle(title)
+                        .setContentText(body)
+                        .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                        .setAutoCancel(true)
+                        .apply { contentIntent?.let { setContentIntent(it) } }
+                        .build()
+
+                    NotificationManagerCompat.from(appContext).notify(notifId, notification)
+                }
+            } finally {
+                pending.finish()
             }
-
-        val notification = NotificationCompat.Builder(context, DeadlineAlarms.CHANNEL_ID)
-            .setSmallIcon(PlaybackR.drawable.ic_storyvox_notif)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setAutoCancel(true)
-            .apply { contentIntent?.let { setContentIntent(it) } }
-            .build()
-
-        if (notificationsAllowed(context)) {
-            NotificationManagerCompat.from(context).notify(notifId, notification)
-        }
+        }.start()
     }
 
     private fun notificationsAllowed(context: Context): Boolean =
