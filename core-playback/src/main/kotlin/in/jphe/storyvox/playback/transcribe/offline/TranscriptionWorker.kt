@@ -81,26 +81,15 @@ class TranscriptionWorker @AssistedInject constructor(
         }
     }
 
-    /** Re-read then copy so a concurrent body/title edit isn't clobbered. */
+    // #1663 — column-scoped writes (transcript/status only). Disjoint from the
+    // detail-screen edit's write set (title/body/tags), so a concurrent user
+    // edit can't be clobbered — no read-modify-write of the full row.
     private suspend fun writeStatus(noteId: String, status: TranscriptionStatus) {
-        runCatching {
-            notes.get(noteId)?.let { notes.upsert(it.copy(transcriptionStatus = status, updatedAt = now())) }
-        }
+        runCatching { notes.updateTranscriptionStatus(noteId, status, now()) }
     }
 
     private suspend fun writeTranscript(noteId: String, transcript: String, status: TranscriptionStatus) {
-        runCatching {
-            notes.get(noteId)?.let {
-                notes.upsert(
-                    it.copy(
-                        transcript = transcript,
-                        transcriptLang = it.transcriptLang,
-                        transcriptionStatus = status,
-                        updatedAt = now(),
-                    ),
-                )
-            }
-        }
+        runCatching { notes.updateTranscription(noteId, transcript, status, now()) }
     }
 
     private fun now(): Long = System.currentTimeMillis()

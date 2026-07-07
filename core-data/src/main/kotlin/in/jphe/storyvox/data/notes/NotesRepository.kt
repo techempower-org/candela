@@ -37,6 +37,25 @@ class NotesRepository @Inject constructor(
     suspend fun upsert(note: NoteEntity) = dao.upsert(note)
 
     /**
+     * #1663 — column-scoped writes. Prefer these over [upsert] for in-place
+     * changes: the transcription worker and the detail-screen edit touch
+     * disjoint columns, so concurrent updates never clobber each other. Use
+     * [upsert] only to INSERT a new row (create/record).
+     */
+    suspend fun updateTranscription(
+        id: String,
+        transcript: String?,
+        status: TranscriptionStatus,
+        updatedAt: Long,
+    ) = dao.updateTranscription(id, transcript, status, updatedAt)
+
+    suspend fun updateTranscriptionStatus(id: String, status: TranscriptionStatus, updatedAt: Long) =
+        dao.updateTranscriptionStatus(id, status, updatedAt)
+
+    suspend fun updateEdit(id: String, title: String, body: String?, tags: String, updatedAt: Long) =
+        dao.updateEdit(id, title, body, tags, updatedAt)
+
+    /**
      * Delete a note AND its recording. No-op if the id is absent. The row is
      * removed first, then the audio file — so a delete failure on the file
      * never leaves a row pointing at a deleted-then-half-gone file; a stray
