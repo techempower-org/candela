@@ -33,6 +33,32 @@ interface NoteDao {
     @Query("DELETE FROM note WHERE id = :id")
     suspend fun delete(id: String)
 
+    // ── #1663 — column-scoped updates with DISJOINT write sets. The worker
+    // (transcript columns) and the detail-screen edit (title/body/tags) update
+    // non-overlapping columns, so a concurrent transcription + user edit can no
+    // longer clobber each other — the lost-update window a full-row read-copy-
+    // upsert left open. Both touch only `updatedAt` in common (benign LWW).
+
+    /**
+     * Worker path — writes ONLY the transcript + status (never title/body/tags).
+     * `transcriptLang` is deliberately left untouched (the worker doesn't yet
+     * surface Whisper's detected language; add a param here when it does).
+     */
+    @Query(
+        "UPDATE note SET transcript = :transcript, " +
+            "transcriptionStatus = :status, updatedAt = :updatedAt WHERE id = :id",
+    )
+    suspend fun updateTranscription(id: String, transcript: String?, status: TranscriptionStatus, updatedAt: Long)
+
+    /** Worker path — status-only transition (start / fail / cancel); leaves any
+     *  partial transcript intact. */
+    @Query("UPDATE note SET transcriptionStatus = :status, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateTranscriptionStatus(id: String, status: TranscriptionStatus, updatedAt: Long)
+
+    /** Edit path — writes ONLY the user-owned columns (never transcript/status). */
+    @Query("UPDATE note SET title = :title, body = :body, tags = :tags, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateEdit(id: String, title: String, body: String?, tags: String, updatedAt: Long)
+
     /**
      * Substring search over title / body / transcript, newest-edited first.
      * An empty [query] degenerates to `LIKE '%%'`, which matches every row via

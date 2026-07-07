@@ -110,5 +110,14 @@ class NotesRepositoryTest {
                     (it.transcript?.contains(query) ?: false)
             }.sortedByDescending { it.updatedAt },
         )
+        override suspend fun updateTranscription(id: String, transcript: String?, status: TranscriptionStatus, updatedAt: Long) {
+            rows.value = rows.value.map { if (it.id == id) it.copy(transcript = transcript, transcriptionStatus = status, updatedAt = updatedAt) else it }
+        }
+        override suspend fun updateTranscriptionStatus(id: String, status: TranscriptionStatus, updatedAt: Long) {
+            rows.value = rows.value.map { if (it.id == id) it.copy(transcriptionStatus = status, updatedAt = updatedAt) else it }
+        }
+        override suspend fun updateEdit(id: String, title: String, body: String?, tags: String, updatedAt: Long) {
+            rows.value = rows.value.map { if (it.id == id) it.copy(title = title, body = body, tags = tags, updatedAt = updatedAt) else it }
+        }
     }
 }

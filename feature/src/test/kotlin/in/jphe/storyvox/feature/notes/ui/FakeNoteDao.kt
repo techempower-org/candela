@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.feature.notes.ui
 
 import `in`.jphe.storyvox.data.notes.NoteDao
 import `in`.jphe.storyvox.data.notes.NoteEntity
+import `in`.jphe.storyvox.data.notes.TranscriptionStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -40,4 +41,23 @@ class FakeNoteDao : NoteDao {
                     (note.transcript?.lowercase()?.contains(q) == true)
             }.sortedByDescending { it.updatedAt }
         }
+
+    // #1663 — column-scoped updates (disjoint write sets).
+    override suspend fun updateTranscription(id: String, transcript: String?, status: TranscriptionStatus, updatedAt: Long) {
+        rows.value = rows.value.map {
+            if (it.id == id) it.copy(transcript = transcript, transcriptionStatus = status, updatedAt = updatedAt) else it
+        }
+    }
+
+    override suspend fun updateTranscriptionStatus(id: String, status: TranscriptionStatus, updatedAt: Long) {
+        rows.value = rows.value.map {
+            if (it.id == id) it.copy(transcriptionStatus = status, updatedAt = updatedAt) else it
+        }
+    }
+
+    override suspend fun updateEdit(id: String, title: String, body: String?, tags: String, updatedAt: Long) {
+        rows.value = rows.value.map {
+            if (it.id == id) it.copy(title = title, body = body, tags = tags, updatedAt = updatedAt) else it
+        }
+    }
 }

@@ -66,6 +66,57 @@ class NoteDaoTest {
         assertEquals(TranscriptionStatus.DONE, got.transcriptionStatus)
     }
 
+    // ── #1663 — column-scoped updates: worker (transcript/status) and editor
+    // (title/body/tags) writes must not clobber each other. ────────────────
+
+    @Test
+    fun scopedUpdates_transcriptWriteAndEdit_doNotClobber() = runTest {
+        dao.upsert(note("n1", title = "orig", body = "orig", tags = "old", status = TranscriptionStatus.PENDING))
+
+        // Worker writes the transcript; user concurrently saves an edit.
+        dao.updateTranscription("n1", transcript = "hello world", status = TranscriptionStatus.DONE, updatedAt = 2000L)
+        dao.updateEdit("n1", title = "edited", body = "edited body", tags = "new", updatedAt = 3000L)
+
+        val n = dao.get("n1")!!
+        // Worker's columns survived the edit…
+        assertEquals("hello world", n.transcript)
+        assertEquals(TranscriptionStatus.DONE, n.transcriptionStatus)
+        // …and the editor's columns survived the transcription.
+        assertEquals("edited", n.title)
+        assertEquals("edited body", n.body)
+        assertEquals("new", n.tags)
+    }
+
+    @Test
+    fun scopedUpdates_reverseOrder_stillNoClobber() = runTest {
+        dao.upsert(note("n1", title = "orig", body = "orig", status = TranscriptionStatus.PENDING))
+
+        dao.updateEdit("n1", title = "T", body = "B", tags = "G", updatedAt = 3000L)
+        dao.updateTranscription("n1", transcript = "TR", status = TranscriptionStatus.DONE, updatedAt = 2000L)
+
+        val n = dao.get("n1")!!
+        assertEquals("TR", n.transcript)
+        assertEquals(TranscriptionStatus.DONE, n.transcriptionStatus)
+        assertEquals("T", n.title)
+        assertEquals("B", n.body)
+        assertEquals("G", n.tags)
+    }
+
+    @Test
+    fun updateTranscriptionStatus_leavesEditorColumnsAndPartialTranscriptIntact() = runTest {
+        dao.upsert(
+            note("n1", title = "keep", body = "keep", transcript = "partial", status = TranscriptionStatus.RUNNING),
+        )
+
+        dao.updateTranscriptionStatus("n1", TranscriptionStatus.FAILED, updatedAt = 2000L)
+
+        val n = dao.get("n1")!!
+        assertEquals(TranscriptionStatus.FAILED, n.transcriptionStatus)
+        assertEquals("keep", n.title)
+        assertEquals("keep", n.body)
+        assertEquals("partial", n.transcript) // status-only update preserves the partial transcript
+    }
+
     @Test
     fun upsertSameId_replacesInPlace() = runTest {
         dao.upsert(note("n1", title = "draft", at = 1000L))

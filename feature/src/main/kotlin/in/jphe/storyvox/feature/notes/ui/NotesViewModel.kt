@@ -177,24 +177,41 @@ class NoteDetailViewModel @Inject constructor(
         val s = _uiState.value
         val now = System.currentTimeMillis()
         viewModelScope.launch {
-            repo.upsert(
-                NoteEntity(
+            if (s.isNewDraft) {
+                // First save of a new typed draft → INSERT the full row. (No
+                // concurrent transcription exists for a brand-new typed note.)
+                repo.upsert(
+                    NoteEntity(
+                        id = s.id,
+                        title = s.title.trim(),
+                        createdAt = createdAt,
+                        updatedAt = now,
+                        tags = normalizeNoteTags(s.tags),
+                        audioPath = s.audioPath,
+                        durationMs = s.durationMs,
+                        transcript = s.transcript,
+                        transcriptLang = s.transcriptLang,
+                        summary = s.summary,
+                        // Store an empty body as null so it doesn't shadow the
+                        // transcript in the list snippet (see [noteSnippet]).
+                        body = s.body.ifBlank { null },
+                        transcriptionStatus = s.transcriptionStatus,
+                    ),
+                )
+            } else {
+                // #1663 — existing note: write ONLY the editor-owned columns
+                // (title/body/tags) via a column-scoped UPDATE, so a concurrent
+                // transcription writing transcript/status is never clobbered
+                // (and vice versa). A full-row upsert(copy) here re-wrote the
+                // stale transcript snapshot loaded into the editor.
+                repo.updateEdit(
                     id = s.id,
                     title = s.title.trim(),
-                    createdAt = createdAt,
-                    updatedAt = now,
-                    tags = normalizeNoteTags(s.tags),
-                    audioPath = s.audioPath,
-                    durationMs = s.durationMs,
-                    transcript = s.transcript,
-                    transcriptLang = s.transcriptLang,
-                    summary = s.summary,
-                    // Store an empty body as null so it doesn't shadow the
-                    // transcript in the list snippet (see [noteSnippet]).
                     body = s.body.ifBlank { null },
-                    transcriptionStatus = s.transcriptionStatus,
-                ),
-            )
+                    tags = normalizeNoteTags(s.tags),
+                    updatedAt = now,
+                )
+            }
             _uiState.value = s.copy(isNewDraft = false, isDirty = false)
             _events.send(NoteDetailEvent.Saved)
         }
