@@ -3,6 +3,8 @@ package `in`.jphe.storyvox.llm.di
 import `in`.jphe.storyvox.llm.LlmConfig
 import `in`.jphe.storyvox.llm.LlmConfigProvider
 import `in`.jphe.storyvox.llm.auth.AnthropicTeamsAuthApi
+import `in`.jphe.storyvox.llm.feature.DefaultSummarizeTranscriptUseCase
+import `in`.jphe.storyvox.llm.feature.SummarizeTranscriptUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -82,4 +84,13 @@ object LlmModule {
     @Singleton
     fun provideAnthropicTeamsAuthApi(@LlmHttp http: OkHttpClient): AnthropicTeamsAuthApi =
         AnthropicTeamsAuthApi(http)
+
+    /** Voice Notes (#1657, Phase 3) — bind the summarize use-case interface to
+     *  its default impl, so `NoteDetailViewModel` depends on the seam and tests
+     *  use a trivial fake (no `LlmRepository` construction). */
+    @Provides
+    @Singleton
+    fun provideSummarizeTranscriptUseCase(
+        impl: DefaultSummarizeTranscriptUseCase,
+    ): SummarizeTranscriptUseCase = impl
 }

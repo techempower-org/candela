@@ -4,8 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import `in`.jphe.storyvox.data.notes.NoteEntity
 import `in`.jphe.storyvox.data.notes.NotesRepository
 import `in`.jphe.storyvox.data.notes.TranscriptionStatus
+import `in`.jphe.storyvox.llm.feature.SummarizeTranscriptUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -34,6 +37,13 @@ class NotesViewModelTest {
 
     @get:Rule
     val tmp = TemporaryFolder()
+
+    /** #1657 Phase 3 — the detail VM gained a summarize seam; this suite doesn't
+     *  exercise summarization, so a no-op fake satisfies the constructor
+     *  (interface seam → no `LlmRepository` needed here). */
+    private val fakeSummarize = object : SummarizeTranscriptUseCase {
+        override fun summarize(transcript: String, transcriptLang: String?): Flow<String> = emptyFlow()
+    }
 
     // One shared UnconfinedTestDispatcher for Main + runTest, so viewModelScope,
     // backgroundScope and the test body all run on the same eager scheduler —
@@ -133,7 +143,7 @@ class NotesViewModelTest {
                 updatedAt = 9,
             ),
         )
-        val vm = NoteDetailViewModel(repo, SavedStateHandle(mapOf("noteId" to "n1")))
+        val vm = NoteDetailViewModel(repo, fakeSummarize, SavedStateHandle(mapOf("noteId" to "n1")))
         runCurrent()
 
         val s = vm.uiState.value
@@ -147,7 +157,7 @@ class NotesViewModelTest {
 
     @Test
     fun `detail save inserts a new typed note with normalized tags`() = runTest(dispatcher) {
-        val vm = NoteDetailViewModel(repo, SavedStateHandle(mapOf("noteId" to "new1")))
+        val vm = NoteDetailViewModel(repo, fakeSummarize, SavedStateHandle(mapOf("noteId" to "new1")))
         runCurrent()
         assertTrue("absent row seeds a new draft", vm.uiState.value.isNewDraft)
 
@@ -181,7 +191,7 @@ class NotesViewModelTest {
                 transcriptionStatus = TranscriptionStatus.DONE,
             ),
         )
-        val vm = NoteDetailViewModel(repo, SavedStateHandle(mapOf("noteId" to "rec")))
+        val vm = NoteDetailViewModel(repo, fakeSummarize, SavedStateHandle(mapOf("noteId" to "rec")))
         runCurrent()
 
         vm.onTitleChange("Titled now")
@@ -201,7 +211,7 @@ class NotesViewModelTest {
     @Test
     fun `detail save stores a blank body as null so it doesn't shadow the transcript`() = runTest(dispatcher) {
         seed(note("only-audio", transcript = "the spoken content", durationMs = 3_000, status = TranscriptionStatus.DONE))
-        val vm = NoteDetailViewModel(repo, SavedStateHandle(mapOf("noteId" to "only-audio")))
+        val vm = NoteDetailViewModel(repo, fakeSummarize, SavedStateHandle(mapOf("noteId" to "only-audio")))
         runCurrent()
 
         // User opens the note and saves without typing a body.

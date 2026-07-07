@@ -38,9 +38,9 @@ class NotesRepository @Inject constructor(
 
     /**
      * #1663 — column-scoped writes. Prefer these over [upsert] for in-place
-     * changes: the transcription worker and the detail-screen edit touch
-     * disjoint columns, so concurrent updates never clobber each other. Use
-     * [upsert] only to INSERT a new row (create/record).
+     * changes: the transcription worker, the detail-screen edit, and the summary
+     * write touch disjoint columns, so concurrent updates never clobber each
+     * other. Use [upsert] only to INSERT a new row (create/record).
      */
     suspend fun updateTranscription(
         id: String,
@@ -54,6 +54,14 @@ class NotesRepository @Inject constructor(
 
     suspend fun updateEdit(id: String, title: String, body: String?, tags: String, updatedAt: Long) =
         dao.updateEdit(id, title, body, tags, updatedAt)
+
+    /**
+     * Persist ONLY the AI summary (#1657, Phase 3) — column-scoped like the
+     * writes above, so it can't clobber a concurrent title/body edit nor be
+     * clobbered by one (unlike a full-row upsert). See [NoteDao.updateSummary].
+     */
+    suspend fun setSummary(id: String, summary: String?, updatedAt: Long) =
+        dao.updateSummary(id, summary, updatedAt)
 
     /**
      * Delete a note AND its recording. No-op if the id is absent. The row is

@@ -87,7 +87,9 @@ fun NoteDetailScreen(
                 NoteDetailEvent.Saved -> snackbarHostState.showSnackbar("Saved")
                 NoteDetailEvent.Deleted -> onExit()
                 NoteDetailEvent.SummarizeUnavailable ->
-                    snackbarHostState.showSnackbar("Summaries arrive in a later update.")
+                    snackbarHostState.showSnackbar(
+                        "Couldn't summarize — set up an AI provider in Settings, then try again.",
+                    )
                 is NoteDetailEvent.Share -> {
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"

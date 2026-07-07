@@ -74,4 +74,14 @@ interface NoteDao {
             "ORDER BY updatedAt DESC",
     )
     fun search(query: String): Flow<List<NoteEntity>>
+
+    /**
+     * Voice Notes (#1657, Phase 3) — write ONLY the summary (+ updatedAt),
+     * never the whole row. A full-row upsert here would let a concurrent
+     * title/body edit clobber (or be clobbered by) the summary write — the
+     * lost-update class #1663 addresses for transcript/status. `summary` is a
+     * disjoint column, so this targeted UPDATE composes cleanly with those.
+     */
+    @Query("UPDATE note SET summary = :summary, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateSummary(id: String, summary: String?, updatedAt: Long)
 }

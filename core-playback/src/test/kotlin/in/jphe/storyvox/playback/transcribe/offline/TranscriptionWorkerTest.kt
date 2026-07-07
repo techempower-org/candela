@@ -148,6 +148,9 @@ class TranscriptionWorkerTest {
         override suspend fun updateEdit(id: String, title: String, body: String?, tags: String, updatedAt: Long) {
             rows.value = rows.value.map { if (it.id == id) it.copy(title = title, body = body, tags = tags, updatedAt = updatedAt) else it }
         }
+        override suspend fun updateSummary(id: String, summary: String?, updatedAt: Long) {
+            rows.value = rows.value.map { if (it.id == id) it.copy(summary = summary, updatedAt = updatedAt) else it }
+        }
     }
 
     companion object {

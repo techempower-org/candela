@@ -8,7 +8,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.data.notes.NoteEntity
 import `in`.jphe.storyvox.data.notes.NotesRepository
 import `in`.jphe.storyvox.data.notes.TranscriptionStatus
+import `in`.jphe.storyvox.llm.feature.SummarizeTranscriptUseCase
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -91,6 +94,8 @@ data class NoteDetailUiState(
     val isNewDraft: Boolean = true,
     /** True once the in-memory content diverges from what's persisted. Gates Save. */
     val isDirty: Boolean = false,
+    /** True while a summary is streaming from the LLM (Phase 3) — gates re-tap + drives a spinner. */
+    val isSummarizing: Boolean = false,
 )
 
 /** One-shot events from the detail VM to its screen. */
@@ -101,7 +106,11 @@ sealed interface NoteDetailEvent {
     data object Deleted : NoteDetailEvent
     /** Share the assembled note text — the screen fires an ACTION_SEND chooser. */
     data class Share(val text: String) : NoteDetailEvent
-    /** Summarize was tapped before Phase 3 landed — the screen shows a notice. */
+    /**
+     * Summarize couldn't run or complete — no AI provider configured
+     * (`LlmError.NotConfigured`) or the stream failed. The screen shows a notice
+     * pointing at Settings; the transcript is left untouched.
+     */
     data object SummarizeUnavailable : NoteDetailEvent
 }
 
@@ -116,6 +125,7 @@ sealed interface NoteDetailEvent {
 @HiltViewModel
 class NoteDetailViewModel @Inject constructor(
     private val repo: NotesRepository,
+    private val summarizeUseCase: SummarizeTranscriptUseCase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -233,14 +243,41 @@ class NoteDetailViewModel @Inject constructor(
     }
 
     /**
-     * TODO(#1657 P3): replace with `SummarizeTranscriptUseCase` (nebula) —
-     * build a prompt from the transcript, stream `LlmProvider`, and write
-     * [NoteEntity.summary] behind the explicit-consent gate (spec §3.3). Until
-     * Phase 3 lands, tapping Summarize surfaces a "not yet available" notice so
-     * the affordance is discoverable without pretending to work.
+     * Voice Notes (#1657, Phase 3) — summarize the transcript via
+     * [SummarizeTranscriptUseCase] and persist [NoteEntity.summary].
+     *
+     * Consent gate (spec §3.3): runs only on the explicit Summarize tap (the tap
+     * *is* consent) and the use-case additionally requires a configured LLM
+     * provider — otherwise it throws and we surface
+     * [NoteDetailEvent.SummarizeUnavailable], leaving the transcript untouched.
+     * The summary streams into [uiState] live and is persisted **column-scoped**
+     * ([NotesRepository.setSummary]) — never a full-row upsert, so it can't
+     * clobber a concurrent body/title edit. Re-tap is gated by [isSummarizing].
      */
     fun summarize() {
-        viewModelScope.launch { _events.send(NoteDetailEvent.SummarizeUnavailable) }
+        val s = _uiState.value
+        val transcript = s.transcript?.takeIf { it.isNotBlank() }
+        if (s.isSummarizing || transcript == null) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSummarizing = true)
+            val sb = StringBuilder()
+            try {
+                summarizeUseCase.summarize(transcript, s.transcriptLang).collect { delta ->
+                    sb.append(delta)
+                    _uiState.value = _uiState.value.copy(summary = sb.toString())
+                }
+                val summary = sb.toString().ifBlank { null }
+                repo.setSummary(noteId, summary, System.currentTimeMillis())
+                _uiState.value = _uiState.value.copy(summary = summary, isSummarizing = false)
+            } catch (ce: CancellationException) {
+                throw ce // structured cancellation (VM cleared) — not a failure
+            } catch (t: Throwable) {
+                // A real error (NotConfigured / network) — revert the partial
+                // stream (transcript untouched) and surface a notice.
+                _uiState.value = _uiState.value.copy(summary = s.summary, isSummarizing = false)
+                _events.send(NoteDetailEvent.SummarizeUnavailable)
+            }
+        }
     }
 
     companion object {
