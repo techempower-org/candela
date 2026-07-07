@@ -34,7 +34,7 @@ import org.robolectric.annotation.Config
 @Config(manifest = Config.NONE)
 class SummarizeTranscriptUseCaseTest {
 
-    private val fakeProvider = FakeProvider()
+    private val fakeProvider = FakeSummarizeProvider()
 
     private fun useCase(provider: ProviderId? = ProviderId.Claude): SummarizeTranscriptUseCase {
         val llm = LlmRepository(
@@ -118,7 +118,7 @@ class SummarizeTranscriptUseCaseTest {
 
 /** Single-shape fake provider (mirrors ChapterRecapTest): one canned token list
  *  for every id slot, capturing the last messages + system prompt. */
-private class FakeProvider {
+private class FakeSummarizeProvider {
     var tokens: List<String> = emptyList()
     var lastMessages: List<LlmMessage>? = null
     var lastSystemPrompt: String? = null
