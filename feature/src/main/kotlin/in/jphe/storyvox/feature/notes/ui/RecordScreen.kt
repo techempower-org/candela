@@ -1,7 +1,11 @@
 package `in`.jphe.storyvox.feature.notes.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,9 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
@@ -62,12 +67,30 @@ fun RecordScreen(
     viewModel: NotesRecordViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is RecordEvent.Saved -> onRecordingSaved(event.noteId)
             }
+        }
+    }
+
+    // RECORD_AUDIO is requested the moment the user first taps record: granted →
+    // start immediately; denied → no-op (the button stays available to retry).
+    // Capture + the microphone FGS both require it.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) viewModel.start() }
+    val onStartRecording: () -> Unit = {
+        if (
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            viewModel.start()
+        } else {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
 
@@ -80,7 +103,7 @@ fun RecordScreen(
 
     RecordContent(
         state = state,
-        onStart = viewModel::start,
+        onStart = onStartRecording,
         onPause = viewModel::pause,
         onResume = viewModel::resume,
         onStop = viewModel::stopAndSave,
@@ -195,17 +218,6 @@ internal fun RecordContent(
                         )
                     }
                 }
-            }
-
-            if (state.isRecording) {
-                Spacer(Modifier.height(spacing.lg))
-                // Honest cue for testers — removed when Phase 2a's real capture lands.
-                Text(
-                    text = "Simulated preview — real capture arrives in a later update.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
             }
         }
     }
