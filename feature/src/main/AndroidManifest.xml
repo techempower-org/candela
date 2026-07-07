@@ -1,2 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!-- Voice Notes (#1657, Phase 2a) — microphone-typed FGS that keeps mic
+             capture legal + visible while recording. Not exported: started only
+             via an explicit Intent from NotesRecordViewModel. The
+             FOREGROUND_SERVICE_MICROPHONE permission is declared in the app
+             manifest beside the other FGS permissions. -->
+        <service
+            android:name="in.jphe.storyvox.feature.notes.record.RecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+    </application>
+</manifest>

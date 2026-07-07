@@ -15,6 +15,11 @@
          type per AOSP docs. Required on API 34+ to avoid the
          "Missing foregroundServiceType" SecurityException. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Voice Notes (#1657, Phase 2a) — RecordingService (feature/notes/record)
+         captures the mic under a microphone-typed FGS; API 34+ requires this
+         permission to start it. RECORD_AUDIO (declared below) is requested at
+         runtime before recording begins. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
