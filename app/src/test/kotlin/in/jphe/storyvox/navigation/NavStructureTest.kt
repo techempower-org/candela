@@ -34,30 +34,37 @@ import org.junit.Test
 class NavStructureTest {
 
     @Test
-    fun `bottom nav exposes exactly six primary destinations`() {
-        // v0.5.72 — Playing + Library + Browse + Voices + Settings (5).
-        // Voice Notes (epic #1657) adds Notes as a sixth first-class dock
-        // pill. This deliberately crosses the "past five needs a UX
-        // review" threshold the prior revision flagged: six cells narrow
-        // each cell (notably on the Flip3's ~260 dp cover), so label
-        // rendering must be eyeballed there. Notes was a locked product
-        // decision (a first-class "Notes" destination), so the sixth pill
-        // is intentional — this assertion is the conscious record of it.
-        assertEquals(6, HomeTab.entries.size)
+    fun `bottom nav exposes exactly five primary destinations`() {
+        // Phone dock = the tabs with inBottomBar=true. Voice Notes (#1657)
+        // kept the bar at five: Notes is RAIL-ONLY — the 6th-tab decision
+        // (JP away → team-lead full-auto call) chose the side rail over a
+        // sixth dock pill, since six crowd the Flip3's ~260 dp cover. Notes
+        // still lives in HomeTab (so HomeTab.entries is 6) for the rail; it's
+        // just excluded from this bar. See the `rail-only` test below.
+        assertEquals(5, HomeTab.entries.count { it.inBottomBar })
     }
 
     @Test
-    fun `bottom nav primary destinations are Playing Library Browse Voices Notes Settings`() {
-        // Order matters — BottomTabBar uses ordinal to position the
-        // indicator pill. Playing leads (most-touched during a listening
-        // session); Library second (cold-launch landing); Browse third
-        // (discovery between "your shelves" and "playback ops"); Voices
-        // fourth; Notes fifth (Voice Notes, epic #1657 — grouped next to
-        // the voice-forward Voices pill); Settings always last.
-        val labels = HomeTab.entries.map { it.label }
-        assertEquals(listOf("Playing", "Library", "Browse", "Voices", "Notes", "Settings"), labels)
+    fun `bottom nav primary destinations are Playing Library Browse Voices Settings`() {
+        // Order matters — BottomTabBar uses ordinal to position the indicator
+        // pill. Playing leads (most-touched during a listening session);
+        // Library second (cold-launch landing); Browse third (discovery
+        // between "your shelves" and "playback ops"); Voices fourth; Settings
+        // always last. (Notes is rail-only, not in this dock — see below.)
+        val bottomBar = HomeTab.entries.filter { it.inBottomBar }.map { it.label }
+        assertEquals(listOf("Playing", "Library", "Browse", "Voices", "Settings"), bottomBar)
         assertEquals(HomeTab.Playing, HomeTab.entries.first())
         assertEquals(HomeTab.Settings, HomeTab.entries.last())
+    }
+
+    @Test
+    fun `Notes is a rail-only destination, not a phone bottom-bar tab`() {
+        // #1657 6th-tab decision — Notes stays first-class via the SideNavRail
+        // + the NOTES route, but is deliberately excluded from the phone
+        // BottomTabBar (indicator-pill density on the Flip3 cover). This pins
+        // the decision so re-adding Notes to the dock is a conscious change.
+        assertTrue("Notes still exists for the rail", HomeTab.entries.contains(HomeTab.Notes))
+        assertFalse("Notes is excluded from the phone dock", HomeTab.Notes.inBottomBar)
     }
 
     @Test

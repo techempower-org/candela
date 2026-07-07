@@ -88,8 +88,10 @@ import androidx.compose.ui.unit.dp
  * other dock metaphors (Playing = transport, Library = your shelves,
  * Voices = TTS, Settings = gear).
  *
- * Six tabs now in the dock: `{Playing, Library, Browse, Voices, Notes, Settings}`
- * — Notes added for Voice Notes (epic #1657); Settings stays last.
+ * Phone dock is five pills: `{Playing, Library, Browse, Voices, Settings}`.
+ * Voice Notes (epic #1657) is **rail-only** — [HomeTab.Notes] shows in the
+ * [SideNavRail] but is excluded from this bar (`inBottomBar = false`) so the
+ * dock stays at five (six crowd the Flip3 cover). Settings stays last.
  */
 // Order matters — entries' ordinal positions the sliding indicator
 // pill left-to-right in the bar. v0.5.72 final order: Playing leads
@@ -101,14 +103,27 @@ import androidx.compose.ui.unit.dp
 // last. Library + Browse adjacent is intentional — a user finishing
 // a book in Library can swipe one tab to discover the next.
 @Immutable
-enum class HomeTab(val label: String, val filled: ImageVector, val outlined: ImageVector) {
+enum class HomeTab(
+    val label: String,
+    val filled: ImageVector,
+    val outlined: ImageVector,
+    /**
+     * Whether this tab renders in the phone [BottomTabBar]. All true except
+     * [Notes], which is **rail-only** (#1657): shown in the tablet [SideNavRail]
+     * but kept out of the phone dock so the bar stays at five pills (six crowd
+     * label rendering on the Flip3's ~260 dp cover). The NOTES route still
+     * exists (side rail + deep-links), so Notes stays first-class; a future
+     * product call can promote it to the dock by flipping this to true.
+     */
+    val inBottomBar: Boolean = true,
+) {
     Playing("Playing", Icons.Filled.PlayArrow, Icons.Outlined.PlayArrow),
     Library("Library", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     Browse("Browse", Icons.Filled.Explore, Icons.Outlined.Explore),
     Voices("Voices", Icons.Filled.RecordVoiceOver, Icons.Outlined.RecordVoiceOver),
-    // Voice Notes (epic #1657) — a waveform glyph, distinct from Voices'
-    // RecordVoiceOver head. Positioned before Settings (dock invariant: gear last).
-    Notes("Notes", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq),
+    // Voice Notes (epic #1657) — waveform glyph, distinct from Voices'
+    // RecordVoiceOver head. RAIL-ONLY: shown in the SideNavRail, not the phone dock.
+    Notes("Notes", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq, inBottomBar = false),
     Settings("Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 
@@ -144,7 +159,9 @@ fun BottomTabBar(
     onSelect: (HomeTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tabs = HomeTab.entries
+    // Rail-only tabs (Notes, #1657) are excluded from the phone dock; the
+    // SideNavRail renders the full HomeTab.entries instead.
+    val tabs = HomeTab.entries.filter { it.inBottomBar }
     val selectedIndex = tabs.indexOf(selected).coerceAtLeast(0)
     val indicatorColor = MaterialTheme.colorScheme.primaryContainer
 
