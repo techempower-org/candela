@@ -161,6 +161,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // #1657 Phase 2b — WorkManager test harness for TranscriptionWorker.
+    testImplementation(libs.androidx.work.testing)
     // epic/plugin-dx B3 — VoiceEnginePluginContractTest (the voice twin
     // of the FictionSource contract kit) + its six engine retrofits.
     // #1504 — the kit now lives in :core-voice-testkit (split out of

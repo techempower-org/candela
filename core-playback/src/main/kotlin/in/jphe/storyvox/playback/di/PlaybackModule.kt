@@ -16,6 +16,8 @@ import `in`.jphe.storyvox.playback.cache.PcmRenderScheduler
 import `in`.jphe.storyvox.playback.cache.WorkManagerPcmRenderScheduler
 import `in`.jphe.storyvox.playback.transcribe.MicCaptureProcessor
 import `in`.jphe.storyvox.playback.transcribe.RecognizedWordSource
+import `in`.jphe.storyvox.playback.transcribe.offline.OfflineTranscriber
+import `in`.jphe.storyvox.playback.transcribe.offline.SherpaOfflineTranscriber
 import javax.inject.Singleton
 
 @Module
@@ -53,6 +55,17 @@ abstract class PlaybackModule {
     abstract fun bindRecognizedWordSource(
         impl: MicCaptureProcessor,
     ): RecognizedWordSource
+
+    /**
+     * Issue #1657 (Voice Notes, Phase 2b) — the offline batch transcriber for
+     * recorded notes (Whisper base int8). Self-gates on the downloaded model,
+     * so binding it is safe even before the model is present.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindOfflineTranscriber(
+        impl: SherpaOfflineTranscriber,
+    ): OfflineTranscriber
 
     companion object {
         @Provides
