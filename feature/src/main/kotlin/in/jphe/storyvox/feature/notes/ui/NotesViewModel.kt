@@ -10,6 +10,7 @@ import `in`.jphe.storyvox.data.notes.NotesRepository
 import `in`.jphe.storyvox.data.notes.TranscriptionStatus
 import `in`.jphe.storyvox.llm.feature.SummarizeTranscriptUseCase
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -255,29 +256,27 @@ class NoteDetailViewModel @Inject constructor(
      */
     fun summarize() {
         val s = _uiState.value
-        val transcript = s.transcript
-        if (s.isSummarizing || transcript.isNullOrBlank()) return
+        val transcript = s.transcript?.takeIf { it.isNotBlank() }
+        if (s.isSummarizing || transcript == null) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSummarizing = true)
             val sb = StringBuilder()
-            val result = runCatching {
+            try {
                 summarizeUseCase.summarize(transcript, s.transcriptLang).collect { delta ->
                     sb.append(delta)
                     _uiState.value = _uiState.value.copy(summary = sb.toString())
                 }
+                val summary = sb.toString().ifBlank { null }
+                repo.setSummary(noteId, summary, System.currentTimeMillis())
+                _uiState.value = _uiState.value.copy(summary = summary, isSummarizing = false)
+            } catch (ce: CancellationException) {
+                throw ce // structured cancellation (VM cleared) — not a failure
+            } catch (t: Throwable) {
+                // A real error (NotConfigured / network) — revert the partial
+                // stream (transcript untouched) and surface a notice.
+                _uiState.value = _uiState.value.copy(summary = s.summary, isSummarizing = false)
+                _events.send(NoteDetailEvent.SummarizeUnavailable)
             }
-            result.fold(
-                onSuccess = {
-                    val summary = sb.toString().ifBlank { null }
-                    repo.setSummary(noteId, summary, System.currentTimeMillis())
-                    _uiState.value = _uiState.value.copy(summary = summary, isSummarizing = false)
-                },
-                onFailure = {
-                    // Revert any partial stream; the transcript is never touched.
-                    _uiState.value = _uiState.value.copy(summary = s.summary, isSummarizing = false)
-                    _events.send(NoteDetailEvent.SummarizeUnavailable)
-                },
-            )
         }
     }
 

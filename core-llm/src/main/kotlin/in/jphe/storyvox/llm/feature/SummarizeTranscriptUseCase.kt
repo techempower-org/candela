@@ -14,40 +14,44 @@ import kotlinx.coroutines.flow.flow
 
 /**
  * Voice Notes (#1657, Phase 3) — summarize a recording's transcript into a
- * title + key points + action items, via the existing provider-agnostic
- * [LlmRepository.stream]. A thin flow wrapper that mirrors [ChapterRecap]:
- * build a prompt, stream the response as text deltas.
+ * title + key points + action items, streamed from the active LLM provider.
  *
- * **Consent / privacy gate (spec §3.3):** summarization is the ONLY path that
- * sends note text off-device. It runs only when BOTH hold:
- *  1. the caller invokes it on an explicit user action (the "Summarize" tap, or
- *     an opt-in auto-summarize) — the tap *is* the consent; and
- *  2. an LLM provider is configured ([LlmConfig.provider] != null).
- * If no provider is configured it throws [LlmError.NotConfigured] and the
- * transcript is left untouched — nothing leaves the device.
+ * An **interface** (impl [DefaultSummarizeTranscriptUseCase]) so consumers
+ * (`NoteDetailViewModel`) depend on the abstraction and tests use a trivial
+ * hand-rolled fake — no `LlmRepository`/provider construction in the feature
+ * test (the same reason `PlaybackController` / `SettingsRepositoryUi` are seams).
  *
- * The summary language follows the transcript's `transcriptLang` (EN/ES), so a
- * Spanish memo gets a Spanish summary.
- *
- * NOTE: unlike [ChapterRecap], this does NOT gate on
- * [LlmConfig.sendChapterTextEnabled] — that toggle governs *chapter* text; a
- * note summary's consent is the explicit Summarize action itself.
+ * **Consent / privacy gate (spec §3.3):** summarizing is the ONLY path that
+ * sends note text off-device. Implementations run only when BOTH hold: the
+ * caller invokes it on an explicit user action (the "Summarize" tap *is* the
+ * consent), AND an LLM provider is configured — otherwise they throw
+ * [LlmError.NotConfigured] and the transcript is left untouched.
  */
-@Singleton
-class SummarizeTranscriptUseCase @Inject constructor(
-    private val llm: LlmRepository,
-    private val configFlow: Flow<LlmConfig>,
-) {
+interface SummarizeTranscriptUseCase {
     /**
-     * Stream a summary (title + key points + action items) of [transcript].
-     * Emits text deltas in arrival order; collect on a scope bound to a Cancel
-     * affordance (cancellation propagates through the flow into the LLM call).
-     * A blank transcript yields an empty flow (nothing to send).
+     * Stream a summary of [transcript] (text deltas, in order). A blank
+     * transcript yields an empty flow. The summary language follows
+     * [transcriptLang] (EN/ES).
      *
      * @throws LlmError.NotConfigured when no LLM provider is configured — the
      *   consent/provider gate; the transcript is not sent off-device.
      */
-    fun summarize(transcript: String, transcriptLang: String? = null): Flow<String> = flow {
+    fun summarize(transcript: String, transcriptLang: String? = null): Flow<String>
+}
+
+/**
+ * Default [SummarizeTranscriptUseCase] — a thin wrapper over
+ * [LlmRepository.stream] that mirrors [ChapterRecap]. Does NOT gate on
+ * [LlmConfig.sendChapterTextEnabled] (that toggle governs *chapter* text; a note
+ * summary's consent is the explicit Summarize action itself).
+ */
+@Singleton
+class DefaultSummarizeTranscriptUseCase @Inject constructor(
+    private val llm: LlmRepository,
+    private val configFlow: Flow<LlmConfig>,
+) : SummarizeTranscriptUseCase {
+
+    override fun summarize(transcript: String, transcriptLang: String?): Flow<String> = flow {
         val cfg = configFlow.first()
         if (cfg.provider == null) throw LlmError.NotConfigured(ProviderId.Claude)
         if (transcript.isBlank()) return@flow

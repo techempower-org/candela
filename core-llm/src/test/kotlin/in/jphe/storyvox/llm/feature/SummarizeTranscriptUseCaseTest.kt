@@ -47,7 +47,7 @@ class SummarizeTranscriptUseCaseTest {
             bedrock = fakeProvider.asBedrock(),
             teams = fakeProvider.asTeams(),
         )
-        return SummarizeTranscriptUseCase(llm = llm, configFlow = flowOf(LlmConfig(provider = provider)))
+        return DefaultSummarizeTranscriptUseCase(llm = llm, configFlow = flowOf(LlmConfig(provider = provider)))
     }
 
     @Test
