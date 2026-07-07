@@ -34,30 +34,28 @@ import org.junit.Test
 class NavStructureTest {
 
     @Test
-    fun `bottom nav exposes exactly five primary destinations`() {
-        // v0.5.72 — Playing + Library + Browse + Voices + Settings.
-        // Browse was promoted from Library sub-tab to a first-class
-        // dock pill. Going past five needs a UX review — the sliding
-        // indicator pill in BottomTabBar is centered per-cell and six
-        // cells starts crowding label rendering on the Flip3's
-        // compact cover width.
-        assertEquals(5, HomeTab.entries.size)
+    fun `bottom nav exposes exactly six primary destinations`() {
+        // v0.5.72 — Playing + Library + Browse + Voices + Settings (5).
+        // Voice Notes (epic #1657) adds Notes as a sixth first-class dock
+        // pill. This deliberately crosses the "past five needs a UX
+        // review" threshold the prior revision flagged: six cells narrow
+        // each cell (notably on the Flip3's ~260 dp cover), so label
+        // rendering must be eyeballed there. Notes was a locked product
+        // decision (a first-class "Notes" destination), so the sixth pill
+        // is intentional — this assertion is the conscious record of it.
+        assertEquals(6, HomeTab.entries.size)
     }
 
     @Test
-    fun `bottom nav primary destinations are Playing Library Browse Voices Settings`() {
+    fun `bottom nav primary destinations are Playing Library Browse Voices Notes Settings`() {
         // Order matters — BottomTabBar uses ordinal to position the
-        // indicator pill. v0.5.72 final order: Playing leads
-        // (most-touched during a listening session); Library second
-        // (cold-launch landing — NavHost startDestination is
-        // independent of dock ordinal but adjacency matters for the
-        // "I just opened the app" glance); Browse third (discovery
-        // sits between "your shelves" and "playback ops"); Voices
-        // fourth; Settings always last. Library + Browse adjacency is
-        // intentional — finishing a book and discovering the next is
-        // one swipe.
+        // indicator pill. Playing leads (most-touched during a listening
+        // session); Library second (cold-launch landing); Browse third
+        // (discovery between "your shelves" and "playback ops"); Voices
+        // fourth; Notes fifth (Voice Notes, epic #1657 — grouped next to
+        // the voice-forward Voices pill); Settings always last.
         val labels = HomeTab.entries.map { it.label }
-        assertEquals(listOf("Playing", "Library", "Browse", "Voices", "Settings"), labels)
+        assertEquals(listOf("Playing", "Library", "Browse", "Voices", "Notes", "Settings"), labels)
         assertEquals(HomeTab.Playing, HomeTab.entries.first())
         assertEquals(HomeTab.Settings, HomeTab.entries.last())
     }
