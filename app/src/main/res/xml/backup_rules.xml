@@ -30,4 +30,14 @@
     <!-- Issue #1515 — deadline reminders are on-device only; never back
          them up to the cloud (privacy.md §2.11). -->
     <exclude domain="file" path="deadline_reminders.json" />
+    <!-- Issue #1657 (Voice Notes) — the notes DB + all recordings are
+         on-device only; never back them up (spec §3.7). notes.db is a
+         SEPARATE Room DB precisely so it's file-excludable here; the
+         recordings/ path must match NotesRepository.RECORDINGS_SUBDIR and
+         Phase 2a's write path (a mismatch silently un-protects the audio). -->
+    <exclude domain="database" path="notes.db" />
+    <exclude domain="database" path="notes.db-wal" />
+    <exclude domain="database" path="notes.db-shm" />
+    <exclude domain="database" path="notes.db-journal" />
+    <exclude domain="file" path="recordings/" />
 </full-backup-content>

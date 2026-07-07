@@ -14,6 +14,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import `in`.jphe.storyvox.data.coroutines.ApplicationScope
 import `in`.jphe.storyvox.data.db.StoryvoxDatabase
+import `in`.jphe.storyvox.data.notes.NoteDao
+import `in`.jphe.storyvox.data.notes.NotesDatabase
+import `in`.jphe.storyvox.data.notes.NotesRepository
+import java.io.File
+import javax.inject.Named
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -138,6 +143,28 @@ object DataModule {
     @Provides fun teleprompterScriptDao(db: StoryvoxDatabase): TeleprompterScriptDao = db.teleprompterScriptDao()
     // Issue #1235 — read-only aggregate DAO for the listening-stats dashboard.
     @Provides fun listeningStatsDao(db: StoryvoxDatabase): ListeningStatsDao = db.listeningStatsDao()
+
+    // ── Voice Notes (#1657, Phase 1) — SEPARATE notes.db (backup-excludable) ──
+    @Provides
+    @Singleton
+    fun provideNotesDatabase(@ApplicationContext ctx: Context): NotesDatabase =
+        Room.databaseBuilder(ctx, NotesDatabase::class.java, NotesDatabase.NAME)
+            // #570 — same F2FS / One-UI journal-mode workaround as the main DB.
+            .setJournalMode(androidx.room.RoomDatabase.JournalMode.TRUNCATE)
+            // NB: deliberately NO fallbackToDestructiveMigrationOnDowngrade() —
+            // notes are irreplaceable (they don't rehydrate from a backend like
+            // the library does), so wiping on downgrade is unacceptable. At v1
+            // there are no migrations; decide the policy when the first lands.
+            .build()
+
+    @Provides fun noteDao(db: NotesDatabase): NoteDao = db.noteDao()
+
+    /** `filesDir/recordings` — Phase 2a's write path AND the backup-excluded dir. */
+    @Provides
+    @Singleton
+    @Named(NotesRepository.RECORDINGS_DIR_QUALIFIER)
+    fun provideNotesRecordingsDir(@ApplicationContext ctx: Context): File =
+        File(ctx.filesDir, NotesRepository.RECORDINGS_SUBDIR).apply { mkdirs() }
 
     /**
      * Long-lived [CoroutineScope] for singleton repositories that need to fire
