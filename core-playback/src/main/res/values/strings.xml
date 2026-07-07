@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- core-playback user-facing strings. EN-only per #1583. -->
+<resources>
+    <!-- Voice Notes (#1657, Phase 2b) — foreground-service notification shown
+         while a recorded note is being transcribed on-device. -->
+    <string name="transcription_notif_title">Transcribing note…</string>
+</resources>
