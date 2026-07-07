@@ -22,11 +22,13 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Settings
@@ -86,7 +88,8 @@ import androidx.compose.ui.unit.dp
  * other dock metaphors (Playing = transport, Library = your shelves,
  * Voices = TTS, Settings = gear).
  *
- * Five tabs now in the dock: `{Playing, Library, Browse, Voices, Settings}`.
+ * Six tabs now in the dock: `{Playing, Library, Browse, Voices, Notes, Settings}`
+ * — Notes added for Voice Notes (epic #1657); Settings stays last.
  */
 // Order matters — entries' ordinal positions the sliding indicator
 // pill left-to-right in the bar. v0.5.72 final order: Playing leads
@@ -103,6 +106,9 @@ enum class HomeTab(val label: String, val filled: ImageVector, val outlined: Ima
     Library("Library", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     Browse("Browse", Icons.Filled.Explore, Icons.Outlined.Explore),
     Voices("Voices", Icons.Filled.RecordVoiceOver, Icons.Outlined.RecordVoiceOver),
+    // Voice Notes (epic #1657) — a waveform glyph, distinct from Voices'
+    // RecordVoiceOver head. Positioned before Settings (dock invariant: gear last).
+    Notes("Notes", Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq),
     Settings("Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 

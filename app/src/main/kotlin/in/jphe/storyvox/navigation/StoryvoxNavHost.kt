@@ -156,6 +156,18 @@ object StoryvoxRoutes {
      *  slashes) but we encode it for parity with [reader]/[fictionDetail]. */
     fun scriptEdit(scriptId: String) = "scripts/${Uri.encode(scriptId)}"
 
+    /** Voice Notes (epic #1657) — the notes list is a first-class bottom-nav
+     *  destination; [NOTES_RECORD] captures a new recording and [NOTES_DETAIL]
+     *  is the per-note detail / editor (also the typed "New note" target). */
+    const val NOTES = "notes"
+    const val NOTES_RECORD = "notes/record"
+    const val NOTES_DETAIL = "notes/detail/{noteId}"
+
+    /** Build the detail route for [noteId] (a client UUID; encoded for parity
+     *  with [scriptEdit]/[reader]). The arg name matches
+     *  `NoteDetailViewModel.NOTE_ID_ARG`. */
+    fun noteDetail(noteId: String) = "notes/detail/${Uri.encode(noteId)}"
+
     const val SETTINGS = "settings"
     const val SETTINGS_PRONUNCIATION = "settings/pronunciation"
     const val VOICE_LIBRARY = "settings/voices"
@@ -357,7 +369,7 @@ object StoryvoxRoutes {
      * too. The bar's *selected* mapping (below) collapses any of these
      * to the LIBRARY pill since that's the umbrella destination now.
      */
-    private val HOME_ROUTES = setOf(PLAYING, LIBRARY, FOLLOWS, BROWSE, VOICE_LIBRARY, SETTINGS_HUB, SETTINGS)
+    private val HOME_ROUTES = setOf(PLAYING, LIBRARY, FOLLOWS, BROWSE, VOICE_LIBRARY, NOTES, SETTINGS_HUB, SETTINGS)
     /** Strip any nav query-arg suffix before checking — PR #475 (magic-link)
      *  registered LIBRARY as `library?sharedUrl={sharedUrl}`, so
      *  `currentBackStackEntryAsState()` reports `destination.route` with the
@@ -574,6 +586,7 @@ private fun StoryvoxNavHostContent(
         StoryvoxRoutes.SETTINGS_HUB,
         StoryvoxRoutes.SETTINGS -> HomeTab.Settings
         StoryvoxRoutes.VOICE_LIBRARY -> HomeTab.Voices
+        StoryvoxRoutes.NOTES -> HomeTab.Notes
         StoryvoxRoutes.PLAYING -> HomeTab.Playing
         StoryvoxRoutes.BROWSE -> HomeTab.Browse
         // Library + Follows + Inbox + History sub-tabs and
@@ -598,6 +611,7 @@ private fun StoryvoxNavHostContent(
             HomeTab.Playing -> StoryvoxRoutes.PLAYING
             HomeTab.Browse -> StoryvoxRoutes.BROWSE
             HomeTab.Voices -> StoryvoxRoutes.VOICE_LIBRARY
+            HomeTab.Notes -> StoryvoxRoutes.NOTES
             HomeTab.Settings -> StoryvoxRoutes.SETTINGS_HUB
         }
         // Issue #918 — strip query-parameter suffixes before comparing.
@@ -1344,6 +1358,58 @@ private fun StoryvoxNavHostContent(
                     onOpenTeleprompter = {
                         navController.navigate(StoryvoxRoutes.PLAYING) { launchSingleTop = true }
                     },
+                )
+            }
+
+            // Voice Notes (epic #1657, Phase 4) — the list is a home-tab surface
+            // (cross-fade + shares the dock); record + detail are drill-downs
+            // (push motion, full-screen). Detail doubles as the typed "New note"
+            // editor (a fresh UUID) and the recording flow's landing screen.
+            composable(
+                StoryvoxRoutes.NOTES,
+                enterTransition = homeEnter,
+                exitTransition = homeExit,
+                popEnterTransition = homeEnter,
+                popExitTransition = homeExit,
+            ) {
+                `in`.jphe.storyvox.feature.notes.ui.NotesListScreen(
+                    onOpenNote = { id -> navController.navigate(StoryvoxRoutes.noteDetail(id)) },
+                    onNewNote = {
+                        navController.navigate(
+                            StoryvoxRoutes.noteDetail(java.util.UUID.randomUUID().toString()),
+                        )
+                    },
+                    onRecord = { navController.navigate(StoryvoxRoutes.NOTES_RECORD) },
+                )
+            }
+            composable(
+                StoryvoxRoutes.NOTES_RECORD,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.notes.ui.RecordScreen(
+                    // Land on the new note's detail, dropping the record screen
+                    // from the back stack so Back returns to the list, not here.
+                    onRecordingSaved = { id ->
+                        navController.navigate(StoryvoxRoutes.noteDetail(id)) {
+                            popUpTo(StoryvoxRoutes.NOTES_RECORD) { inclusive = true }
+                        }
+                    },
+                    onExit = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = StoryvoxRoutes.NOTES_DETAIL,
+                arguments = listOf(navArgument("noteId") { type = NavType.StringType }),
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.notes.ui.NoteDetailScreen(
+                    onExit = { navController.popBackStack() },
                 )
             }
 
