@@ -13,7 +13,7 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 > locally; you can delete cloud-synced data via the in-app "Delete cloud
 > data" action.
 
-**Effective date:** 2026-07-03  
+**Effective date:** 2026-07-10  
 **App:** Candela (`org.techempower.candela`)  
 **Publisher:** TechEmpower (501(c)(3) nonprofit, operating Candela)  
 **Maintainer:** JP Hein (`jp@jphein.com`)  
@@ -304,6 +304,34 @@ offline. A legacy `WRITE_EXTERNAL_STORAGE` permission, **scoped to Android 9
 (API 28) and older** (`maxSdkVersion="28"`), lets recording mode save through the
 system media store on those older devices; it is unused on Android 10+.
 
+### 2.15 Voice Notes (optional)
+
+**Voice Notes** (#1657) lets you capture a thought, memo, or meeting and turn it
+into a searchable note. It uses the microphone (the same runtime `RECORD_AUDIO`
+permission as §2.14, requested only when you start recording), and it is
+**private by construction** — your data stays on your device:
+
+- **Recording is on-device.** The captured audio is written to app-private
+  storage on your device.
+- **Transcription is 100% on-device.** Speech is converted to text by an
+  **on-device** model (Whisper); the audio is **never** uploaded to transcribe it.
+- **Stored on-device, excluded from backup and transfer.** The recording, its
+  transcript, and the resulting note live in a separate on-device database
+  (`notes.db`). It is **excluded from cloud backup and device-to-device
+  transfer**, and it is **never** part of Candela's optional cloud sync — Voice
+  Notes stay only on the device that made them.
+- **The AI summary is opt-in, per note.** A note's *transcript text* is sent to
+  **your own** configured cloud AI provider (BYOK — Anthropic, OpenAI, or your
+  local Ollama; see §2.5) **only** when you explicitly tap **Summarize** on that
+  specific note. Nothing is sent automatically, in the background, or while
+  recording. If no AI provider is configured, or you never tap Summarize, no
+  Voice Notes data leaves your device at all.
+
+**No audio ever leaves your device.** The only Voice Notes data that can leave
+the device is the *text* transcript of a single note, and only on your explicit
+per-note **Summarize** tap. Uninstalling Candela deletes `notes.db` and every
+recording with it.
+
 ---
 
 ## 3. What we do NOT collect
@@ -321,11 +349,14 @@ system media store on those older devices; it is unused on Android 10+.
 - **No tracking pixels.** No third-party JavaScript loaded into the reader.
 - **No location data.** Candela never asks for location permission.
 - **No audio is collected or transmitted.** Candela does use the microphone
-  for two optional, on-device features — recording mode and the voice-paced
-  teleprompter's speech-to-text (§2.14) — but the captured audio is processed
-  **entirely on your device** and **never leaves it**: it is never uploaded,
-  collected, or shared. (The TTS engine also generates its audio locally; that,
-  too, is never sent anywhere.)
+  for optional, on-device features — recording mode and the voice-paced
+  teleprompter's speech-to-text (§2.14), and **Voice Notes** (§2.15) — but the
+  captured audio is processed **entirely on your device** and **never leaves
+  it**: it is never uploaded, collected, or shared. Voice Notes are also
+  transcribed **on-device**; the only data that can ever leave is the *text*
+  transcript of a single note, and only on your explicit per-note **Summarize**
+  tap to your own BYOK AI provider (§2.15). (The TTS engine also generates its
+  audio locally; that, too, is never sent anywhere.)
 - **No contacts access.** Candela never reads your contact book.
 - **No background data collection.** When the app isn't running, it isn't
   doing anything (with one exception: the now-playing widget reads its own

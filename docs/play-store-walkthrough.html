@@ -255,6 +255,7 @@
   </div>
 
   <nav class="toc">
+    <a href="#s0">★ Overview</a>
     <a href="#s1">I · Console setup</a>
     <a href="#s2">II · Store listing</a>
     <a href="#s3">III · Signing &amp; AAB</a>
@@ -265,6 +266,36 @@
     <a href="#s8">VIII · Beta track</a>
     <a href="#tshoot">Troubleshooting</a>
   </nav>
+
+  <!-- ===================== 0. SINGLE-SOURCE INDEX ===================== -->
+  <section class="step" id="s0">
+    <div class="head">
+      <span class="seal" style="font-size:16px">★</span>
+      <div><h2>Everything&rsquo;s here</h2><div class="sub">the one doc for the v1.13.0 publish — paste &amp; check inline</div></div>
+    </div>
+    <div class="body">
+      <p class="intro">This is the single source you follow to publish <b>v1.13.0 (versionCode 271)</b>. Every field you paste and every answer you enter is inline below, each with a <b>Copy</b> button where there&rsquo;s text to paste. Folded in from the supporting docs: the store copy (title / short / full / release notes), the <b>Data Safety</b> answers, the corrected <b>policy-check</b> verdict, the <b>privacy-policy Voice Notes disclosure</b>, the <b>screenshots-to-capture</b> plan, and the build <b>preflight spot-checks</b>.</p>
+      <div class="fmap">
+        <div class="fcard"><h5><span class="g">I</span>Console setup</h5><p>One-time app entry, access, audience, declarations, privacy URL.</p></div>
+        <div class="fcard"><h5><span class="g">II</span>Store listing</h5><p>Graphics + <b>copy blocks</b> (title, short, full, release notes) + the <b>screenshot plan</b>.</p></div>
+        <div class="fcard"><h5><span class="g">III</span>Signing &amp; AAB</h5><p>Release keystore, Play App Signing, AAB is canonical.</p></div>
+        <div class="fcard"><h5><span class="g">IV</span>Data Safety</h5><p>Pre-drafted answers, permission map (incl. Voice Notes mic), <b>privacy disclosure</b> + <b>policy verdict</b>.</p></div>
+        <div class="fcard"><h5><span class="g">V</span>Content rating</h5><p>IARC → Teen (13+) + UGC advisory.</p></div>
+        <div class="fcard"><h5><span class="g">VI</span>First release</h5><p>Service account, credentials, first upload.</p></div>
+        <div class="fcard"><h5><span class="g">VII</span>Automation</h5><p>One-command per-release upload; promote.</p></div>
+        <div class="fcard"><h5><span class="g">VIII</span>Beta track</h5><p>Internal → Closed → Open → Production.</p></div>
+      </div>
+      <div class="note"><span class="t">Preflight spot-checks</span>Confirm the build/publish config before you start (source: <code>play-console-prerequisites.md</code>):
+        <ul class="checks" style="margin-top:8px">
+          <li><input type="checkbox" id="p0a"><label for="p0a"><span class="what"><code>versionCode 271</code> + <code>versionName 1.13.0</code> in <code>app/build.gradle.kts</code></span></label></li>
+          <li><input type="checkbox" id="p0b"><label for="p0b"><span class="what">Release keystore at <code>~/.storyvox-keystore/storyvox-release.keystore</code> (SHA256 <code>38:9F:BD:AA…85:E0:16</code>)</span></label></li>
+          <li><input type="checkbox" id="p0c"><label for="p0c"><span class="what">GPP creds wired: <code>storyvox.playPublisher.credentialsFile</code> in <code>local.properties</code></span></label></li>
+          <li><input type="checkbox" id="p0d"><label for="p0d"><span class="what"><code>play { }</code> config: <code>track=internal · releaseStatus=DRAFT · defaultToAppBundles=true · resolutionStrategy=IGNORE</code></span></label></li>
+          <li><input type="checkbox" id="p0e"><label for="p0e"><span class="what">CHANGELOG <code>[1.13.0]</code> present; AAB built on tag push by CI</span></label></li>
+        </ul>
+      </div>
+    </div>
+  </section>
 
   <!-- ===================== I. CONSOLE SETUP ===================== -->
   <section class="step" id="s1">
@@ -324,6 +355,21 @@
         <li><input type="checkbox" id="c2e"><label for="c2e"><span class="what">Paste title, short &amp; full description, contact email/phone/website</span></label></li>
       </ul>
 
+      <div class="note"><span class="t">Screenshots to capture</span>Phone set (Z Flip3, native 1080×2640) — capture, then <b>crop each to 1080×1920 (9:16)</b>; PNG ≤ 8 MB; shoot in <b>dark (Library Nocturne)</b>. Recommended order:
+        <div class="tablewrap" style="margin-top:10px"><table>
+          <tr><th>#</th><th>Screen</th><th>What to show</th></tr>
+          <tr><td>1</td><td>Now Playing (hero)</td><td>Cover, brass scrubber mid-progress, transport — the &ldquo;text → narrated audiobook&rdquo; promise.</td></tr>
+          <tr><td>2</td><td>Reader — read-along</td><td>Current sentence highlighted in brass as it&rsquo;s spoken; EB Garamond.</td></tr>
+          <tr><td>3</td><td>Library</td><td>Cover grid + Reading / Read / Wishlist shelves.</td></tr>
+          <tr><td>4</td><td>Browse — 33 sources</td><td>Source grid conveying breadth.</td></tr>
+          <tr><td>5</td><td>Voice Library</td><td>Engine-grouped voices (Piper / Kokoro / Kitten / Supertonic) + a starred voice.</td></tr>
+          <tr><td>6</td><td>Fiction detail</td><td>Cover, blurb, chapter list, shelf actions.</td></tr>
+          <tr><td>7</td><td><b>Voice Notes</b> <span class="pill auto">new v1.13.0</span></td><td>A note with the on-device transcript + the consent-gated AI summary. Reached from the Notes pill (tablet rail) / waveform action in the Library top bar (phone). <b>New headline feature — capture it.</b></td></tr>
+          <tr><td>8</td><td>Settings hub</td><td>Brass-edged section-card grid — polish + configurability.</td></tr>
+        </table></div>
+        Minimum compelling set if trimming: 1, 2, 3, 4, 5 + the Voice Notes shot. Full plan &amp; capture commands: <code>docs/play-store-screenshots.md</code>.
+      </div>
+
       <div class="parch">
         <h4>Title <span class="ct" id="ct-title"></span><button class="copy" data-copy="cp-title" type="button">Copy</button></h4>
         <div class="txt" id="cp-title">Candela: Read Aloud</div>
@@ -350,6 +396,7 @@ Optional cloud sync keeps your library, follows, reading positions, bookmarks, h
 
 FEATURES
 • 33 fiction &amp; reference sources — enable only the ones you want
+• Voice Notes — record, transcribe on-device, optional AI summary
 • Your calendar as a narrated agenda — on-device, never uploaded
 • 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
 • Optional bring-your-own-key cloud voices (Microsoft Azure)
@@ -364,7 +411,7 @@ FEATURES
 • Dark &amp; light themes; OpenDyslexic &amp; Atkinson fonts; TalkBack-friendly; WCAG AA contrast
 • Free, GPL-3.0, ad-free, no tracking, no account required
 
-Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools. Open source on GitHub.</div>
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide. Open source on GitHub.</div>
       </div>
       <div class="parch">
         <h4>Release notes — v1.13.0 <span class="ct" id="ct-rn"></span><button class="copy" data-copy="cp-rn" type="button">Copy</button></h4>
@@ -451,6 +498,23 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
         <li><input type="checkbox" id="c4c"><label for="c4c"><span class="what">Independent security review = No · Families policy = No</span>
           <span class="why">13+ app with a UGC advisory (see <a href="#s5">V</a>); not a Families title.</span></label></li>
       </ul>
+
+      <div class="note safe"><span class="t">Policy-check verdict — pass</span>Every requested permission maps to a visible feature (full audit: <code>play-store-policy-check.md</code> §5). <b>Three</b> foreground-service types (media playback · data sync · <b>microphone</b>), and the runtime <code>RECORD_AUDIO</code> is optional — requested only on first use of Voice Notes / recording / the voice-paced teleprompter. UGC advisory is handled in <a href="#s5">§V</a>. The Data Safety mapping agrees with the privacy policy: <b>nothing new is collected or shared</b> for Voice Notes — audio never leaves the device; only a single note&rsquo;s transcript text egresses, and only on an explicit <b>Summarize</b> tap.</div>
+
+      <div class="note"><span class="t">Hosted privacy policy — update before submission</span>The listing links <a href="https://candela.techempower.org/privacy/" target="_blank" rel="noopener">candela.techempower.org/privacy/</a>, served by <b>GitHub Pages</b> from <code>docs/privacy.md</code> (Jekyll, <code>CNAME</code>). It must disclose Voice Notes before you submit — this is a compliance gate. <code>docs/privacy.md</code> §2.15 already carries it; a <b>push to <code>main</code></b> rebuilds Pages automatically (~1 min), no separate deploy step. Verify the live page shows the section before submitting. The block below is the same disclosure if you ever edit the hosted policy directly.</div>
+      <div class="parch">
+        <h4>Privacy — Voice Notes disclosure <button class="copy" data-copy="cp-priv" type="button">Copy</button></h4>
+        <div class="txt body" id="cp-priv">Voice Notes (optional)
+
+Voice Notes lets you capture a thought, memo, or meeting and turn it into a searchable note. It uses the microphone (requested only when you start recording) and keeps your data on your device:
+
+• Recording is on-device — the audio is written to app-private storage on your device.
+• Transcription is 100% on-device (Whisper); the audio is never uploaded to transcribe it.
+• The recording, its transcript, and the note live in a separate on-device database, excluded from cloud backup and device-to-device transfer, and never part of Candela&rsquo;s optional cloud sync — Voice Notes stay only on the device that made them.
+• The AI summary is opt-in, per note: a note&rsquo;s transcript text is sent to your own configured cloud AI provider (BYOK — Anthropic, OpenAI, or local Ollama) only when you explicitly tap Summarize on that note. Nothing is sent automatically, in the background, or while recording.
+
+No audio ever leaves your device. The only Voice Notes data that can leave is the text transcript of a single note, and only on your explicit Summarize tap. Uninstalling Candela deletes the notes database and every recording with it.</div>
+      </div>
     </div>
   </section>
 
@@ -692,7 +756,7 @@ git push origin main v1.13.0
       <a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">gradle-play-publisher</a>
       <a href="https://cloud.google.com/iam/docs/keys-create-delete" target="_blank" rel="noopener">Key rotation</a>
     </div>
-    <p style="color:var(--faint);font-size:12px;margin-top:14px">Source: docs/play-store/RUNBOOK.md · listing/ · play-store-policy-check.md · release-keystore.md</p>
+    <p style="color:var(--faint);font-size:12px;margin-top:14px">Consolidated single source for the v1.13.0 publish — folds in RUNBOOK.md · listing/ · play-store-policy-check.md · play-store-readiness.md · play-store-screenshots.md · privacy.md · data-safety-checklist.md</p>
   </footer>
 
 </div>

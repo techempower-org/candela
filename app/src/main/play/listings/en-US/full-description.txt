@@ -14,6 +14,7 @@ Optional cloud sync keeps your library, follows, reading positions, bookmarks, h
 
 FEATURES
 • 33 fiction & reference sources — enable only the ones you want
+• Voice Notes — record, transcribe on-device, optional AI summary
 • Your calendar as a narrated agenda — on-device, never uploaded
 • 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
 • Optional bring-your-own-key cloud voices (Microsoft Azure)
@@ -28,4 +29,4 @@ FEATURES
 • Dark & light themes; OpenDyslexic & Atkinson fonts; TalkBack-friendly; WCAG AA contrast
 • Free, GPL-3.0, ad-free, no tracking, no account required
 
-Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools. Open source on GitHub.
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide. Open source on GitHub.
