@@ -189,6 +189,36 @@
   .end-candle{ font-size:22px; color:var(--flame); filter:drop-shadow(0 0 8px rgba(244,183,64,.7)) }
 
   @media (max-width:560px){ body{font-size:16px} .body{padding:14px 16px 20px} .step>.head{padding:16px 16px} .secprog{display:none} }
+
+  /* ---------- Light theme (system-driven) ---------- */
+  @media (prefers-color-scheme:light){
+    :root{
+      --ember:#efe6d2; --ember-2:#f7f0e0; --panel:#fbf6ea; --panel-2:#f3ead6;
+      --line:#d7c7a2; --line-soft:#e6dcc2;
+      --brass:#8a5f1e; --brass-bright:#6f4c16; --brass-deep:#5a3d10;
+      --flame:#b5852b; --flame-hot:#7a5417;
+      --cream:#2a2012; --parch:#332715; --muted:#6a5a3c; --faint:#9a875f;
+      --ok:#3f7a26; --warn:#a4551f; --danger:#a83627;
+      --shadow:0 16px 40px -22px rgba(90,61,16,.35);
+    }
+    body{
+      background:
+        radial-gradient(1100px 520px at 50% -8%, rgba(244,183,64,.20), rgba(244,183,64,.05) 40%, transparent 66%),
+        radial-gradient(700px 700px at 92% 8%, rgba(168,122,44,.12), transparent 60%),
+        linear-gradient(180deg,var(--ember-2),var(--ember) 55%);
+    }
+    body::before{ opacity:.35; mix-blend-mode:multiply;
+      background-image:radial-gradient(rgba(120,90,30,.05) 1px, transparent 1px); }
+    .rail{ background:linear-gradient(180deg,rgba(251,246,234,.97),rgba(247,240,224,.85)); }
+    section.step{ background:linear-gradient(180deg,#fbf6ea,#f3ead6); }
+    .meter{ background:#e6dcc2; }
+    .seal{ background:radial-gradient(circle at 32% 28%, rgba(244,183,64,.40), rgba(255,248,232,.9)); }
+    .parch{ background:linear-gradient(180deg,#fbf6ea,#f3ead6); }
+    .parch .txt{ color:var(--parch); }
+    ul.checks li > input[type=checkbox]{ background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.7),rgba(120,90,30,.06)); }
+    code{ color:#5a3d10; background:rgba(168,122,44,.16); }
+    /* code blocks stay dark on purpose — high-contrast, keeps the .k/.c highlight colors legible */
+  }
 </style>
 </head>
 <body>
@@ -203,9 +233,9 @@
     <h1 class="title">Candela</h1>
     <p class="subtitle">A walkthrough for carrying the flame to the Play Store</p>
     <div class="statusbar">
-      <span class="chip live">Latest&nbsp;<b>v1.11.0</b></span>
-      <span class="chip">versionCode <b>263</b></span>
-      <span class="chip">in-app handbook + config seam</span>
+      <span class="chip live">Latest&nbsp;<b>v1.13.0</b></span>
+      <span class="chip">versionCode <b>271</b></span>
+      <span class="chip">Voice Notes · on-device capture</span>
       <span class="chip">free · GPL-3.0 · no ads</span>
     </div>
     <p class="lede">Once the one-time rites below are complete, every future release is a single
@@ -272,11 +302,12 @@
       <p class="intro">All graphics live in <code>docs/play-store/v1.0/</code>; the copy below is the source of truth in <code>docs/play-store/listing/</code> — kept in lock-step with this guide.</p>
       <p class="intro" style="margin:14px 0 2px"><b style="color:var(--brass-bright)">Candela at a glance</b> — make sure the listing, screenshots, and Data Safety answers cover all of it; nothing shipped should be missing from the store.</p>
       <div class="fmap">
-        <div class="fcard"><h5><span class="g">📚</span>Sources · 25</h5><p><b>Public-domain &amp; web:</b> Gutenberg, Standard Ebooks, LibriVox, Wikipedia, Wikisource, arXiv, PLOS, Hacker News, Google News, Bookshare, Palace Project libraries. <b>Community fiction:</b> Royal Road, AO3. <b>Your own data:</b> Notion, Outline, Memory Palace, Discord, Slack, Matrix, Telegram, RSS, radio (30k+), and a magic-link reader for any URL.</p></div>
+        <div class="fcard"><h5><span class="g">📚</span>Sources · 33</h5><p><b>Public-domain &amp; web:</b> Gutenberg, Standard Ebooks, LibriVox, Wikipedia, Wikisource, arXiv, PLOS, Hacker News, Google News, Bookshare, Palace Project libraries. <b>Community fiction:</b> Royal Road, AO3, reddit. <b>Your own data:</b> Notion, Google Drive, Outline, Memory Palace, your calendar, Discord, Slack, Matrix, Telegram, RSS, radio (30k+), and a magic-link reader for any URL.</p></div>
         <div class="fcard"><h5><span class="g">🎙</span>Voices · 4 on-device families</h5><p><b>Piper</b> (45 EN, US/UK), <b>Kokoro</b> (53 voices · 9 languages), <b>KittenTTS</b> (~25 MB, low-end), <b>Supertonic</b> (10 HD EN). Plus your device's <b>System TTS</b> (zero download) and optional BYOK <b>Azure</b> cloud. Per-book narrator; live speed, pitch &amp; pauses.</p></div>
         <div class="fcard"><h5><span class="g">📖</span>Reader</h5><p>Synced sentence highlighting, auto-scroll <b>teleprompter</b> &amp; rehearsal mode, in-book search, tap-to-define dictionary, per-book speed, bookmarks, fonts &amp; color themes.</p></div>
         <div class="fcard"><h5><span class="g">🗂</span>Library</h5><p>Follows &amp; new-chapter <b>inbox</b>, history, collections, highlights + notes, pronunciation dictionary, listening <b>stats</b> &amp; streaks.</p></div>
         <div class="fcard"><h5><span class="g">📥</span>Import</h5><p>EPUB, PDF, ODT, TXT, RSS, and camera <b>OCR</b> (on-device ML Kit). Share any link to read it aloud.</p></div>
+        <div class="fcard"><h5><span class="g">📝</span>Voice Notes <span style="color:var(--flame-hot)">· new</span></h5><p>Record a thought, memo, or meeting → <b>on-device</b> transcription (Whisper) → optional, <b>consent-gated</b> AI summary → saved as a searchable note. Audio, transcripts &amp; notes stay on the phone; excluded from backup + transfer; never synced.</p></div>
         <div class="fcard"><h5><span class="g">📤</span>Export</h5><p>Make-your-own <b>audiobook</b> (chaptered M4B) and <b>EPUB 3.0</b>.</p></div>
         <div class="fcard"><h5><span class="g">🤖</span>AI · BYOK</h5><p>Chat about a book &amp; chapter recaps. Your own key — <b>Anthropic, OpenAI</b>, or a local <b>Ollama</b> server. No app-run proxy.</p></div>
         <div class="fcard"><h5><span class="g">🚗</span>On the go</h5><p><b>Android Auto</b> (voice search), lock-screen &amp; Bluetooth controls, home-screen widget, sleep timer, <b>Wear OS</b> companion + teleprompter remote.</p></div>
@@ -305,34 +336,44 @@
         <h4>Full description <span class="ct" id="ct-full"></span><button class="copy" data-copy="cp-full" type="button">Copy</button></h4>
         <div class="txt body" id="cp-full">Candela is TechEmpower's free, accessible resource app — read aloud.
 
-Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and read or listen to all of it through high-quality neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
+Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and listen to all of it with neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
 
-Under the hood, Candela is a serious audiobook player for any text you can reach — thirty-three fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio with search across 30,000+ stations. Share any web link into Candela and a magic-link reader pulls the readable text and queues it for narration.
+Under the hood, Candela is a serious audiobook player for any text you can reach — 33 fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files, or OCR a photo into text — the gallery picker reaches Google Photos, cloud shots included. Connect a Notion workspace, Google Drive folders, reddit, an Outline wiki, or your Discord, Slack, Matrix, and Telegram channels. Hear today's agenda from your own calendar (read on-device, never uploaded), catch the Epic and Prime Gaming free-game rotations, or tune in to internet radio across 30,000+ stations. Share any web link into Candela and its reader queues the text for narration.
 
-Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 English voices in US and UK accents), Kokoro (53 warm multi-speaker voices across nine languages, from Spanish and French to Hindi, Japanese, and Chinese), KittenTTS (the lightest tier, about 25 MB, for slower phones), and Supertonic (ten expressive, high-quality English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
+Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 US &amp; UK English voices), Kokoro (53 voices across nine languages — Spanish, French, Hindi, Japanese, Chinese, and more), KittenTTS (a 25 MB lightweight tier for slower phones), and Supertonic (ten expressive English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
 
-The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, or local Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
+The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
 
 Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Delete synced data any time with the in-app "Delete cloud data" action. Or stay fully offline; your call.
+Optional cloud sync keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, saved API keys end-to-end encrypted behind your passphrase. Delete synced data any time from inside the app. Or stay fully offline; your call.
 
 FEATURES
-• 25 fiction &amp; reference sources — enable only the ones you want
+• 33 fiction &amp; reference sources — enable only the ones you want
+• Your calendar as a narrated agenda — on-device, never uploaded
 • 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
 • Optional bring-your-own-key cloud voices (Microsoft Azure)
 • Hybrid reader with synced brass highlighting + an auto-scrolling teleprompter
 • Tap-to-define dictionary, in-book search, and listening stats
-• Per-book AI chat &amp; chapter recaps (bring your own key — Anthropic, OpenAI, Ollama)
+• Per-book AI chat &amp; recaps (bring your own key)
 • Android Auto, lock-screen controls, sleep timer, home-screen widget
 • Make-your-own-audiobook (M4B) and EPUB export
-• Gapless chapter auto-advance with smart prerendering
+• Gapless chapter auto-advance
 • Optional end-to-end-encrypted cross-device sync — or fully offline
 • Wear OS companion (playback + teleprompter remote)
 • Dark &amp; light themes; OpenDyslexic &amp; Atkinson fonts; TalkBack-friendly; WCAG AA contrast
 • Free, GPL-3.0, ad-free, no tracking, no account required
 
-Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools and software. Open source on GitHub.</div>
+Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools. Open source on GitHub.</div>
+      </div>
+      <div class="parch">
+        <h4>Release notes — v1.13.0 <span class="ct" id="ct-rn"></span><button class="copy" data-copy="cp-rn" type="button">Copy</button></h4>
+        <div class="txt body" id="cp-rn">v1.13.0 — Fabled Jewel
+
+• Voice Notes — record a thought, memo, or meeting; Candela transcribes it on-device and, with your OK, turns it into a searchable AI summary
+• Choose your own default sleep-timer duration
+• Palace Project library sign-in now lives in Content Sources
+• AO3 account sign-in &amp; sign-out in Account settings</div>
       </div>
       <div class="note"><span class="t">Release notes</span>Keep them user-facing, ≤ <b>500 chars</b>, 3–5 bullets led by the CHANGELOG tagline — never PR numbers or module names. The <b>first</b> production release should say “First public release” + a 4–5 bullet feature summary. Live file: <code>app/src/main/play/release-notes/en-US/default.txt</code>.</div>
     </div>
@@ -376,12 +417,12 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
         <tr><td>App activity <span class="why plain">(library, reading positions, follows, bookmarks, highlights &amp; notes, pronunciation dictionary, settings)</span></td><td class="yes">Yes — sync only</td><td>The sync payload — JSON over HTTPS. Deletable via the in-app "Delete cloud data" action.</td></tr>
         <tr><td>API keys &amp; tokens <span class="why plain">(Azure / LLM / source logins, incl. Notion &amp; Google&nbsp;Drive OAuth)</span></td><td class="yes">Sync only · <b>E2E&nbsp;encrypted</b></td><td>AES-256-GCM, PBKDF2 600k, passphrase-derived — InstantDB never sees plaintext. Stored locally in Tink-encrypted prefs; excluded from device backup. The Notion OAuth (#1507) and Google&nbsp;Drive OAuth (#1496, <code>drive.file</code> scope) access/refresh tokens ride this same path; content flows user&nbsp;→&nbsp;Notion/Google directly.</td></tr>
         <tr><td>Photos / Camera (OCR)</td><td class="no">No</td><td>ML Kit runs <i>on-device</i>; images + recognized text never leave the phone.</td></tr>
-        <tr><td>Audio / Microphone <span class="why plain">(recording, voice-paced teleprompter)</span></td><td class="no">No</td><td>Recording mode (#1367) saves audio <i>on-device</i>; the voice-paced teleprompter (#1368) transcribes speech with an <i>on-device</i> model (sherpa-onnx). Audio never leaves the phone — only a one-time recognition-model download touches the network.</td></tr>
+        <tr><td>Audio / Microphone <span class="why plain">(Voice Notes, recording, voice-paced teleprompter)</span></td><td class="no">No</td><td><b>Voice Notes</b> (#1657) records audio and transcribes it <i>on-device</i> (Whisper); the recording, the transcript, and the note all live in a separate <code>notes.db</code> that is excluded from cloud backup + device transfer and <b>never synced</b>. Recording mode (#1367) saves audio <i>on-device</i>; the voice-paced teleprompter (#1368) transcribes speech with an <i>on-device</i> model (sherpa-onnx). Audio never leaves the phone — only a one-time recognition-model download touches the network.</td></tr>
         <tr><td>Files &amp; docs <span class="why plain">(EPUB / PDF / ODT)</span></td><td class="no">No</td><td>Read via the Storage Access Framework; never uploaded.</td></tr>
         <tr><td>My Documents wallet <span class="why plain">(benefits proofs, #1514)</span></td><td class="no">No</td><td>Stored <i>on-device</i> as AES-256-GCM <code>EncryptedFile</code> behind a device-credential (fingerprint / face / screen-lock) gate; excluded from cloud backup + device transfer; never synced. Nothing leaves the phone.</td></tr>
         <tr><td>Calendar</td><td class="no">No</td><td>Read on-device via <code>CalendarContract</code> and narrated locally (#1495); events never leave the phone. Optional — the source stays empty until you grant <code>READ_CALENDAR</code>.</td></tr>
         <tr><td>Messages</td><td class="no">No</td><td>Discord/Slack/Matrix/Telegram are read with the user's own credentials, directly to those services.</td></tr>
-        <tr><td>AI chat text</td><td class="no">No <span class="why plain">(by the app)</span></td><td>Sent only to the user's own LLM provider via their own key — BYOK, user-initiated.</td></tr>
+        <tr><td>AI chat text <span class="why plain">(incl. Voice Notes summaries)</span></td><td class="no">No <span class="why plain">(by the app)</span></td><td>Sent only to the user's own LLM provider via their own key — BYOK, user-initiated. A <b>Voice Notes</b> transcript leaves the phone <b>only</b> when the user explicitly taps <b>Summarize</b> on that note with an AI provider configured (#1657); nothing is ever sent automatically or on-record.</td></tr>
         <tr><td>Location · Contacts · Financial · Health · Device IDs · Ad ID · Crash logs</td><td class="no">No</td><td>Never requested. No analytics, no crash reporter, no ads.</td></tr>
       </table></div>
 
@@ -390,12 +431,12 @@ Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divid
         <tr><th>Permission</th><th>Why</th></tr>
         <tr><td><code>INTERNET</code> · <code>ACCESS_NETWORK_STATE</code></td><td>Fetch content, download voices, optional sync, BYOK cloud calls; offline detection.</td></tr>
         <tr><td><code>WAKE_LOCK</code></td><td>Keep synthesis + playback alive with the screen off.</td></tr>
-        <tr><td><code>FOREGROUND_SERVICE</code> <span class="why plain">+ MEDIA_PLAYBACK + DATA_SYNC</span></td><td>Playback session; chapter pre-render &amp; sync workers — user-visible &amp; stoppable.</td></tr>
+        <tr><td><code>FOREGROUND_SERVICE</code> <span class="why plain">+ MEDIA_PLAYBACK + DATA_SYNC + MICROPHONE</span></td><td>Playback session; chapter pre-render &amp; sync workers; Voice Notes recording runs under a microphone-typed FGS (#1657) — all user-visible &amp; stoppable.</td></tr>
         <tr><td><code>POST_NOTIFICATIONS</code></td><td>Transport controls in the notification &amp; on the lock screen; local benefits-deadline reminders (#1515).</td></tr>
         <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>Home-screen widget redraws after a reboot; re-arms local deadline reminders (#1515).</td></tr>
         <tr><td><code>ACCESS_NOTIFICATION_POLICY</code></td><td>Sleep timer can auto-toggle Do Not Disturb.</td></tr>
         <tr><td><code>CAMERA</code> <span class="pill manual">optional</span></td><td>OCR scan-to-read; on-device; gallery-pick fallback if denied.</td></tr>
-        <tr><td><code>RECORD_AUDIO</code> <span class="pill manual">optional</span></td><td>Recording mode (#1367) &amp; the voice-paced teleprompter's on-device speech-to-text (#1368); requested on first use, on-device only — audio never leaves the phone.</td></tr>
+        <tr><td><code>RECORD_AUDIO</code> <span class="pill manual">optional</span></td><td>Voice Notes capture (#1657), recording mode (#1367) &amp; the voice-paced teleprompter's on-device speech-to-text (#1368); requested on first use, on-device only — audio never leaves the phone.</td></tr>
         <tr><td><code>READ_CALENDAR</code> <span class="pill manual">optional</span></td><td>Narrate your agenda (Today / Tomorrow / This Week); on-device only, requested on tap, source stays empty if denied.</td></tr>
         <tr><td><i>no permission for the wallet</i></td><td>The "My Documents" wallet (#1514) gates on the device credential via <code>KeyguardManager</code> — no <code>USE_BIOMETRIC</code> or any new permission.</td></tr>
         <tr><td><code>SCHEDULE_EXACT_ALARM</code></td><td>Fire benefits-deadline reminders at a predictable time on their day (#1515); local only, optional — inexact fallback if not allowed.</td></tr>
@@ -469,8 +510,8 @@ storyvox.playPublisher.credentialsFile=/home/jp/.storyvox-keystore/play-service-
       </ul>
       <pre><span class="c"># 1 · bump version in app/build.gradle.kts, update CHANGELOG.md</span>
 <span class="c"># 2 · tag + push (CI builds the AAB)</span>
-git tag -a v1.4.5 -m "v1.4.5 — six bug fixes + secrets audit"
-git push origin main v1.4.5
+git tag -a v1.13.0 -m "v1.13.0 — Voice Notes"
+git push origin main v1.13.0
 
 <span class="c"># 3 · upload AAB → Internal Test as a draft, prints the edit URL</span>
 <span class="k">./gradlew :app:publishReleaseBundle</span>
@@ -603,8 +644,8 @@ git push origin main v1.4.5
       <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">E · Typical release flow</h3>
       <p class="intro">Once the tracks are set up, a per-release beta cycle looks like this:</p>
       <pre><span class="c"># 1 · tag + push → CI builds AAB</span>
-git tag -a v1.7.0 -m "v1.7.0 — new feature"
-git push origin main v1.7.0
+git tag -a v1.13.0 -m "v1.13.0 — Voice Notes"
+git push origin main v1.13.0
 
 <span class="c"># 2 · upload to Internal Test (current default)</span>
 <span class="k">./gradlew :app:publishReleaseBundle</span>
@@ -695,7 +736,7 @@ git push origin main v1.7.0
   /* count chars for listing blocks + copy-to-clipboard */
   function setCount(id,target){ var el=document.getElementById(id), t=document.getElementById(target);
     if(el&&t) el.textContent=t.textContent.trim().length+' chars'; }
-  setCount('ct-title','cp-title'); setCount('ct-short','cp-short'); setCount('ct-full','cp-full');
+  setCount('ct-title','cp-title'); setCount('ct-short','cp-short'); setCount('ct-full','cp-full'); setCount('ct-rn','cp-rn');
 
   document.querySelectorAll('.copy').forEach(function(btn){
     btn.addEventListener('click', function(){
