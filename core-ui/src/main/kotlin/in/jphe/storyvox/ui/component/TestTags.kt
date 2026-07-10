@@ -45,6 +45,11 @@ object TestTags {
     const val LibraryItem = "library-item"
     const val LibraryFab = "library-fab"
 
+    /** Voice Notes (#1657) — the waveform action in the Library top bar. This
+     *  is the phone-reachable entry to the Notes list (Notes is rail-only on
+     *  the bottom nav, so phones have no dock pill for it). */
+    const val LibraryOpenNotes = "library-open-notes"
+
     // ── Browse ───────────────────────────────────────────────────────────
     const val BrowseSearchField = "browse-search-field"
     const val BrowseSourceList = "browse-source-list"
