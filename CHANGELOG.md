@@ -9,6 +9,21 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.13.0] -- 2026-07-10
+
+**Fabled Jewel.** Voice Notes arrives — record a thought, meeting, or memo and Candela transcribes it on-device and, with your consent, turns it into an AI summary, saved as a searchable note. Plus three Settings additions.
+
+### Added
+
+- **Voice Notes** (#1657) — a Plaud-style capture surface: record audio → **on-device** transcription (Whisper) → optional, **consent-gated** AI summary (title + key points / action items) → saved as a searchable note; typed notes are first-class too. **Privacy-first by construction:** audio stays on the device and is excluded from cloud backup + device-transfer; transcription runs entirely on-device; and the transcript leaves the phone *only* when you explicitly tap Summarize with an AI provider configured. Reached from the Notes pill on the tablet rail, or the waveform action in the Library top bar on phones.
+- **Sleep-timer default duration** (#1590) — pick your preferred default in Voice & Playback instead of the fixed 15 minutes.
+- **Palace Project library config** (#1591) — surfaced in the Content Sources settings.
+- **AO3 account row** (#1592) — sign-in/session state and sign-out in Account settings.
+
+### Under the hood
+
+- Voice Notes lives in a separate `notes.db` (cleanly backup-excludable), transcribes via a durable WorkManager + foreground-service job that survives backgrounding, and uses column-scoped DAO writes so a live transcription can't clobber a concurrent edit (#1663). Built across six phases with adversarial review at each step; note content is never logged.
+
 ## [1.12.6] -- 2026-07-06
 
 **Luminous Aegis.** Closes out the Settings overhaul (#1624): a deadline-reminder enable toggle, plus the last of the buried source configuration — Discord, Telegram, Google News, and local .epub/.pdf folders — moved into the Content Sources subscreen.
