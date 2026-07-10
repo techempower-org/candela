@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
@@ -165,6 +166,15 @@ fun LibraryScreen(
      * no-op so test / preview surfaces that don't exercise it still compile.
      */
     onFillForm: () -> Unit = {},
+    /**
+     * Voice Notes (epic #1657) — the phone-reachable entry to the Notes list.
+     * Notes is rail-only on the bottom nav ([HomeTab.Notes] has `inBottomBar =
+     * false`), so on phones (< 600 dp, no [SideNavRail]) the only first-class
+     * way in is this Library top-bar waveform action. The production wiring in
+     * [StoryvoxNavHost] routes it to [StoryvoxRoutes.NOTES]. Default no-op so
+     * test / preview surfaces that don't exercise it still compile.
+     */
+    onOpenNotes: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -295,6 +305,23 @@ fun LibraryScreen(
                     `in`.jphe.storyvox.feature.sync.SyncCloudIcon(
                         onClick = { syncSheetOpen = true },
                     )
+                    Spacer(Modifier.width(spacing.xs))
+                    // Voice Notes (epic #1657) — the phone-reachable entry.
+                    // Notes is rail-only in the bottom nav (HomeTab.Notes,
+                    // inBottomBar = false), so phones (no SideNavRail below
+                    // 600 dp) reach it here. Reuses HomeTab.Notes' GraphicEq
+                    // waveform glyph so the top-bar action and the tablet rail
+                    // pill read as the same destination.
+                    androidx.compose.material3.IconButton(
+                        onClick = onOpenNotes,
+                        modifier = Modifier.testTag(TestTags.LibraryOpenNotes),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.GraphicEq,
+                            contentDescription = stringResource(R.string.library_open_notes_cd),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 },
             )
         },

@@ -882,6 +882,14 @@ private fun StoryvoxNavHostContent(
                     sharedUrl = sharedUrl,
                     onOpenFiction = { id -> navController.navigate(StoryvoxRoutes.fictionDetail(id)) },
                     onOpenReader = { f, c -> navController.navigate(StoryvoxRoutes.reader(f, c)) },
+                    // Voice Notes (epic #1657) — the phone-reachable entry to
+                    // the Notes list. Notes is rail-only on the bottom nav
+                    // (HomeTab.Notes.inBottomBar = false), so phones (< 600 dp,
+                    // no SideNavRail) reach it via this Library top-bar waveform
+                    // action. Tablets keep the rail pill; NOTES stays in
+                    // HOME_ROUTES so the rail (and phone bottom bar) stay
+                    // visible on the Notes surface.
+                    onOpenNotes = { navController.navigate(StoryvoxRoutes.NOTES) },
                     // Issue #995 — "Scan a page" add-flow entry routes to
                     // the OCR capture surface.
                     onScanPage = { navController.navigate(StoryvoxRoutes.OCR_CAPTURE) },

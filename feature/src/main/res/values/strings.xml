@@ -1227,6 +1227,8 @@
     <string name="ocr_remove_page_cd">Remove %1$s</string>
     <string name="ocr_save_and_read">Save and read</string>
     <string name="library_scan_page_cd">Scan a printed page to read aloud</string>
+    <!-- #1657 — Library top-bar waveform action: the phone entry to Voice Notes. -->
+    <string name="library_open_notes_cd">Voice Notes</string>
 
 
     <!-- Issue #1235 — Listening statistics dashboard -->
