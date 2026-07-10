@@ -5,7 +5,7 @@ A short-form list of shipped + in-flight + planned work. Detailed designs live u
 [`docs/compose-gotchas.md`](compose-gotchas.md) for known scope-shadowing
 and stability traps before searching the internet for confusing errors.
 
-> ⚠️ **Stale:** this roadmap was last refreshed for **v1.3.0**; the current release is **v1.6.3 / vc257**. Shipped/planned items below have not been reconciled since v1.3.0 and may be out of date. (Content intentionally left unrewritten — refreshing the roadmap is a product decision.)
+> ⚠️ **Stale:** this roadmap was last refreshed for **v1.3.0**; the current release is **v1.13.0 / vc271**. Shipped/planned items below have not been reconciled since v1.3.0 and may be out of date. (Content intentionally left unrewritten — refreshing the roadmap is a product decision.)
 
 Last refreshed for **v1.3.0** (Reader intelligence — listening stats, tap-to-define dictionary, language auto-switch, in-app import). Prior refreshes: v1.2.x (Supertonic 3 voice family + polish), v1.1.5 (AGP 9 migration), v0.5.51.
 

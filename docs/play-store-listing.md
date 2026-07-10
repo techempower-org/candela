@@ -10,7 +10,7 @@ description: Draft Play Store listing copy and assets for Candela v1.6.3.
 > copy now lives in [`app/src/main/play/listings/en-US/`](../app/src/main/play/listings/en-US)
 > (what Gradle Play Publisher actually uploads), mirrored in
 > `play-store/listing/`. This v1.6.3 draft is kept for reference only — its
-> counts and copy are out of date (current: **v1.10.0, 33 sources**). Edit the
+> counts and copy are out of date (current: **v1.13.0, 34 sources**). Edit the
 > `.txt` files, not this page. Map of what's canonical: [docs/README.md](README.md).
 
 This is the draft copy + asset inventory for Candela's Play Store

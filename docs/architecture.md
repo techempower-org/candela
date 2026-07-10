@@ -1,12 +1,12 @@
 ---
 layout: default
 title: Architecture
-description: Candela's thirty-eight Gradle modules, plugin-seam fiction sources via @SourcePlugin + KSP, in-process TTS engine, optional cloud TTS backend, and cross-device InstantDB sync.
+description: Candela's forty-eight Gradle modules, plugin-seam fiction sources via @SourcePlugin + KSP, in-process TTS engine, optional cloud TTS backend, and cross-device InstantDB sync.
 ---
 
 # Architecture
 
-Candela is **thirty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38). The split keeps fiction sources, playback, UI, theming, sync, and the LLM provider matrix independently testable, and makes adding a new fiction source (or swapping the TTS backend) a localized change. Since v0.5.27 each fiction source is annotated with `@SourcePlugin`; the `:core-plugin-ksp` KSP processor emits a Hilt `@IntoSet` factory per annotated class, so `SourcePluginRegistry` discovers backends at startup. Adding a new backend is ~4 touchpoints today.
+Candela is **forty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38). The split keeps fiction sources, playback, UI, theming, sync, and the LLM provider matrix independently testable, and makes adding a new fiction source (or swapping the TTS backend) a localized change. Since v0.5.27 each fiction source is annotated with `@SourcePlugin`; the `:core-plugin-ksp` KSP processor emits a Hilt `@IntoSet` factory per annotated class, so `SourcePluginRegistry` discovers backends at startup. Adding a new backend is ~4 touchpoints today.
 
 ```
 ┌─────────────────────────────────────────────┐

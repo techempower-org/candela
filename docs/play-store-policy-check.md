@@ -77,7 +77,7 @@ about UGC" gap with minimal code.
 
 ### Surface
 
-Candela declares two foreground service types:
+Candela declares three foreground service types:
 
 1. `FOREGROUND_SERVICE_MEDIA_PLAYBACK` — the Media3 session powering the
    actual audiobook playback (lock-screen controls, notification with
@@ -88,6 +88,10 @@ Candela declares two foreground service types:
      chapter. This is local synthesis work, not a media playback surface.
    - The tag-sync worker (#520), which sync-merges fiction-tag state with
      InstantDB.
+3. `FOREGROUND_SERVICE_MICROPHONE` — the Voice Notes recording service
+   (#1657), a microphone-typed foreground service so a recording can
+   continue if the app is backgrounded (API 34+). Audio is captured and
+   transcribed on-device only.
 
 ### Policy: Foreground services
 
@@ -104,6 +108,7 @@ requires:
 | Media3 playback session | `mediaPlayback` | Yes — notification with transport buttons, lock-screen controls, audio playing | Yes — tap Pause / clear from recents / clear notification | Standard audiobook player pattern. Aligns with policy. |
 | `ChapterRenderJob` PCM pre-render | `dataSync` | Yes — silent foreground notification "Preparing chapter N" while the worker runs | Yes — user can pause / kill the worker via Settings → Performance | Local synthesis; doesn't fit `mediaPlayback` (no Media3 session), doesn't fit any other type — `dataSync` is the documented closest match per AOSP docs. |
 | Tag-sync worker (#520) | `dataSync` | Yes — silent foreground notification "Syncing library" during the burst | Yes — the worker is short-lived (typically <2s); user can disable sync entirely | Brief; runs only when the user has just changed sync state or returned to the app. |
+| Voice Notes recording (#1657) | `microphone` | Yes — recording notification with elapsed time while audio is captured | Yes — Stop in the recording UI / notification ends the service | Runs only while the user is actively recording a note; audio is on-device only and never leaves the device. |
 
 **Reviewer-facing justification** (copy into the Play Console "Foreground
 services" justification field if asked):
@@ -121,8 +126,14 @@ services" justification field if asked):
 > visible via a foreground notification, run only as long as the work
 > requires, and can be cancelled by the user via the app's Performance
 > and Sync settings.
+>
+> Candela uses `microphone` for the Voice Notes recording service — the
+> user starts a recording, the foreground service runs while capture is
+> active, and the user can stop it from the recording UI or the
+> notification. The captured audio is transcribed on-device and never
+> leaves the device.
 
-**Verdict: pass.** Both service types are accurately scoped to user-
+**Verdict: pass.** All three service types are accurately scoped to user-
 visible workloads and are user-stoppable.
 
 ---
