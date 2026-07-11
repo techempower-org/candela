@@ -296,7 +296,7 @@
       <div class="meter"><div class="fill" id="fill"></div></div>
       <span class="count" id="count">0 / 0</span>
       <span class="doneflag">&#10022; Every task ticked &mdash; ready to submit &#10022;</span>
-      <span class="synced" title="nebula-scribe keeps this page synced to the live Play Console — the tab auto-refreshes every 15s">Synced <b id="synced-time">19:41 PDT</b> &middot; edit <b id="synced-n">9</b></span>
+      <span class="synced" title="nebula-scribe keeps this page synced to the live Play Console — the tab auto-refreshes every 15s">Synced <b id="synced-time">21:06 PDT</b> &middot; edit <b id="synced-n">10</b></span>
       <button class="reset" id="reset" type="button">Snuff &amp; reset</button>
     </div>
   </div>
@@ -554,15 +554,15 @@ Candela is built by TechEMPOWER, a 501(c)(3) nonprofit closing the digital divid
 <div class="task" id="b2">
   <div class="thead"><span class="tnum">2</span><h3>Graphics</h3></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Upload the assets already generated in the repo (paths below). Icon <b>512&times;512</b>, feature graphic <b>1024&times;500</b>, plus at least 2 phone + tablet screenshots.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span>Drag these into the Console&rsquo;s upload slots. <b>Icon 512&times;512</b>, <b>feature graphic 1024&times;500</b>, and the <b>7 phone screenshots</b> (1080&times;1920, clean status bar).</span></div>
     <div class="tablewrap"><table>
-      <tr><th>Asset</th><th>Spec</th><th>Repo path</th></tr>
-      <tr><td>App icon</td><td>512&times;512 PNG</td><td><code>app/src/main/play/listings/en-US/graphics/icon/01.png</code></td></tr>
-      <tr><td>Feature graphic</td><td>1024&times;500 PNG</td><td><code>&hellip;/graphics/feature-graphic/01.png</code></td></tr>
-      <tr><td>Phone screenshots (4)</td><td>&ge;2 required</td><td><code>&hellip;/graphics/phone-screenshots/01&ndash;04.png</code></td></tr>
-      <tr><td>Tablet screenshots (6)</td><td>7&Prime; &amp; 10&Prime;</td><td><code>&hellip;/graphics/tablet-screenshots/01&ndash;06.png</code></td></tr>
+      <tr><th>Asset</th><th>Spec</th><th>Path</th></tr>
+      <tr><td>App icon <span class="why plain">(new Voiceprint candle mark &mdash; replaces the old listing icon)</span></td><td>512&times;512 PNG</td><td><code>brand/icon/android/play-store-512.png</code></td></tr>
+      <tr><td>Feature graphic <span class="why plain">(first draft; being refined in Claude Design)</span></td><td>1024&times;500 PNG</td><td><code>~/Downloads/feature-graphic-1024x500.png</code></td></tr>
+      <tr><td>Phone screenshots (7)</td><td>1080&times;1920 PNG</td><td><code>scratch/store-screenshots/01&ndash;07.png</code></td></tr>
+      <tr><td><span class="why plain">01 alt (resume-card variant)</span></td><td>1080&times;1920</td><td><code>&hellip;/01-library-ALT-resume-card.png</code></td></tr>
     </table></div>
-    <p class="taskwhy">These are the exact files gradle-play-publisher consumes; drag them straight into the Console uploaders. Include the Voice Notes shot &mdash; it&rsquo;s the headline feature.</p>
+    <p class="taskwhy">The 7 approved shots are 01&nbsp;library &middot; 02&nbsp;detail &middot; 03&nbsp;reader &middot; 04&nbsp;browse &middot; 05&nbsp;voices &middot; <b>06&nbsp;notes</b> &middot; 07&nbsp;settings &mdash; 06 is the headline <b>Voice Notes</b> shot. Tablet screenshots are optional; the phone set is enough to publish.</p>
   </div>
 </div>
 <div class="task" id="b3">
@@ -588,19 +588,26 @@ Candela is built by TechEMPOWER, a 501(c)(3) nonprofit closing the digital divid
   </div>
 </div>
 
-  <div class="secdiv" id="secC"><span class="n">Section C</span><h2>Release</h2><span class="rule"></span><span class="meta">Internal testing &rarr; Closed &rarr; Production</span></div>
-  <p class="intro" style="margin:4px 2px 0">Start on <b>Internal testing</b> &mdash; the safest first exposure (no Google review, instant rollout). Promote to Closed, then Production, once it&rsquo;s solid. Play Console &rarr; <b>Release &rarr; Testing &rarr; Internal testing</b>.</p>
+  <div class="secdiv" id="secC"><span class="n">Section C</span><h2>Release</h2><span class="rule"></span><span class="meta">Internal &rarr; Closed (12 testers / 14 days) &rarr; Production</span></div>
+  <p class="intro" style="margin:4px 2px 0">Start on <b>Internal testing</b> (instant, no review, up to 100 of your own testers). Google now gates Production behind a <b>Closed test</b>: you need <b>&ge;12 testers opted in for &ge;14 continuous days</b> before you can apply for Production. Play Console &rarr; <b>Test and release &rarr; Testing &rarr; Internal testing</b>.</p>
+  <div class="note safe"><span class="t">&#127881; Milestone &mdash; v1.13.0 (271) is LIVE on Internal testing</span>The Internal release is <b>published</b> and the <b>opt-in link is issued</b>. Next: <b>Testers</b> tab &rarr; add tester emails (your own Google account + your devices&rsquo;) &rarr; open the opt-in link on each device &rarr; install the <b>Play-signed</b> build.</div>
+  <div class="tablewrap"><table>
+    <tr><th>Track</th><th>Audience</th><th>Review?</th><th>Gate</th></tr>
+    <tr><td><b>Internal testing</b> <span class="pill auto">live</span></td><td>Up to 100 of your own testers</td><td class="no">No</td><td>Instant rollout</td></tr>
+    <tr><td>Closed testing</td><td>&ge;12 testers (email list / group)</td><td class="yes">Yes (first)</td><td><b>&ge;12 opted in for &ge;14 days</b> &rarr; unlocks Production</td></tr>
+    <tr><td>Production</td><td>Everyone</td><td class="yes">Yes</td><td>Apply once the closed-test criteria are met</td></tr>
+  </table></div>
 <div class="task" id="c1">
-  <div class="thead"><span class="tnum">1</span><h3>Internal testing &mdash; create release</h3></div>
+  <div class="thead"><span class="tnum">1</span><h3>Internal testing &mdash; create release</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span><b>Release &rarr; Testing &rarr; Internal testing &rarr; Create new release</b>.</span></div>
-    <p class="taskwhy">Internal testing takes up to 100 testers and needs no Google review, so you can smoke-test the exact AAB before anyone else sees it.</p>
+    <div class="do"><span class="do-tag">Do</span><span><b>Test and release &rarr; Testing &rarr; Internal testing &rarr; Create new release</b>.</span></div>
+    <p class="taskwhy">Internal testing takes up to 100 testers, needs no Google review, and rolls out instantly &mdash; the safest first exposure. <b>App integrity:</b> Play App Signing is <b>ON</b> (Google holds the signing key; your keystore is only the upload key).</p>
   </div>
 </div>
 <div class="task" id="c2">
-  <div class="thead"><span class="tnum">2</span><h3>Upload the AAB</h3></div>
+  <div class="thead"><span class="tnum">2</span><h3>Upload the AAB</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Under <b>App bundles</b>, drag in <code>candela-v1.13.0.aab</code> (local path below). The release name auto-fills to <b>&ldquo;1.13.0 (271)&rdquo;</b>.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span>Under <b>App bundles</b>, drag in <code>candela-v1.13.0.aab</code> (local path below). Set the <b>Release name</b> to <b>&ldquo;1.13.0 (271) Fabled Jewel&rdquo;</b>.</span></div>
     <div class="parch">
   <h4>Local AAB path <button class="copy" data-copy="cp-aab" type="button">Copy</button></h4>
   <div class="txt" id="cp-aab">/home/jp/Downloads/candela-v1.13.0.aab</div>
@@ -609,7 +616,7 @@ Candela is built by TechEMPOWER, a 501(c)(3) nonprofit closing the digital divid
   </div>
 </div>
 <div class="task" id="c3">
-  <div class="thead"><span class="tnum">3</span><h3>Release notes</h3></div>
+  <div class="thead"><span class="tnum">3</span><h3>Release notes</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
     <div class="do"><span class="do-tag">Do</span><span>Paste the v1.13.0 notes below into <b>Release notes</b>. The Console wraps them per language (<code>&lt;en-US&gt;&hellip;&lt;/en-US&gt;</code>); keep them &le; <b>500 chars</b>.</span></div>
     <div class="parch">
@@ -624,17 +631,18 @@ Candela is built by TechEMPOWER, a 501(c)(3) nonprofit closing the digital divid
   </div>
 </div>
 <div class="task" id="c4">
-  <div class="thead"><span class="tnum">4</span><h3>Review &amp; roll out</h3></div>
+  <div class="thead"><span class="tnum">4</span><h3>Review &amp; roll out</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span><b>Next &rarr; Review release</b> &rarr; resolve any errors/warnings &rarr; <b>Start rollout to Internal testing</b>.</span></div>
-    <p class="taskwhy">Rollout to Internal is instant &mdash; no review, and nothing reaches the public from this track.</p>
+    <div class="do"><span class="do-tag">Do</span><span><b>Next &rarr; Preview and confirm</b> &rarr; <b>Start rollout to Internal testing</b>.</span></div>
+    <p class="taskwhy">Rollout to Internal is instant &mdash; no review, and nothing reaches the public from this track. The two warnings on the review screen are <b>non-blocking</b>: <b>&ldquo;No testers specified&rdquo;</b> is expected (you add them on the Testers tab next), and <b>&ldquo;No native debug symbols&rdquo;</b> is an optional build tweak (tracked in <code>#1674</code>).</p>
   </div>
 </div>
 <div class="task" id="c5">
-  <div class="thead"><span class="tnum">5</span><h3>Add testers &rarr; promote to Production</h3></div>
+  <div class="thead"><span class="tnum">5</span><h3>Add testers &rarr; path to Production</h3></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>On the <b>Testers</b> tab add an email list and share the opt-in link. When the build is solid, <b>promote Internal &rarr; Closed &rarr; Production</b>.</span></div>
-    <div class="note safe"><span class="t">First-review gate</span>The <b>first</b> Production (and first Closed) release goes through Google review &mdash; content-rating + policy check, a few hours to a couple of days. Later updates to the same track usually clear fast.</div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Now:</b> Internal testing &rarr; <b>Testers</b> tab &rarr; add tester emails (your own Google account + your devices&rsquo;) &rarr; open the opt-in link on each device &rarr; install the Play-signed build.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>For Production:</b> publish a <b>Closed testing</b> release, get <b>&ge;12 testers opted in</b>, keep it running <b>&ge;14 continuous days</b>, then <b>apply for Production</b> access.</span></div>
+    <div class="note"><span class="t">Google&rsquo;s hard gate to Production</span>New personal/one-app developer accounts can&rsquo;t ship straight to Production &mdash; you must run a Closed test with <b>&ge;12 testers for &ge;14 days</b> first. The <b>first</b> Closed/Production release also goes through Google review (content-rating + policy check, hours to a couple of days); later updates to the same track usually clear fast.</div>
   </div>
 </div>
 
@@ -677,6 +685,20 @@ Candela is built by TechEMPOWER, a 501(c)(3) nonprofit closing the digital divid
         <tr><td>Closed</td><td><code>alpha</code></td><td>Up to 2,000 per group</td><td class="yes">Yes (first time)</td></tr>
         <tr><td>Open</td><td><code>beta</code></td><td>Anyone with opt-in link</td><td class="yes">Yes (first time)</td></tr>
         <tr><td>Production</td><td><code>production</code></td><td>Everyone</td><td class="yes">Yes (first time)</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="task">
+    <div class="thead"><span class="tnum">&#9670;</span><h3>Open follow-ups (post-publish, non-blocking)</h3></div>
+    <div class="tbody">
+      <div class="tablewrap"><table>
+        <tr><th>Issue</th><th>What</th></tr>
+        <tr><td><code>#1671</code></td><td>Finish the <b>TechEMPOWER</b> casing in user-facing strings.</td></tr>
+        <tr><td><code>#1672</code></td><td>Reader action-rail clips text &mdash; needs device repro.</td></tr>
+        <tr><td><code>#1673</code></td><td>Reader nav / Back-loop &mdash; needs device repro.</td></tr>
+        <tr><td><code>#1674</code></td><td>Native debug symbols in the release build (the non-blocking upload warning).</td></tr>
+        <tr><td><i>deferred</i></td><td>Publish the dedicated <code>/delete-account/</code> page &rarr; swap both Data-Safety deletion URLs (currently <code>/privacy/</code>); add <code>paths-ignore</code> to <code>android.yml</code> so doc pushes don&rsquo;t wake the release build; fix the privacy &sect;8 sign-out wording.</td></tr>
       </table></div>
     </div>
   </div>
