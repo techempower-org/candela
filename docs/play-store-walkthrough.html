@@ -311,13 +311,13 @@
       <p class="intro" style="margin:16px 0 4px"><b style="color:var(--brass-bright)">A &middot; App content</b> &mdash; 11 policy declarations</p>
       <ul class="checks">
         <li><input type="checkbox" id="o1"><label for="o1"><span class="what">Set privacy policy</span><span class="setdone">&#10003; already set</span></label><a class="jump" href="#a1">open &#9656;</a></li>
-        <li><input type="checkbox" id="o2"><label for="o2"><span class="what">App access</span><span class="why">No login required &mdash; all functionality open.</span></label><a class="jump" href="#a2">open &#9656;</a></li>
+        <li><input type="checkbox" id="o2"><label for="o2"><span class="what">Sign in details</span><span class="why">Nothing restricted &mdash; select <b>No</b> (sign-in never required).</span></label><a class="jump" href="#a2">open &#9656;</a></li>
         <li><input type="checkbox" id="o3"><label for="o3"><span class="what">Ads</span><span class="why">No ads.</span></label><a class="jump" href="#a3">open &#9656;</a></li>
-        <li><input type="checkbox" id="o4"><label for="o4"><span class="what">Content rating (IARC)</span><span class="why">No objectionable content; YES to open / user-generated content.</span></label><a class="jump" href="#a4">open &#9656;</a></li>
-        <li><input type="checkbox" id="o5"><label for="o5"><span class="what">Target audience &amp; content</span><span class="why">18 and over (adults only).</span></label><a class="jump" href="#a5">open &#9656;</a></li>
+        <li><input type="checkbox" id="o4"><label for="o4"><span class="what">Content rating (IARC)</span><span class="why">Downloaded No, Online&nbsp;Content Yes &rarr; Everyone / 3+ everywhere; accept it.</span></label><a class="jump" href="#a4">open &#9656;</a></li>
+        <li><input type="checkbox" id="o5"><label for="o5"><span class="what">Target audience &amp; content</span><span class="why">18 and over only &mdash; auto-skips the child-protection screens.</span></label><a class="jump" href="#a5">open &#9656;</a></li>
         <li><input type="checkbox" id="o6"><label for="o6"><span class="what">News apps</span><span class="why">No.</span></label><a class="jump" href="#a6">open &#9656;</a></li>
         <li><input type="checkbox" id="o7"><label for="o7"><span class="what">COVID-19 contact tracing &amp; status</span><span class="why">No (skip if not shown).</span></label><a class="jump" href="#a7">open &#9656;</a></li>
-        <li><input type="checkbox" id="o8"><label for="o8"><span class="what">Data safety</span><span class="why">Sync off = collects nothing; Voice Notes stay on device.</span></label><a class="jump" href="#a8">open &#9656;</a></li>
+        <li><input type="checkbox" id="o8"><label for="o8"><span class="what">Data safety</span><span class="why">5-step wizard &mdash; collect Yes (sync); shared None; Voice Notes stay on device.</span></label><a class="jump" href="#a8">open &#9656;</a></li>
         <li><input type="checkbox" id="o9"><label for="o9"><span class="what">Government apps</span><span class="why">No.</span></label><a class="jump" href="#a9">open &#9656;</a></li>
         <li><input type="checkbox" id="o10"><label for="o10"><span class="what">Financial features</span><span class="why">No.</span></label><a class="jump" href="#a10">open &#9656;</a></li>
         <li><input type="checkbox" id="o11"><label for="o11"><span class="what">Health</span><span class="why">No.</span></label><a class="jump" href="#a11">open &#9656;</a></li>
@@ -355,10 +355,10 @@
   </div>
 </div>
 <div class="task" id="a2">
-  <div class="thead"><span class="tnum">2</span><h3>App access</h3></div>
+  <div class="thead"><span class="tnum">2</span><h3>Sign in details <span style="font-weight:400;opacity:.6;font-size:.8em">(was &ldquo;App access&rdquo;)</span></h3></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Select <b>&ldquo;All functionality is available without special access&rdquo;</b>.</span></div>
-    <p class="taskwhy">The whole app works without an account &mdash; AO3 sign-in, Palace Project libraries, and cloud sync are all optional. There are no test credentials to provide.</p>
+    <div class="do"><span class="do-tag">Do</span><span>Question is <b>&ldquo;Is any part of your app restricted?&rdquo;</b> &mdash; select <b>No</b>.</span></div>
+    <p class="taskwhy">Nothing is <b>required</b>: no account sign-in in any region, no content requires payment. The sign-ins that <b>do</b> exist &mdash; cloud sync, AO3, Palace Project &mdash; are all optional and use the user&rsquo;s <b>own</b> third-party accounts, so there&rsquo;s no Candela login and no test credentials to provide (Google can&rsquo;t use personal accounts anyway). &ldquo;Restricted&rdquo; means a reviewer would be <b>blocked</b> without credentials &mdash; they aren&rsquo;t.</p>
   </div>
 </div>
 <div class="task" id="a3">
@@ -371,20 +371,22 @@
 <div class="task" id="a4">
   <div class="thead"><span class="tnum">4</span><h3>Content rating</h3></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span><b>Start the questionnaire</b>, enter a contact email, category &rarr; <b>Reference / Books</b>.</span></div>
-    <div class="do"><span class="do-tag">Do</span><span>Answer <b>No</b> to violence, sexual content, profanity, controlled substances, gambling, and purchases of digital content.</span></div>
-    <div class="do"><span class="do-tag">Do</span><span>Answer <b>Yes</b> where it asks whether users can access <b>unmoderated user-generated or open-internet content</b>.</span></div>
-    <p class="taskwhy">The app itself carries none of the flagged content, but it surfaces reddit, Royal Road, AO3, and any web page via the magic-link reader &mdash; that is unmoderated / open content and must be disclosed. Reviewers also look for the in-app &ldquo;Report objectionable content&rdquo; mailto (Settings &rarr; About) and the reader&rsquo;s <code>http/https</code>-only lock &mdash; both already present.</p>
-    <div class="note"><span class="t">Expected outcome &middot; confirm it</span>A contact email is <b>mandatory</b>. The rating typically lands around <b>Everyone&ndash;Teen</b> depending on how each board weighs that open-content answer (if a board treats &ldquo;unrestricted internet&rdquo; as auto-maximal it can go higher). <b>Confirm the exact rating the questionnaire returns</b> before accepting.</div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Category step:</b> enter contact email <code>jp@techempower.org</code>, pick <b>All Other App Types</b> (the only 3 options are Game / Social&ndash;Communication / All Other), and check <b>&ldquo;I agree to the IARC Terms of Use.&rdquo;</b></span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Questionnaire:</b> <b>Downloaded App</b> (content baked into the APK) &rarr; <b>No</b>. Seller-authored <b>Violence / Sexuality / Language / Controlled substances / Gambling</b> &rarr; <b>No</b> &mdash; each is scoped to content <i>the seller creates</i> and explicitly excludes user-generated content.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Online Content</b> &rarr; <b>Yes</b> &mdash; the rating driver: Candela surfaces uncontrolled third-party fiction (AO3, reddit, Royal Road&hellip;) and web pages it doesn&rsquo;t author.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Promotion / Sale of Age-Restricted Products</b> &rarr; <b>No</b>. <b>Miscellaneous</b> &mdash; all five <b>No</b>: shares precise location with other users; purchase digital goods; cash / gift cards / play-to-earn / crypto / NFTs; <b>is a web browser or search engine</b>; <b>primarily a news or educational product</b>.</span></div>
+    <p class="taskwhy">The app authors none of the flagged content, but it surfaces reddit, Royal Road, AO3, and any web page via the magic-link reader &mdash; that&rsquo;s the &ldquo;online content&rdquo; disclosure. &ldquo;Web browser / search engine&rdquo; is <b>No</b>: Candela reads a fixed, curated source set, not arbitrary URLs or open-web results &mdash; answering Yes would force the maximum rating. Reviewers also look for the in-app &ldquo;Report objectionable content&rdquo; mailto (Settings &rarr; About) and the reader&rsquo;s <code>http/https</code>-only lock &mdash; both already present.</p>
+    <div class="note safe"><span class="t">Summary &middot; confirmed &mdash; Accept it</span>The questionnaire returned the floor everywhere, single descriptor <b>&ldquo;App features or promotes online content.&rdquo;</b> &mdash; ESRB <b>Everyone</b> &middot; PEGI <b>3</b> &middot; ClassInd&nbsp;(Brazil) &amp; USK&nbsp;(Germany) <b>All ages</b> &middot; IARC&nbsp;Generic + Russia + South&nbsp;Korea <b>Rated for 3+</b>. This is the honest output of correct answers; the low rating is fine &mdash; your <b>18+ target audience</b> (next task) is the real adult-scope lever. The South Korea <b>games-under-19</b> warning is boilerplate &mdash; <b>N/A</b> (Candela is not a game). <b>Accept the ratings.</b></div>
   </div>
 </div>
 <div class="task" id="a5">
   <div class="thead"><span class="tnum">5</span><h3>Target audience &amp; content</h3></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Select the <b>18 and over</b> age band only.</span></div>
-    <div class="do"><span class="do-tag">Do</span><span>Answer <b>No</b> to &ldquo;Is your app designed for, or does it appeal to, children?&rdquo;</span></div>
-    <p class="taskwhy">Candela isn&rsquo;t built for children and it opens the general web. Choosing 18+ keeps it out of the Families / Designed-for-Families program and the extra Teen-program requirements.</p>
-    <div class="note"><span class="t">Note</span>This is a <b>change from the previous 13+ recommendation</b>, and it&rsquo;s a separate declaration from the IARC content rating above (which may read Everyone/Teen). Target audience is about who you <i>market to</i>, not the rating.</div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Target age:</b> check <b>&ldquo;18 and over&rdquo; only</b> &mdash; leave every younger box (5&nbsp;&amp;&nbsp;under through 16&ndash;17) unchecked.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Optional &mdash; recommended:</b> check <b>&ldquo;Restrict users that Google has determined to be minors from my app.&rdquo;</b> It&rsquo;s the one place you <i>enforce</i> (not just label) the adult scope, and Candela can surface AO3 <i>Explicit</i> fiction one tap away. Cost: trims reach slightly (Google-determined minors blocked; adult false-positives can fix their account age).</span></div>
+    <p class="taskwhy">Candela isn&rsquo;t built for children and it opens uncontrolled third-party fiction. Choosing 18+ keeps it out of the Families / Designed-for-Families program and the extra Teen-program requirements.</p>
+    <div class="note safe"><span class="t">Confirmed &mdash; it auto-skips</span>Selecting <b>18 and over</b> as the only target age tells Google there are no minors in your audience, so the Console <b>skips steps 2&ndash;4</b> (App&nbsp;details, Ads, Store&nbsp;presence &mdash; all child-protection screens) and jumps straight to <b>Summary</b> (<i>Target age: 18 and over</i>). That&rsquo;s expected, not a glitch &mdash; <b>Save it.</b></div>
+    <div class="note"><span class="t">Note</span>This is a separate declaration from the IARC content rating above (which reads Everyone / 3+). Target audience is about who you <i>market to</i> and enforce against &mdash; Google lets it be <b>stricter</b> than the content rating, which is exactly this posture.</div>
   </div>
 </div>
 <div class="task" id="a6">
@@ -404,8 +406,14 @@
 <div class="task" id="a8">
   <div class="thead"><span class="tnum">8</span><h3>Data safety</h3></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Work the wizard using the map below. With sync <b>off</b> (the default) Candela collects <b>nothing</b>; with sync <b>on</b> it stores your library + reading data on InstantDB, and any saved API keys ride along <b>end-to-end encrypted</b>. <b>Data shared &rarr; None</b>. Voice Notes audio, transcript &amp; note stay on-device in <code>notes.db</code> &mdash; excluded from backup/transfer, never synced.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span>It&rsquo;s a 5-step wizard: <b>Overview &rarr; Data collection &amp; security &rarr; Data types &rarr; Data usage &amp; handling &rarr; Preview</b>. With sync <b>off</b> (the default) Candela collects <b>nothing</b>; with sync <b>on</b> it stores your library + reading data on InstantDB, and any saved API keys ride along <b>end-to-end encrypted</b>. <b>Data shared &rarr; None</b>. Voice Notes audio, transcript &amp; note stay on-device in <code>notes.db</code> &mdash; excluded from backup/transfer, never synced.</span></div>
     <p class="intro">The honest story: with sync <b>off</b> — the default — Candela collects <span class="no">nothing</span>. A build-wide grep finds <b>zero</b> analytics, ads, or crash-reporting SDKs (the only third-party libraries are on-device ML Kit for OCR and the Compose fonts provider). Turn on optional sync and it stores your library and reading data on InstantDB; any saved API keys ride along <b>end-to-end encrypted</b> behind a passphrase only you hold.</p>
+    <div class="note safe"><span class="t">Step 2 &middot; Data collection &amp; security &mdash; confirmed answers</span><b>Collect or share required data types?</b> &rarr; <b>Yes</b> (sync collects email + user ID; AI chat / note summary sends user text on an explicit tap). <b>Encrypted in transit?</b> &rarr; <b>Yes</b>. <b>Account-creation methods</b> &rarr; check <b>&ldquo;Username and other authentication&rdquo;</b> (email + magic-code, no password) <b>+ &ldquo;OAuth&rdquo;</b> (Notion / Google&nbsp;Drive / reddit). <b>Provide a way to delete some or all data without deleting the account?</b> &rarr; <b>Yes</b> (in-app &ldquo;Delete cloud data&rdquo;). <b>Additional badges</b> (Independent security review, UPI&nbsp;Payments) &rarr; leave <b>both unchecked</b>.</div>
+    <div class="note"><span class="t">Delete-account URL &mdash; resolved, confirm live</span>Because the app supports account creation, Google requires a <b>public web URL</b> with account-deletion steps. <b>Paste the URL below now</b> &mdash; the live privacy policy documents deletion (&sect;5 Data&nbsp;retention, &sect;8 Your&nbsp;rights). A dedicated <code>candela.techempower.org/delete-account/</code> page is being published to feature the steps in one place; swap to it before final submit &mdash; Data Safety is editable any time. <b>Confirm the page is live before submitting.</b></div>
+    <div class="parch">
+  <h4>Delete-account URL (paste now) <button class="copy" data-copy="cp-delurl" type="button">Copy</button></h4>
+  <div class="txt" id="cp-delurl">https://candela.techempower.org/privacy/</div>
+</div>
     <div class="note"><span class="t">Wizard answers, in one line</span><b>Data collected</b> &rarr; email, user ID &amp; app activity, <b>sync only</b>; <b>Data shared</b> &rarr; <b>None</b> (InstantDB is a processor; BYOK keys &amp; channel sign-ins are user-initiated). <b>Security</b> &rarr; encrypted in transit = Yes; secrets end-to-end encrypted; user can request deletion = Yes (in-app &ldquo;Delete cloud data&rdquo;). <b>Independent security review</b> &rarr; No.</div>
     <div class="tablewrap"><table>
         <tr><th>Data type</th><th>Collected?</th><th>Notes</th></tr>
