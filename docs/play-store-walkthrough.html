@@ -296,7 +296,7 @@
       <div class="meter"><div class="fill" id="fill"></div></div>
       <span class="count" id="count">0 / 0</span>
       <span class="doneflag">&#10022; Every task ticked &mdash; ready to submit &#10022;</span>
-      <span class="synced" title="nebula-scribe keeps this page synced to the live Play Console — the tab auto-refreshes every 15s">Synced <b id="synced-time">19:24 PDT</b> &middot; edit <b id="synced-n">6</b></span>
+      <span class="synced" title="nebula-scribe keeps this page synced to the live Play Console — the tab auto-refreshes every 15s">Synced <b id="synced-time">19:30 PDT</b> &middot; edit <b id="synced-n">7</b></span>
       <button class="reset" id="reset" type="button">Snuff &amp; reset</button>
     </div>
   </div>
@@ -324,7 +324,7 @@
       <ul class="checks">
         <li><input type="checkbox" id="o1"><label for="o1"><span class="what">Set privacy policy</span><span class="setdone">&#10003; already set</span></label><a class="jump" href="#a1">open &#9656;</a></li>
         <li><input type="checkbox" id="o2"><label for="o2"><span class="what">Sign in details</span><span class="why">Nothing restricted &mdash; select <b>No</b> (sign-in never required).</span></label><a class="jump" href="#a2">open &#9656;</a></li>
-        <li><input type="checkbox" id="o3"><label for="o3"><span class="what">Ads</span><span class="why">No ads.</span></label><a class="jump" href="#a3">open &#9656;</a></li>
+        <li><input type="checkbox" id="o3"><label for="o3"><span class="what">Ads &amp; Advertising ID</span><span class="why">No ads; No to Advertising ID (verified no AD_ID in merged manifest).</span></label><a class="jump" href="#a3">open &#9656;</a></li>
         <li><input type="checkbox" id="o4"><label for="o4"><span class="what">Content rating (IARC)</span><span class="why">Downloaded No, Online&nbsp;Content Yes &rarr; Everyone / 3+ everywhere; accept it.</span></label><a class="jump" href="#a4">open &#9656;</a></li>
         <li><input type="checkbox" id="o5"><label for="o5"><span class="what">Target audience &amp; content</span><span class="why">18 and over only &mdash; auto-skips the child-protection screens.</span></label><a class="jump" href="#a5">open &#9656;</a></li>
         <li><input type="checkbox" id="o6"><label for="o6"><span class="what">News apps</span><span class="why">No.</span></label><a class="jump" href="#a6">open &#9656;</a></li>
@@ -354,7 +354,7 @@
     </div>
   </section>
 
-  <div class="secdiv" id="secA"><span class="n">Section A</span><h2>App content</h2><span class="rule"></span><span class="meta">11 policy tasks &middot; 1 already done</span></div>
+  <div class="secdiv" id="secA"><span class="n">Section A</span><h2>App content</h2><span class="rule"></span><span class="meta">11 policy tasks &middot; complete &#10003;</span></div>
 <div class="task" id="a1">
   <div class="thead"><span class="tnum">1</span><h3>Set privacy policy</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
@@ -367,21 +367,21 @@
   </div>
 </div>
 <div class="task" id="a2">
-  <div class="thead"><span class="tnum">2</span><h3>Sign in details <span style="font-weight:400;opacity:.6;font-size:.8em">(was &ldquo;App access&rdquo;)</span></h3></div>
+  <div class="thead"><span class="tnum">2</span><h3>Sign in details <span style="font-weight:400;opacity:.6;font-size:.8em">(was &ldquo;App access&rdquo;)</span></h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
     <div class="do"><span class="do-tag">Do</span><span>Question is <b>&ldquo;Is any part of your app restricted?&rdquo;</b> &mdash; select <b>No</b>.</span></div>
     <p class="taskwhy">Nothing is <b>required</b>: no account sign-in in any region, no content requires payment. The sign-ins that <b>do</b> exist &mdash; cloud sync, AO3, Palace Project &mdash; are all optional and use the user&rsquo;s <b>own</b> third-party accounts, so there&rsquo;s no Candela login and no test credentials to provide (Google can&rsquo;t use personal accounts anyway). &ldquo;Restricted&rdquo; means a reviewer would be <b>blocked</b> without credentials &mdash; they aren&rsquo;t.</p>
   </div>
 </div>
 <div class="task" id="a3">
-  <div class="thead"><span class="tnum">3</span><h3>Ads</h3></div>
+  <div class="thead"><span class="tnum">3</span><h3>Ads &amp; Advertising ID</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Select <b>&ldquo;No, my app does not have ads&rdquo;</b>.</span></div>
-    <p class="taskwhy">Candela has zero ads; a build-wide grep finds no ad SDKs at all.</p>
+    <div class="do"><span class="do-tag">Do</span><span><b>Ads:</b> select <b>&ldquo;No, my app does not have ads&rdquo;</b>. <b>Advertising ID</b> (Start declaration): select <b>&ldquo;No, my app doesn&rsquo;t use advertising ID.&rdquo;</b></span></div>
+    <p class="taskwhy">Candela has zero ads and ships no analytics/advertising SDKs (a build-wide grep finds none; privacy policy &sect;7 says the same). <b>Verified clean:</b> <code>play-services-basement&nbsp;18.4.0</code> does <b>not</b> declare the <code>com.google.android.gms.permission.AD_ID</code> permission, and none of the injecting libraries are present (no Firebase / play-services-ads / play-services-measurement) &mdash; so the <b>No</b> submits with no manifest flag and <b>no rebuild</b>. (This declaration gates submitting releases that target Android&nbsp;13+.)</p>
   </div>
 </div>
 <div class="task" id="a4">
-  <div class="thead"><span class="tnum">4</span><h3>Content rating</h3></div>
+  <div class="thead"><span class="tnum">4</span><h3>Content rating</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
     <div class="do"><span class="do-tag">Do</span><span><b>Category step:</b> enter contact email <code>jp@techempower.org</code>, pick <b>All Other App Types</b> (the only 3 options are Game / Social&ndash;Communication / All Other), and check <b>&ldquo;I agree to the IARC Terms of Use.&rdquo;</b></span></div>
     <div class="do"><span class="do-tag">Do</span><span><b>Questionnaire:</b> <b>Downloaded App</b> (content baked into the APK) &rarr; <b>No</b>. Seller-authored <b>Violence / Sexuality / Language / Controlled substances / Gambling</b> &rarr; <b>No</b> &mdash; each is scoped to content <i>the seller creates</i> and explicitly excludes user-generated content.</span></div>
@@ -392,7 +392,7 @@
   </div>
 </div>
 <div class="task" id="a5">
-  <div class="thead"><span class="tnum">5</span><h3>Target audience &amp; content</h3></div>
+  <div class="thead"><span class="tnum">5</span><h3>Target audience &amp; content</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
     <div class="do"><span class="do-tag">Do</span><span><b>Target age:</b> check <b>&ldquo;18 and over&rdquo; only</b> &mdash; leave every younger box (5&nbsp;&amp;&nbsp;under through 16&ndash;17) unchecked.</span></div>
     <div class="do"><span class="do-tag">Do</span><span><b>Optional &mdash; recommended:</b> check <b>&ldquo;Restrict users that Google has determined to be minors from my app.&rdquo;</b> It&rsquo;s the one place you <i>enforce</i> (not just label) the adult scope, and Candela can surface AO3 <i>Explicit</i> fiction one tap away. Cost: trims reach slightly (Google-determined minors blocked; adult false-positives can fix their account age).</span></div>
@@ -493,10 +493,10 @@ No audio ever leaves your device. The only Voice Notes data that can leave is th
   </div>
 </div>
 <div class="task" id="a11">
-  <div class="thead"><span class="tnum">11</span><h3>Health</h3></div>
+  <div class="thead"><span class="tnum">11</span><h3>Health apps</h3><span class="donebadge">&#10003; done</span></div>
   <div class="tbody">
-    <div class="do"><span class="do-tag">Do</span><span>Select <b>No</b> &mdash; not a health app; collects no health or fitness data.</span></div>
-    <p class="taskwhy">Candela is a reading &amp; accessibility app; the benefits screener is informational, not a Play &ldquo;Health&rdquo; feature.</p>
+    <div class="do"><span class="do-tag">Do</span><span>Declare <b>no health features apply</b> &mdash; not a health app; collects no health or fitness data.</span></div>
+    <p class="taskwhy">Candela is a reading &amp; accessibility app; the benefits screener is informational, not a Play &ldquo;Health&rdquo; feature. The declaration just asks which Health-apps-policy requirements apply &mdash; none do.</p>
   </div>
 </div>
 
