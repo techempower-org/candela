@@ -1,6 +1,6 @@
-v1.13.0 — Fabled Jewel
+v1.13.0: Fabled Jewel
 
-• Voice Notes — record a thought, memo, or meeting; Candela transcribes it on-device and, with your OK, turns it into a searchable AI summary
+• Voice Notes: record a thought, memo, or meeting; Candela transcribes it on-device and, with your OK, turns it into a searchable AI summary
 • Choose your own default sleep-timer duration
 • Palace Project library sign-in now lives in Content Sources
 • AO3 account sign-in & sign-out in Account settings
