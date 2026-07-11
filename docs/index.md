@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Candela — TechEmpower's accessible resource app, with audiobook everything
+title: Candela — TechEMPOWER's accessible resource app, with audiobook everything
 description: Listen to ebooks, follow serial fiction, wake up to a narrated briefing, rehearse with a teleprompter, create audiobooks, scan pages, and hear any link read aloud — thirty-four sources, four on-device neural voice families, free and open, no account, no tracking.
 image: /screenshots/03-reader.png
 ---
@@ -8,7 +8,7 @@ image: /screenshots/03-reader.png
 <section class="hero">
   <div class="hero-text">
     <h1>Candela</h1>
-    <p class="tagline"><strong><a href="https://techempower.org">TechEmpower</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
+    <p class="tagline"><strong><a href="https://techempower.org">TechEMPOWER</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
     <p>
       Under the hood: thirty-four fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
       <a href="https://github.com">GitHub</a>, RSS feeds, EPUB files on your device,
@@ -17,7 +17,7 @@ image: /screenshots/03-reader.png
       <a href="https://www.gutenberg.org/">Project Gutenberg</a>, AO3, Standard Ebooks,
       <a href="https://librivox.org">LibriVox</a>, Wikipedia,
       Wikisource, Radio (30k+ stations), <a href="https://notion.so">Notion</a> (defaults to
-      TechEmpower's resource library — Guides, Resources, About, Donate), Hacker News,
+      TechEMPOWER's resource library — Guides, Resources, About, Donate), Hacker News,
       <a href="https://news.google.com">Google News</a>,
       arXiv, PLOS, Discord, <a href="https://telegram.org">Telegram</a>,
       <a href="https://thepalaceproject.org">Palace Project</a>,
@@ -142,9 +142,9 @@ image: /screenshots/03-reader.png
   <h2>Why Candela</h2>
   <div class="why-grid">
     <div class="card">
-      <h3>TechEmpower Home</h3>
+      <h3>TechEMPOWER Home</h3>
       <p>
-        A dedicated TechEmpower screen ties the resource app together: free tech guides, an
+        A dedicated TechEMPOWER screen ties the resource app together: free tech guides, an
         About panel explaining the 501(c)(3) mission, a Browse-the-library shortcut, and the
         two help paths — <strong>peer-support Discord</strong> and <strong>call 211</strong> for
         local services. Designed for users who came for help, not for fiction.
@@ -153,7 +153,7 @@ image: /screenshots/03-reader.png
     <div class="card">
       <h3>Peer support, on-tap</h3>
       <p>
-        Tap once to open the TechEmpower
+        Tap once to open the TechEMPOWER
         <a href="https://discord.gg/j3SVttxw7k">peer-support Discord</a> — real volunteers,
         no chatbot. Tap to dial <strong>211</strong> for local United Way services. Both routes
         live alongside the library, never buried under a Settings menu.
@@ -197,7 +197,7 @@ image: /screenshots/03-reader.png
     <div class="card">
       <h3>Beautiful Notion covers</h3>
       <p>
-        TechEmpower's Notion-backed library renders with proper page covers and brass-edged
+        TechEMPOWER's Notion-backed library renders with proper page covers and brass-edged
         synthetic tiles for pages with body images instead of explicit covers. The fallback uses
         a Library Nocturne palette so even cover-less pages look intentional.
       </p>
@@ -487,13 +487,13 @@ image: /screenshots/03-reader.png
       <dark-image src-dark="screenshots/04-library.png" src-light="screenshots/04-library-light.png" alt="Library tab">
         <img src="screenshots/04-library.png" alt="Library tab" loading="lazy" />
       </dark-image>
-      <figcaption>Library — TechEmpower hero card on top, currently-listening with progress + smart resume below, four-tab dock <code>{Playing · Library · Voices · Settings}</code> anchored at the bottom.</figcaption>
+      <figcaption>Library — TechEMPOWER hero card on top, currently-listening with progress + smart resume below, four-tab dock <code>{Playing · Library · Voices · Settings}</code> anchored at the bottom.</figcaption>
     </figure>
     <figure>
-      <dark-image src-dark="screenshots/08-techempower-home.png" src-light="screenshots/08-techempower-home-light.png" alt="TechEmpower Home">
-        <img src="screenshots/08-techempower-home.png" alt="TechEmpower Home" loading="lazy" />
+      <dark-image src-dark="screenshots/08-techempower-home.png" src-light="screenshots/08-techempower-home-light.png" alt="TechEMPOWER Home">
+        <img src="screenshots/08-techempower-home.png" alt="TechEMPOWER Home" loading="lazy" />
       </dark-image>
-      <figcaption>TechEmpower Home — peer-support Discord, dial 211, Browse the resource library, About TechEmpower.</figcaption>
+      <figcaption>TechEMPOWER Home — peer-support Discord, dial 211, Browse the resource library, About TechEMPOWER.</figcaption>
     </figure>
     <figure>
       <dark-image src-dark="screenshots/09-accessibility-settings.png" src-light="screenshots/09-accessibility-settings-light.png" alt="Accessibility settings">
@@ -573,7 +573,7 @@ image: /screenshots/03-reader.png
     the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>cross-device InstantDB
     sync</strong>; an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,
     TalkBack pacing); and <strong>AI chat per fiction</strong> — cross-fiction memory, function calling,
-    and multi-modal image input; and <strong>on-device Voice Notes</strong> — record a thought, transcribe it on-device, and (only if you tap Summarize) turn it into a consent-gated AI note. A <strong>TechEmpower-first</strong> home leads with Guides, Resources,
+    and multi-modal image input; and <strong>on-device Voice Notes</strong> — record a thought, transcribe it on-device, and (only if you tap Summarize) turn it into a consent-gated AI note. A <strong>TechEMPOWER-first</strong> home leads with Guides, Resources,
     peer-support Discord, and dial 211.
   </p>
   <p class="muted">

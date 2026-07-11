@@ -1,12 +1,12 @@
 # Candela release announcement — Slack template
 
-Candela is [TechEmpower](https://techempower.org)'s accessible resource
+Candela is [TechEMPOWER](https://techempower.org)'s accessible resource
 app, built on a Library Nocturne brass-on-warm-dark engine. Every
-release announcement to `#candela` leads with TechEmpower's mission
+release announcement to `#candela` leads with TechEMPOWER's mission
 framing first ("Technology for All. Access Made Easy.") and the
 engineering capability framing second — the brass + candle visual
 voice stays, the copy emphasis shifts so the announcement reads as a
-TechEmpower release rather than a generic audiobook-engine release.
+TechEMPOWER release rather than a generic audiobook-engine release.
 
 This file is the canonical template — both the *shape* of the post
 and the *vocabulary* that keeps posts visually coherent
@@ -30,7 +30,7 @@ the wording before broadcasting.
 
 > {{POETIC_LINE}}
 
-_TechEmpower — Technology for All. Access Made Easy._ ([techempower.org](https://techempower.org) · [Discord](https://discord.gg/j3SVttxw7k) · [Donate](https://techempower.org/donate))
+_TechEMPOWER — Technology for All. Access Made Easy._ ([techempower.org](https://techempower.org) · [Discord](https://discord.gg/j3SVttxw7k) · [Donate](https://techempower.org/donate))
 
 *What's new*
 {{FEATURES_BLOCK}}
@@ -49,9 +49,9 @@ _TechEmpower — Technology for All. Access Made Easy._ ([techempower.org](https
 :hammer_and_wrench:  realm `{{REALM}}`  ·  built `{{BUILT_LOCAL}}`  ·  commit `{{SIGIL_HASH}}`{{DIRTY_FLAG}}
 ```
 
-**Mission framing line** (the `_TechEmpower — ..._` italic row) sits
+**Mission framing line** (the `_TechEMPOWER — ..._` italic row) sits
 between the poetic-line and the features block on every release post.
-It's a consistent identifier that TechEmpower's mission is the
+It's a consistent identifier that TechEMPOWER's mission is the
 default frame; new features, no matter how engineering-flavoured,
 sit underneath that anchor.
 
@@ -122,7 +122,7 @@ on 2026-05-13. Reproduce by passing the rendered text below to
 
 > Cloud-bound at last, with the right places to put a book and the right way to find it again.
 
-_TechEmpower — Technology for All. Access Made Easy._ (techempower.org · discord.gg/j3SVttxw7k · techempower.org/donate)
+_TechEMPOWER — Technology for All. Access Made Easy._ (techempower.org · discord.gg/j3SVttxw7k · techempower.org/donate)
 
 *What's new*
 :cloud: *InstantDB cloud sync foundation* (#360) — new `core-sync` module syncing library, follows, playback positions, bookmarks, pronunciation dictionary, and secrets. Magic-code sign-in, per-syncer conflict policies, 24h tombstone TTL so re-adds propagate.

@@ -15,7 +15,7 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 
 **Effective date:** 2026-07-10  
 **App:** Candela (`org.techempower.candela`)  
-**Publisher:** TechEmpower (501(c)(3) nonprofit, operating Candela)  
+**Publisher:** TechEMPOWER (501(c)(3) nonprofit, operating Candela)  
 **Maintainer:** JP Hein (`jp@jphein.com`)  
 **Contact for privacy questions:** `jp@jphein.com`
 
@@ -130,7 +130,7 @@ goes to Anthropic when you chat; nowhere else.
 
 ### 2.7 Call 211 (social services)
 
-The TechEmpower Home screen surfaces a single **Call 211** shortcut (211 —
+The TechEMPOWER Home screen surfaces a single **Call 211** shortcut (211 —
 United Way local community services, US/Canada). Tapping it opens the
 device's dialer with the number pre-filled — **Candela does not place the
 call automatically**, you have to tap "Call" in the dialer. No data about
@@ -152,7 +152,7 @@ your gallery, which needs no permission.
 
 ### 2.9 Anonymous impact sharing (optional, off by default)
 
-Candela is run by TechEmpower, a nonprofit. The grants that keep the app free
+Candela is run by TechEMPOWER, a nonprofit. The grants that keep the app free
 need aggregate impact numbers — total hours listened, chapters and books
 finished, and the range of built-in sources people use — summed across everyone
 who chooses to help, never any individual. Candela lets you **choose** to share
@@ -178,7 +178,7 @@ such a summary, entirely on your terms:
   no single summary is precise enough to single out a device.
 - **Withdrawal.** You can simply never share again — nothing further is sent. A
   summary you already shared lives wherever you sent it; Candela keeps no copy,
-  and because it carries no identifier, TechEmpower cannot trace one back to you
+  and because it carries no identifier, TechEMPOWER cannot trace one back to you
   to remove it. That unlinkability is a privacy strength, but it does mean past
   contributions can't be individually withdrawn — they were never tied to you.
 - Candela keeps a tiny device-local record of the coarse totals you last shared,
@@ -278,7 +278,7 @@ the app:
   the whole wallet.
 
 The "what does this prove?" hints (which programs accept a given proof) are a
-built-in, TechEmpower-verified reference list bundled with the app; they are
+built-in, TechEMPOWER-verified reference list bundled with the app; they are
 static content, involve no lookup, and send nothing off the device.
 
 ### 2.14 Microphone / on-device speech capture (optional)
@@ -341,7 +341,7 @@ recording with it.
   per-user usage collection. The one exception is the opt-in **Anonymous impact
   sharing** feature (off by default, see §2.9), which — *only* if you choose to
   use it — lets you share coarse, rounded, unlinkable monthly totals with
-  TechEmpower, with no identifier of any kind. Candela still sends nothing on
+  TechEMPOWER, with no identifier of any kind. Candela still sends nothing on
   its own.
 - **No advertising.** No ad SDKs. No ad IDs requested. The
   `com.google.android.gms.permission.AD_ID` permission is not declared in
@@ -502,5 +502,5 @@ For questions, requests, or concerns about your privacy in Candela:
 - **GitHub issues:** [github.com/techempower-org/candela/issues](https://github.com/techempower-org/candela/issues)
   (public; do not include private information)
 
-Candela is operated by **TechEmpower**, a 501(c)(3) nonprofit. The app is
+Candela is operated by **TechEMPOWER**, a 501(c)(3) nonprofit. The app is
 licensed under the [GNU General Public License v3.0](https://github.com/techempower-org/candela/blob/main/LICENSE).

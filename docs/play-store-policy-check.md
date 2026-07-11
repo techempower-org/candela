@@ -63,7 +63,7 @@ mechanism."
 | Scheme allowlist on magic-link | **Done in PR #587** | http/https only. No `javascript:`, no `file://`, no `content://`. Sufficient — the remaining surface ("any URL on the public web") is the same surface a web browser exposes, which Play accepts. |
 | In-app "Report content" affordance | **Done** — Settings → About → "Report objectionable content" → mailto with a pre-filled subject. Lightweight; no separate web form. | Implemented in `feature/.../settings/AboutSettingsScreen.kt` (`CONTENT_REPORT_SUBJECT`). |
 | In-app block / mute | **N/A** | No social graph. |
-| Defaults that surface family-safe content | **Yes** | TechEmpower Home is the default landing surface in v0.5.51+, library defaults to TechEmpower's Notion-backed resource library — not the Royal Road browse tab. |
+| Defaults that surface family-safe content | **Yes** | TechEMPOWER Home is the default landing surface in v0.5.51+, library defaults to TechEMPOWER's Notion-backed resource library — not the Royal Road browse tab. |
 
 **Verdict: pass.** Candela is a reader, not a UGC host. The scheme
 allowlist + the Play-required content advisory ("Users interact with
@@ -142,7 +142,7 @@ visible workloads and are user-stoppable.
 
 ### Surface
 
-The TechEmpower Home screen surfaces a single **Call 211** affordance:
+The TechEMPOWER Home screen surfaces a single **Call 211** affordance:
 
 - **211** — United Way local community services (US / Canada)
 
@@ -306,7 +306,7 @@ a mic feature (Voice Notes / recording / voice-paced teleprompter).
 | **Deceptive behavior** | Clean | App does what the listing says |
 | **Impersonation** | Clean | We don't pretend to be Audible, Libby, etc. |
 | **Open-source license attribution** | Settings → About → Open Source Licenses should list every dep | Verify before submission |
-| **Restricted content (sexual / violence / etc.)** | UGC advisory covers it | The default surfaces (TechEmpower Home + library) don't contain restricted content |
+| **Restricted content (sexual / violence / etc.)** | UGC advisory covers it | The default surfaces (TechEMPOWER Home + library) don't contain restricted content |
 | **Spam / minimum functionality** | Clean | Real app, 20+ working backends, meaningful UX |
 
 ---

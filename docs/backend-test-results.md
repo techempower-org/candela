@@ -34,7 +34,7 @@
 | PLOS | `plos` | ✅ | ✅ | ⟳ | real open-science articles |
 | Hacker News | `hackernews` | ✅ | ✅ | ⟳ | front-page stories → detail |
 | GitHub | `github` | ✅ | ✅ | ⟳ | "The Cartographer's Lantern" test repo |
-| Notion (TechEmpower) | `notion-techempower` | ✅ | — | ⟳ | Guides/Resources/About/Donate (default landing) |
+| Notion (TechEMPOWER) | `notion-techempower` | ✅ | — | ⟳ | Guides/Resources/About/Donate (default landing) |
 | Google News | `googlenews` | ✅ | ✅ | ⟳ | content renders on recheck (real headlines); initial "0 ch" was transient feed lazy-load |
 | Readability | `readability` | ◐ | — | — | landing + instructions render; `+` paste flow not driven via adb |
 

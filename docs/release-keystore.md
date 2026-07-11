@@ -107,7 +107,7 @@ keytool -genkeypair \
 # keytool will prompt for:
 #   - Keystore password (use `bw generate -lus --length 32` and store in vault)
 #   - Key password (Google's convention: same as keystore password)
-#   - DN — Common name: storyvox; Organization: TechEmpower;
+#   - DN — Common name: storyvox; Organization: TechEMPOWER;
 #          Org Unit: storyvox; City/State/Country: JP's call
 
 # 3. Verify
@@ -179,7 +179,7 @@ Verify the APK signer:
 $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs \
   app/build/outputs/apk/release/candela-v*.apk
 # Should show:
-#   Signer #1 certificate DN: CN=storyvox, OU=storyvox, O=TechEmpower, …
+#   Signer #1 certificate DN: CN=storyvox, OU=storyvox, O=TechEMPOWER, …
 #   Signer #1 certificate SHA-256 digest: <matches Vaultwarden record>
 ```
 

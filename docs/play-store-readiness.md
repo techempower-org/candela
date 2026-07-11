@@ -49,7 +49,7 @@ Candela is a **reader/audiobook player**: it authors no violent, sexual, or gamb
 
 **All core functionality is testable with no login, no credentials, and no special access.** Paste this into Play Console → App access → "All functionality is available without special access":
 
-> Candela is a free read-aloud reader. On first launch it opens the TechEmpower home with **no account required**. To review core functionality:
+> Candela is a free read-aloud reader. On first launch it opens the TechEMPOWER home with **no account required**. To review core functionality:
 > 1. **Browse → pick any default source** (Project Gutenberg, Standard Ebooks, Wikipedia, Hacker News, Google News, arXiv, PLOS, LibriVox, Internet Radio) — all are free, public, and need no login.
 > 2. Open any title → tap **Play**. A neural voice downloads once (a few MB) and reads aloud fully on-device.
 > 3. **Magic link:** share any web article URL into Candela (or paste it in Add-by-URL) to test the readability reader.

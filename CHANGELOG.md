@@ -112,11 +112,11 @@ Entries before v0.5.12 are reconstructed from the git log — see
 ### Under the hood
 
 - **Sleep-timer diagnostics** — bedtime auto-arm and shake-to-extend now emit precise, content-free breadcrumbs (fade-tail enter/exit, accelerometer registration success/failure, and the raw gate inputs) so the two open on-device reports (#1574 auto-sleep didn't arm, #1595 doesn't extend) can be root-caused decisively on a real device. The gate logic is extracted to pure, unit-tested functions (`shouldArmBedtimeSleep`, `shouldListenForShake`, `shouldExtendOnShake`).
-- Library filter-chip spacing and a leading glyph on the TechEmpower "Browse resources" card. (#1600)
+- Library filter-chip spacing and a leading glyph on the TechEMPOWER "Browse resources" card. (#1600)
 
 ## [1.12.0] -- 2026-07-05
 
-**Lunar Relic.** The TechEmpower benefits paperwork companion — scan a form, fill it on-phone, keep your proofs, decode dense notices, and never miss a deadline — all on-device and bilingual.
+**Lunar Relic.** The TechEMPOWER benefits paperwork companion — scan a form, fill it on-phone, keep your proofs, decode dense notices, and never miss a deadline — all on-device and bilingual.
 
 ### Added
 
@@ -130,7 +130,7 @@ Entries before v0.5.12 are reconstructed from the git log — see
 - **Saved household profile** — a local, encrypted profile that autofills scanned-form fields; a regression fence locks it out of cloud sync. (#1519)
 - **Google Drive Connect** — a Browse Connect entry point + empty state for the Drive source (folder-Picker + refresh follow-ups tracked). (#1534)
 
-Every benefits surface is on-device (provable in airplane mode), bilingual EN/ES at launch, verified-or-silent (content ships from TechEmpower's fact-check pipeline; v1 bundles clearly-flagged, verified-date-stamped seed samples), and TalkBack-labelled with read-aloud. Epic #1520.
+Every benefits surface is on-device (provable in airplane mode), bilingual EN/ES at launch, verified-or-silent (content ships from TechEMPOWER's fact-check pipeline; v1 bundles clearly-flagged, verified-date-stamped seed samples), and TalkBack-labelled with read-aloud. Epic #1520.
 
 ### Fixed
 
@@ -180,7 +180,7 @@ Every benefits surface is on-device (provable in airplane mode), bilingual EN/ES
 - **Device calendar source** — Today / Tomorrow / This Week narrated from the phone's own calendar (`CalendarContract`): every synced provider works, nothing leaves the device, and the optional `READ_CALENDAR` permission is requested only on tap. Overnight events count toward every day they touch. (#1495)
 - **Epic Games Store free games** — the weekly giveaway rotation as narrated chapters, current and upcoming. (#1493)
 - **Prime Gaming free games** — claimable titles via the community LootScraper feed (configurable URL), honestly labeled: claiming requires a Prime subscription. Built only after a five-path research probe validated the data source. (#1494)
-- **Anonymous impact sharing** — a "share your impact" card on the stats screen: preview the exact coarse, rounded monthly summary (no identifiers, no titles, no timestamps finer than a month) and send it yourself through the Android share sheet. Nothing is ever sent automatically — there is no toggle, no background reporting, no server; the act of sharing is the consent. Helps TechEmpower's grant reporting keep the app free. (#1463)
+- **Anonymous impact sharing** — a "share your impact" card on the stats screen: preview the exact coarse, rounded monthly summary (no identifiers, no titles, no timestamps finer than a month) and send it yourself through the Android share sheet. Nothing is ever sent automatically — there is no toggle, no background reporting, no server; the act of sharing is the consent. Helps TechEMPOWER's grant reporting keep the app free. (#1463)
 - **Photo Picker for OCR** — the gallery import now uses the system Photo Picker: still permissionless, and Google Photos (including cloud-only items) appears first-class. (#1537)
 
 ### Fixed
@@ -379,7 +379,7 @@ Every benefits surface is on-device (provable in airplane mode), bilingual EN/ES
 
 - Recording mode: full-screen front-camera preview behind the semi-transparent teleprompter with countdown, live timer, opacity slider, camera flip, mirror mode, speaker colour-coding, and eye-line chevrons. Saves 9:16 MP4 to gallery. (#1367)
 - Voice-paced teleprompter: mic-driven scroll via sherpa-onnx streaming ASR — speak and the text follows. Three-way Auto/Practice/Voice mode selector. Falls back to auto-scroll when mic is denied or model unavailable. (#1368)
-- AI script writer: generate teleprompter scripts from chapter content via LLM, with TechEmpower Show format support (speaker labels, production cues, section banners). (#1366)
+- AI script writer: generate teleprompter scripts from chapter content via LLM, with TechEMPOWER Show format support (speaker labels, production cues, section banners). (#1366)
 - Script manager: save, edit, organize, duplicate, and delete teleprompter scripts. Room DB v18 entity with duration/word-count estimation and show-format parsing. (#1369)
 - Source catalog browser: full-screen shelf-style card grid of all 25 sources, grouped by category, searchable, with inline enable/disable switches. (#1365)
 - Onboarding source picker: new step between voice picker and first fiction, registry-driven card list grouped into 5 friendly buckets. (#1370)
@@ -649,7 +649,7 @@ Hotfix: radio and LibriVox audio streams now play immediately instead of showing
 
 ### Fixed
 
-- **Reader no longer shows the *previously-played* book.** Opening a different fiction (e.g. tapping the TechEmpower **Resources** tile) whose chapter body was still loading from a cold fetch could paint the prior book in the reader — and stay stuck on it if the fetch timed out. The reader now holds a loading state scoped to the fiction you actually opened until its content is ready, with a scoped retry on timeout. Completes the #638 guard for the cold-load window. (#1093)
+- **Reader no longer shows the *previously-played* book.** Opening a different fiction (e.g. tapping the TechEMPOWER **Resources** tile) whose chapter body was still loading from a cold fetch could paint the prior book in the reader — and stay stuck on it if the fetch timed out. The reader now holds a loading state scoped to the fiction you actually opened until its content is ready, with a scoped retry on timeout. Completes the #638 guard for the cold-load window. (#1093)
 
 ### Added — testing foundation (internal)
 
@@ -964,7 +964,7 @@ Rapid iteration: 20+ point releases covering v1.0 Play Store readiness, voice-li
 
 ### Verified on-device (Z Flip 3, R5CRB0W66MK)
 1. Fresh install, no chapter loaded → dock invisible.
-2. Tap Guides → Play → chapter loads → back to Library → dock appears with cover + "Guides" + "How to use TechEmpower.org" + Pause button.
+2. Tap Guides → Play → chapter loads → back to Library → dock appears with cover + "Guides" + "How to use TechEMPOWER.org" + Pause button.
 3. Tap dock body → routed to Reader; dock auto-hides on Reader route as expected.
 4. Back to Library while chapter auto-advanced → dock now shows "Free internet" (chapter 2) — `liveRegion` fired.
 5. Tap Pause inside dock → toggles to Play icon without leaving Library.
@@ -978,7 +978,7 @@ Rapid iteration: 20+ point releases covering v1.0 Play Store readiness, voice-li
 **v1.0 candidate (final).** Picker auto-dismiss patch + on-device verification.
 
 ### Fixed (#682, v1.0 blocker) — Picker re-shows after Skip on first-launch (PR #683)
-Caught by on-device verify of v0.5.70 on phone R5CRB0W66MK (Google TTS, 22 voices enumerated). The user walked Welcome → Pick a voice → Skip — I'll choose later → What would you like to hear? → Browse TechEmpower, and the download-only Piper picker **re-appeared**, defeating the entire #676 zero-download unlock.
+Caught by on-device verify of v0.5.70 on phone R5CRB0W66MK (Google TTS, 22 voices enumerated). The user walked Welcome → Pick a voice → Skip — I'll choose later → What would you like to hear? → Browse TechEMPOWER, and the download-only Piper picker **re-appeared**, defeating the entire #676 zero-download unlock.
 
 Two-layer fix:
 - `VoiceManager.seedSystemTtsDefaultIfUnset()` now flips `PICKER_DISMISSED = true` when it successfully writes an active System TTS voice. The previous design ("don't auto-dismiss, the user still gets to choose") was the wrong call for the goal-hook personas — the sticky-dismissed flag stops the gate from re-blocking later flows, and Settings → Voice library is the path for users who want to swap voices.
@@ -1120,16 +1120,16 @@ New `LocalParticleIntensity`, `LocalSkeletonStyle`, `LocalBrassPulseRange` Compo
 ### Under the hood
 - Closed six v1.x deferrals as `deferred-to-v1.x`: #465 eBay, #147 knowledge graph, #244 RFC registry, #243 RR outreach, #242 RR authors, #425 CI workflow tweak.
 - Open-issue count: **22 → 7** in one session.
-- Tablet-verified backends post-merge: TechEmpower / Notion (default), arXiv, Hacker News, GitHub, Wikipedia, Wikisource, Standard Ebooks, Radio, PLOS. Auth-required correct silent state: AO3, Discord, Telegram, MemPalace, Outline.
+- Tablet-verified backends post-merge: TechEMPOWER / Notion (default), arXiv, Hacker News, GitHub, Wikipedia, Wikisource, Standard Ebooks, Radio, PLOS. Auth-required correct silent state: AO3, Discord, Telegram, MemPalace, Outline.
 
 ## [0.5.67] — 2026-05-16
 
 **Notion banners + tablet SQLite crash fix.** Two PRs caught by the v1.0 graphics-capture pass.
 
-### Added (#653) — `format.page_cover` now flows to TechEmpower tile + detail covers
-- Pre-fix: `AnonymousNotionDelegate.buildTechEmpowerTiles()` hardcoded `coverUrl = null` for all 4 TechEmpower fictions. The 3 detail handlers (`pageListDetail`/`collectionDetail`/`singlePageDetail`) also dropped covers. So Notion page banners JP set via "Add cover" never reached the Browse grid or FictionDetail screen.
-- Fix: new `coverPageId` field on `TechEmpowerFiction` sealed-class variants, pinned in `NotionDefaults`:
-  - Guides → `6c979ba4e43f48d7a4836e0027ea4178` (first chapter "How to use TechEmpower.org")
+### Added (#653) — `format.page_cover` now flows to TechEMPOWER tile + detail covers
+- Pre-fix: `AnonymousNotionDelegate.buildTechEMPOWERTiles()` hardcoded `coverUrl = null` for all 4 TechEMPOWER fictions. The 3 detail handlers (`pageListDetail`/`collectionDetail`/`singlePageDetail`) also dropped covers. So Notion page banners JP set via "Add cover" never reached the Browse grid or FictionDetail screen.
+- Fix: new `coverPageId` field on `TechEMPOWERFiction` sealed-class variants, pinned in `NotionDefaults`:
+  - Guides → `6c979ba4e43f48d7a4836e0027ea4178` (first chapter "How to use TechEMPOWER.org")
   - Resources → `2a3d706803c649409e74e9ce5ccd4c4b` (the database block itself)
   - About → `dbf0ddece2ce468fb2bf9049e6322e8a` (its own pageId)
   - Donate → `59d8a4dab0cc484f8b044d33f240ce1d` (its own pageId)
@@ -1144,7 +1144,7 @@ SQLiteConstraintException: UNIQUE constraint failed: chapter.fictionId, chapter.
 ```
 - **Root cause traced** (kdoc'd in the new `ChapterDao` method): the original v0.5.65+ refresh succeeded ONCE — it parked "EBT spending" at `index=100004` (#349's feed-window park mechanism) while writing the 7 new chapters at indexes 0-6. The crash hit on the **second** open: `parkChapterIndexesFor` only acts on rows with `index < 100000`, so the 7 live rows got bumped to 100000-100006, and `100004` collided with the still-parked EBT-spending row.
 - Fix: rewrote `@Transaction upsertChaptersForFiction` to `deleteByFictionId(fictionId)` THEN `insertAll(chapters)`. Body-preservation for surviving chapters still happens upstream in `FictionRepositoryImpl.upsertDetail` per-PK merge, so the wipe is safe.
-- Tablet-verified (without `pm clear` so the stale DB state persists): three consecutive opens of Library → TechEmpower → Browse Resources → Guides, all clean. Logcat `grep -c SQLiteConstraint` = 0.
+- Tablet-verified (without `pm clear` so the stale DB state persists): three consecutive opens of Library → TechEMPOWER → Browse Resources → Guides, all clean. Logcat `grep -c SQLiteConstraint` = 0.
 
 ## [0.5.66] — 2026-05-16
 
@@ -1176,7 +1176,7 @@ Math gated by `scaleDurationMs(N, 0f) == 0`, pinned by existing `AnimationSpeedS
 
 ## [0.5.65] — 2026-05-16
 
-**v1.0 GREEN-LIGHT candidate.** Closes the four readiness gaps caught by the persona verification on v0.5.64 (#644 tap count, #645 TalkBack dock, #646 audio-route announce, #647 Browse-TechEmpower direct-route) PLUS the long-standing #558 Notion chapter prefetch timeout.
+**v1.0 GREEN-LIGHT candidate.** Closes the four readiness gaps caught by the persona verification on v0.5.64 (#644 tap count, #645 TalkBack dock, #646 audio-route announce, #647 Browse-TechEMPOWER direct-route) PLUS the long-standing #558 Notion chapter prefetch timeout.
 
 ### Fixed — #558 Notion chapter prefetch timeout (PR #648)
 ch4 → ch5 auto-advance hit a 30 s timeout in v0.5.64 because ch5's body had never been fetched. Plus the underlying root cause: one of the hardcoded Guides chapter ids (`16f7018ad93542652b2b16c44464b1c3` — "EBT spending") returned a Notion `ValidationError 400` on every retry, exhausting the timeout window.
@@ -1193,14 +1193,14 @@ ch4 → ch5 auto-advance hit a 30 s timeout in v0.5.64 because ch5's body had ne
 - ch5 → ch6: 270 ms
 
 ### Fixed — v1.0 yellow-light bundle (PR #649, closes #644 #645 #646 #647)
-**#647 — "Browse TechEmpower" auto-plays chapter 1 directly** (load-bearing fix for #644). Onboarding's FirstFictionPicker → tap "Browse TechEmpower's free guides" → new `openGuidesAndAutoPlay()` path seeds Notion tiles, refreshes `notion:guides`, takes first chapter, queues with `autoPlay=true`, routes to Playing surface. Skips both the TechEmpower Home hub AND the FictionDetail cover stop.
+**#647 — "Browse TechEMPOWER" auto-plays chapter 1 directly** (load-bearing fix for #644). Onboarding's FirstFictionPicker → tap "Browse TechEMPOWER's free guides" → new `openGuidesAndAutoPlay()` path seeds Notion tiles, refreshes `notion:guides`, takes first chapter, queues with `autoPlay=true`, routes to Playing surface. Skips both the TechEMPOWER Home hub AND the FictionDetail cover stop.
 
 **#644 — Tap count from cold launch to first audio: 8 → 5** (matches Play Store-ready budget):
 - Allow notifications (system)
 - "Get started"
 - "Pick this voice"
 - "Skip for now" (sync)
-- **"Browse TechEmpower's free guides" — deep-link auto-plays chapter 1 within 3 s**
+- **"Browse TechEMPOWER's free guides" — deep-link auto-plays chapter 1 within 3 s**
 
 **#645 — TalkBack dock navigable from Reader / Voices / Settings**. `BottomTabBar.TabCell` clickable role flipped `Role.Tab` → `Role.Button` (keeping `selected = isSelected`). TalkBack no longer suppresses "double-tap to activate" on a selected tab.
 
@@ -1260,7 +1260,7 @@ Fired at chapter 1 position ~56s of 78s — well before natural end.
 Tablet wasn't affected because its faster CPU keeps the producer ahead of the consumer — underrun never holds past 1.5 s. Phone-only failure matched the issue's observation profile.
 
 ### Verified on R5CRB0W66MK (release variant)
-- Cold launch → onboarding skip → TechEmpower hero → Browse Resources → Guides → tap Play
+- Cold launch → onboarding skip → TechEMPOWER hero → Browse Resources → Guides → tap Play
 - Chapter 1 played to natural end (1:18)
 - Audio focus acquired (`dumpsys audio | grep storyvox` → `gain: GAIN`)
 - Mid-chapter manual skip-next transitioned to chapter 2 ("Free internet", 4:15) in **317 ms**
@@ -1303,7 +1303,7 @@ Fix:
 **Verified BOTH devices**: phone Notion Guides ch01 → ch02 in ~45s wall at 2× (1:18 audio + 1.5s watchdog window); tablet same path. Both within v1.0 < 2000ms bar.
 
 ### Safety — 988 hotline reachable in one tap for TalkBack (#632, closes #608)
-988 Suicide & Crisis Lifeline was only reachable via long-press — TalkBack users can't reliably long-press. Split `TechEmpowerHelpIcons` into three single-tap glyphs: `MonitorHeart` → 988, `Phone` → 211, `Forum` → Discord. Each with explicit `contentDescription`. Verified with TalkBack ON on tablet: announces "Call 988, Suicide and Crisis Lifeline."
+988 Suicide & Crisis Lifeline was only reachable via long-press — TalkBack users can't reliably long-press. Split `TechEMPOWERHelpIcons` into three single-tap glyphs: `MonitorHeart` → 988, `Phone` → 211, `Forum` → Discord. Each with explicit `contentDescription`. Verified with TalkBack ON on tablet: announces "Call 988, Suicide and Crisis Lifeline."
 
 ### Fixed — visible Play button + TalkBack semantics (#633, closes #604 #605 #607 #609 #611 #612 #613 #614 #615 #616 #617 #628 #630)
 13 v1.0 a11y / discoverability issues in one bundle:
@@ -1324,7 +1324,7 @@ Fix:
 - **#618 Cold-launch perf CI guard** — `ColdLaunchThresholds.kt` (tablet 1500ms, phone 500ms) + `scripts/check-cold-launch.sh` + new step in `android.yml`
 - **#619 humanizeVoiceLabel** — raw filenames become plain English (e.g. `piper:en_US-amy-medium` → `Amy · medium quality`)
 - **#620 progress bar contrast bumped** — rail height 3→4 dp, timecodes labelMedium SemiBold
-- **#621 "Demo content"** → "Showing TechEmpower starter collection" (later softened to "TechEmpower's free guides" by onboarding merge)
+- **#621 "Demo content"** → "Showing TechEMPOWER starter collection" (later softened to "TechEMPOWER's free guides" by onboarding merge)
 - **#622 21 fiction backends chip consistency** — uniform brass-outline / brass-primaryContainer styling
 - **#623 Ken-Burns slow zoom on cover during warming** — honors `LocalReducedMotion`
 - **#625 advanced expandable chevron** — `animateFloatAsState` 0° → 180° rotation
@@ -1332,11 +1332,11 @@ Fix:
 ### Added — v1.0 first-launch onboarding flow + plain-English copy refresh (#635, closes #599 #600 #602 #603 #606 #624 #626 #627)
 - **#599 Three-screen welcome flow** — Welcome ("Stories, read aloud.") → Pick a voice (friendly cards: Lessac/Cori/Amy/Ryan with one-line descriptions) → Pick what to listen to (3 big cards). Gated by `pref_onboarding_completed_v1`. Settings → Developer → "Reset onboarding" replay hook.
 - **#600** voice cards use first names + "Free · NN MB" tags (no engine jargon)
-- **#602** Browse Notion banner: "TechEmpower's free guides. Free, no account needed." (was "Add a Notion integration token...")
-- **#603** TechEmpower hero copy: "Free help — read out loud."
+- **#602** Browse Notion banner: "TechEMPOWER's free guides. Free, no account needed." (was "Add a Notion integration token...")
+- **#603** TechEMPOWER hero copy: "Free help — read out loud."
 - **#606** All 9 `WaitReason` headlines rewritten plain English ("Warming up Brian's voice. This happens once per session." / "Internet is slow. Hang tight." / etc.)
 - **#624** `NotebookSection` hides entirely until first note lands
-- **#626** Library TechEmpower hero card: "Tap to see TechEmpower's free guides →"
+- **#626** Library TechEMPOWER hero card: "Tap to see TechEMPOWER's free guides →"
 - **#627** "Activate" → "Pick this voice"
 
 ### Under the hood
@@ -1385,7 +1385,7 @@ The "go full auto" release — 7 PRs, ~25 issues, 2 major features in one bundle
 
 ### Fixed — Phone narrow-width clipping + Emergency safety (#574)
 - **#532 Library tab strip overflow** — Bumped `SecondaryScrollableTabRow.edgePadding` 0.dp → `spacing.md`. History reachable via swipe on 360dp.
-- **#533 Top-bar 4 icons 0dp gap** — added 8dp `Spacer`s between TechEmpower icons + Sync + Settings. Now 72px gaps.
+- **#533 Top-bar 4 icons 0dp gap** — added 8dp `Spacer`s between TechEMPOWER icons + Sync + Settings. Now 72px gaps.
 - **#534 VoiceLibrary lang chip strip at capacity** — moved horizontal padding into `contentPadding` with asymmetric end (`xl=32dp`).
 - **#535 AO3 Browse tab strip clipping** — same `edgePadding` fix as #532. "Marked" clears the edge.
 - **#546 Emergency Help dial picker on WiFi-only tablet (SAFETY)** — added `PackageManager.hasSystemFeature(FEATURE_TELEPHONY)` probe before `ACTION_DIAL`. On telephony-absent devices, surface `NoTelephonyFallbackDialog` with the number, Copy-to-clipboard, and Open-web fallback (`988lifeline.org/chat`, `211.org`, FCC text-to-911 guidance). Manifest now declares `<uses-feature android:name="android.hardware.telephony" android:required="false"/>`.
@@ -1535,19 +1535,19 @@ Unit tests don't initialize the Android Application context that triggers both D
 
 The four-parallel-agent bundle — AO3 personal subscriptions, Royal Road two-way tag sync, Discord-as-fiction wiring, and an Emergency Help card surfacing all three crisis numbers together.
 
-### Added — Emergency Help card on TechEmpower Home (#516)
-- **5th brass-edged card** on TechEmpower Home titled "Emergency Help" — three brass-edged sub-buttons stacked **988** (Suicide & Crisis Lifeline), **211** (United Way social services), **911** (Emergency dispatch). Each sub-button dials via `Intent.ACTION_DIAL` with `tel:<n>` (not `ACTION_CALL` — no `CALL_PHONE` permission, no accidental dispatch). Card-level click is intentionally inert.
+### Added — Emergency Help card on TechEMPOWER Home (#516)
+- **5th brass-edged card** on TechEMPOWER Home titled "Emergency Help" — three brass-edged sub-buttons stacked **988** (Suicide & Crisis Lifeline), **211** (United Way social services), **911** (Emergency dispatch). Each sub-button dials via `Intent.ACTION_DIAL` with `tel:<n>` (not `ACTION_CALL` — no `CALL_PHONE` permission, no accidental dispatch). Card-level click is intentionally inert.
 - **Visual ranking** is 988 → 211 → 911 (most-likely first-response on top, true-emergency last but discoverable) — not numeric order.
-- **`EMERGENCY_DISPATCH_NUMBER = "911"`** added to `TechEmpowerLinks` alongside existing `CRISIS_HELP_NUMBER` (988) and `PRIMARY_HELP_NUMBER` (211).
+- **`EMERGENCY_DISPATCH_NUMBER = "911"`** added to `TechEMPOWERLinks` alongside existing `CRISIS_HELP_NUMBER` (988) and `PRIMARY_HELP_NUMBER` (211).
 - Drops the now-redundant "long-press for 988" hint from the existing Call 211 card body. Top-app-bar phone icon (tap=211, long-press=988) untouched — both surfaces coexist per spec.
 - **`EmergencyHelpCardContractTest`** (7 cases) pins the three constants, `telUri` shape (no `tel://` double-slash that breaks Samsung's stock dialer), distinctness (so a copy-paste regression can't route 911 taps to 988), and that the host composable still loads by reflection.
 - **US-only v1.** CA/UK/AU localization queued for v2.
 
-### Added — Discord channel-as-fiction wiring for TechEmpower (#517)
-- **Auto-seed** the TechEmpower peer-support Discord channel (`1504888494206484531`) as a default-pinned fiction when the Discord backend is enabled. `DiscordConfigState` gains `pinnedChannelIds` + `techempowerDefaultsEnabled` (both default ON).
-- **`DiscordSource.popular()`** now prepends pinned channels with `author="TechEmpower"` *even before the user picks a server* — Discord's `/channels/{id}/messages` is channel-scoped, so a serverless seed renders end-to-end. `fictionDetail()` + `chapter()` paths relax the `serverId` gate for pinned-channel ids.
-- **Bot-token UX (option b)** — documented in `DiscordConfig` kdoc: users supply their own Discord bot via discord.com/developers OR accept a server-published bot invite. **No TechEmpower-owned credentials shipped.** Empty-state when bot isn't invited.
-- **Tests** — 4 new cases in `DiscordTechEmpowerSeedTest` pin the channel id to JP's captured value, fresh-install defaults (toggle ON + seed in list), and the opt-out state shape.
+### Added — Discord channel-as-fiction wiring for TechEMPOWER (#517)
+- **Auto-seed** the TechEMPOWER peer-support Discord channel (`1504888494206484531`) as a default-pinned fiction when the Discord backend is enabled. `DiscordConfigState` gains `pinnedChannelIds` + `techempowerDefaultsEnabled` (both default ON).
+- **`DiscordSource.popular()`** now prepends pinned channels with `author="TechEMPOWER"` *even before the user picks a server* — Discord's `/channels/{id}/messages` is channel-scoped, so a serverless seed renders end-to-end. `fictionDetail()` + `chapter()` paths relax the `serverId` gate for pinned-channel ids.
+- **Bot-token UX (option b)** — documented in `DiscordConfig` kdoc: users supply their own Discord bot via discord.com/developers OR accept a server-published bot invite. **No TechEMPOWER-owned credentials shipped.** Empty-state when bot isn't invited.
+- **Tests** — 4 new cases in `DiscordTechEMPOWERSeedTest` pin the channel id to JP's captured value, fresh-install defaults (toggle ON + seed in list), and the opt-out state shape.
 
 ### Added — Royal Road two-way tag sync (#178)
 - **`RoyalRoadTagSyncCoordinator`** mirrors RR's "Saved tags" filter ↔ storyvox's follow-filter store. Triggers: (1) immediate first-sync on the Anonymous→Authenticated edge in `StoryvoxApp.onCreate`, (2) 24h `WorkManager` periodic with `CONNECTED` + `RequiresBatteryNotLow` constraints, (3) "Sync now" brass button in **Settings → Account → Royal Road tag sync**.
@@ -1571,14 +1571,14 @@ The four-parallel-agent bundle — AO3 personal subscriptions, Royal Road two-wa
 
 ## [0.5.51] — 2026-05-15
 
-The six-parallel-agent release — TechEmpower becomes the default use case, plus two new chat backends, the home-screen widget, AO3 auth scaffolding, and beautiful book covers.
+The six-parallel-agent release — TechEMPOWER becomes the default use case, plus two new chat backends, the home-screen widget, AO3 auth scaffolding, and beautiful book covers.
 
-### Added — TechEmpower as default use case (#511, closes #500)
-- **Brass-edged TechEmpower hero card** pinned at the top of Library (above ResumeCard, above empty-library hint). Sun-disk + "TechEmpower" eyebrow + mission tagline + CTA. Tap → dedicated TechEmpower Home screen.
-- **TechEmpower Home screen** at `StoryvoxRoutes.TECHEMPOWER_HOME` — 96dp sun-disk hero, mission tagline, 501(c)(3) line, 4 brass-edged cards: **Browse Resources** (loads TechEmpower Notion content) · **Peer Support Discord** (`https://discord.gg/j3SVttxw7k`, deep-links to Discord app first, browser fallback) · **Call 211** (tel: intent, long-press for 988 Suicide & Crisis Lifeline) · **About** (mission + Donate + email). 8-chip "Featured guides" strip below.
-- **Top-app-bar emergency icons** on Library + TechEmpower Home — phone icon (tap=211, long-press=988), Discord icon. One-tap reach from any home surface.
-- **README repositioned** — leads with "storyvox is TechEmpower's accessible resource app" framing, engineering capability description second. Slack release template gets a TechEmpower italic line.
-- App identity stays `in.jphe.storyvox` (load-bearing for sideload continuity); aesthetic stays Library Nocturne; TechEmpower is the content+mission identity layered on top per JP's "option B with strong in-app presence" call.
+### Added — TechEMPOWER as default use case (#511, closes #500)
+- **Brass-edged TechEMPOWER hero card** pinned at the top of Library (above ResumeCard, above empty-library hint). Sun-disk + "TechEMPOWER" eyebrow + mission tagline + CTA. Tap → dedicated TechEMPOWER Home screen.
+- **TechEMPOWER Home screen** at `StoryvoxRoutes.TECHEMPOWER_HOME` — 96dp sun-disk hero, mission tagline, 501(c)(3) line, 4 brass-edged cards: **Browse Resources** (loads TechEMPOWER Notion content) · **Peer Support Discord** (`https://discord.gg/j3SVttxw7k`, deep-links to Discord app first, browser fallback) · **Call 211** (tel: intent, long-press for 988 Suicide & Crisis Lifeline) · **About** (mission + Donate + email). 8-chip "Featured guides" strip below.
+- **Top-app-bar emergency icons** on Library + TechEMPOWER Home — phone icon (tap=211, long-press=988), Discord icon. One-tap reach from any home surface.
+- **README repositioned** — leads with "storyvox is TechEMPOWER's accessible resource app" framing, engineering capability description second. Slack release template gets a TechEMPOWER italic line.
+- App identity stays `in.jphe.storyvox` (load-bearing for sideload continuity); aesthetic stays Library Nocturne; TechEMPOWER is the content+mission identity layered on top per JP's "option B with strong in-app presence" call.
 
 ### Added — Two new chat backends (20th + 21st fiction backends)
 - **`:source-slack`** (#512, closes #454) — channels-as-fictions via Bot User OAuth Token (xoxb-…). `conversations.list` for channel discovery, `conversations.history` with cursor pagination capped 5 × 200 = ~1000 messages per fiction. Same-sender coalescing parity with Discord. `supportsSearch=false` in v1 (some workspace plans restrict `search.messages`). Magic-link claim regex `^https?://(?:[\w-]+\.)?slack\.com/archives/([A-Z][A-Z0-9]+)(/p\d+)?(?:\?.*)?$` at confidence 0.9.
@@ -1597,9 +1597,9 @@ The six-parallel-agent release — TechEmpower becomes the default use case, plu
 - 9 new tests in `AuthRepositoryImplTest` (hand-rolled fakes — no Robolectric).
 
 ### Added — Beautiful book covers for Notion-sourced fictions (#514)
-- **`BrandedCoverTile`** in `:core-ui` — pure-Compose 2:3 synthetic book cover. Warm Library Nocturne vertical gradient, family watermark (TechEmpower sun-disk drawn as concentric brass circles + 8 radiating rays, or generic medallion) at ~30% alpha upper-left, title centered in EB Garamond max 3 lines, brass `TECHEMPOWER`-style author line below in Inter letterspaced uppercase, 1.5dp brass-400 border. Pure-composable: no network, no bundled drawable; survives Coil S3-URL expiry by being the very thing the error slot falls back to.
-- **Fallback cascade in `FictionCoverThumb`**: `SubcomposeAsyncImage` with `ContentScale.Crop` (handles Notion's 5:1 banner aspect by center-cropping) → on null/error AND title non-blank → `BrandedCoverTile` with `coverSourceFamilyFor(sourceId)` (notion → TechEmpower, else → Generic) → title blank → existing `MonogramSigilTile` as third-tier fallback.
-- **`readBodyImageUrl` in `:source-notion`** — walks the first 12 live content blocks for the first `image` block when `format.page_cover` is unset (most TechEmpower pages). Prefers `format.display_source` over `properties.source`. Cache-aggressive at the `:source-notion` layer.
+- **`BrandedCoverTile`** in `:core-ui` — pure-Compose 2:3 synthetic book cover. Warm Library Nocturne vertical gradient, family watermark (TechEMPOWER sun-disk drawn as concentric brass circles + 8 radiating rays, or generic medallion) at ~30% alpha upper-left, title centered in EB Garamond max 3 lines, brass `TECHEMPOWER`-style author line below in Inter letterspaced uppercase, 1.5dp brass-400 border. Pure-composable: no network, no bundled drawable; survives Coil S3-URL expiry by being the very thing the error slot falls back to.
+- **Fallback cascade in `FictionCoverThumb`**: `SubcomposeAsyncImage` with `ContentScale.Crop` (handles Notion's 5:1 banner aspect by center-cropping) → on null/error AND title non-blank → `BrandedCoverTile` with `coverSourceFamilyFor(sourceId)` (notion → TechEMPOWER, else → Generic) → title blank → existing `MonogramSigilTile` as third-tier fallback.
+- **`readBodyImageUrl` in `:source-notion`** — walks the first 12 live content blocks for the first `image` block when `format.page_cover` is unset (most TechEMPOWER pages). Prefers `format.display_source` over `properties.source`. Cache-aggressive at the `:source-notion` layer.
 - Font substitution note: Fraunces / DM Sans aren't bundled in storyvox; tile uses already-bundled EB Garamond + Inter. JP can decide whether to license + bundle for a future visual-coherence pass.
 
 ### Closed issues
@@ -1804,7 +1804,7 @@ This is a JP design call. The infrastructure (BP profile + R8 rules + benchmark 
 
 ### Fixed
 - **Bottom tab bar no longer blocks the Android home swipe** (`46262b0`) — `BottomTabBar.kt` called `Modifier.systemGestureExclusion()` on each tab cell to claim the ~64 dp `mandatorySystemGestures` rect for taps. That worked for tap reliability but blocked the OS swipe-up-home and long-press-up-recents gestures entirely — they hit our exclusion rect and never reached the system. Fix drops the exclusion entirely; `Modifier.windowInsetsPadding(WindowInsets.navigationBars)` already lifts cells above the visible gesture pill, which is enough for tap reliability in practice.
-- **Notion pinned to first chip** (`9370b39`) — per JP design call, TechEmpower's Notion content is the default Browse landing surface when no user-Notion token is configured. `SourcePluginRegistry` sort now puts Notion at position 0 before the existing category-then-alphabetical fallback, which also makes it the default-selected chip on Browse open (`BrowseViewModel` picks `descriptors.firstOrNull { it.defaultEnabled }`).
+- **Notion pinned to first chip** (`9370b39`) — per JP design call, TechEMPOWER's Notion content is the default Browse landing surface when no user-Notion token is configured. `SourcePluginRegistry` sort now puts Notion at position 0 before the existing category-then-alphabetical fallback, which also makes it the default-selected chip on Browse open (`BrowseViewModel` picks `descriptors.firstOrNull { it.defaultEnabled }`).
 
 ### Closed (stale)
 - **#447** Notion prefilled DB id on fresh install — closed citing #474 (the v0.5.40 design-call fallback already covers this).
@@ -1843,7 +1843,7 @@ This is a JP design call. The infrastructure (BP profile + R8 rules + benchmark 
 
 ### Fixed — QA backlog drain (13 of 14 cleared; #461 verified-already-fixed by #468)
 - **Player back-arrow content-desc was 'Settings'** (#474, closes #437) — `onBack` plumbed end-to-end with proper a11y label.
-- **Notion silently fell back to TechEmpower Resources DB when no token** (#474, closes #443 + #447) — per JP design call, fallback now points at techempower.org's actual Notion content with a clear demo banner in Browse and a "Database ID (TechEmpower demo)" label in Settings; once user adds a token, the plugin switches to their root.
+- **Notion silently fell back to TechEMPOWER Resources DB when no token** (#474, closes #443 + #447) — per JP design call, fallback now points at techempower.org's actual Notion content with a clear demo banner in Browse and a "Database ID (TechEMPOWER demo)" label in Settings; once user adds a token, the plugin switches to their root.
 - **AO3 description showed `&amp;amp;`** (#474, closes #444) — fixed-point HTML entity decoder + 6 regression tests.
 - **Browse Search icon disappeared on AO3 chip** (#474, closes #445) — added `BrowseTab.Search` to AO3's supportedTabs.
 - **'Add by URL' copy was Royal-Road-only** (#474, closes #446) — generalised hint with supported-source one-liner; carries a `TODO(#472)` placeholder that the magic-link PR replaced with the cascade-resolver.
@@ -2031,24 +2031,24 @@ Post-#436 fix, fresh installs see all 17 backends in the Browse chip strip: Roya
 ## [0.5.25] — 2026-05-13
 
 ### Added
-- **Anonymous Notion-site reader mode** (#393, closes the v0.5.24 known limitation) — `:source-notion` now reads public-shared Notion pages via the *unofficial* `www.notion.so/api/v3` surface (`loadPageChunk`, `queryCollection`, `syncRecordValuesMain`, `getPublicPageData` — the same set [react-notion-x](https://github.com/NotionX/react-notion-x)'s `notion-client` package uses). Zero setup: a fresh install opens Browse → Notion and immediately surfaces TechEmpower's content as narratable audio, with no integration token required.
-- **Four-fiction TechEmpower layout (revised mid-cycle)** — Browse → Notion shows **four tiles**, one per top-level section of the techempower.org navigation. Each section is its own fiction, and each article inside it is its own chapter:
-  - **Guides** — 8 chapters, one per curated guide page (How to use TechEmpower, Free internet, EV incentives, EBT balance, EBT spending, Findhelp, Password manager, Free cell service). Chapter order matches `techempower/site.config.ts` `pageUrlOverrides`.
-  - **Resources** — N chapters (~80), one per row in the TechEmpower Resources database (queried via `queryCollection`). Each chapter renders the row's underlying Notion page content.
+- **Anonymous Notion-site reader mode** (#393, closes the v0.5.24 known limitation) — `:source-notion` now reads public-shared Notion pages via the *unofficial* `www.notion.so/api/v3` surface (`loadPageChunk`, `queryCollection`, `syncRecordValuesMain`, `getPublicPageData` — the same set [react-notion-x](https://github.com/NotionX/react-notion-x)'s `notion-client` package uses). Zero setup: a fresh install opens Browse → Notion and immediately surfaces TechEMPOWER's content as narratable audio, with no integration token required.
+- **Four-fiction TechEMPOWER layout (revised mid-cycle)** — Browse → Notion shows **four tiles**, one per top-level section of the techempower.org navigation. Each section is its own fiction, and each article inside it is its own chapter:
+  - **Guides** — 8 chapters, one per curated guide page (How to use TechEMPOWER, Free internet, EV incentives, EBT balance, EBT spending, Findhelp, Password manager, Free cell service). Chapter order matches `techempower/site.config.ts` `pageUrlOverrides`.
+  - **Resources** — N chapters (~80), one per row in the TechEMPOWER Resources database (queried via `queryCollection`). Each chapter renders the row's underlying Notion page content.
   - **About** — single-chapter fiction with the About page content.
   - **Donate** — single-chapter fiction with the Donate page content.
   This is a course correction from the v0.5.25-rc design that landed in PR #394 as a single-fiction-multi-chapter layout — JP redirected to "four books, each article a chapter" mid-cycle. The delegate, NotionDefaults, and AnonymousNotionDelegateTest were rewritten before tagging v0.5.25 so the released APK has the new shape.
 - **`NotionConfig` mode enum** — new `NotionMode { ANONYMOUS_PUBLIC, OFFICIAL_PAT }` selects the read path. Anonymous mode reads any public-shared root page id; PAT mode keeps the original integration-token + database-id flow for private workspaces. The mode is implicit: blank token → anonymous, non-blank token → PAT. Existing users with a stored PAT keep their current experience unchanged.
 
 ### Fixed
-- **Stale "TODO placeholder" rejection in `NotionApi.requireConfigured`** — v0.5.23 shipped a check that fast-failed when `databaseId == TECHEMPOWER_DATABASE_ID`; v0.5.24 replaced that id with the real TechEmpower Resources DB but left the check, silently breaking the bundled default for anyone with a PAT shared to the Resources DB. v0.5.25 removes the equality check; gating is now token presence alone in PAT mode and root-page-id presence in anonymous mode.
+- **Stale "TODO placeholder" rejection in `NotionApi.requireConfigured`** — v0.5.23 shipped a check that fast-failed when `databaseId == TECHEMPOWER_DATABASE_ID`; v0.5.24 replaced that id with the real TechEMPOWER Resources DB but left the check, silently breaking the bundled default for anyone with a PAT shared to the Resources DB. v0.5.25 removes the equality check; gating is now token presence alone in PAT mode and root-page-id presence in anonymous mode.
 
 ### Implementation
 - `NotionUnofficialApi` (new) — OkHttp client for the four `/api/v3` endpoints with hand-crafted JSON bodies (the queryCollection loader shape is deeply nested; full kotlinx-serialization round-trips would be more code than the bodies). Process-lifetime in-memory cache keyed on hyphenated page id; deduplicates round-trips within a Browse → detail flow. Every HTTP call is wrapped in `withContext(Dispatchers.IO)` so the source can be safely called from any coroutine context.
 - `AnonymousNotionDelegate` (new) — implements the FictionSource surface against `NotionUnofficialApi`. Builds a single Browse tile from the configured root page and resolves its chapter list from `NotionDefaults.techempowerChapters` (a hand-curated list of `ChapterSpec.Page` / `ChapterSpec.Collection` entries). Page chapters render their underlying Notion page's blocks via `renderPageBody`; collection chapters query the database via `queryCollection` and render a row-title list. Tombstoned blocks (`alive:false`) are filtered.
 - `NotionConfigImpl` (modified) — persists a new `pref_notion_root_page_id` DataStore key. Defaults to `NotionDefaults.TECHEMPOWER_ROOT_PAGE_ID` on first install; users can override via Settings.
 - `NotionApi.requireConfigured` (bug fix) — removed the stale `databaseId == TECHEMPOWER_DATABASE_ID` placeholder check that v0.5.24 silently broke when it baked the real DB id into the same constant.
-- 23 new unit tests in `AnonymousNotionDelegateTest` + `NotionUnofficialModelsTest` covering the recordMap envelope decode, decoration-array title extraction, page-id hyphenation, collection_view metadata read, chapter spec resolution (TechEmpower vs. generic), page-body rendering with tombstone filtering, collection-row title extraction + sorting, HTML/plain projection of the unofficial block types, mode-posture defaults, and tolerance for unknown top-level recordMap fields.
+- 23 new unit tests in `AnonymousNotionDelegateTest` + `NotionUnofficialModelsTest` covering the recordMap envelope decode, decoration-array title extraction, page-id hyphenation, collection_view metadata read, chapter spec resolution (TechEMPOWER vs. generic), page-body rendering with tombstone filtering, collection-row title extraction + sorting, HTML/plain projection of the unofficial block types, mode-posture defaults, and tolerance for unknown top-level recordMap fields.
 
 ### Known caveats
 - The unofficial `www.notion.so/api/v3` endpoints are undocumented; Notion may change their shape without notice. Storyvox decodes permissively (all block-payload fields are `JsonElement`) so unknown variants degrade silently rather than breaking parsing. Surface errors come back as structured `NotionUnofficialError` envelopes (`{isNotionError, errorId, name, message}`) which we map to standard `FictionResult.AuthRequired`/`NotFound`/`RateLimited`/`NetworkError`.
@@ -2056,10 +2056,10 @@ Post-#436 fix, fresh installs see all 17 backends in the Browse chip strip: Roya
 ## [0.5.24] — 2026-05-13
 
 ### Fixed
-- **`NotionDefaults.TECHEMPOWER_DATABASE_ID` now points at the real TechEmpower Resources database** (`2a3d706803c649409e74e9ce5ccd4c4b`, from `techempower/site.config.ts` line 48). Replaces the `TODO_FILL_IN_...` placeholder that shipped in v0.5.23. Users with their own Notion integration token shared with the database now see TechEmpower's Resources content as the default Notion fiction.
+- **`NotionDefaults.TECHEMPOWER_DATABASE_ID` now points at the real TechEMPOWER Resources database** (`2a3d706803c649409e74e9ce5ccd4c4b`, from `techempower/site.config.ts` line 48). Replaces the `TODO_FILL_IN_...` placeholder that shipped in v0.5.23. Users with their own Notion integration token shared with the database now see TechEMPOWER's Resources content as the default Notion fiction.
 
 ### Known limitation
-- v0.5.24 still requires the user to paste a Notion integration token. The TechEmpower content lives at a publicly-shared `techempower.notion.site` URL, which is readable anonymously via Notion's *unofficial* `www.notion.so/api/v3/{loadPageChunk,queryCollection}` endpoints — but the official Notion REST API (which `:source-notion` currently uses) always returns 401 without auth, even for public content. v0.5.25 will land the anonymous-read mode + extend the tree to cover Guides + About + Donate alongside the Resources database (#393).
+- v0.5.24 still requires the user to paste a Notion integration token. The TechEMPOWER content lives at a publicly-shared `techempower.notion.site` URL, which is readable anonymously via Notion's *unofficial* `www.notion.so/api/v3/{loadPageChunk,queryCollection}` endpoints — but the official Notion REST API (which `:source-notion` currently uses) always returns 401 without auth, even for public content. v0.5.25 will land the anonymous-read mode + extend the tree to cover Guides + About + Donate alongside the Resources database (#393).
 
 ## [0.5.23] — 2026-05-13
 
