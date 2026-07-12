@@ -6,6 +6,15 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    # Dependabot's default rebase-strategy ("auto") rebases EVERY open bot PR
+    # whenever `main` moves — so merging any one PR fires a rebase across all
+    # the others, each triggering the required Build APK at once. On the
+    # self-hosted runners (familiar, 5g heap) that concurrent swarm OOM-kills
+    # the build daemon (seen during the #1610 merge cascade: 7 open gradle PRs
+    # → 7 simultaneous Android builds). "disabled" keeps the open PRs static;
+    # rebase one on demand with `@dependabot rebase`, or let the serialized
+    # merge cascade update each as it's picked up.
+    rebase-strategy: "disabled"
     assignees:
       - "jphein"
     labels:
