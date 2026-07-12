@@ -20,7 +20,7 @@ startup = "1.2.0"
 security-crypto = "1.1.0"
 
 # Compose
-compose-bom = "2026.06.00"
+compose-bom = "2026.06.01"
 compose-material-icons = "1.7.8"
 
 # mikepenz AboutLibraries — OSS license collection + Compose M3 UI (#1142).
