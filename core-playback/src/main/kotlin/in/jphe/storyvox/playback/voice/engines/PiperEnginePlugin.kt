@@ -11,7 +11,9 @@ import `in`.jphe.storyvox.playback.EngineSampleRateCache
 import `in`.jphe.storyvox.playback.voice.CatalogEntry
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.PoolAttempt
 import `in`.jphe.storyvox.playback.voice.StreamingSynth
+import `in`.jphe.storyvox.playback.voice.buildCapOnFailurePool
 import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
@@ -89,8 +91,9 @@ class PiperEnginePlugin @Inject constructor(
         tuning: StreamingTuning,
     ): List<StreamingSynth.Handle> {
         val s = spec as? ModelSpec.OnnxWithTokens ?: return emptyList()
-        val handles = mutableListOf<StreamingSynth.Handle>()
-        for (i in 1..size) {
+        // #1503 — the cap-on-failure loop is shared (buildCapOnFailurePool);
+        // only the Piper-specific build/configure/load stays here in [attempt].
+        return buildCapOnFailurePool(size, "Piper", LOG_TAG) { i ->
             android.util.Log.i(LOG_TAG, "Tier 3 attempting secondary Piper $i")
             val secondary = VoiceEngine()
             // Propagate noiseScale settings so all instances render with
@@ -106,19 +109,13 @@ class PiperEnginePlugin @Inject constructor(
                 threadsPerInstance,
             )
             if (r == "Success") {
-                handles += PiperHandle(secondary)
                 android.util.Log.i(LOG_TAG, "Tier 3 secondary Piper $i loaded ok")
+                PoolAttempt.Loaded(PiperHandle(secondary))
             } else {
                 runCatching { secondary.destroy() }
-                android.util.Log.w(
-                    LOG_TAG,
-                    "Tier 3 secondary $i (Piper) load failed: " +
-                        "$r — capping at ${handles.size + 1} instances.",
-                )
-                break
+                PoolAttempt.Failed(r)
             }
         }
-        return handles
     }
 
     private class PiperHandle(

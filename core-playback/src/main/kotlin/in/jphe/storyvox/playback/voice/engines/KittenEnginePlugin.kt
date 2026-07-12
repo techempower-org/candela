@@ -7,7 +7,9 @@ import `in`.jphe.storyvox.playback.EngineSampleRateCache
 import `in`.jphe.storyvox.playback.voice.CatalogEntry
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.PoolAttempt
 import `in`.jphe.storyvox.playback.voice.StreamingSynth
+import `in`.jphe.storyvox.playback.voice.buildCapOnFailurePool
 import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
@@ -93,8 +95,9 @@ class KittenEnginePlugin @Inject constructor(
         tuning: StreamingTuning,
     ): List<StreamingSynth.Handle> {
         val s = spec as? ModelSpec.OnnxTokensVoices ?: return emptyList()
-        val handles = mutableListOf<StreamingSynth.Handle>()
-        for (i in 1..size) {
+        // #1503 — the cap-on-failure loop is shared (buildCapOnFailurePool);
+        // only the Kitten-specific build/configure/load stays here in [attempt].
+        return buildCapOnFailurePool(size, "Kitten", LOG_TAG) { _ ->
             val secondary = KittenEngine()
             s.speakerId?.let { secondary.setActiveSpeakerId(it) }
             val r = secondary.loadModel(
@@ -105,18 +108,12 @@ class KittenEnginePlugin @Inject constructor(
                 threadsPerInstance,
             )
             if (r == "Success") {
-                handles += KittenHandle(secondary)
+                PoolAttempt.Loaded(KittenHandle(secondary))
             } else {
                 runCatching { secondary.destroy() }
-                android.util.Log.w(
-                    LOG_TAG,
-                    "Tier 3 secondary $i (Kitten) load failed: " +
-                        "$r — capping at ${handles.size + 1} instances.",
-                )
-                break
+                PoolAttempt.Failed(r)
             }
         }
-        return handles
     }
 
     private class KittenHandle(
