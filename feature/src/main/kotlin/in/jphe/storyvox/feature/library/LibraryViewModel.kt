@@ -182,8 +182,12 @@ sealed interface AddByUrlSheetState {
     /** Sheet hidden. */
     data object Hidden : AddByUrlSheetState
 
-    /** Sheet shown, accepting input. [error] non-null after a failed submission. */
-    data class Open(val error: String? = null) : AddByUrlSheetState
+    /**
+     * Sheet shown, accepting input. [error] non-null after a failed submission.
+     * [prefill] (#1679) seeds the input field when the sheet is opened from a
+     * share-intent / clipboard magic-link so the user just confirms.
+     */
+    data class Open(val error: String? = null, val prefill: String? = null) : AddByUrlSheetState
 
     /** Submission in flight (network call to the source). */
     data object Submitting : AddByUrlSheetState
@@ -601,6 +605,18 @@ class LibraryViewModel @Inject constructor(
         _addByUrlState.value = AddByUrlSheetState.Open()
     }
 
+    /**
+     * Issue #1679 — a URL arrived via the share-intent (`ACTION_SEND` /
+     * `EXTRA_TEXT`) or the clipboard magic-link, plumbed here as the
+     * `sharedUrl` nav arg. Open the Add-by-URL sheet **pre-filled** so the user
+     * confirms — never a silent auto-add (matches the #472 "Magic-add sheet
+     * pre-populated" contract). No-op for blank / non-http(s) input. Before
+     * #1679 the plumbed URL was dropped at the UI: the sheet never opened.
+     */
+    fun onSharedUrl(sharedUrl: String?) {
+        sharePrefillState(sharedUrl)?.let { _addByUrlState.value = it }
+    }
+
     fun dismissAddByUrl() {
         _addByUrlState.value = AddByUrlSheetState.Hidden
     }
@@ -834,4 +850,17 @@ internal fun isLikelyAddByUrl(raw: String): Boolean {
     if (lower.startsWith("http://") && url.length > "http://".length) return true
     if (lower.startsWith("https://") && url.length > "https://".length) return true
     return false
+}
+
+/**
+ * Issue #1679 — pure decision (no Android/Compose types, so it runs as a plain
+ * JUnit test): the [AddByUrlSheetState] to show for an inbound shared URL, or
+ * null when the string isn't an add-able http(s) URL (blank / scheme-only /
+ * other scheme). A non-null result is always [AddByUrlSheetState.Open]
+ * pre-filled with the trimmed URL — the caller confirms; we never silent-add.
+ */
+internal fun sharePrefillState(sharedUrl: String?): AddByUrlSheetState.Open? {
+    val trimmed = sharedUrl?.trim().orEmpty()
+    if (trimmed.isEmpty() || !isLikelyAddByUrl(trimmed)) return null
+    return AddByUrlSheetState.Open(prefill = trimmed)
 }

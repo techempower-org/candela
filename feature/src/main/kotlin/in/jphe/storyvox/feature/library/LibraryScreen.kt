@@ -254,6 +254,24 @@ fun LibraryScreen(
         out
     }
 
+    // Issue #1679 — the share-intent (ACTION_SEND / EXTRA_TEXT) and the
+    // clipboard magic-link deliver a URL as the one-shot [sharedUrl] nav arg.
+    // Open the Add-by-URL sheet pre-filled with it. Before #1679 this param
+    // was plumbed all the way here and then dropped (never consumed), so a
+    // shared URL opened the app but was never added. `rememberSaveable` guards
+    // once-only: returning to Library via the back stack re-enters this
+    // composition with the same arg and must NOT re-open the sheet.
+    var consumedShareUrl by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableStateOf<String?>(null)
+    }
+    androidx.compose.runtime.LaunchedEffect(sharedUrl) {
+        val url = sharedUrl?.trim().orEmpty()
+        if (url.isNotBlank() && url != consumedShareUrl) {
+            consumedShareUrl = url
+            viewModel.onSharedUrl(url)
+        }
+    }
+
     androidx.compose.runtime.LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
