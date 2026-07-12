@@ -116,6 +116,16 @@ class StoryvoxPlaybackService : MediaSessionService() {
      *  redundant register/unregister churn on every state emission. */
     private var shakeListening: Boolean = false
 
+    /** Issue #1618 — post-stop shake-to-revive grace window. [shakeGraceJob]
+     *  observes [DefaultPlaybackController.timerFired]; on a fire it stamps
+     *  [sleepTimerFiredAtMs] + [lastFiredSleepMode], keeps the detector armed
+     *  for [SHAKE_GRACE_WINDOW_MS], and a qualifying shake resumes + re-arms
+     *  that mode. `@Volatile` because the sensor callback reads these off the
+     *  main thread. */
+    private var shakeGraceJob: Job? = null
+    @Volatile private var sleepTimerFiredAtMs: Long? = null
+    @Volatile private var lastFiredSleepMode: SleepTimerMode? = null
+
     /** DND / Bedtime mode auto-sleep receiver, registered when the
      *  bedtime-auto-sleep setting is on and playback is active.
      *  Unregistered on destroy or when the setting is flipped off. */
@@ -190,55 +200,73 @@ class StoryvoxPlaybackService : MediaSessionService() {
             context = applicationContext,
             onShake = {
                 val remaining = controller.state.value.sleepTimerRemainingMs
-                // Issue #1595 — gate the re-arm to the fade tail via the
-                // pure [shouldExtendOnShake] decision so a jolt landing a
-                // beat after the timer paused is ignored.
-                if (shouldExtendOnShake(remaining, SHAKE_FADE_WINDOW_MS)) {
-                    // Issue #595 — read the user-tunable extend duration
-                    // from the config contract instead of the legacy
-                    // hardcoded constant. Off-main launch so the suspend
-                    // read doesn't block the accelerometer callback.
-                    // `currentShakeExtendMinutes` falls back to 15 (the
-                    // legacy value) when the store hasn't emitted yet.
-                    Log.i(TAG, "Shake-to-extend: shake detected in fade tail (remaining=${remaining}ms) — extending")
-                    scope.launch {
-                        val minutes = sleepExtendConfig.currentShakeExtendMinutes()
-                        controller.startSleepTimer(SleepTimerMode.Duration(minutes))
+                val sinceFired = sleepTimerFiredAtMs?.let { android.os.SystemClock.uptimeMillis() - it }
+                when {
+                    // Issue #1595 — fade-tail shake-to-extend (pure gate so a
+                    // jolt a beat after the pause is ignored). Off-main launch
+                    // so the suspend config read doesn't block the callback;
+                    // `currentShakeExtendMinutes` falls back to 15.
+                    shouldExtendOnShake(remaining, SHAKE_FADE_WINDOW_MS) -> {
+                        Log.i(TAG, "Shake-to-extend: shake in fade tail (remaining=${remaining}ms) — extending")
+                        scope.launch {
+                            val minutes = sleepExtendConfig.currentShakeExtendMinutes()
+                            controller.startSleepTimer(SleepTimerMode.Duration(minutes))
+                        }
                     }
-                } else {
-                    // #1595 instrumentation — a shake fired but outside the
-                    // fade tail. If an on-device repro shows this line but
-                    // no "extending", the detector is armed too early/late;
-                    // if it shows NO shake lines at all while the fade-tail
-                    // "accelerometer registered" line is present, the
-                    // gesture isn't crossing the detector threshold.
-                    Log.d(TAG, "Shake-to-extend: shake ignored — not in fade tail (remaining=${remaining}ms)")
+                    // Issue #1618 — post-stop shake-to-revive. A shake inside
+                    // the grace window resumes playback and re-arms the SAME
+                    // mode that just elapsed.
+                    shouldReviveOnShake(sinceFired, SHAKE_GRACE_WINDOW_MS) -> {
+                        val mode = lastFiredSleepMode
+                        sleepTimerFiredAtMs = null // consume the window
+                        Log.i(TAG, "Shake-to-revive: shake in grace window (sinceFired=${sinceFired}ms) — resuming + re-arming $mode")
+                        scope.launch {
+                            // #1609 — resume must run on the main thread; [scope] is Dispatchers.Main.
+                            controller.resume()
+                            mode?.let { controller.startSleepTimer(it) }
+                            refreshShakeListening() // grace consumed → release the sensor
+                        }
+                    }
+                    else -> Log.d(
+                        TAG,
+                        "Shake ignored — not in fade tail or grace window " +
+                            "(remaining=${remaining}ms, sinceFired=${sinceFired}ms)",
+                    )
                 }
             },
         )
+        // Issue #1595 + #1618 — ONE owner for the accelerometer, driven by
+        // [refreshShakeListening]: arm while an armed timer is in its fade tail
+        // OR a fired timer is inside its shake-to-revive grace window; release
+        // otherwise so long sessions don't drain battery.
         shakeJob = scope.launch {
             controller.state
                 .map { it.sleepTimerRemainingMs to it.shakeToExtendEnabled }
                 .distinctUntilChanged()
-                .collect { (remaining, enabled) ->
-                    // Issue #1595 — pure [shouldListenForShake] gate: listen
-                    // only while the user opted in AND an armed timer is in
-                    // its 10s fade tail.
-                    val inFadeWindow = shouldListenForShake(remaining, enabled, SHAKE_FADE_WINDOW_MS)
-                    if (inFadeWindow && !shakeListening) {
-                        val started = shakeDetector?.start() ?: false
-                        shakeListening = true
-                        Log.i(
-                            TAG,
-                            "Shake-to-extend: fade tail entered (remaining=${remaining}ms) — " +
-                                "accelerometer ${if (started) "registered" else "FAILED to register"}",
-                        )
-                    } else if (!inFadeWindow && shakeListening) {
-                        shakeDetector?.stop()
-                        shakeListening = false
-                        Log.d(TAG, "Shake-to-extend: fade tail exited — accelerometer released")
+                .collect { refreshShakeListening() }
+        }
+        // Issue #1618 — a fired sleep timer opens the grace window; keep the
+        // detector listening, then release after the window if no qualifying
+        // shake revived playback. [cancel] never emits here, so a user-
+        // dismissed timer opens no window.
+        shakeGraceJob = scope.launch {
+            controller.timerFired.collect { mode ->
+                lastFiredSleepMode = mode
+                sleepTimerFiredAtMs = android.os.SystemClock.uptimeMillis()
+                Log.i(TAG, "Shake-to-revive: sleep timer fired ($mode) — grace window open for ${SHAKE_GRACE_WINDOW_MS}ms")
+                refreshShakeListening()
+                scope.launch {
+                    kotlinx.coroutines.delay(SHAKE_GRACE_WINDOW_MS)
+                    val firedAt = sleepTimerFiredAtMs
+                    if (firedAt != null &&
+                        android.os.SystemClock.uptimeMillis() - firedAt >= SHAKE_GRACE_WINDOW_MS
+                    ) {
+                        sleepTimerFiredAtMs = null
+                        Log.d(TAG, "Shake-to-revive: grace window elapsed — accelerometer released")
+                        refreshShakeListening()
                     }
                 }
+            }
         }
 
         // Bedtime / DND auto-sleep: register a BroadcastReceiver for
@@ -466,6 +494,31 @@ class StoryvoxPlaybackService : MediaSessionService() {
         super.onTaskRemoved(rootIntent)
     }
 
+    /**
+     * Issue #1595 + #1618 — single owner of the accelerometer registration.
+     * Arms [shakeDetector] iff the user opted in AND either an armed timer is
+     * in its fade tail ([shouldListenForShake]) OR a fired timer is inside its
+     * shake-to-revive grace window ([shouldListenInGraceWindow]); releases it
+     * otherwise. Idempotent via [shakeListening], so the state collector and
+     * the grace collector can both call it without fighting over the sensor.
+     */
+    private fun refreshShakeListening() {
+        val s = controller.state.value
+        val enabled = s.shakeToExtendEnabled
+        val inFadeTail = shouldListenForShake(s.sleepTimerRemainingMs, enabled, SHAKE_FADE_WINDOW_MS)
+        val sinceFired = sleepTimerFiredAtMs?.let { android.os.SystemClock.uptimeMillis() - it }
+        val inGraceWindow = enabled && shouldListenInGraceWindow(sinceFired, SHAKE_GRACE_WINDOW_MS)
+        val shouldListen = inFadeTail || inGraceWindow
+        if (shouldListen && !shakeListening) {
+            shakeListening = shakeDetector?.start() ?: false
+            Log.i(TAG, "Shake detector armed (fadeTail=$inFadeTail, grace=$inGraceWindow) — registered=$shakeListening")
+        } else if (!shouldListen && shakeListening) {
+            shakeDetector?.stop()
+            shakeListening = false
+            Log.d(TAG, "Shake detector released (no fade tail, no grace window)")
+        }
+    }
+
     override fun onDestroy() {
         wearBridge.stop()
         // "Why are we waiting?" — stop the diagnostic monitor before
@@ -481,6 +534,9 @@ class StoryvoxPlaybackService : MediaSessionService() {
         }
         shakeDetector = null
         shakeJob = null
+        shakeGraceJob = null // #1618 — cancelled with [scope] on teardown
+        sleepTimerFiredAtMs = null
+        lastFiredSleepMode = null
         if (dndReceiverRegistered) {
             // runCatching: unregister can throw if the receiver never
             // fully registered (e.g. a SecurityException swallowed above).
@@ -524,6 +580,11 @@ class StoryvoxPlaybackService : MediaSessionService() {
          *  default for now; if the timer's fade duration ever moves
          *  to settings, plumb that through controller.state too. */
         private const val SHAKE_FADE_WINDOW_MS = 10_000L
+        /** Issue #1618 — how long after the sleep timer STOPS the accelerometer
+         *  keeps listening for a shake-to-revive gesture. A shake in this window
+         *  resumes + re-arms the same duration; after it elapses the sensor is
+         *  released so a stopped timer never drains battery overnight. */
+        private const val SHAKE_GRACE_WINDOW_MS = 60_000L
         /** Legacy default extension on shake-detect. Pre-#595 this
          *  was the hardcoded source of truth; v1 reads the
          *  user-tunable value via [SleepTimerExtendConfig] at

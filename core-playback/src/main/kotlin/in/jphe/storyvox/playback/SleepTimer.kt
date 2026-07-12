@@ -63,6 +63,19 @@ class SleepTimer @Inject constructor(
     private val chapterEndSignal = MutableSharedFlow<Unit>(replay = 1)
     val chapterEnd: SharedFlow<Unit> = chapterEndSignal.asSharedFlow()
 
+    /**
+     * Issue #1618 — emits the mode that just elapsed, the instant the timer
+     * pauses playback (see [fadeAndPause]). An EVENT, not state: `replay = 0`
+     * so a late subscriber never sees a stale fire and opens a spurious
+     * shake-to-revive grace window; `extraBufferCapacity = 1` so the emit
+     * isn't dropped if the (single, startup-registered) collector is briefly
+     * busy. [cancel] deliberately emits nothing — a user-dismissed timer must
+     * NOT start a grace window. Carries the fired mode so the service can
+     * re-arm "the same duration as last".
+     */
+    private val timerFiredSignal = MutableSharedFlow<SleepTimerMode>(replay = 0, extraBufferCapacity = 1)
+    val timerFired: SharedFlow<SleepTimerMode> = timerFiredSignal.asSharedFlow()
+
     /** Called when the last sentence of a chapter finishes. */
     fun signalChapterEnd() {
         chapterEndSignal.tryEmit(Unit)
@@ -84,26 +97,26 @@ class SleepTimer @Inject constructor(
             // so re-arming an already-running timer won't re-snapshot.
             dndController.activateForSleepTimer()
             when (mode) {
-                is SleepTimerMode.Duration -> runCountdown(mode.minutes * 60_000L)
+                is SleepTimerMode.Duration -> runCountdown(mode.minutes * 60_000L, mode)
                 SleepTimerMode.EndOfChapter -> {
                     chapterEndSignal.first()
-                    fadeAndPause()
+                    fadeAndPause(mode)
                 }
             }
         }
     }
 
-    private suspend fun runCountdown(totalMs: Long) {
+    private suspend fun runCountdown(totalMs: Long, mode: SleepTimerMode) {
         var remaining = totalMs
         while (remaining > FADE_TAIL_MS) {
             _remainingMs.value = remaining
             delay(TICK_MS)
             remaining -= TICK_MS
         }
-        fadeAndPause()
+        fadeAndPause(mode)
     }
 
-    private suspend fun fadeAndPause() {
+    private suspend fun fadeAndPause(mode: SleepTimerMode) {
         val steps = (FADE_TAIL_MS / FADE_STEP_MS).toInt()
         for (step in 0..steps) {
             val v = (steps - step).toFloat() / steps
@@ -114,6 +127,11 @@ class SleepTimer @Inject constructor(
         pauseAction.invoke()
         volumeRamp.set(1.0f)
         _remainingMs.value = null
+        // Issue #1618 — the timer genuinely fired and paused (this path is
+        // never reached by cancel()). Emit the fired mode so the playback
+        // service can open the shake-to-revive grace window and re-arm the
+        // same duration on a qualifying shake.
+        timerFiredSignal.tryEmit(mode)
         // Drop the consumed signal so a future EndOfChapter timer
         // doesn't see a stale value (issue #34).
         chapterEndSignal.resetReplayCache()
