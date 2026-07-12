@@ -25,7 +25,7 @@ with Notion banner-fetch enabled.
 | Field | File | Dimensions | Notes |
 |---|---|---|---|
 | **App icon (high-res)** | `icon-512.png` | 512×512 PNG | Library Nocturne adaptive launcher icon rendered to flat 512×512. Brass book on warm-dark with sun-disk halo, sound-wave arcs, and candle flame. No alpha. |
-| **Feature graphic** | `feature-1024x500.png` | 1024×500 PNG | Storefront banner (rebranded → Candela, #1198). Library Nocturne palette: "A TechEmpower Project" eyebrow, brass `Candela` wordmark, mission tagline "Technology for All. Access Made Easy.", and a `FREE · ACCESSIBLE · ON-DEVICE` strip. Candle adaptive-icon tile at left; candlelight hero glow on the right (right ~30 % kept clear of headline copy for the overlaid install button). Opaque RGB, no alpha. Regenerate from [`../feature-graphic.html`](../feature-graphic.html) via headless Chrome (command in the file header). |
+| **Feature graphic** | `feature-1024x500.png` | 1024×500 PNG | Storefront banner (rebranded → Candela, #1198). Library Nocturne palette: "A TechEMPOWER Project" eyebrow, brass `Candela` wordmark, mission tagline "Technology for All. Access Made Easy.", and a `FREE · ACCESSIBLE · ON-DEVICE` strip. Candle adaptive-icon tile at left; candlelight hero glow on the right (right ~30 % kept clear of headline copy for the overlaid install button). Opaque RGB, no alpha. Regenerate from [`../feature-graphic.html`](../feature-graphic.html) via headless Chrome (command in the file header). |
 | **Phone screenshots × 4** | `phone-01-library-hero.png` `phone-02-techempower-home.png` `phone-03-browse-resources.png` `phone-04-fiction-detail.png` | 1080×2640 (9:22) | Captured on Galaxy Z Flip 3 portrait. Min 4 satisfied. |
 | **7-inch tablet × 6** | `tablet-01-…` … `tablet-06-…` | 1340×800 (≈16:9.5) | Captured on Tab A7 Lite landscape. Play Console accepts a single tablet set for both 7" and 10" buckets — submit the same six in the 10-inch bucket. |
 | **10-inch tablet × 6** | same six tablet files | 1340×800 | Submit the same six tablet PNGs. |
@@ -34,17 +34,17 @@ with Notion banner-fetch enabled.
 
 | # | Filename | Surface | Caption for Play Store listing |
 |---|---|---|---|
-| 1 | `phone-01-library-hero.png` | Library tab — TechEmpower hero card, Continue Listening ("Guides · Ch. 6 · Free cell service"), and the bottom nav dock | Free books, tech guides, and peer support — in one library. |
-| 2 | `phone-02-techempower-home.png` | TechEmpower Home — five brass-edged cards: Browse Resources, Peer Support, Call 211, Emergency Help, About | Real peer support, one tap away. Dial 211 or 988. |
-| 3 | `phone-03-browse-resources.png` | Notion source grid — TechEmpower fictions (Guides, Resources, About, Donate) with Notion page banners loaded fresh from the cleared cache | Browse free guides, resources, and how-tos — read out loud. |
+| 1 | `phone-01-library-hero.png` | Library tab — TechEMPOWER hero card, Continue Listening ("Guides · Ch. 6 · Free cell service"), and the bottom nav dock | Free books, tech guides, and peer support — in one library. |
+| 2 | `phone-02-techempower-home.png` | TechEMPOWER Home — five brass-edged cards: Browse Resources, Peer Support, Call 211, Emergency Help, About | Real peer support, one tap away. Dial 211 or 988. |
+| 3 | `phone-03-browse-resources.png` | Notion source grid — TechEMPOWER fictions (Guides, Resources, About, Donate) with Notion page banners loaded fresh from the cleared cache | Browse free guides, resources, and how-tos — read out loud. |
 | 4 | `phone-04-fiction-detail.png` | FictionDetail for "Guides" — cover, "7 ch · Ongoing", Play button, description, chapter list | Tap Play. Listen, don't scroll. |
 
 ## Tablet screenshots
 
 | # | Filename | Surface | Caption for Play Store listing |
 |---|---|---|---|
-| 1 | `tablet-01-library-hero.png` | Library — NavigationRail (left), Library/Browse/Follows/Inbox/History tabs, TechEmpower hero card, "Ch. 4 · Findhelp" Continue Listening, action buttons in the title bar (988, 211, Discord, Sync, Settings) | The full library at a glance — landscape-aware. |
-| 2 | `tablet-02-techempower-home.png` | TechEmpower Home — five brass-edged cards laid out for landscape | Free books, tech guides, and accessible help — all in one place. |
+| 1 | `tablet-01-library-hero.png` | Library — NavigationRail (left), Library/Browse/Follows/Inbox/History tabs, TechEMPOWER hero card, "Ch. 4 · Findhelp" Continue Listening, action buttons in the title bar (988, 211, Discord, Sync, Settings) | The full library at a glance — landscape-aware. |
+| 2 | `tablet-02-techempower-home.png` | TechEMPOWER Home — five brass-edged cards laid out for landscape | Free books, tech guides, and accessible help — all in one place. |
 | 3 | `tablet-03-browse-resources.png` | Notion source grid — Guides, Resources, About, Donate covers in a 4-up landscape grid | Browse free guides, resources, and how-tos. |
 | 4 | `tablet-04-fiction-detail.png` | FictionDetail for "Donate" — cover, "1 ch · Ongoing", Play + Add-to-library buttons, description, chapter list, title bar | Cover, chapters, one Play button. |
 | 5 | `tablet-05-player.png` | Player — active playback of Donate, large cover centered, title and chapter caption, playback progress scrubber, Voice settings + Player options in the title bar | A clean cover-and-scrubber player. |
@@ -55,14 +55,14 @@ with Notion banner-fetch enabled.
 - **Banner verification.** `phone-03-browse-resources.png` was re-captured
   after an 8-second wait following the initial Notion fetch, with the file
   growing from 345 KB to 463 KB — strong signal that the banners loaded
-  into the four TechEmpower cards (Guides, Resources, About, Donate).
+  into the four TechEMPOWER cards (Guides, Resources, About, Donate).
   Tablet equivalent (`tablet-03`) at 76 KB is consistent with banner
   rendering at the smaller landscape size.
 - **FictionDetail "Guides" crashes on tablet.** Tapping the Guides fiction
   on the Tab A7 Lite reproducibly triggers
   `SQLiteConstraintException: UNIQUE constraint failed: chapter.fictionId,
   chapter.index` in `ChapterDao.upsertChaptersForFiction`. Worked around
-  by using **Donate** (a single-chapter TechEmpower fiction) for both the
+  by using **Donate** (a single-chapter TechEMPOWER fiction) for both the
   tablet FictionDetail and the active-Player capture. The phone did not
   hit this crash in the same flow — `phone-04-fiction-detail.png` shows
   the Guides FictionDetail successfully. File a bug for the tablet crash

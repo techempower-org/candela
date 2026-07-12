@@ -66,7 +66,7 @@ the published site). They read as a thread of what shipped — see the
 
 ---
 
-_Counts current at v1.10.0: **33 registered sources** across 32 modules
-(`source-notion` registers two), **46 Gradle modules**, four on-device neural
+_Counts current at v1.13.0: **34 registered sources** across 33 modules
+(`source-notion` registers two), **48 Gradle modules**, four on-device neural
 voice families. The live source/module counts are recomputed by the wiki
 release-sync (#1146); the Play listing is the canonical marketing count._

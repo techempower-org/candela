@@ -10,7 +10,7 @@ which the team edits continuously. This doc records where each corpus lives, how
 they differ, and the mechanism that keeps them from silently diverging.
 
 > **Invariant (epic #1520 #3 — "verified or silent").** Benefits *content* is
-> TechEmpower-supplied from an adversarial fact-check pipeline, carries a
+> TechEMPOWER-supplied from an adversarial fact-check pipeline, carries a
 > verified-date, and is never authored or paraphrased in this repo. Any sync
 > mechanism must **preserve provenance/verified-date stamping and never invent
 > eligibility facts.** That constraint is why we *detect* drift here but do not
@@ -115,7 +115,7 @@ Considered four options:
 | (a) Auto-scrape the web bundle → regenerate the asset | **Rejected.** Minified, content-hashed, schema-mismatched; a transform can silently corrupt verified facts. Violates the invariant. |
 | (b) **CI drift-check** (detect + warn) | **Shipped.** Coarse fingerprint is robust to minification; detects staleness without touching content. |
 | (c) **Documented manual sync** from a canonical export | **Recommended** for content — the only invariant-safe way to move verified rules. |
-| (d) Shared source of truth (canonical JSON export) | **Ask TechEmpower for it** — the correct long-term fix (see §6). |
+| (d) Shared source of truth (canonical JSON export) | **Ask TechEMPOWER for it** — the correct long-term fix (see §6). |
 
 **What shipped in this PR (b):** `scripts/screener-drift-check.py` +
 `.github/workflows/screener-drift-check.yml` (advisory). The checker fetches
@@ -141,7 +141,7 @@ appear as GitHub annotations + a step summary.
 ## 5. Manual content sync (when the production corpus is ready — #1586)
 
 The screener surface + reader + drift-check are done; only the *content* is
-pending. When TechEmpower delivers the verified corpus:
+pending. When TechEMPOWER delivers the verified corpus:
 
 1. **Obtain the canonical export** — ideally a clean `screener_corpus.json` from
    the same pipeline the site consumes (see §6). Do **not** reverse-engineer the
@@ -169,7 +169,7 @@ pending. When TechEmpower delivers the verified corpus:
 
 ## 6. The real fix: ask for a canonical corpus export
 
-The robust long-term mechanism is a **shared source of truth**: TechEmpower
+The robust long-term mechanism is a **shared source of truth**: TechEMPOWER
 publishes the pipeline's output as a stable, versioned `screener_corpus.json`
 (the app's schema, or a documented superset) — at a fixed URL or in a repo the
 app can pull. Then sync becomes: download the canonical file → run the drift-check

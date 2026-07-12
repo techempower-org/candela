@@ -5,7 +5,7 @@ A short-form list of shipped + in-flight + planned work. Detailed designs live u
 [`docs/compose-gotchas.md`](compose-gotchas.md) for known scope-shadowing
 and stability traps before searching the internet for confusing errors.
 
-> ⚠️ **Stale:** this roadmap was last refreshed for **v1.3.0**; the current release is **v1.6.3 / vc257**. Shipped/planned items below have not been reconciled since v1.3.0 and may be out of date. (Content intentionally left unrewritten — refreshing the roadmap is a product decision.)
+> ⚠️ **Stale:** this roadmap was last refreshed for **v1.3.0**; the current release is **v1.13.0 / vc271**. Shipped/planned items below have not been reconciled since v1.3.0 and may be out of date. (Content intentionally left unrewritten — refreshing the roadmap is a product decision.)
 
 Last refreshed for **v1.3.0** (Reader intelligence — listening stats, tap-to-define dictionary, language auto-switch, in-app import). Prior refreshes: v1.2.x (Supertonic 3 voice family + polish), v1.1.5 (AGP 9 migration), v0.5.51.
 
@@ -16,7 +16,7 @@ Last refreshed for **v1.3.0** (Reader intelligence — listening stats, tap-to-d
 The v0.5 line landed the bulk of the user-visible surface, and the v1.x line has since
 carried it to **twenty-five fiction backends** and **four voice families** — plus the
 AI chat heavies, performance work that hit the 0.8 s cold-launch target, the a11y
-pass, and the TechEmpower repositioning.
+pass, and the TechEMPOWER repositioning.
 
 ### Voice + audio
 - [x] **KittenTTS** lightest-tier voice family (v0.5.36, [#119](https://github.com/techempower-org/candela/issues/119)) — ~24 MB shared across 8 en_US speakers, "first chapter in 10 seconds" on slow devices
@@ -44,10 +44,10 @@ pass, and the TechEmpower repositioning.
 - [x] **Function calling** ([#216](https://github.com/techempower-org/candela/issues/216)) — "Add this to my Reading shelf", "Queue chapter 5", "Open Voice Library" route through `ToolCatalog`; brass-edged tool cards show in-flight state
 - [x] **Multi-modal image input** ([#215](https://github.com/techempower-org/candela/issues/215)) — paste cover art/scene refs into chat (Anthropic + OpenAI native, auto-downscale to 1280 px / JPEG q=85)
 
-### TechEmpower-as-default (v0.5.51, six-parallel-agent bundle)
-- [x] **Library brass TechEmpower hero card** at the top of the Library tab ([#511](https://github.com/techempower-org/candela/pull/511))
-- [x] **TechEmpower Home** — dedicated screen with Discord peer support + dial 211 + Browse library + About cards
-- [x] **README repositioning** — leads with TechEmpower's mission, audiobook engine framed as "under the hood"
+### TechEMPOWER-as-default (v0.5.51, six-parallel-agent bundle)
+- [x] **Library brass TechEMPOWER hero card** at the top of the Library tab ([#511](https://github.com/techempower-org/candela/pull/511))
+- [x] **TechEMPOWER Home** — dedicated screen with Discord peer support + dial 211 + Browse library + About cards
+- [x] **README repositioning** — leads with TechEMPOWER's mission, audiobook engine framed as "under the hood"
 - [x] **Beautiful Notion covers** ([#514](https://github.com/techempower-org/candela/pull/514)) — body-image fallback + brass-edged synthetic `BrandedCoverTile` for cover-less pages
 - [x] **Home-screen widget** — Continue Listening + Play/Pause on Android home/lock surfaces
 - [x] **AO3 auth PR1** ([#426](https://github.com/techempower-org/candela/issues/426)) — auth surface scaffolding; PR2 wires the WebView login flow

@@ -1,9 +1,6 @@
-First public release.
+v1.13.0: Fabled Jewel
 
-• Free books, guides, articles, and the web — read aloud by on-device neural voices
-• 33 content sources: Gutenberg, Standard Ebooks, Wikipedia, Royal Road, reddit, Google Drive, your calendar, and more
-• Download whole books over Wi-Fi for offline listening
-• Library Nocturne theme with full TalkBack support
-• Android Auto, lock-screen controls, sleep timer, widget
-• Optional encrypted sync — or fully offline
-• Free, no account, no ads, open-source
+• Voice Notes: record a thought, memo, or meeting; Candela transcribes it on-device and, with your OK, turns it into a searchable AI summary
+• Choose your own default sleep-timer duration
+• Palace Project library sign-in now lives in Content Sources
+• AO3 account sign-in & sign-out in Account settings

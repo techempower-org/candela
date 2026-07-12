@@ -28,7 +28,7 @@ These steps are **inherently manual** — they require browser interaction with 
 
 ### 1. Create the Play Console app entry (Play Console UI)
 
-1. Open https://play.google.com/console as TechEmpower-org admin.
+1. Open https://play.google.com/console as TechEMPOWER-org admin.
 2. **Create app** → name "Candela", default language English (US), app/game = App, free/paid = Free.
 3. Accept declarations (developer program policies, US export laws).
 4. Fill in the **Set up your app** dashboard items:
@@ -42,7 +42,7 @@ These steps are **inherently manual** — they require browser interaction with 
    - **Financial features** → No.
    - **Health** → No.
    - **Ads** → No.
-   - **Privacy policy** → URL of TechEmpower's privacy policy.
+   - **Privacy policy** → URL of TechEMPOWER's privacy policy.
 5. **Store listing** → upload graphics from `docs/play-store/v1.0/`:
    - App icon: `icon-512.png`
    - Feature graphic: `feature-1024x500.png`
@@ -55,7 +55,7 @@ This is **first-time only**. Everything below is recurring.
 ### 2. Create the service account (Google Cloud Console)
 
 1. Open https://console.cloud.google.com/ (use the same Google account as Play Console admin).
-2. Create a new project named `techempower-storyvox-publishing` (or reuse an existing TechEmpower project).
+2. Create a new project named `techempower-storyvox-publishing` (or reuse an existing TechEMPOWER project).
 3. Navigate to **APIs & Services → Library** → search for **Google Play Android Developer API** → enable it.
 4. Navigate to **IAM & Admin → Service Accounts** → **Create service account**:
    - Name: `storyvox-play-publisher`

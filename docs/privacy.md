@@ -13,9 +13,9 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 > locally; you can delete cloud-synced data via the in-app "Delete cloud
 > data" action.
 
-**Effective date:** 2026-07-03  
+**Effective date:** 2026-07-10  
 **App:** Candela (`org.techempower.candela`)  
-**Publisher:** TechEmpower (501(c)(3) nonprofit, operating Candela)  
+**Publisher:** TechEMPOWER (501(c)(3) nonprofit, operating Candela)  
 **Maintainer:** JP Hein (`jp@jphein.com`)  
 **Contact for privacy questions:** `jp@jphein.com`
 
@@ -130,7 +130,7 @@ goes to Anthropic when you chat; nowhere else.
 
 ### 2.7 Call 211 (social services)
 
-The TechEmpower Home screen surfaces a single **Call 211** shortcut (211 —
+The TechEMPOWER Home screen surfaces a single **Call 211** shortcut (211 —
 United Way local community services, US/Canada). Tapping it opens the
 device's dialer with the number pre-filled — **Candela does not place the
 call automatically**, you have to tap "Call" in the dialer. No data about
@@ -152,7 +152,7 @@ your gallery, which needs no permission.
 
 ### 2.9 Anonymous impact sharing (optional, off by default)
 
-Candela is run by TechEmpower, a nonprofit. The grants that keep the app free
+Candela is run by TechEMPOWER, a nonprofit. The grants that keep the app free
 need aggregate impact numbers — total hours listened, chapters and books
 finished, and the range of built-in sources people use — summed across everyone
 who chooses to help, never any individual. Candela lets you **choose** to share
@@ -178,7 +178,7 @@ such a summary, entirely on your terms:
   no single summary is precise enough to single out a device.
 - **Withdrawal.** You can simply never share again — nothing further is sent. A
   summary you already shared lives wherever you sent it; Candela keeps no copy,
-  and because it carries no identifier, TechEmpower cannot trace one back to you
+  and because it carries no identifier, TechEMPOWER cannot trace one back to you
   to remove it. That unlinkability is a privacy strength, but it does mean past
   contributions can't be individually withdrawn — they were never tied to you.
 - Candela keeps a tiny device-local record of the coarse totals you last shared,
@@ -278,7 +278,7 @@ the app:
   the whole wallet.
 
 The "what does this prove?" hints (which programs accept a given proof) are a
-built-in, TechEmpower-verified reference list bundled with the app; they are
+built-in, TechEMPOWER-verified reference list bundled with the app; they are
 static content, involve no lookup, and send nothing off the device.
 
 ### 2.14 Microphone / on-device speech capture (optional)
@@ -304,6 +304,34 @@ offline. A legacy `WRITE_EXTERNAL_STORAGE` permission, **scoped to Android 9
 (API 28) and older** (`maxSdkVersion="28"`), lets recording mode save through the
 system media store on those older devices; it is unused on Android 10+.
 
+### 2.15 Voice Notes (optional)
+
+**Voice Notes** (#1657) lets you capture a thought, memo, or meeting and turn it
+into a searchable note. It uses the microphone (the same runtime `RECORD_AUDIO`
+permission as §2.14, requested only when you start recording), and it is
+**private by construction** — your data stays on your device:
+
+- **Recording is on-device.** The captured audio is written to app-private
+  storage on your device.
+- **Transcription is 100% on-device.** Speech is converted to text by an
+  **on-device** model (Whisper); the audio is **never** uploaded to transcribe it.
+- **Stored on-device, excluded from backup and transfer.** The recording, its
+  transcript, and the resulting note live in a separate on-device database
+  (`notes.db`). It is **excluded from cloud backup and device-to-device
+  transfer**, and it is **never** part of Candela's optional cloud sync — Voice
+  Notes stay only on the device that made them.
+- **The AI summary is opt-in, per note.** A note's *transcript text* is sent to
+  **your own** configured cloud AI provider (BYOK — Anthropic, OpenAI, or your
+  local Ollama; see §2.5) **only** when you explicitly tap **Summarize** on that
+  specific note. Nothing is sent automatically, in the background, or while
+  recording. If no AI provider is configured, or you never tap Summarize, no
+  Voice Notes data leaves your device at all.
+
+**No audio ever leaves your device.** The only Voice Notes data that can leave
+the device is the *text* transcript of a single note, and only on your explicit
+per-note **Summarize** tap. Uninstalling Candela deletes `notes.db` and every
+recording with it.
+
 ---
 
 ## 3. What we do NOT collect
@@ -313,7 +341,7 @@ system media store on those older devices; it is unused on Android 10+.
   per-user usage collection. The one exception is the opt-in **Anonymous impact
   sharing** feature (off by default, see §2.9), which — *only* if you choose to
   use it — lets you share coarse, rounded, unlinkable monthly totals with
-  TechEmpower, with no identifier of any kind. Candela still sends nothing on
+  TechEMPOWER, with no identifier of any kind. Candela still sends nothing on
   its own.
 - **No advertising.** No ad SDKs. No ad IDs requested. The
   `com.google.android.gms.permission.AD_ID` permission is not declared in
@@ -321,11 +349,14 @@ system media store on those older devices; it is unused on Android 10+.
 - **No tracking pixels.** No third-party JavaScript loaded into the reader.
 - **No location data.** Candela never asks for location permission.
 - **No audio is collected or transmitted.** Candela does use the microphone
-  for two optional, on-device features — recording mode and the voice-paced
-  teleprompter's speech-to-text (§2.14) — but the captured audio is processed
-  **entirely on your device** and **never leaves it**: it is never uploaded,
-  collected, or shared. (The TTS engine also generates its audio locally; that,
-  too, is never sent anywhere.)
+  for optional, on-device features — recording mode and the voice-paced
+  teleprompter's speech-to-text (§2.14), and **Voice Notes** (§2.15) — but the
+  captured audio is processed **entirely on your device** and **never leaves
+  it**: it is never uploaded, collected, or shared. Voice Notes are also
+  transcribed **on-device**; the only data that can ever leave is the *text*
+  transcript of a single note, and only on your explicit per-note **Summarize**
+  tap to your own BYOK AI provider (§2.15). (The TTS engine also generates its
+  audio locally; that, too, is never sent anywhere.)
 - **No contacts access.** Candela never reads your contact book.
 - **No background data collection.** When the app isn't running, it isn't
   doing anything (with one exception: the now-playing widget reads its own
@@ -471,5 +502,5 @@ For questions, requests, or concerns about your privacy in Candela:
 - **GitHub issues:** [github.com/techempower-org/candela/issues](https://github.com/techempower-org/candela/issues)
   (public; do not include private information)
 
-Candela is operated by **TechEmpower**, a 501(c)(3) nonprofit. The app is
+Candela is operated by **TechEMPOWER**, a 501(c)(3) nonprofit. The app is
 licensed under the [GNU General Public License v3.0](https://github.com/techempower-org/candela/blob/main/LICENSE).

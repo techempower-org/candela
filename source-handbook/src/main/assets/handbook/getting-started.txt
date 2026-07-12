@@ -11,11 +11,11 @@ Open the APK to install.
 Launch Candela. You'll be asked for notification permission (used for the lock-screen tile during playback).
 The voice picker appears on first launch — pick a Piper voice for a quick first chapter (~14–30 MB), Kokoro for the multi-speaker model (~330 MB), or KittenTTS for the lightest tier (~25 MB, designed for slow devices).
 
-That's it. There's no account requirement. Anonymous browsing works for all public Royal Road fictions, every GitHub-sourced fiction, and the TechEmpower-default Notion library (Guides, Resources, About, Donate).
+That's it. There's no account requirement. Anonymous browsing works for all public Royal Road fictions, every GitHub-sourced fiction, and the TechEMPOWER-default Notion library (Guides, Resources, About, Donate).
 
 First-launch UX
 
-When the app opens you'll see the five-tab dock at the bottom of the screen — Playing · Library · Browse · Voices · Settings — and Library is the default landing tab. The brass TechEmpower hero card sits at the top of Library: tap it to open TechEmpower Home (Discord peer support, dial 211, browse the library, About). The currently-listening rail sits below the hero with smart-resume progress per fiction.
+When the app opens you'll see the five-tab dock at the bottom of the screen — Playing · Library · Browse · Voices · Settings — and Library is the default landing tab. The brass TechEMPOWER hero card sits at the top of Library: tap it to open TechEMPOWER Home (Discord peer support, dial 211, browse the library, About). The currently-listening rail sits below the hero with smart-resume progress per fiction.
 
 The dock layout settled in v0.5.50 after the v0.5.40 nav restructure (which lifted Settings to a primary destination and tucked Browse and Follows under Library). Earlier sideloaded versions show a two-tab Library / Settings dock — upgrading in place preserves your library and switches to the new dock automatically.
 

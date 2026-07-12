@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    # Docs-only pushes carry no app code — skip the build. Release commits always
+    # change build.gradle.kts (a non-ignored path), so version tags still build.
+    # pull_request stays unfiltered so the required Build APK check still runs on
+    # docs PRs (skipping a required check there would strand the PR).
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [main]
 

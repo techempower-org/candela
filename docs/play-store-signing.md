@@ -39,7 +39,7 @@ This split (issue **#952**) is intentional: flipping the *APK* to the release ke
 `~/.storyvox-keystore/storyvox-release.keystore` — present (4.4 KB, generated 2026-05-16):
 
 - **RSA 4096**, PKCS12, alias `storyvox`, validity 10000 days (**until ~2053-10-01**)
-- CN=TechEmpower.org, OU=Storyvox, O=TechEmpower, Grass Valley CA US
+- CN=TechEMPOWER.org, OU=Storyvox, O=TechEMPOWER, Grass Valley CA US
 - **SHA-256** `38:9F:BD:AA:4A:11:48:3B:…:E0:16`, SHA-1 `93:98:00:05:96:47:5A:85:…:EE:B0`
 - **Backed up in Vaultwarden** item `storyvox-release-keystore` (path, alias, password, fingerprints in the note)
 - **Wired** in both `local.properties` copies the CI seeds from (`/home/jp/Projects/candela` and `/home/jp/Projects/storyvox`)

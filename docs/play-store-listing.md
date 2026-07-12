@@ -10,7 +10,7 @@ description: Draft Play Store listing copy and assets for Candela v1.6.3.
 > copy now lives in [`app/src/main/play/listings/en-US/`](../app/src/main/play/listings/en-US)
 > (what Gradle Play Publisher actually uploads), mirrored in
 > `play-store/listing/`. This v1.6.3 draft is kept for reference only — its
-> counts and copy are out of date (current: **v1.10.0, 33 sources**). Edit the
+> counts and copy are out of date (current: **v1.13.0, 34 sources**). Edit the
 > `.txt` files, not this page. Map of what's canonical: [docs/README.md](README.md).
 
 This is the draft copy + asset inventory for Candela's Play Store
@@ -26,7 +26,7 @@ images; JP (or a future graphics-capable agent) produces the renders.
 - **Package name:** `org.techempower.candela`
 - **Default language:** English (United States)
 - **Localizations:** English only for v1.0 — see _Localization_ below.
-- **Publisher account:** TechEmpower (501(c)(3))
+- **Publisher account:** TechEMPOWER (501(c)(3))
 - **Pricing:** Free. No in-app purchases. No subscriptions.
 - **Contains ads:** No
 
@@ -49,7 +49,7 @@ images; JP (or a future graphics-capable agent) produces the renders.
 
 Three drafts, ranked. JP picks final:
 
-1. **`Candela: read aloud for all`** (27 ch) ✅ recommended — "for all" echoes the TechEmpower _Technology for All_ mission; "read aloud" carries the audiobook promise without jargon.
+1. **`Candela: read aloud for all`** (27 ch) ✅ recommended — "for all" echoes the TechEMPOWER _Technology for All_ mission; "read aloud" carries the audiobook promise without jargon.
 2. `Candela: accessible reading` (27 ch) — accessibility-led, mission-forward, softer on the audio angle.
 3. `Candela — listen to any text` (28 ch) — audiobook-first fallback if the listing ever pivots away from the mission lead.
 
@@ -57,9 +57,9 @@ Three drafts, ranked. JP picks final:
 
 Three drafts, ranked:
 
-1. **`Free books, tech guides, and accessible help — read aloud by TechEmpower.`** (74 ch) ✅ recommended — concrete benefit, mentions TechEmpower, no jargon.
+1. **`Free books, tech guides, and accessible help — read aloud by TechEMPOWER.`** (74 ch) ✅ recommended — concrete benefit, mentions TechEMPOWER, no jargon.
 2. `Neural-voice audiobook player. 25 sources. Free, ad-free, on-device.` (68 ch) — leads with the audiobook angle.
-3. `Listen to anything text — tech guides, fiction, wiki, RSS — all on-device.` (74 ch) — leans into "anything text" but loses the TechEmpower hook.
+3. `Listen to anything text — tech guides, fiction, wiki, RSS — all on-device.` (74 ch) — leans into "anything text" but loses the TechEMPOWER hook.
 
 ### Full description (4000 char max)
 
@@ -69,7 +69,7 @@ kept here for rationale. Runs close to the 4000 limit — re-count on every edit
 (Play counts characters, not bytes).
 
 ```text
-Candela is TechEmpower's free, accessible resource app — read aloud.
+Candela is TechEMPOWER's free, accessible resource app — read aloud.
 
 Browse free tech guides, find local help by dialing 211, reach a peer-
 support Discord with a single tap, and read or listen to everything
@@ -141,7 +141,7 @@ FEATURES
 • TalkBack-friendly; WCAG AA brass-on-near-black contrast
 • Free, GPL-3.0, ad-free, no tracking
 
-Candela is built by TechEmpower, a 501(c)(3) nonprofit. The source is
+Candela is built by TechEMPOWER, a 501(c)(3) nonprofit. The source is
 open at github.com/techempower-org/candela. Privacy policy:
 candela.techempower.org/privacy/
 ```
@@ -190,7 +190,7 @@ The Play Console IARC questionnaire produces a content rating from the
 operator's answers. Candela's situation:
 
 - **The app itself has no built-in mature content.** Default surfaces are
-  TechEmpower's resource library and a neutral library landing.
+  TechEMPOWER's resource library and a neutral library landing.
 - **Backends can surface anything.** Royal Road, AO3, Discord channels, the
   magic-link Readability catch-all — any of these can fetch user-supplied
   URLs. The app does not filter, classify, or moderate that content.
@@ -269,12 +269,12 @@ caption baked into the design.
 
 | # | Surface | Caption |
 | --- | --- | --- |
-| 1 | Library tab with TechEmpower hero card + Continue Listening | "Free books, tech guides, and peer support — in one library." |
+| 1 | Library tab with TechEMPOWER hero card + Continue Listening | "Free books, tech guides, and peer support — in one library." |
 | 2 | Reader view with sentence highlighted in brass | "Read along while a neural voice does the work." |
 | 3 | Voices tab with Piper / Kokoro / KittenTTS / Supertonic picker | "Four on-device voice families. Pick what fits your phone." |
 | 4 | Settings → Accessibility | "Built for accessibility. WCAG AA. TalkBack-friendly." |
-| 5 | TechEmpower Home with peer-support Discord + 211 | "Real peer support, one tap away. Dial 211." |
-| 6 | Emergency Help card on TechEmpower Home (light mode, to show dark+light) | "Light or dark. Your call." |
+| 5 | TechEMPOWER Home with peer-support Discord + 211 | "Real peer support, one tap away. Dial 211." |
+| 6 | Emergency Help card on TechEMPOWER Home (light mode, to show dark+light) | "Light or dark. Your call." |
 
 Capture at the 1080×2400 (Tab A7 Lite) or 1080×1920 (older phone) ratio.
 
@@ -327,7 +327,7 @@ named `privacy.md`). Verify the URL resolves before Play submission.
   `jp@jphein.com`)
 - **Website:** `https://candela.techempower.org`
 - **Phone:** Play Console requires a phone number on the developer profile,
-  not on the listing. JP's call which number to use (TechEmpower's main, or
+  not on the listing. JP's call which number to use (TechEMPOWER's main, or
   a personal number).
 
 ---

@@ -16,7 +16,7 @@ This doc is the **umbrella**; it references the authoritative source-of-truth fi
 - **Graphics + screenshots** → [`play-store/v1.0/`](play-store/v1.0/) + [`play-store/RUNBOOK.md`](play-store/RUNBOOK.md)
 - **Data Safety** → `play-store-policy-check.md` §4 (#1139)
 
-> **Three blockers found during this audit** — see the flagged ⚠️ items: (1) the v1.0 **screenshots are stale** (show the removed 988/Emergency-Help card); (2) **AO3 + Royal Road ship default-ON**, which drives the content rating to Teen and contradicts the `SourceIds` kdoc; (3) the full description sits at **3996/4000 chars** (4 to spare).
+> **Three blockers found during this audit** — see the flagged ⚠️ items: (1) the v1.0 **screenshots are stale** (show the removed 988/Emergency-Help card); (2) **AO3 + Royal Road ship default-ON**, which drives the content rating to Teen and contradicts the `SourceIds` kdoc; (3) the full description sits at **3983/4000 chars** (17 to spare, after the v1.13.0 Voice Notes bullet; Play counts characters, not the higher UTF-8 byte count).
 
 ---
 
@@ -49,7 +49,7 @@ Candela is a **reader/audiobook player**: it authors no violent, sexual, or gamb
 
 **All core functionality is testable with no login, no credentials, and no special access.** Paste this into Play Console → App access → "All functionality is available without special access":
 
-> Candela is a free read-aloud reader. On first launch it opens the TechEmpower home with **no account required**. To review core functionality:
+> Candela is a free read-aloud reader. On first launch it opens the TechEMPOWER home with **no account required**. To review core functionality:
 > 1. **Browse → pick any default source** (Project Gutenberg, Standard Ebooks, Wikipedia, Hacker News, Google News, arXiv, PLOS, LibriVox, Internet Radio) — all are free, public, and need no login.
 > 2. Open any title → tap **Play**. A neural voice downloads once (a few MB) and reads aloud fully on-device.
 > 3. **Magic link:** share any web article URL into Candela (or paste it in Add-by-URL) to test the readability reader.
@@ -92,8 +92,9 @@ Use the `/privacy/` URL in the Play Console listing's Privacy Policy field. *(Pr
 - **Default posture:** all data (library, reading positions, bookmarks, highlights, notes, settings) stays **on-device**. No analytics, no ads, no tracking.
 - **Optional cloud sync (off by default):** when the user signs in, library/follows/positions/bookmarks/highlights/notes/pronunciation-dictionary/settings sync to the user's own **InstantDB** backend — **encrypted in transit**; any saved API keys are **end-to-end encrypted** behind a user-held passphrase. Users can delete synced data via the in-app **"Delete cloud data"** action (sign-out only revokes the token + wipes local state). → Data Safety: *Data is encrypted in transit* = Yes; *Users can request deletion* = Yes.
 - **No third-party sharing.** Optional features call third parties **only at the user's direction with the user's own credentials** (Azure TTS, the BYO-key AI assistant, the chat/Notion sources) — those providers' privacy policies apply to that traffic.
+- **Voice Notes (#1657):** records audio and transcribes it **on-device** (Whisper) into a separate `notes.db` that is **excluded from cloud backup + device transfer** and **never synced** — the recording, transcript, and note stay only on the device. A note's *transcript text* is sent to the user's own BYOK AI provider **only** on an explicit per-note **Summarize** tap. → Data Safety: **Audio = Not collected** (no audio ever leaves the device); the Summarize egress is user-initiated (§4 mapping), not sharing.
 
-**Permissions** (`AndroidManifest.xml`, all justified — see `play-store-policy-check.md` §5): `INTERNET`, `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `FOREGROUND_SERVICE_DATA_SYNC` (playback + chapter pre-render), `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `ACCESS_NOTIFICATION_POLICY` (sleep-timer DND), `CAMERA` (**optional**, OCR). `uses-feature` camera + telephony are both `required="false"` (tablet-installable). **No** location, contacts, microphone-recording, SMS, or broad storage (file access is via SAF). The two foreground-service types must be declared in the Console's foreground-service form.
+**Permissions** (`AndroidManifest.xml`, all justified — see `play-store-policy-check.md` §5): `INTERNET`, `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `FOREGROUND_SERVICE_DATA_SYNC` + `FOREGROUND_SERVICE_MICROPHONE` (playback + chapter pre-render + Voice Notes recording), `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `ACCESS_NOTIFICATION_POLICY` (sleep-timer DND), `CAMERA` (**optional**, OCR), `RECORD_AUDIO` (**optional**, runtime — Voice Notes / recording mode / voice-paced teleprompter; audio stays on-device). `uses-feature` camera + telephony are both `required="false"` (tablet-installable). **No** location, contacts, SMS, or broad storage (file access is via SAF). The three foreground-service types must be declared in the Console's foreground-service form.
 
 ---
 

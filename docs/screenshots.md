@@ -14,22 +14,22 @@ Captured on a Galaxy Tab A7 Lite (800×1340 px) running Candela in both Library 
   <dark-image
     src-dark="{{ '/screenshots/01-browse.png' | relative_url }}"
     src-light="{{ '/screenshots/01-browse-light.png' | relative_url }}"
-    alt="Browse tab — Notion chip selected by default (v0.5.48+), with TechEmpower's resource library tiles (Guides, Resources, About, Donate) rendered as brass-edged synthetic cover tiles.">
-    <img src="{{ '/screenshots/01-browse.png' | relative_url }}" alt="Browse tab — Notion chip selected by default with TechEmpower's resource library tiles." />
+    alt="Browse tab — Notion chip selected by default (v0.5.48+), with TechEMPOWER's resource library tiles (Guides, Resources, About, Donate) rendered as brass-edged synthetic cover tiles.">
+    <img src="{{ '/screenshots/01-browse.png' | relative_url }}" alt="Browse tab — Notion chip selected by default with TechEMPOWER's resource library tiles." />
   </dark-image>
-  <figcaption>Browse — Notion chip is the default selection (v0.5.48+), surfacing TechEmpower's free-tech resource library (Guides, Resources, About, Donate). Brass-edged synthetic <code>BrandedCoverTile</code> stand-ins fill where the source page has no explicit cover image (v0.5.51, #514).</figcaption>
+  <figcaption>Browse — Notion chip is the default selection (v0.5.48+), surfacing TechEMPOWER's free-tech resource library (Guides, Resources, About, Donate). Brass-edged synthetic <code>BrandedCoverTile</code> stand-ins fill where the source page has no explicit cover image (v0.5.51, #514).</figcaption>
 </figure>
 
-## TechEmpower Home
+## TechEMPOWER Home
 
 <figure>
   <dark-image
     src-dark="{{ '/screenshots/08-techempower-home.png' | relative_url }}"
     src-light="{{ '/screenshots/08-techempower-home-light.png' | relative_url }}"
-    alt="TechEmpower Home — Browse Resources, Peer Support, Call 211, and About TechEmpower cards with a Featured guides shelf below.">
-    <img src="{{ '/screenshots/08-techempower-home.png' | relative_url }}" alt="TechEmpower Home — Browse Resources, Peer Support, Call 211, About TechEmpower cards and a Featured guides shelf below." />
+    alt="TechEMPOWER Home — Browse Resources, Peer Support, Call 211, and About TechEMPOWER cards with a Featured guides shelf below.">
+    <img src="{{ '/screenshots/08-techempower-home.png' | relative_url }}" alt="TechEMPOWER Home — Browse Resources, Peer Support, Call 211, About TechEMPOWER cards and a Featured guides shelf below." />
   </dark-image>
-  <figcaption>TechEmpower Home — tap the brass hero card at the top of Library to reach this screen. Four primary cards (Browse Resources, Peer Support via Discord, Call 211 for local services, About TechEmpower) plus a Featured guides shelf. The two help paths sit alongside browsing, never under a Settings menu. (Shipped v0.5.51 #511.)</figcaption>
+  <figcaption>TechEMPOWER Home — tap the brass hero card at the top of Library to reach this screen. Four primary cards (Browse Resources, Peer Support via Discord, Call 211 for local services, About TechEMPOWER) plus a Featured guides shelf. The two help paths sit alongside browsing, never under a Settings menu. (Shipped v0.5.51 #511.)</figcaption>
 </figure>
 
 ## Filters
@@ -84,10 +84,10 @@ Captured on a Galaxy Tab A7 Lite (800×1340 px) running Candela in both Library 
   <dark-image
     src-dark="{{ '/screenshots/04-library.png' | relative_url }}"
     src-light="{{ '/screenshots/04-library-light.png' | relative_url }}"
-    alt="Library tab — TechEmpower brass hero card at the top, library tiles below, four-tab dock at the bottom.">
-    <img src="{{ '/screenshots/04-library.png' | relative_url }}" alt="Library tab — TechEmpower brass hero card at the top, library tiles below, four-tab dock at the bottom." />
+    alt="Library tab — TechEMPOWER brass hero card at the top, library tiles below, four-tab dock at the bottom.">
+    <img src="{{ '/screenshots/04-library.png' | relative_url }}" alt="Library tab — TechEMPOWER brass hero card at the top, library tiles below, four-tab dock at the bottom." />
   </dark-image>
-  <figcaption>Library — the brass TechEmpower hero card sits at the top of the tab (tap → TechEmpower Home). Library tiles below show the All / Reading / Read / Wishlist filter chips and the four-tab dock <code>{Playing · Library · Voices · Settings}</code> anchored at the bottom (v0.5.50 final layout).</figcaption>
+  <figcaption>Library — the brass TechEMPOWER hero card sits at the top of the tab (tap → TechEMPOWER Home). Library tiles below show the All / Reading / Read / Wishlist filter chips and the four-tab dock <code>{Playing · Library · Voices · Settings}</code> anchored at the bottom (v0.5.50 final layout).</figcaption>
 </figure>
 
 ## Settings

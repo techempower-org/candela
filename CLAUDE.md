@@ -31,7 +31,7 @@ Wait ~60s for boot, then CI picks up automatically. Never compile locally on kat
 - **core-plugin-ksp** — `@SourcePlugin` annotation processor → Hilt `@IntoSet` factories
 - **wear** — Wear OS companion app (Library Nocturne on the watch)
 - **baselineprofile** — Macrobenchmark module that generates the R8 baseline profile
-- **source-*** — 35 source modules; 32 implement `FictionSource` (33 registered sources — `source-notion` registers two: PAT + TechEmpower). The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
+- **source-*** — 35 source modules; 32 implement `FictionSource` (33 registered sources — `source-notion` registers two: PAT + TechEMPOWER). The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
 
 ## Key patterns
 
@@ -75,7 +75,7 @@ until gh run view $RUN_ID --json status --jq '.status' | grep -q completed; do s
 :candle: *storyvox $VERSION* — $tagline
 ✦  _$SIGIL_NAME_  ✦
 > $poetic_line
-_TechEmpower — Technology for All. Access Made Easy._ (links)
+_TechEMPOWER — Technology for All. Access Made Easy._ (links)
 *What's new* (feature bullets with emoji from docs/slack-release-template.md palette)
 *Under the hood* (infra/test bullets)
 *Install* (APK link, release link, compare link)

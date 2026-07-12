@@ -63,7 +63,7 @@ mechanism."
 | Scheme allowlist on magic-link | **Done in PR #587** | http/https only. No `javascript:`, no `file://`, no `content://`. Sufficient — the remaining surface ("any URL on the public web") is the same surface a web browser exposes, which Play accepts. |
 | In-app "Report content" affordance | **Done** — Settings → About → "Report objectionable content" → mailto with a pre-filled subject. Lightweight; no separate web form. | Implemented in `feature/.../settings/AboutSettingsScreen.kt` (`CONTENT_REPORT_SUBJECT`). |
 | In-app block / mute | **N/A** | No social graph. |
-| Defaults that surface family-safe content | **Yes** | TechEmpower Home is the default landing surface in v0.5.51+, library defaults to TechEmpower's Notion-backed resource library — not the Royal Road browse tab. |
+| Defaults that surface family-safe content | **Yes** | TechEMPOWER Home is the default landing surface in v0.5.51+, library defaults to TechEMPOWER's Notion-backed resource library — not the Royal Road browse tab. |
 
 **Verdict: pass.** Candela is a reader, not a UGC host. The scheme
 allowlist + the Play-required content advisory ("Users interact with
@@ -77,7 +77,7 @@ about UGC" gap with minimal code.
 
 ### Surface
 
-Candela declares two foreground service types:
+Candela declares three foreground service types:
 
 1. `FOREGROUND_SERVICE_MEDIA_PLAYBACK` — the Media3 session powering the
    actual audiobook playback (lock-screen controls, notification with
@@ -88,6 +88,10 @@ Candela declares two foreground service types:
      chapter. This is local synthesis work, not a media playback surface.
    - The tag-sync worker (#520), which sync-merges fiction-tag state with
      InstantDB.
+3. `FOREGROUND_SERVICE_MICROPHONE` — the Voice Notes recording service
+   (#1657), a microphone-typed foreground service so a recording can
+   continue if the app is backgrounded (API 34+). Audio is captured and
+   transcribed on-device only.
 
 ### Policy: Foreground services
 
@@ -104,6 +108,7 @@ requires:
 | Media3 playback session | `mediaPlayback` | Yes — notification with transport buttons, lock-screen controls, audio playing | Yes — tap Pause / clear from recents / clear notification | Standard audiobook player pattern. Aligns with policy. |
 | `ChapterRenderJob` PCM pre-render | `dataSync` | Yes — silent foreground notification "Preparing chapter N" while the worker runs | Yes — user can pause / kill the worker via Settings → Performance | Local synthesis; doesn't fit `mediaPlayback` (no Media3 session), doesn't fit any other type — `dataSync` is the documented closest match per AOSP docs. |
 | Tag-sync worker (#520) | `dataSync` | Yes — silent foreground notification "Syncing library" during the burst | Yes — the worker is short-lived (typically <2s); user can disable sync entirely | Brief; runs only when the user has just changed sync state or returned to the app. |
+| Voice Notes recording (#1657) | `microphone` | Yes — recording notification with elapsed time while audio is captured | Yes — Stop in the recording UI / notification ends the service | Runs only while the user is actively recording a note; audio is on-device only and never leaves the device. |
 
 **Reviewer-facing justification** (copy into the Play Console "Foreground
 services" justification field if asked):
@@ -121,8 +126,14 @@ services" justification field if asked):
 > visible via a foreground notification, run only as long as the work
 > requires, and can be cancelled by the user via the app's Performance
 > and Sync settings.
+>
+> Candela uses `microphone` for the Voice Notes recording service — the
+> user starts a recording, the foreground service runs while capture is
+> active, and the user can stop it from the recording UI or the
+> notification. The captured audio is transcribed on-device and never
+> leaves the device.
 
-**Verdict: pass.** Both service types are accurately scoped to user-
+**Verdict: pass.** All three service types are accurately scoped to user-
 visible workloads and are user-stoppable.
 
 ---
@@ -131,7 +142,7 @@ visible workloads and are user-stoppable.
 
 ### Surface
 
-The TechEmpower Home screen surfaces a single **Call 211** affordance:
+The TechEMPOWER Home screen surfaces a single **Call 211** affordance:
 
 - **211** — United Way local community services (US / Canada)
 
@@ -200,7 +211,7 @@ submission time.
 | **Library state** (fiction IDs, reading positions, voice preferences) | Yes, **only with optional sync** | No | Yes | Yes — in-app **Delete cloud data** (#1248) | App functionality (sync) |
 | Crash / diagnostic data | **No** | — | — | — | We don't collect crash data |
 | Approximate / precise location | **No** | — | — | — | Never requested |
-| Photos / videos / audio | **No** | — | — | — | Camera is used on-device for OCR scan-to-read (#995): images + recognized text are processed by ML Kit on-device and are **never** transmitted, collected, or shared — so "collected" stays **No** even though the CAMERA permission is declared. No microphone access. |
+| Photos / videos / audio | **No** | — | — | — | Camera is used on-device for OCR scan-to-read (#995): images + recognized text are processed by ML Kit on-device and are **never** transmitted, collected, or shared — so "collected" stays **No** even though the CAMERA permission is declared. **Microphone** is used by Voice Notes (#1657), recording mode (#1367), and the voice-paced teleprompter (#1368): audio is recorded and transcribed **entirely on-device** (Whisper / sherpa-onnx) and **never leaves the device**. A Voice Notes note's *transcript text* is sent to the user's own BYOK AI provider **only** on an explicit per-note **Summarize** tap — user-initiated, so "collected/shared" stays **No** (the audio itself is never transmitted). Voice Notes are stored on-device in a separate `notes.db`, excluded from cloud backup + device transfer, and never synced. |
 | Files / docs | **No** | — | — | — | EPUB import reads files via SAF; doesn't send them anywhere |
 | Contacts | **No** | — | — | — | Never requested |
 | App activity (page views, in-app actions) | **No** | — | — | — | No analytics |
@@ -252,6 +263,8 @@ declarations in the manifest.)
 | `android.permission.FOREGROUND_SERVICE` | Required umbrella permission on API 28+ for any foreground service | Required by platform; see specific types below |
 | `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Media3 session foreground service type (API 34+) | Audiobook playback continues with the screen off / app backgrounded |
 | `android.permission.FOREGROUND_SERVICE_DATA_SYNC` | ChapterRenderJob + tag-sync worker (API 34+) | Gapless chapter transitions (pre-render); cross-device sync |
+| `android.permission.FOREGROUND_SERVICE_MICROPHONE` | Voice Notes recording runs under a microphone-typed foreground service (#1657) so a recording can continue if the app is backgrounded (API 34+) | Recording a memo doesn't stop when you switch away; user-visible + stoppable |
+| `android.permission.RECORD_AUDIO` (**optional**, runtime) | Voice Notes capture (#1657), recording mode (#1367), and the voice-paced teleprompter's on-device speech-to-text (#1368). Requested at runtime on first use with a plain-language rationale; audio is recorded + transcribed **on-device** and never leaves the device | Capture and transcribe your own voice; declining leaves only those features unavailable |
 | `android.permission.POST_NOTIFICATIONS` | The playback notification (transport buttons + Continue Listening); also used by the WorkManager foreground notifications | Lock-screen and notification-shade transport controls — primary UX for audiobook playback. Without this on API 33+ the user has no transport surface outside the app itself. |
 | `android.permission.RECEIVE_BOOT_COMPLETED` | The home-screen widget (#159) needs to redraw on boot if the user has a widget placed; the receiver listens for the broadcast so the widget shows the last-played state when the device finishes booting | Widget shows correct state after reboot rather than a "tap to launch" placeholder |
 | `android.permission.ACCESS_NOTIFICATION_POLICY` | The sleep-timer (#1190) can auto-enable Do Not Disturb as audio fades at the end of a timed session; this permission lets the app toggle the user's interruption filter | The device goes quiet when the audiobook stops, without the user manually enabling DND |
@@ -265,15 +278,16 @@ declarations in the manifest.)
 | `CALL_PHONE` | Emergency dials use `ACTION_DIAL` (opens dialer, user confirms) — not `ACTION_CALL` |
 | `READ_PHONE_STATE` | We don't need device identifiers, IMEI, line type |
 | `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` | No location features |
-| `RECORD_AUDIO` | No mic access (TTS generates; nothing records) |
 | `READ_CONTACTS` / `WRITE_CONTACTS` | No contacts use |
 | `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` / `MANAGE_EXTERNAL_STORAGE` | EPUB import uses the Storage Access Framework (SAF) — no broad storage permission needed |
 | `com.google.android.gms.permission.AD_ID` | No advertising; no ad ID needed |
 | `BLUETOOTH_*` | Audio routing is handled by the OS via the standard media session APIs — no direct BT |
 
 **Verdict: pass.** Every requested permission has a clear, user-visible
-benefit; no permission is "just in case." The two foreground service types
-are scoped to real workloads.
+benefit; no permission is "just in case." The three foreground-service types
+(media playback, data sync, microphone) are scoped to real workloads, and the
+runtime `RECORD_AUDIO` permission is optional and requested only on first use of
+a mic feature (Voice Notes / recording / voice-paced teleprompter).
 
 ---
 
@@ -292,7 +306,7 @@ are scoped to real workloads.
 | **Deceptive behavior** | Clean | App does what the listing says |
 | **Impersonation** | Clean | We don't pretend to be Audible, Libby, etc. |
 | **Open-source license attribution** | Settings → About → Open Source Licenses should list every dep | Verify before submission |
-| **Restricted content (sexual / violence / etc.)** | UGC advisory covers it | The default surfaces (TechEmpower Home + library) don't contain restricted content |
+| **Restricted content (sexual / violence / etc.)** | UGC advisory covers it | The default surfaces (TechEMPOWER Home + library) don't contain restricted content |
 | **Spam / minimum functionality** | Clean | Real app, 20+ working backends, meaningful UX |
 
 ---

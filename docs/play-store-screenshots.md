@@ -50,13 +50,14 @@ Order leads with the core value (it plays books as audiobooks), then breadth, th
 | 1 | **Now Playing (hero)** | `audiobook/{id}/{ch}` (`AudiobookView`) — tap a playing book / Playing tab | Chapter cover, brass circular scrubber mid-progress, transport, the brass voice-settings sparkle. The "turns text into a narrated audiobook" promise. **Lead shot.** |
 | 2 | **Reader — read-along** | `reader/{id}/{ch}` (`ReaderView`) — swipe from Now Playing to reader, playing | Chapter body with the **current sentence highlighted in brass** as it's spoken. Shows the read-along highlight + EB Garamond typography. |
 | 3 | **Library** | `library` (`LibraryScreen`), Library tab | Grid of book covers + the **Reading / Read / Wishlist** shelf chips + sort. "Your whole library." |
-| 4 | **Browse — 33 sources** | `browse` (`BrowseScreen`), Browse tab | A source browse grid (e.g. Royal Road with the filter row) **or** the Plugins source grid showing the breadth (Royal Road, AO3, Gutenberg, Wikipedia, RSS, …). Conveys "33 sources." |
+| 4 | **Browse — 34 sources** | `browse` (`BrowseScreen`), Browse tab | A source browse grid (e.g. Royal Road with the filter row) **or** the Plugins source grid showing the breadth (Royal Road, AO3, Gutenberg, Wikipedia, RSS, …). Conveys "34 sources." |
 | 5 | **Voice Library** | `settings/voices` (`VoiceLibraryScreen`), Voices tab | Engine-grouped voice list (Piper / Kokoro / Kitten / Supertonic), tier + flag chips, a ⭐ starred voice. "20+ neural voices, on-device." |
 | 6 | **Fiction detail + chapters** | `fiction/{id}` (`FictionDetailScreen`) — tap a book | Cover, blurb, **chapter list**, shelf actions. Depth per book. |
 | 7 | **AI chat per fiction** | per-fiction chat (from Fiction detail / reader) | A real Q&A ("Who is X?") with an AI answer, ideally a **function-call card** ("Added to Reading shelf"). A differentiator most audiobook apps lack. |
 | 8 | **Settings hub** | `settings/hub` (`SettingsHubScreen`), Settings tab | The brass-edged section card grid (Voice & Playback, Reading, Performance, AI, Plugins, …). Shows polish + configurability. |
 
 **Strong alternates** (swap in if one above is weak on the device):
+- **Voice Notes** — the Notes surface (Notes pill on the tablet rail; the waveform action in the Library top bar on phones): a note showing the on-device transcript + the consent-gated AI summary (title + key points). **New headline feature in v1.13.0 — strongly consider swapping this in for shot 6 or 7** so the store shows Voice Notes. Pre-stage one recorded note with a transcript and a generated summary.
 - **Listening statistics** — `stats` (`StatsScreen`): streaks, time, per-fiction charts (a polished v1.3.0 feature).
 - **Voice & Playback settings** — `settings/...` (`VoiceAndPlaybackSettingsScreen`): speed/pitch + the new **Auto-detect language** toggle (v1.3.0).
 
@@ -64,7 +65,7 @@ If trimming to fewer than 8, the minimum compelling set is **1, 2, 3, 4, 5** (he
 
 ## Execution checklist (once phone is free)
 
-1. Confirm Z Flip3 serial + `org.techempower.candela` (v1.6.3) installed.
+1. Confirm Z Flip3 serial + `org.techempower.candela` (v1.13.0) installed.
 2. Pre-stage content (above); dark theme; debug overlay off.
 3. Enter status-bar demo mode.
 4. Capture shots 1–8 (raw 1080×2640).

@@ -1,23 +1,23 @@
 ---
 layout: default
-title: Candela — TechEmpower's accessible resource app, with audiobook everything
-description: Listen to ebooks, follow serial fiction, wake up to a narrated briefing, rehearse with a teleprompter, create audiobooks, scan pages, and hear any link read aloud — thirty-three sources, four on-device neural voice families, free and open, no account, no tracking.
+title: Candela — TechEMPOWER's accessible resource app, with audiobook everything
+description: Listen to ebooks, follow serial fiction, wake up to a narrated briefing, rehearse with a teleprompter, create audiobooks, scan pages, and hear any link read aloud — thirty-four sources, four on-device neural voice families, free and open, no account, no tracking.
 image: /screenshots/03-reader.png
 ---
 
 <section class="hero">
   <div class="hero-text">
     <h1>Candela</h1>
-    <p class="tagline"><strong><a href="https://techempower.org">TechEmpower</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
+    <p class="tagline"><strong><a href="https://techempower.org">TechEMPOWER</a>'s accessible resource app.</strong> Browse free tech guides, connect with peer-support Discord, dial 211 for local help — and listen to any of it through a neural-voice audiobook engine that reads everything aloud.</p>
     <p>
-      Under the hood: thirty-three fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
+      Under the hood: thirty-four fiction backends side by side — <a href="https://royalroad.com">Royal Road</a>,
       <a href="https://github.com">GitHub</a>, RSS feeds, EPUB files on your device,
       <a href="https://www.getoutline.com">Outline</a> wikis, your self-hosted
       <a href="https://github.com/techempower-org/mempalace">Memory Palace</a>,
       <a href="https://www.gutenberg.org/">Project Gutenberg</a>, AO3, Standard Ebooks,
       <a href="https://librivox.org">LibriVox</a>, Wikipedia,
       Wikisource, Radio (30k+ stations), <a href="https://notion.so">Notion</a> (defaults to
-      TechEmpower's resource library — Guides, Resources, About, Donate), Hacker News,
+      TechEMPOWER's resource library — Guides, Resources, About, Donate), Hacker News,
       <a href="https://news.google.com">Google News</a>,
       arXiv, PLOS, Discord, <a href="https://telegram.org">Telegram</a>,
       <a href="https://thepalaceproject.org">Palace Project</a>,
@@ -103,6 +103,10 @@ image: /screenshots/03-reader.png
       <p>A teleprompter that scrolls itself — or follows your voice through the mic — with takes recorded in place.</p>
     </div>
     <div class="use-card">
+      <h3>Capture a voice note</h3>
+      <p>Record a thought, memo, or meeting. It transcribes on-device; then, only if you tap Summarize, it becomes an AI note. Audio never leaves the phone.</p>
+    </div>
+    <div class="use-card">
       <h3>Scan a page &amp; listen</h3>
       <p>Point the camera at paper; on-device OCR turns it into narration. Nothing leaves the phone.</p>
     </div>
@@ -129,7 +133,7 @@ image: /screenshots/03-reader.png
   </div>
   <p class="uses-kicker muted">
     All of it free, open source, and on-device — no account, no ads, no tracking.
-    The machinery: <a href="#sources">thirty-three sources</a> and
+    The machinery: <a href="#sources">thirty-four sources</a> and
     <a href="#voices">four voice families</a>, below.
   </p>
 </section>
@@ -138,9 +142,9 @@ image: /screenshots/03-reader.png
   <h2>Why Candela</h2>
   <div class="why-grid">
     <div class="card">
-      <h3>TechEmpower Home</h3>
+      <h3>TechEMPOWER Home</h3>
       <p>
-        A dedicated TechEmpower screen ties the resource app together: free tech guides, an
+        A dedicated TechEMPOWER screen ties the resource app together: free tech guides, an
         About panel explaining the 501(c)(3) mission, a Browse-the-library shortcut, and the
         two help paths — <strong>peer-support Discord</strong> and <strong>call 211</strong> for
         local services. Designed for users who came for help, not for fiction.
@@ -149,7 +153,7 @@ image: /screenshots/03-reader.png
     <div class="card">
       <h3>Peer support, on-tap</h3>
       <p>
-        Tap once to open the TechEmpower
+        Tap once to open the TechEMPOWER
         <a href="https://discord.gg/j3SVttxw7k">peer-support Discord</a> — real volunteers,
         no chatbot. Tap to dial <strong>211</strong> for local United Way services. Both routes
         live alongside the library, never buried under a Settings menu.
@@ -159,8 +163,9 @@ image: /screenshots/03-reader.png
       <h3>On-device neural TTS</h3>
       <p>
         Four voice families ship — <a href="https://github.com/rhasspy/piper">Piper</a> (compact),
-        <a href="https://github.com/hexgrad/kokoro">Kokoro</a> (multi-speaker), and
-        <strong>KittenTTS</strong> (lightest tier, designed for slow devices). Voices download
+        <a href="https://github.com/hexgrad/kokoro">Kokoro</a> (multi-speaker),
+        <strong>KittenTTS</strong> (lightest tier, designed for slow devices), and
+        <strong>Supertonic&nbsp;3</strong> (HD). Voices download
         once, then live on-device. No cloud, no API keys, no per-character billing.
       </p>
     </div>
@@ -192,7 +197,7 @@ image: /screenshots/03-reader.png
     <div class="card">
       <h3>Beautiful Notion covers</h3>
       <p>
-        TechEmpower's Notion-backed library renders with proper page covers and brass-edged
+        TechEMPOWER's Notion-backed library renders with proper page covers and brass-edged
         synthetic tiles for pages with body images instead of explicit covers. The fallback uses
         a Library Nocturne palette so even cover-less pages look intentional.
       </p>
@@ -226,7 +231,7 @@ image: /screenshots/03-reader.png
 </section>
 
 <section class="sources">
-  <h2 id="sources">Thirty-three fiction backends, side by side</h2>
+  <h2 id="sources">Thirty-four fiction backends, side by side</h2>
   <p class="muted">
     A plugin-seam architecture means each backend is ~4 touchpoints. Adding a new one auto-surfaces
     in <strong>Settings → Plugins</strong>. Each has its own on/off toggle.
@@ -392,6 +397,11 @@ image: /screenshots/03-reader.png
       <h3>Any web article</h3>
       <p>Paste any link — Readability extraction turns an arbitrary web page into a single-chapter fiction. No URL is a dead-end.</p>
     </a>
+    <a class="source-card">
+      <span class="source-glyph" aria-hidden="true">DOC</span>
+      <h3>Candela Handbook</h3>
+      <p>The app's own user guide, shipped as a bundled narrated book — read the manual aloud, fully offline. No network, no permissions.</p>
+    </a>
   </div>
 </section>
 
@@ -477,13 +487,13 @@ image: /screenshots/03-reader.png
       <dark-image src-dark="screenshots/04-library.png" src-light="screenshots/04-library-light.png" alt="Library tab">
         <img src="screenshots/04-library.png" alt="Library tab" loading="lazy" />
       </dark-image>
-      <figcaption>Library — TechEmpower hero card on top, currently-listening with progress + smart resume below, four-tab dock <code>{Playing · Library · Voices · Settings}</code> anchored at the bottom.</figcaption>
+      <figcaption>Library — TechEMPOWER hero card on top, currently-listening with progress + smart resume below, four-tab dock <code>{Playing · Library · Voices · Settings}</code> anchored at the bottom.</figcaption>
     </figure>
     <figure>
-      <dark-image src-dark="screenshots/08-techempower-home.png" src-light="screenshots/08-techempower-home-light.png" alt="TechEmpower Home">
-        <img src="screenshots/08-techempower-home.png" alt="TechEmpower Home" loading="lazy" />
+      <dark-image src-dark="screenshots/08-techempower-home.png" src-light="screenshots/08-techempower-home-light.png" alt="TechEMPOWER Home">
+        <img src="screenshots/08-techempower-home.png" alt="TechEMPOWER Home" loading="lazy" />
       </dark-image>
-      <figcaption>TechEmpower Home — peer-support Discord, dial 211, Browse the resource library, About TechEmpower.</figcaption>
+      <figcaption>TechEMPOWER Home — peer-support Discord, dial 211, Browse the resource library, About TechEMPOWER.</figcaption>
     </figure>
     <figure>
       <dark-image src-dark="screenshots/09-accessibility-settings.png" src-light="screenshots/09-accessibility-settings-light.png" alt="Accessibility settings">
@@ -555,7 +565,7 @@ image: /screenshots/03-reader.png
     always resolve to the newest version, so this page never goes stale.
   </p>
   <p>
-    <strong>Where Candela is now:</strong> <strong>thirty-three fiction backends</strong> behind a
+    <strong>Where Candela is now:</strong> <strong>thirty-four fiction backends</strong> behind a
     plugin-seam architecture (a new backend is ~4 touchpoints — a <code>@SourcePlugin</code> annotation
     plus KSP-generated Hilt registration); <strong>four in-process neural voice families</strong>
     (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
@@ -563,7 +573,7 @@ image: /screenshots/03-reader.png
     the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>cross-device InstantDB
     sync</strong>; an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,
     TalkBack pacing); and <strong>AI chat per fiction</strong> — cross-fiction memory, function calling,
-    and multi-modal image input. A <strong>TechEmpower-first</strong> home leads with Guides, Resources,
+    and multi-modal image input; and <strong>on-device Voice Notes</strong> — record a thought, transcribe it on-device, and (only if you tap Summarize) turn it into a consent-gated AI note. A <strong>TechEMPOWER-first</strong> home leads with Guides, Resources,
     peer-support Discord, and dial 211.
   </p>
   <p class="muted">

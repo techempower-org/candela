@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- nebula-scribe: auto-refresh so JP's open tab picks up live-Console edits without a manual reload -->
+<meta http-equiv="refresh" content="15">
 <title>Candela · Play Store Publishing Walkthrough</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23120d07'/%3E%3Crect x='12' y='15' width='8' height='13' rx='1.5' fill='%23e8dcc2'/%3E%3Crect x='15' y='9' width='2' height='6' fill='%236b5a2e'/%3E%3Cpath d='M16 2c3 3.5 3.6 6.2 1.8 8.2C16.6 11.5 14 11.2 14 8.4c0-1.7 1-3 2-6.4z' fill='%23f4b740'/%3E%3Cpath d='M16 4.5c1.6 2.2 1.8 4 .8 5.2-.8.9-2 .6-2-.9 0-1 .4-2.1 1.2-4.3z' fill='%23ffe9a8'/%3E%3C/svg%3E">
 <style>
@@ -92,6 +94,15 @@
   .reset:hover{ color:var(--cream); border-color:var(--brass-deep) }
   .doneflag{ display:none; font-family:var(--sans); font-size:12px; color:var(--ok) }
   body.complete .doneflag{ display:inline }
+  /* live-sync indicator — flashes on every auto-refresh so JP can see the scribe touched the page */
+  .synced{ font-family:var(--sans); font-size:12px; letter-spacing:.02em; color:#cfe9bd; white-space:nowrap;
+    border:1px solid rgba(143,207,107,.5); background:rgba(143,207,107,.08); border-radius:999px; padding:5px 12px;
+    animation:syncflash 1.6s ease-out 1 }
+  .synced::before{ content:"\27F3"; margin-right:6px; color:var(--ok); display:inline-block }
+  .synced b{ color:var(--ok); font-weight:600 }
+  @keyframes syncflash{ 0%{ background:rgba(143,207,107,.6); box-shadow:0 0 18px rgba(143,207,107,.65) } 100%{ background:rgba(143,207,107,.08); box-shadow:none } }
+  @media (prefers-color-scheme:light){ .synced{ color:#2f5f1c } .synced b{ color:#3f7a26 } }
+  @media (prefers-reduced-motion:reduce){ .synced{ animation:none } }
 
   /* ---------- TOC ---------- */
   nav.toc{ margin:20px 0 8px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center }
@@ -188,7 +199,70 @@
   footer .links{ font-family:var(--sans); font-size:12.5px; margin-top:10px; display:flex; gap:16px; justify-content:center; flex-wrap:wrap }
   .end-candle{ font-size:22px; color:var(--flame); filter:drop-shadow(0 0 8px rgba(244,183,64,.7)) }
 
+
+  /* ---------- Console task cards ---------- */
+  .secdiv{ margin:48px 0 10px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; scroll-margin-top:86px }
+  .secdiv .n{ font-family:var(--sans); font-size:12px; letter-spacing:.32em; text-transform:uppercase; color:var(--brass) }
+  .secdiv h2{ margin:0; font-size:clamp(23px,4.4vw,32px); color:var(--cream); font-weight:600; letter-spacing:.01em }
+  .secdiv .rule{ flex:1 1 50px; height:1px; background:linear-gradient(90deg,var(--line),transparent) }
+  .secdiv .meta{ font-family:var(--sans); font-size:12px; color:var(--muted); letter-spacing:.02em }
+  .task{ margin:13px 0; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),rgba(27,20,12,.7)); box-shadow:var(--shadow); scroll-margin-top:86px }
+  .task > .thead{ display:flex; align-items:center; gap:13px; padding:13px 17px; border-bottom:1px solid var(--line-soft);
+    background:linear-gradient(90deg,rgba(214,169,74,.09),transparent 62%) }
+  .tnum{ flex:none; width:34px; height:34px; border-radius:50%; display:grid; place-items:center; font-family:var(--serif);
+    font-size:15px; font-weight:600; color:var(--flame-hot); border:1.5px solid var(--brass-deep);
+    background:radial-gradient(circle at 32% 28%, rgba(244,183,64,.32), rgba(20,15,8,.6)); box-shadow:inset 0 0 10px rgba(244,183,64,.22) }
+  .task h3{ margin:0; font-size:18px; font-weight:600; color:var(--cream); letter-spacing:.01em }
+  .donebadge{ margin-left:auto; font-family:var(--sans); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ok); border:1px solid rgba(143,207,107,.5); background:rgba(143,207,107,.08); border-radius:999px; padding:3px 10px }
+  .tbody{ padding:14px 17px 16px }
+  .do{ display:flex; gap:11px; align-items:flex-start; font-size:16.5px; color:var(--cream); line-height:1.5 }
+  .do + .do{ margin-top:8px }
+  .do-tag{ flex:none; font-family:var(--sans); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:700;
+    color:#241704; background:linear-gradient(180deg,var(--flame-hot),var(--brass) 65%); border-radius:6px; padding:3px 9px; margin-top:3px }
+  .do b{ color:var(--brass-bright); font-weight:600 }
+  .taskwhy{ color:var(--muted); font-size:14px; font-style:italic; margin:9px 0 0 }
+  .taskwhy.plain{ font-style:normal }
+  ul.checks li{ padding-right:62px }
+  ul.checks li > .jump{ position:absolute; right:6px; top:12px; font-family:var(--sans); font-size:11.5px; letter-spacing:.02em;
+    color:var(--brass); border-bottom:none; white-space:nowrap }
+  ul.checks li > .jump:hover{ color:var(--brass-bright) }
+  ul.checks li .setdone{ color:var(--ok); font-family:var(--sans); font-size:11px; letter-spacing:.05em; margin-left:6px }
+  @media (max-width:560px){ .tbody{padding:12px 14px 14px} .task>.thead{padding:11px 13px} .do{font-size:16px} }
+
   @media (max-width:560px){ body{font-size:16px} .body{padding:14px 16px 20px} .step>.head{padding:16px 16px} .secprog{display:none} }
+
+  /* ---------- Light theme (system-driven) ---------- */
+  @media (prefers-color-scheme:light){
+    :root{
+      --ember:#efe6d2; --ember-2:#f7f0e0; --panel:#fbf6ea; --panel-2:#f3ead6;
+      --line:#d7c7a2; --line-soft:#e6dcc2;
+      --brass:#8a5f1e; --brass-bright:#6f4c16; --brass-deep:#5a3d10;
+      --flame:#b5852b; --flame-hot:#7a5417;
+      --cream:#2a2012; --parch:#332715; --muted:#6a5a3c; --faint:#9a875f;
+      --ok:#3f7a26; --warn:#a4551f; --danger:#a83627;
+      --shadow:0 16px 40px -22px rgba(90,61,16,.35);
+    }
+    body{
+      background:
+        radial-gradient(1100px 520px at 50% -8%, rgba(244,183,64,.20), rgba(244,183,64,.05) 40%, transparent 66%),
+        radial-gradient(700px 700px at 92% 8%, rgba(168,122,44,.12), transparent 60%),
+        linear-gradient(180deg,var(--ember-2),var(--ember) 55%);
+    }
+    body::before{ opacity:.35; mix-blend-mode:multiply;
+      background-image:radial-gradient(rgba(120,90,30,.05) 1px, transparent 1px); }
+    .rail{ background:linear-gradient(180deg,rgba(251,246,234,.97),rgba(247,240,224,.85)); }
+    section.step,.task{ background:linear-gradient(180deg,#fbf6ea,#f3ead6); }
+    .tnum{ background:radial-gradient(circle at 32% 28%, rgba(244,183,64,.40), rgba(255,248,232,.9)); }
+    .meter{ background:#e6dcc2; }
+    .seal{ background:radial-gradient(circle at 32% 28%, rgba(244,183,64,.40), rgba(255,248,232,.9)); }
+    .parch{ background:linear-gradient(180deg,#fbf6ea,#f3ead6); }
+    .parch .txt{ color:var(--parch); }
+    ul.checks li > input[type=checkbox]{ background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.7),rgba(120,90,30,.06)); }
+    code{ color:#5a3d10; background:rgba(168,122,44,.16); }
+    /* code blocks stay dark on purpose — high-contrast, keeps the .k/.c highlight colors legible */
+  }
 </style>
 </head>
 <body>
@@ -199,18 +273,20 @@
       <div class="glow"></div><div class="flame"></div><div class="wick"></div>
       <div class="body"><div class="drip"></div></div>
     </div>
-    <div class="kicker">TechEmpower · Release Rites</div>
+    <div class="kicker">TechEmpower &middot; Play Console Publish Flow</div>
     <h1 class="title">Candela</h1>
-    <p class="subtitle">A walkthrough for carrying the flame to the Play Store</p>
+    <p class="subtitle">One card per Console task &mdash; read the <b>Do</b>, do it, tick it off</p>
     <div class="statusbar">
-      <span class="chip live">Latest&nbsp;<b>v1.11.0</b></span>
-      <span class="chip">versionCode <b>263</b></span>
-      <span class="chip">in-app handbook + config seam</span>
-      <span class="chip">free · GPL-3.0 · no ads</span>
+      <span class="chip live">Publishing&nbsp;<b>v1.13.0</b></span>
+      <span class="chip">versionCode <b>271</b></span>
+      <span class="chip">org.techempower.candela</span>
+      <span class="chip">Voice Notes &middot; new</span>
+      <span class="chip">free &middot; no ads</span>
     </div>
-    <p class="lede">Once the one-time rites below are complete, every future release is a single
-      <code>./gradlew :app:publishReleaseBundle</code> away — it stages a <b>draft</b> on Internal Test that you
-      bless with one click. Check off each step; the wax meter remembers where you left the candle.</p>
+    <p class="lede">This mirrors the Google Play Console flow you&rsquo;re in right now &mdash; <b>App content&rsquo;s 11 policy tasks</b>,
+      then your <b>store listing</b>, then the <b>release</b>. Work top-to-bottom: each card names one Console task, the
+      <b>Do</b> line states the exact selection, and every field you paste has a <b>Copy</b> button. The wax meter remembers
+      what you&rsquo;ve ticked.</p>
   </header>
 
   <!-- progress rail -->
@@ -219,407 +295,413 @@
       <span class="label">Progress</span>
       <div class="meter"><div class="fill" id="fill"></div></div>
       <span class="count" id="count">0 / 0</span>
-      <span class="doneflag">✦ All rites complete — light it up ✦</span>
+      <span class="doneflag">&#10022; Every task ticked &mdash; ready to submit &#10022;</span>
+      <span class="synced" title="nebula-scribe keeps this page synced to the live Play Console — the tab auto-refreshes every 15s">Synced <b id="synced-time">21:06 PDT</b> &middot; edit <b id="synced-n">10</b></span>
       <button class="reset" id="reset" type="button">Snuff &amp; reset</button>
     </div>
   </div>
 
   <nav class="toc">
-    <a href="#s1">I · Console setup</a>
-    <a href="#s2">II · Store listing</a>
-    <a href="#s3">III · Signing &amp; AAB</a>
-    <a href="#s4">IV · Data Safety</a>
-    <a href="#s5">V · Content rating</a>
-    <a href="#s6">VI · First release</a>
-    <a href="#s7">VII · Automation</a>
-    <a href="#s8">VIII · Beta track</a>
+    <a href="#overview">&#9733; Checklist</a>
+    <a href="#secA">A &middot; App content</a>
+    <a href="#secB">B &middot; Store listing</a>
+    <a href="#secC">C &middot; Release</a>
+    <a href="#appendix">Appendix</a>
     <a href="#tshoot">Troubleshooting</a>
   </nav>
 
-  <!-- ===================== I. CONSOLE SETUP ===================== -->
-  <section class="step" id="s1">
+  <!-- ===================== OVERVIEW / CHECKLIST ===================== -->
+  <section class="step" id="overview">
     <div class="head">
-      <span class="seal">I</span>
-      <div><h2>One-time Console setup</h2><div class="sub">~15 min · browser only · first-time only</div></div>
-      <span class="secprog" data-secprog></span>
+      <span class="seal" style="font-size:16px">&#9733;</span>
+      <div><h2>The Console task list</h2><div class="sub">tick each as you finish it &middot; App content (11) &rarr; store listing &rarr; release</div></div>
     </div>
     <div class="body">
-      <p class="intro">These steps need Google's admin UI and can't be automated. Do them once as <b>TechEmpower-org admin</b> at
-        <a href="https://play.google.com/console" target="_blank" rel="noopener">play.google.com/console</a>.</p>
+      <p class="intro">You&rsquo;re on the <b>App content</b> dashboard (&ldquo;1 of 11 complete&rdquo;). Below is every task, in order,
+        each linking to its card. <b>Privacy policy is already set</b> &mdash; that&rsquo;s your 1 done.</p>
+
+      <p class="intro" style="margin:16px 0 4px"><b style="color:var(--brass-bright)">A &middot; App content</b> &mdash; 11 policy declarations</p>
       <ul class="checks">
-        <li><input type="checkbox" id="c1a"><label for="c1a"><span class="what">Create app</span><span class="pill manual">UI</span>
-          <span class="why">Name “Candela”, default language English (US), type = App, Free. Accept the developer-program-policy and US-export declarations.</span></label></li>
-        <li><input type="checkbox" id="c1b"><label for="c1b"><span class="what">App access — all functionality open</span>
-          <span class="why">No login wall in v1.0; everything is reachable without restrictions.</span></label></li>
-        <li><input type="checkbox" id="c1c"><label for="c1c"><span class="what">Target audience → 13+, not child-directed</span>
-          <span class="why">Matches the content rating. Answer “No” to the primarily-child-directed question.</span></label></li>
-        <li><input type="checkbox" id="c1d"><label for="c1d"><span class="what">Clear the “No” declarations</span>
-          <span class="why">News apps · COVID-19 contact tracing · Government apps · Financial features · Health · Ads — all <b>No</b>.</span></label></li>
-        <li><input type="checkbox" id="c1e"><label for="c1e"><span class="what">Privacy policy URL</span>
-          <span class="why">Point to <code>candela.techempower.org/privacy/</code> (also linked in-app at Settings → About).</span></label></li>
+        <li><input type="checkbox" id="o1"><label for="o1"><span class="what">Set privacy policy</span><span class="setdone">&#10003; already set</span></label><a class="jump" href="#a1">open &#9656;</a></li>
+        <li><input type="checkbox" id="o2"><label for="o2"><span class="what">Sign in details</span><span class="why">Nothing restricted &mdash; select <b>No</b> (sign-in never required).</span></label><a class="jump" href="#a2">open &#9656;</a></li>
+        <li><input type="checkbox" id="o3"><label for="o3"><span class="what">Ads &amp; Advertising ID</span><span class="why">No ads; No to Advertising ID (verified no AD_ID in merged manifest).</span></label><a class="jump" href="#a3">open &#9656;</a></li>
+        <li><input type="checkbox" id="o4"><label for="o4"><span class="what">Content rating (IARC)</span><span class="why">Downloaded No, Online&nbsp;Content Yes &rarr; Everyone / 3+ everywhere; accept it.</span></label><a class="jump" href="#a4">open &#9656;</a></li>
+        <li><input type="checkbox" id="o5"><label for="o5"><span class="what">Target audience &amp; content</span><span class="why">18 and over only &mdash; auto-skips the child-protection screens.</span></label><a class="jump" href="#a5">open &#9656;</a></li>
+        <li><input type="checkbox" id="o6"><label for="o6"><span class="what">News apps</span><span class="why">No.</span></label><a class="jump" href="#a6">open &#9656;</a></li>
+        <li><input type="checkbox" id="o7"><label for="o7"><span class="what">COVID-19 contact tracing &amp; status</span><span class="why">No (skip if not shown).</span></label><a class="jump" href="#a7">open &#9656;</a></li>
+        <li><input type="checkbox" id="o8"><label for="o8"><span class="what">Data safety</span><span class="why">5-step wizard &mdash; collect Yes (sync); shared None; Voice Notes stay on device.</span></label><a class="jump" href="#a8">open &#9656;</a></li>
+        <li><input type="checkbox" id="o9"><label for="o9"><span class="what">Government apps</span><span class="why">No.</span></label><a class="jump" href="#a9">open &#9656;</a></li>
+        <li><input type="checkbox" id="o10"><label for="o10"><span class="what">Financial features</span><span class="why">No.</span></label><a class="jump" href="#a10">open &#9656;</a></li>
+        <li><input type="checkbox" id="o11"><label for="o11"><span class="what">Health</span><span class="why">No.</span></label><a class="jump" href="#a11">open &#9656;</a></li>
+      </ul>
+
+      <p class="intro" style="margin:18px 0 4px"><b style="color:var(--brass-bright)">B &middot; Store listing</b> &mdash; how your app is presented</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="ob1"><label for="ob1"><span class="what">Main store listing &mdash; name, short &amp; full description</span><span class="why">Paste the three copy blocks.</span></label><a class="jump" href="#b1">open &#9656;</a></li>
+        <li><input type="checkbox" id="ob2"><label for="ob2"><span class="what">Graphics</span><span class="why">Upload icon, feature graphic &amp; screenshots (already in the repo).</span></label><a class="jump" href="#b2">open &#9656;</a></li>
+        <li><input type="checkbox" id="ob3"><label for="ob3"><span class="what">App category &amp; contact details</span><span class="why">Books &amp; Reference; contact email + website.</span></label><a class="jump" href="#b3">open &#9656;</a></li>
+        <li><input type="checkbox" id="ob4"><label for="ob4"><span class="what">Store settings &mdash; Google marketing</span><span class="why">Leave on &mdash; free reach for a free accessibility tool (no in-app ads either way).</span></label><a class="jump" href="#b4">open &#9656;</a></li>
+      </ul>
+
+      <p class="intro" style="margin:18px 0 4px"><b style="color:var(--brass-bright)">C &middot; Release</b> &mdash; start on Internal testing</p>
+      <ul class="checks">
+        <li><input type="checkbox" id="oc1"><label for="oc1"><span class="what">Internal testing &mdash; create release</span><span class="why">Safest first exposure before Closed &rarr; Production.</span></label><a class="jump" href="#c1">open &#9656;</a></li>
+        <li><input type="checkbox" id="oc2"><label for="oc2"><span class="what">Upload the AAB</span><span class="why">candela-v1.13.0.aab (versionCode 271).</span></label><a class="jump" href="#c2">open &#9656;</a></li>
+        <li><input type="checkbox" id="oc3"><label for="oc3"><span class="what">Release notes</span><span class="why">Paste the v1.13.0 notes (&le;500 chars).</span></label><a class="jump" href="#c3">open &#9656;</a></li>
+        <li><input type="checkbox" id="oc4"><label for="oc4"><span class="what">Review &amp; roll out</span><span class="why">Resolve errors, then start rollout.</span></label><a class="jump" href="#c4">open &#9656;</a></li>
+        <li><input type="checkbox" id="oc5"><label for="oc5"><span class="what">Add testers &rarr; promote to Production</span><span class="why">First Production release goes through Google review.</span></label><a class="jump" href="#c5">open &#9656;</a></li>
       </ul>
     </div>
   </section>
 
-  <!-- ===================== II. STORE LISTING ===================== -->
-  <section class="step" id="s2">
-    <div class="head">
-      <span class="seal">II</span>
-      <div><h2>Store listing upload</h2><div class="sub">graphics + copy · first-time, then auto via bootstrapListing</div></div>
-      <span class="secprog" data-secprog></span>
-    </div>
-    <div class="body">
-      <p class="intro">All graphics live in <code>docs/play-store/v1.0/</code>; the copy below is the source of truth in <code>docs/play-store/listing/</code> — kept in lock-step with this guide.</p>
-      <p class="intro" style="margin:14px 0 2px"><b style="color:var(--brass-bright)">Candela at a glance</b> — make sure the listing, screenshots, and Data Safety answers cover all of it; nothing shipped should be missing from the store.</p>
-      <div class="fmap">
-        <div class="fcard"><h5><span class="g">📚</span>Sources · 25</h5><p><b>Public-domain &amp; web:</b> Gutenberg, Standard Ebooks, LibriVox, Wikipedia, Wikisource, arXiv, PLOS, Hacker News, Google News, Bookshare, Palace Project libraries. <b>Community fiction:</b> Royal Road, AO3. <b>Your own data:</b> Notion, Outline, Memory Palace, Discord, Slack, Matrix, Telegram, RSS, radio (30k+), and a magic-link reader for any URL.</p></div>
-        <div class="fcard"><h5><span class="g">🎙</span>Voices · 4 on-device families</h5><p><b>Piper</b> (45 EN, US/UK), <b>Kokoro</b> (53 voices · 9 languages), <b>KittenTTS</b> (~25 MB, low-end), <b>Supertonic</b> (10 HD EN). Plus your device's <b>System TTS</b> (zero download) and optional BYOK <b>Azure</b> cloud. Per-book narrator; live speed, pitch &amp; pauses.</p></div>
-        <div class="fcard"><h5><span class="g">📖</span>Reader</h5><p>Synced sentence highlighting, auto-scroll <b>teleprompter</b> &amp; rehearsal mode, in-book search, tap-to-define dictionary, per-book speed, bookmarks, fonts &amp; color themes.</p></div>
-        <div class="fcard"><h5><span class="g">🗂</span>Library</h5><p>Follows &amp; new-chapter <b>inbox</b>, history, collections, highlights + notes, pronunciation dictionary, listening <b>stats</b> &amp; streaks.</p></div>
-        <div class="fcard"><h5><span class="g">📥</span>Import</h5><p>EPUB, PDF, ODT, TXT, RSS, and camera <b>OCR</b> (on-device ML Kit). Share any link to read it aloud.</p></div>
-        <div class="fcard"><h5><span class="g">📤</span>Export</h5><p>Make-your-own <b>audiobook</b> (chaptered M4B) and <b>EPUB 3.0</b>.</p></div>
-        <div class="fcard"><h5><span class="g">🤖</span>AI · BYOK</h5><p>Chat about a book &amp; chapter recaps. Your own key — <b>Anthropic, OpenAI</b>, or a local <b>Ollama</b> server. No app-run proxy.</p></div>
-        <div class="fcard"><h5><span class="g">🚗</span>On the go</h5><p><b>Android Auto</b> (voice search), lock-screen &amp; Bluetooth controls, home-screen widget, sleep timer, <b>Wear OS</b> companion + teleprompter remote.</p></div>
-        <div class="fcard"><h5><span class="g">♿</span>Accessibility</h5><p>TalkBack-aware, WCAG AA contrast, <b>OpenDyslexic</b> &amp; Atkinson fonts, adjustable scale, reduced-motion, dark/light.</p></div>
-        <div class="fcard"><h5><span class="g">🔒</span>Privacy</h5><p>No ads, no analytics, no account required. Optional <b>end-to-end-encrypted</b> sync. Every cloud feature is bring-your-own-key.</p></div>
-      </div>
-      <ul class="checks">
-        <li><input type="checkbox" id="c2a"><label for="c2a"><span class="what">App icon — <code>icon-512.png</code></span></label></li>
-        <li><input type="checkbox" id="c2b"><label for="c2b"><span class="what">Feature graphic — <code>feature-1024x500.png</code></span></label></li>
-        <li><input type="checkbox" id="c2c"><label for="c2c"><span class="what">Phone screenshots (4)</span>
-          <span class="why plain"><code>phone-01-library-hero</code> → <code>phone-04-fiction-detail.png</code></span></label></li>
-        <li><input type="checkbox" id="c2d"><label for="c2d"><span class="what">Tablet screenshots (6) — 7" &amp; 10"</span>
-          <span class="why plain"><code>tablet-01-library-hero</code> → <code>tablet-06-voice-picker.png</code></span></label></li>
-        <li><input type="checkbox" id="c2e"><label for="c2e"><span class="what">Paste title, short &amp; full description, contact email/phone/website</span></label></li>
-      </ul>
-
-      <div class="parch">
-        <h4>Title <span class="ct" id="ct-title"></span><button class="copy" data-copy="cp-title" type="button">Copy</button></h4>
-        <div class="txt" id="cp-title">Candela: Read Aloud</div>
-      </div>
-      <div class="parch">
-        <h4>Short description <span class="ct" id="ct-short"></span><button class="copy" data-copy="cp-short" type="button">Copy</button></h4>
-        <div class="txt" id="cp-short">Free books, tech guides, and the web — read aloud by on-device voices.</div>
-      </div>
-      <div class="parch">
-        <h4>Full description <span class="ct" id="ct-full"></span><button class="copy" data-copy="cp-full" type="button">Copy</button></h4>
-        <div class="txt body" id="cp-full">Candela is TechEmpower's free, accessible resource app — read aloud.
-
-Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and read or listen to all of it through high-quality neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
-
-Under the hood, Candela is a serious audiobook player for any text you can reach — thirty-three fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files from your device, or turn a photo or scan into text with on-device OCR. Connect a Notion workspace, an Outline wiki, a Memory Palace you host yourself, or your Discord, Slack, Matrix, and Telegram channels. Tune in to internet radio with search across 30,000+ stations. Share any web link into Candela and a magic-link reader pulls the readable text and queues it for narration.
-
-Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 English voices in US and UK accents), Kokoro (53 warm multi-speaker voices across nine languages, from Spanish and French to Hindi, Japanese, and Chinese), KittenTTS (the lightest tier, about 25 MB, for slower phones), and Supertonic (ten expressive, high-quality English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices — Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
-
-The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass as the voice glides along — or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key — Anthropic, OpenAI, or local Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
-
-Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
-
-Optional cloud sync (powered by InstantDB) keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices — encrypted in transit, with any saved API keys end-to-end encrypted behind a passphrase only you hold. Delete synced data any time with the in-app "Delete cloud data" action. Or stay fully offline; your call.
-
-FEATURES
-• 25 fiction &amp; reference sources — enable only the ones you want
-• 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
-• Optional bring-your-own-key cloud voices (Microsoft Azure)
-• Hybrid reader with synced brass highlighting + an auto-scrolling teleprompter
-• Tap-to-define dictionary, in-book search, and listening stats
-• Per-book AI chat &amp; chapter recaps (bring your own key — Anthropic, OpenAI, Ollama)
-• Android Auto, lock-screen controls, sleep timer, home-screen widget
-• Make-your-own-audiobook (M4B) and EPUB export
-• Gapless chapter auto-advance with smart prerendering
-• Optional end-to-end-encrypted cross-device sync — or fully offline
-• Wear OS companion (playback + teleprompter remote)
-• Dark &amp; light themes; OpenDyslexic &amp; Atkinson fonts; TalkBack-friendly; WCAG AA contrast
-• Free, GPL-3.0, ad-free, no tracking, no account required
-
-Candela is built by TechEmpower, a 501(c)(3) nonprofit closing the digital divide with free tools and software. Open source on GitHub.</div>
-      </div>
-      <div class="note"><span class="t">Release notes</span>Keep them user-facing, ≤ <b>500 chars</b>, 3–5 bullets led by the CHANGELOG tagline — never PR numbers or module names. The <b>first</b> production release should say “First public release” + a 4–5 bullet feature summary. Live file: <code>app/src/main/play/release-notes/en-US/default.txt</code>.</div>
-    </div>
-  </section>
-
-  <!-- ===================== III. SIGNING & AAB ===================== -->
-  <section class="step" id="s3">
-    <div class="head">
-      <span class="seal">III</span>
-      <div><h2>Signing &amp; the AAB</h2><div class="sub">release keystore · Play App Signing</div></div>
-      <span class="secprog" data-secprog></span>
-    </div>
-    <div class="body">
-      <ul class="checks">
-        <li><input type="checkbox" id="c3a"><label for="c3a"><span class="what">Release keystore in place</span>
-          <span class="why plain"><code>~/.storyvox-keystore/storyvox-release.keystore</code> — a real, never-committed signing key (replaces the old debug keystore Google rejects at upload). SHA256 <code>38:9F:BD:AA…85:E0:16</code>.</span></label></li>
-        <li><input type="checkbox" id="c3b"><label for="c3b"><span class="what">Enroll in Play App Signing</span>
-          <span class="why">Google holds the app-signing key; our keystore is the <i>upload</i> key. Play Console → Setup → App integrity confirms the upload key matches.</span></label></li>
-        <li><input type="checkbox" id="c3c"><label for="c3c"><span class="what">AAB is the canonical artifact</span>
-          <span class="why">The build defaults to <code>defaultToAppBundles=true</code>; APK uploads only run if explicitly asked.</span></label></li>
-        <li><input type="checkbox" id="c3d"><label for="c3d"><span class="what">Both secrets backed up in Vaultwarden</span>
-          <span class="why">Item <code>storyvox-release-keystore</code> (keystore + password); add the service-account JSON as a Secure Note attachment.</span></label></li>
-      </ul>
-      <div class="note danger"><span class="t">Do not rotate</span>Once Play App Signing accepts the keystore, <b>never rotate</b> it without Google's key-rotation flow — a wrong key uploaded against an existing app is rejected with <b>no recovery path</b>.</div>
-    </div>
-  </section>
-
-  <!-- ===================== IV. DATA SAFETY ===================== -->
-  <section class="step" id="s4">
-    <div class="head">
-      <span class="seal">IV</span>
-      <div><h2>Data Safety form</h2><div class="sub">pre-drafted answers · enter at submission</div></div>
-      <span class="secprog" data-secprog></span>
-    </div>
-    <div class="body">
-      <p class="intro">The honest story: with sync <b>off</b> — the default — Candela collects <span class="no">nothing</span>. A build-wide grep finds <b>zero</b> analytics, ads, or crash-reporting SDKs (the only third-party libraries are on-device ML Kit for OCR and the Compose fonts provider). Turn on optional sync and it stores your library and reading data on InstantDB; any saved API keys ride along <b>end-to-end encrypted</b> behind a passphrase only you hold.</p>
-      <div class="tablewrap"><table>
+  <div class="secdiv" id="secA"><span class="n">Section A</span><h2>App content</h2><span class="rule"></span><span class="meta">11 policy tasks &middot; complete &#10003;</span></div>
+<div class="task" id="a1">
+  <div class="thead"><span class="tnum">1</span><h3>Set privacy policy</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Paste the URL below into <b>Privacy policy</b> and Save.</span></div>
+    <p class="taskwhy">Served by GitHub Pages from <code>docs/privacy.md</code>; &sect;2.15 already discloses Voice Notes. Verify the live page shows that section before you submit &mdash; it&rsquo;s a compliance gate.</p>
+    <div class="parch">
+  <h4>Privacy policy URL <button class="copy" data-copy="cp-privurl" type="button">Copy</button></h4>
+  <div class="txt" id="cp-privurl">https://candela.techempower.org/privacy/</div>
+</div>
+  </div>
+</div>
+<div class="task" id="a2">
+  <div class="thead"><span class="tnum">2</span><h3>Sign in details <span style="font-weight:400;opacity:.6;font-size:.8em">(was &ldquo;App access&rdquo;)</span></h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Question is <b>&ldquo;Is any part of your app restricted?&rdquo;</b> &mdash; select <b>No</b>.</span></div>
+    <p class="taskwhy">Nothing is <b>required</b>: no account sign-in in any region, no content requires payment. The sign-ins that <b>do</b> exist &mdash; cloud sync, AO3, Palace Project &mdash; are all optional and use the user&rsquo;s <b>own</b> third-party accounts, so there&rsquo;s no Candela login and no test credentials to provide (Google can&rsquo;t use personal accounts anyway). &ldquo;Restricted&rdquo; means a reviewer would be <b>blocked</b> without credentials &mdash; they aren&rsquo;t.</p>
+  </div>
+</div>
+<div class="task" id="a3">
+  <div class="thead"><span class="tnum">3</span><h3>Ads &amp; Advertising ID</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span><b>Ads:</b> select <b>&ldquo;No, my app does not have ads&rdquo;</b>. <b>Advertising ID</b> (Start declaration): select <b>&ldquo;No, my app doesn&rsquo;t use advertising ID.&rdquo;</b></span></div>
+    <p class="taskwhy">Candela has zero ads and ships no analytics/advertising SDKs (a build-wide grep finds none; privacy policy &sect;7 says the same). <b>Verified clean:</b> <code>play-services-basement&nbsp;18.4.0</code> does <b>not</b> declare the <code>com.google.android.gms.permission.AD_ID</code> permission, and none of the injecting libraries are present (no Firebase / play-services-ads / play-services-measurement) &mdash; so the <b>No</b> submits with no manifest flag and <b>no rebuild</b>. (This declaration gates submitting releases that target Android&nbsp;13+.)</p>
+  </div>
+</div>
+<div class="task" id="a4">
+  <div class="thead"><span class="tnum">4</span><h3>Content rating</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span><b>Category step:</b> enter contact email <code>jp@techempower.org</code>, pick <b>All Other App Types</b> (the only 3 options are Game / Social&ndash;Communication / All Other), and check <b>&ldquo;I agree to the IARC Terms of Use.&rdquo;</b></span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Questionnaire:</b> <b>Downloaded App</b> (content baked into the APK) &rarr; <b>No</b>. Seller-authored <b>Violence / Sexuality / Language / Controlled substances / Gambling</b> &rarr; <b>No</b> &mdash; each is scoped to content <i>the seller creates</i> and explicitly excludes user-generated content.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Online Content</b> &rarr; <b>Yes</b> &mdash; the rating driver: Candela surfaces uncontrolled third-party fiction (AO3, reddit, Royal Road&hellip;) and web pages it doesn&rsquo;t author.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Promotion / Sale of Age-Restricted Products</b> &rarr; <b>No</b>. <b>Miscellaneous</b> &mdash; all five <b>No</b>: shares precise location with other users; purchase digital goods; cash / gift cards / play-to-earn / crypto / NFTs; <b>is a web browser or search engine</b>; <b>primarily a news or educational product</b>.</span></div>
+    <p class="taskwhy">The app authors none of the flagged content, but it surfaces reddit, Royal Road, AO3, and any web page via the magic-link reader &mdash; that&rsquo;s the &ldquo;online content&rdquo; disclosure. &ldquo;Web browser / search engine&rdquo; is <b>No</b>: Candela reads a fixed, curated source set, not arbitrary URLs or open-web results &mdash; answering Yes would force the maximum rating. Reviewers also look for the in-app &ldquo;Report objectionable content&rdquo; mailto (Settings &rarr; About) and the reader&rsquo;s <code>http/https</code>-only lock &mdash; both already present.</p>
+    <div class="note safe"><span class="t">Summary &middot; confirmed &mdash; Accept it</span>The questionnaire returned the floor everywhere, single descriptor <b>&ldquo;App features or promotes online content.&rdquo;</b> &mdash; ESRB <b>Everyone</b> &middot; PEGI <b>3</b> &middot; ClassInd&nbsp;(Brazil) &amp; USK&nbsp;(Germany) <b>All ages</b> &middot; IARC&nbsp;Generic + Russia + South&nbsp;Korea <b>Rated for 3+</b>. This is the honest output of correct answers; the low rating is fine &mdash; your <b>18+ target audience</b> (next task) is the real adult-scope lever. The South Korea <b>games-under-19</b> warning is boilerplate &mdash; <b>N/A</b> (Candela is not a game). <b>Accept the ratings.</b></div>
+  </div>
+</div>
+<div class="task" id="a5">
+  <div class="thead"><span class="tnum">5</span><h3>Target audience &amp; content</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span><b>Target age:</b> check <b>&ldquo;18 and over&rdquo; only</b> &mdash; leave every younger box (5&nbsp;&amp;&nbsp;under through 16&ndash;17) unchecked.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>Optional &mdash; recommended:</b> check <b>&ldquo;Restrict users that Google has determined to be minors from my app.&rdquo;</b> It&rsquo;s the one place you <i>enforce</i> (not just label) the adult scope, and Candela can surface AO3 <i>Explicit</i> fiction one tap away. Cost: trims reach slightly (Google-determined minors blocked; adult false-positives can fix their account age).</span></div>
+    <p class="taskwhy">Candela isn&rsquo;t built for children and it opens uncontrolled third-party fiction. Choosing 18+ keeps it out of the Families / Designed-for-Families program and the extra Teen-program requirements.</p>
+    <div class="note safe"><span class="t">Confirmed &mdash; it auto-skips</span>Selecting <b>18 and over</b> as the only target age tells Google there are no minors in your audience, so the Console <b>skips steps 2&ndash;4</b> (App&nbsp;details, Ads, Store&nbsp;presence &mdash; all child-protection screens) and jumps straight to <b>Summary</b> (<i>Target age: 18 and over</i>). That&rsquo;s expected, not a glitch &mdash; <b>Save it.</b></div>
+    <div class="note"><span class="t">Note</span>This is a separate declaration from the IARC content rating above (which reads Everyone / 3+). Target audience is about who you <i>market to</i> and enforce against &mdash; Google lets it be <b>stricter</b> than the content rating, which is exactly this posture.</div>
+  </div>
+</div>
+<div class="task" id="a6">
+  <div class="thead"><span class="tnum">6</span><h3>News apps</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Select <b>&ldquo;No, this is not a news app&rdquo;</b>.</span></div>
+    <p class="taskwhy">Candela aggregates reading sources (Google News is just 1 of 33) but isn&rsquo;t a dedicated news publication.</p>
+  </div>
+</div>
+<div class="task" id="a7">
+  <div class="thead"><span class="tnum">7</span><h3>COVID-19 contact tracing &amp; status</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Select <b>No</b>. (If this task isn&rsquo;t listed for your app, skip it.)</span></div>
+    <p class="taskwhy">No contact-tracing or health-status functionality of any kind.</p>
+  </div>
+</div>
+<div class="task" id="a8">
+  <div class="thead"><span class="tnum">8</span><h3>Data safety</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>It&rsquo;s a 5-step wizard: <b>Overview &rarr; Data collection &amp; security &rarr; Data types &rarr; Data usage &amp; handling &rarr; Preview</b>. With sync <b>off</b> (the default) Candela collects <b>nothing</b>; with sync <b>on</b> it stores your library + reading data on InstantDB, and any saved API keys ride along <b>end-to-end encrypted</b>. <b>Data shared &rarr; None</b>. Voice Notes audio, transcript &amp; note stay on-device in <code>notes.db</code> &mdash; excluded from backup/transfer, never synced.</span></div>
+    <p class="intro">The honest story: with sync <b>off</b> — the default — Candela collects <span class="no">nothing</span>. A build-wide grep finds <b>zero</b> analytics, ads, or crash-reporting SDKs (the only third-party libraries are on-device ML Kit for OCR and the Compose fonts provider). Turn on optional sync and it stores your library and reading data on InstantDB; any saved API keys ride along <b>end-to-end encrypted</b> behind a passphrase only you hold.</p>
+    <div class="note safe"><span class="t">Step 2 &middot; Data collection &amp; security &mdash; confirmed answers</span><b>Collect or share required data types?</b> &rarr; <b>Yes</b> (sync collects email + user ID; AI chat / note summary sends user text on an explicit tap). <b>Encrypted in transit?</b> &rarr; <b>Yes</b>. <b>Account-creation methods</b> &rarr; check <b>&ldquo;Username and other authentication&rdquo;</b> (email + magic-code, no password) <b>+ &ldquo;OAuth&rdquo;</b> (Notion / Google&nbsp;Drive / reddit). <b>Provide a way to delete some or all data without deleting the account?</b> &rarr; <b>Yes</b> (in-app &ldquo;Delete cloud data&rdquo;). <b>Additional badges</b> (Independent security review, UPI&nbsp;Payments) &rarr; leave <b>both unchecked</b>.</div>
+    <div class="note"><span class="t">Delete-account &amp; Delete-data URLs &mdash; resolved, confirm live</span>Because the app supports account creation, Google requires a <b>public web URL</b> with deletion steps &mdash; the wizard asks for <b>two</b> fields, a <b>Delete-account URL</b> and a <b>Delete-data URL</b>. <b>Both take the same URL below for now</b> &mdash; the live privacy policy documents both cases (&sect;5 Data&nbsp;retention: the in-app &ldquo;Delete cloud data&rdquo; action purges synced data with the account intact; &sect;8 Your&nbsp;rights: account/record deletion). A dedicated <code>candela.techempower.org/delete-account/</code> page is being published to serve both fields with the steps in one place; swap to it before final submit &mdash; Data Safety is editable any time. <b>Confirm the page is live before submitting.</b></div>
+    <div class="parch">
+  <h4>Delete-account &amp; Delete-data URL (paste in both) <button class="copy" data-copy="cp-delurl" type="button">Copy</button></h4>
+  <div class="txt" id="cp-delurl">https://candela.techempower.org/privacy/</div>
+</div>
+    <div class="note safe"><span class="t">Step 3 &middot; Data types &mdash; select exactly these</span><b>Personal info</b> &rarr; <b>Email address</b> + <b>User IDs</b> (2/9). <b>App activity</b> &rarr; <b>App interactions</b> (library, positions, follows, settings) + <b>Other user-generated content</b> (bookmarks, highlights, reading notes, pronunciation dictionary) (2/5). <b>Everything else &rarr; none</b> &mdash; including <b>Audio files</b> (Voice Notes audio never leaves the device) and Location, Financial, Health, Messages, Photos, Files, Calendar, Contacts, Web&nbsp;browsing, App&nbsp;info/performance, Device&nbsp;IDs. API keys/tokens aren&rsquo;t a Google data type and are E2E-encrypted &mdash; exempt, don&rsquo;t declare (that&rsquo;s what keeps <b>Data shared = None</b> true).</div>
+    <div class="note safe"><span class="t">Step 4 &middot; Data usage &amp; handling &mdash; per-type form, same answers for all 4</span>Each type opens a detail form (Email, User&nbsp;ID, App&nbsp;interactions, Other&nbsp;UGC): <b>Collected</b> &#10003; &mdash; leave <b>Shared unchecked</b> (InstantDB is a <i>processor</i> storing on your behalf, not a third-party recipient). <b>Processed ephemerally?</b> &rarr; <b>No</b> (stored to sync, not memory-only). <b>Required, or can users choose?</b> &rarr; <b>Users can choose</b> (sync is opt-in &rarr; shows as optional). <b>Why collected?</b> &rarr; <b>App functionality</b>; Email + User&nbsp;ID also <b>Account management</b> (nothing else &mdash; no Analytics, Advertising, Personalization, etc.). AI chat &amp; Voice-Notes summaries are <b>BYOK</b> (user&rsquo;s own LLM key; text goes straight to their provider) &mdash; same bucket as Messages, <b>not</b> collected by the app, so no extra type and <b>Data shared = None</b> holds.</div>
+    <div class="note safe"><span class="t">Step 5 &middot; Preview &mdash; verified, task DONE</span>The saved declaration reads exactly right: <b>No data shared with third parties</b>; <b>Personal info</b> (Email, User&nbsp;IDs) &mdash; <b>Optional</b> &middot; App functionality + Account management; <b>App activity</b> (App interactions, Other&nbsp;UGC) &mdash; <b>Optional</b> &middot; App functionality; <b>Delete app account</b> &amp; <b>Manage app data</b> both &rarr; <code>candela.techempower.org/privacy/</code> (interim); <b>Data is encrypted in transit</b>; privacy policy set. Console shows <b>&ldquo;Change saved&rdquo;</b> &mdash; nothing to change. Deferred, non-blocking: swap both deletion links to <code>/delete-account/</code> once that page is published (Data Safety is editable anytime).</div>
+    <div class="note"><span class="t">Wizard answers, in one line</span><b>Data collected</b> &rarr; email, user ID &amp; app activity, <b>sync only</b>; <b>Data shared</b> &rarr; <b>None</b> (InstantDB is a processor; BYOK keys &amp; channel sign-ins are user-initiated). <b>Security</b> &rarr; encrypted in transit = Yes; secrets end-to-end encrypted; user can request deletion = Yes (in-app &ldquo;Delete cloud data&rdquo;). <b>Independent security review</b> &rarr; No.</div>
+    <div class="tablewrap"><table>
         <tr><th>Data type</th><th>Collected?</th><th>Notes</th></tr>
         <tr><td>Email address</td><td class="yes">Yes — sync only</td><td>Magic-code sign-in; HTTPS to InstantDB. Not required; use "Delete cloud data" to purge, or sign out to revoke the token.</td></tr>
         <tr><td>User ID</td><td class="yes">Yes — sync only</td><td>InstantDB record ID, internal — never exposed to other users.</td></tr>
         <tr><td>App activity <span class="why plain">(library, reading positions, follows, bookmarks, highlights &amp; notes, pronunciation dictionary, settings)</span></td><td class="yes">Yes — sync only</td><td>The sync payload — JSON over HTTPS. Deletable via the in-app "Delete cloud data" action.</td></tr>
         <tr><td>API keys &amp; tokens <span class="why plain">(Azure / LLM / source logins, incl. Notion &amp; Google&nbsp;Drive OAuth)</span></td><td class="yes">Sync only · <b>E2E&nbsp;encrypted</b></td><td>AES-256-GCM, PBKDF2 600k, passphrase-derived — InstantDB never sees plaintext. Stored locally in Tink-encrypted prefs; excluded from device backup. The Notion OAuth (#1507) and Google&nbsp;Drive OAuth (#1496, <code>drive.file</code> scope) access/refresh tokens ride this same path; content flows user&nbsp;→&nbsp;Notion/Google directly.</td></tr>
         <tr><td>Photos / Camera (OCR)</td><td class="no">No</td><td>ML Kit runs <i>on-device</i>; images + recognized text never leave the phone.</td></tr>
-        <tr><td>Audio / Microphone <span class="why plain">(recording, voice-paced teleprompter)</span></td><td class="no">No</td><td>Recording mode (#1367) saves audio <i>on-device</i>; the voice-paced teleprompter (#1368) transcribes speech with an <i>on-device</i> model (sherpa-onnx). Audio never leaves the phone — only a one-time recognition-model download touches the network.</td></tr>
+        <tr><td>Audio / Microphone <span class="why plain">(Voice Notes, recording, voice-paced teleprompter)</span></td><td class="no">No</td><td><b>Voice Notes</b> (#1657) records audio and transcribes it <i>on-device</i> (Whisper); the recording, the transcript, and the note all live in a separate <code>notes.db</code> that is excluded from cloud backup + device transfer and <b>never synced</b>. Recording mode (#1367) saves audio <i>on-device</i>; the voice-paced teleprompter (#1368) transcribes speech with an <i>on-device</i> model (sherpa-onnx). Audio never leaves the phone — only a one-time recognition-model download touches the network.</td></tr>
         <tr><td>Files &amp; docs <span class="why plain">(EPUB / PDF / ODT)</span></td><td class="no">No</td><td>Read via the Storage Access Framework; never uploaded.</td></tr>
         <tr><td>My Documents wallet <span class="why plain">(benefits proofs, #1514)</span></td><td class="no">No</td><td>Stored <i>on-device</i> as AES-256-GCM <code>EncryptedFile</code> behind a device-credential (fingerprint / face / screen-lock) gate; excluded from cloud backup + device transfer; never synced. Nothing leaves the phone.</td></tr>
         <tr><td>Calendar</td><td class="no">No</td><td>Read on-device via <code>CalendarContract</code> and narrated locally (#1495); events never leave the phone. Optional — the source stays empty until you grant <code>READ_CALENDAR</code>.</td></tr>
         <tr><td>Messages</td><td class="no">No</td><td>Discord/Slack/Matrix/Telegram are read with the user's own credentials, directly to those services.</td></tr>
-        <tr><td>AI chat text</td><td class="no">No <span class="why plain">(by the app)</span></td><td>Sent only to the user's own LLM provider via their own key — BYOK, user-initiated.</td></tr>
+        <tr><td>AI chat text <span class="why plain">(incl. Voice Notes summaries)</span></td><td class="no">No <span class="why plain">(by the app)</span></td><td>Sent only to the user's own LLM provider via their own key — BYOK, user-initiated. A <b>Voice Notes</b> transcript leaves the phone <b>only</b> when the user explicitly taps <b>Summarize</b> on that note with an AI provider configured (#1657); nothing is ever sent automatically or on-record.</td></tr>
         <tr><td>Location · Contacts · Financial · Health · Device IDs · Ad ID · Crash logs</td><td class="no">No</td><td>Never requested. No analytics, no crash reporter, no ads.</td></tr>
       </table></div>
-
-      <p class="intro" style="margin-top:18px">Permissions — every one maps to a visible feature; none is “just in case”:</p>
-      <div class="tablewrap"><table>
+    <p class="taskwhy plain" style="margin-top:16px">Permissions &mdash; every one maps to a visible feature; none is &ldquo;just in case&rdquo;:</p>
+    <div class="tablewrap"><table>
         <tr><th>Permission</th><th>Why</th></tr>
         <tr><td><code>INTERNET</code> · <code>ACCESS_NETWORK_STATE</code></td><td>Fetch content, download voices, optional sync, BYOK cloud calls; offline detection.</td></tr>
         <tr><td><code>WAKE_LOCK</code></td><td>Keep synthesis + playback alive with the screen off.</td></tr>
-        <tr><td><code>FOREGROUND_SERVICE</code> <span class="why plain">+ MEDIA_PLAYBACK + DATA_SYNC</span></td><td>Playback session; chapter pre-render &amp; sync workers — user-visible &amp; stoppable.</td></tr>
+        <tr><td><code>FOREGROUND_SERVICE</code> <span class="why plain">+ MEDIA_PLAYBACK + DATA_SYNC + MICROPHONE</span></td><td>Playback session; chapter pre-render &amp; sync workers; Voice Notes recording runs under a microphone-typed FGS (#1657) — all user-visible &amp; stoppable.</td></tr>
         <tr><td><code>POST_NOTIFICATIONS</code></td><td>Transport controls in the notification &amp; on the lock screen; local benefits-deadline reminders (#1515).</td></tr>
         <tr><td><code>RECEIVE_BOOT_COMPLETED</code></td><td>Home-screen widget redraws after a reboot; re-arms local deadline reminders (#1515).</td></tr>
         <tr><td><code>ACCESS_NOTIFICATION_POLICY</code></td><td>Sleep timer can auto-toggle Do Not Disturb.</td></tr>
         <tr><td><code>CAMERA</code> <span class="pill manual">optional</span></td><td>OCR scan-to-read; on-device; gallery-pick fallback if denied.</td></tr>
-        <tr><td><code>RECORD_AUDIO</code> <span class="pill manual">optional</span></td><td>Recording mode (#1367) &amp; the voice-paced teleprompter's on-device speech-to-text (#1368); requested on first use, on-device only — audio never leaves the phone.</td></tr>
+        <tr><td><code>RECORD_AUDIO</code> <span class="pill manual">optional</span></td><td>Voice Notes capture (#1657), recording mode (#1367) &amp; the voice-paced teleprompter's on-device speech-to-text (#1368); requested on first use, on-device only — audio never leaves the phone.</td></tr>
         <tr><td><code>READ_CALENDAR</code> <span class="pill manual">optional</span></td><td>Narrate your agenda (Today / Tomorrow / This Week); on-device only, requested on tap, source stays empty if denied.</td></tr>
         <tr><td><i>no permission for the wallet</i></td><td>The "My Documents" wallet (#1514) gates on the device credential via <code>KeyguardManager</code> — no <code>USE_BIOMETRIC</code> or any new permission.</td></tr>
         <tr><td><code>SCHEDULE_EXACT_ALARM</code></td><td>Fire benefits-deadline reminders at a predictable time on their day (#1515); local only, optional — inexact fallback if not allowed.</td></tr>
         <tr><td><code>WRITE_EXTERNAL_STORAGE</code> <span class="why plain">(maxSdk&nbsp;28)</span></td><td>Legacy only — lets recording mode write through the media store on Android&nbsp;9 and older; unused on Android&nbsp;10+. EPUB/PDF use the Storage Access Framework (no permission). No <code>CALL_PHONE</code>, location, contacts, or ad&nbsp;ID.</td></tr>
       </table></div>
+    <div class="note safe"><span class="t">Policy-check verdict — pass</span>Every requested permission maps to a visible feature (full audit: <code>play-store-policy-check.md</code> §5). <b>Three</b> foreground-service types (media playback · data sync · <b>microphone</b>), and the runtime <code>RECORD_AUDIO</code> is optional — requested only on first use of Voice Notes / recording / the voice-paced teleprompter. UGC advisory is handled in the <a href="#a4">Content rating</a> task. The Data Safety mapping agrees with the privacy policy: <b>nothing new is collected or shared</b> for Voice Notes — audio never leaves the device; only a single note&rsquo;s transcript text egresses, and only on an explicit <b>Summarize</b> tap.</div>
+    <div class="note"><span class="t">Hosted privacy policy — update before submission</span>The listing links <a href="https://candela.techempower.org/privacy/" target="_blank" rel="noopener">candela.techempower.org/privacy/</a>, served by <b>GitHub Pages</b> from <code>docs/privacy.md</code> (Jekyll, <code>CNAME</code>). It must disclose Voice Notes before you submit — this is a compliance gate. <code>docs/privacy.md</code> §2.15 already carries it; a <b>push to <code>main</code></b> rebuilds Pages automatically (~1 min), no separate deploy step. Verify the live page shows the section before submitting. The block below is the same disclosure if you ever edit the hosted policy directly.</div>
+    <div class="parch">
+      <h4>Privacy &mdash; Voice Notes disclosure <button class="copy" data-copy="cp-priv" type="button">Copy</button></h4>
+      <div class="txt body" id="cp-priv">Voice Notes (optional)
 
-      <ul class="checks">
-        <li><input type="checkbox" id="c4a"><label for="c4a"><span class="what">“Data collected” → email, user ID &amp; app activity, <b>sync only</b>; “Data shared” → <b>None</b></span>
-          <span class="why">InstantDB is a data <i>processor</i>; BYOK keys &amp; channel sign-ins are user-initiated, not sharing. <i>(If you'd rather treat InstantDB as a third party, declare email + app activity as shared.)</i></span></label></li>
-        <li><input type="checkbox" id="c4b"><label for="c4b"><span class="what">Security: encrypted in transit = <b>Yes</b>; secrets end-to-end encrypted; deletion = <b>Yes</b></span>
-          <span class="why">All HTTPS (<code>network_security_config.xml</code>); API keys AES-256-GCM behind a passphrase; in-app "Delete cloud data" purges the cloud copy; uninstall clears local data.</span></label></li>
-        <li><input type="checkbox" id="c4c"><label for="c4c"><span class="what">Independent security review = No · Families policy = No</span>
-          <span class="why">13+ app with a UGC advisory (see <a href="#s5">V</a>); not a Families title.</span></label></li>
-      </ul>
+Voice Notes lets you capture a thought, memo, or meeting and turn it into a searchable note. It uses the microphone (requested only when you start recording) and keeps your data on your device:
+
+• Recording is on-device — the audio is written to app-private storage on your device.
+• Transcription is 100% on-device (Whisper); the audio is never uploaded to transcribe it.
+• The recording, its transcript, and the note live in a separate on-device database, excluded from cloud backup and device-to-device transfer, and never part of Candela&rsquo;s optional cloud sync — Voice Notes stay only on the device that made them.
+• The AI summary is opt-in, per note: a note&rsquo;s transcript text is sent to your own configured cloud AI provider (BYOK — Anthropic, OpenAI, or local Ollama) only when you explicitly tap Summarize on that note. Nothing is sent automatically, in the background, or while recording.
+
+No audio ever leaves your device. The only Voice Notes data that can leave is the text transcript of a single note, and only on your explicit Summarize tap. Uninstalling Candela deletes the notes database and every recording with it.</div>
     </div>
-  </section>
+  </div>
+</div>
+<div class="task" id="a9">
+  <div class="thead"><span class="tnum">9</span><h3>Government apps</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Select <b>No</b>.</span></div>
+    <p class="taskwhy">Not published by, or on behalf of, a government entity.</p>
+  </div>
+</div>
+<div class="task" id="a10">
+  <div class="thead"><span class="tnum">10</span><h3>Financial features</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Select <b>No</b> to all financial-features options.</span></div>
+    <p class="taskwhy">No payments, lending, banking, crypto, or trading. The 211 dialer and benefits screener are informational, not financial products.</p>
+  </div>
+</div>
+<div class="task" id="a11">
+  <div class="thead"><span class="tnum">11</span><h3>Health apps</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Declare <b>no health features apply</b> &mdash; not a health app; collects no health or fitness data.</span></div>
+    <p class="taskwhy">Candela is a reading &amp; accessibility app; the benefits screener is informational, not a Play &ldquo;Health&rdquo; feature. The declaration just asks which Health-apps-policy requirements apply &mdash; none do.</p>
+  </div>
+</div>
 
-  <!-- ===================== V. CONTENT RATING ===================== -->
-  <section class="step" id="s5">
-    <div class="head">
-      <span class="seal">V</span>
-      <div><h2>Content rating</h2><div class="sub">IARC questionnaire</div></div>
-      <span class="secprog" data-secprog></span>
+  <div class="secdiv" id="secB"><span class="n">Section B</span><h2>Store listing</h2><span class="rule"></span><span class="meta">&ldquo;Manage how your app is presented&rdquo;</span></div>
+  <p class="intro" style="margin:4px 2px 0">Play Console &rarr; <b>Grow &rarr; Store presence &rarr; Main store listing</b> (copy + graphics), plus <b>Store settings &rarr; App category</b> and the listing <b>contact details</b>.</p>
+<div class="task" id="b1">
+  <div class="thead"><span class="tnum">1</span><h3>Main store listing &mdash; name, short &amp; full</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Paste the three blocks below. <b>App name &le; 30</b> chars, <b>short &le; 80</b>, <b>full &le; 4000</b> (char counts shown live).</span></div>
+    <div class="parch">
+  <h4>App name (title) <span class="ct" id="ct-title"></span><button class="copy" data-copy="cp-title" type="button">Copy</button></h4>
+  <div class="txt" id="cp-title">Candela: Read Aloud</div>
+</div>
+    <div class="parch">
+  <h4>Short description <span class="ct" id="ct-short"></span><button class="copy" data-copy="cp-short" type="button">Copy</button></h4>
+  <div class="txt" id="cp-short">Free books, tech guides, and the web. Read aloud by on-device voices.</div>
+</div>
+    <div class="parch">
+  <h4>Full description <span class="ct" id="ct-full"></span><button class="copy" data-copy="cp-full" type="button">Copy</button></h4>
+  <div class="txt body" id="cp-full">Candela is TechEMPOWER's free, accessible resource app. Read aloud.
+
+Browse free tech guides, find local help by dialing 211, reach a peer-support Discord in one tap, and listen to all of it with neural text-to-speech that runs entirely on your device. No subscription. No ads. No tracking. No account required.
+
+Under the hood, Candela is a serious audiobook player for any text you can reach. 34 fiction and reference sources are wired in. Browse Project Gutenberg, Standard Ebooks, LibriVox public-domain audiobooks, Royal Road, Archive of Our Own, Wikipedia, Wikisource, Hacker News, arXiv, PLOS, Google News, Bookshare's accessible library, and public libraries via the Palace Project. Open EPUB, PDF, ODT, or text files, or OCR a photo into text. The gallery picker reaches Google Photos, cloud shots included. Connect a Notion workspace, Google Drive folders, reddit, an Outline wiki, or your Discord, Slack, Matrix, and Telegram channels. Hear today's agenda from your own calendar (read on-device, never uploaded), catch the Epic and Prime Gaming free-game rotations, or tune in to internet radio across 30,000+ stations. Share any web link into Candela and its reader queues the text for narration.
+
+Four on-device neural voice families ship, all fully offline once downloaded: Piper (45 US &amp; UK English voices), Kokoro (53 voices across nine languages: Spanish, French, Hindi, Japanese, Chinese, and more), KittenTTS (a 25 MB lightweight tier for slower phones), and Supertonic (ten expressive English voices). Your device's own voices work out of the box with zero download, and you can add a Microsoft Azure key for optional cloud voices. Candela takes no cut and falls back to a local voice if the network drops. Assign a different narrator to each book, and adjust speed, pitch, and pause length live.
+
+The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlighting the spoken sentence in brass, or read along with an auto-scrolling teleprompter, look up any word with a tap, and search inside a book. Ask the built-in AI assistant about any book or get a chapter recap (bring your own key: Anthropic, OpenAI, Ollama). Listen on Android Auto, the lock screen, or a home-screen widget, with a sleep timer and gapless auto-advance. A Wear OS companion puts playback and a teleprompter remote on your wrist.
+
+Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
+
+Optional cloud sync keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices, encrypted in transit, with saved API keys end-to-end encrypted behind your passphrase. Delete synced data any time from inside the app. Or stay fully offline; your call.
+
+FEATURES
+• 34 fiction &amp; reference sources: enable only the ones you want
+• Voice Notes: record, transcribe on-device, optional AI summary
+• Your calendar as a narrated agenda: on-device, never uploaded
+• 4 on-device neural voice families (Piper, Kokoro, KittenTTS, Supertonic) + your device's own voices
+• Optional bring-your-own-key cloud voices (Microsoft Azure)
+• Hybrid reader with synced brass highlighting + an auto-scrolling teleprompter
+• Tap-to-define dictionary, in-book search, and listening stats
+• Per-book AI chat &amp; recaps (bring your own key)
+• Android Auto, lock-screen controls, sleep timer, home-screen widget
+• Make-your-own-audiobook (M4B) and EPUB export
+• Gapless chapter auto-advance
+• Optional end-to-end-encrypted cross-device sync, or fully offline
+• Wear OS companion (playback + teleprompter remote)
+• Dark &amp; light themes; OpenDyslexic &amp; Atkinson fonts; TalkBack-friendly; WCAG AA contrast
+• Free, GPL-3.0, ad-free, no tracking, no account required
+
+Candela is built by TechEMPOWER, a 501(c)(3) nonprofit closing the digital divide. Open source on GitHub.</div>
+</div>
+  </div>
+</div>
+<div class="task" id="b2">
+  <div class="thead"><span class="tnum">2</span><h3>Graphics</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Drag these into the Console&rsquo;s upload slots. <b>Icon 512&times;512</b>, <b>feature graphic 1024&times;500</b>, and the <b>7 phone screenshots</b> (1080&times;1920, clean status bar).</span></div>
+    <div class="tablewrap"><table>
+      <tr><th>Asset</th><th>Spec</th><th>Path</th></tr>
+      <tr><td>App icon <span class="why plain">(new Voiceprint candle mark &mdash; replaces the old listing icon)</span></td><td>512&times;512 PNG</td><td><code>brand/icon/android/play-store-512.png</code></td></tr>
+      <tr><td>Feature graphic <span class="why plain">(first draft; being refined in Claude Design)</span></td><td>1024&times;500 PNG</td><td><code>~/Downloads/feature-graphic-1024x500.png</code></td></tr>
+      <tr><td>Phone screenshots (7)</td><td>1080&times;1920 PNG</td><td><code>scratch/store-screenshots/01&ndash;07.png</code></td></tr>
+      <tr><td><span class="why plain">01 alt (resume-card variant)</span></td><td>1080&times;1920</td><td><code>&hellip;/01-library-ALT-resume-card.png</code></td></tr>
+    </table></div>
+    <p class="taskwhy">The 7 approved shots are 01&nbsp;library &middot; 02&nbsp;detail &middot; 03&nbsp;reader &middot; 04&nbsp;browse &middot; 05&nbsp;voices &middot; <b>06&nbsp;notes</b> &middot; 07&nbsp;settings &mdash; 06 is the headline <b>Voice Notes</b> shot. Tablet screenshots are optional; the phone set is enough to publish.</p>
+  </div>
+</div>
+<div class="task" id="b3">
+  <div class="thead"><span class="tnum">3</span><h3>App category &amp; contact details</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>App category &rarr; <b>Books &amp; Reference</b>. Set the contact email + website below (phone optional).</span></div>
+    <p class="taskwhy">&ldquo;Books &amp; Reference&rdquo; fits a read-aloud / audiobook + reference app better than Music &amp; Audio, and matches the store copy.</p>
+    <div class="parch">
+  <h4>Contact email <button class="copy" data-copy="cp-email" type="button">Copy</button></h4>
+  <div class="txt" id="cp-email">jp@techempower.org</div>
+</div>
+    <div class="parch">
+  <h4>Contact website <button class="copy" data-copy="cp-web" type="button">Copy</button></h4>
+  <div class="txt" id="cp-web">https://candela.techempower.org/</div>
+</div>
+  </div>
+</div>
+<div class="task" id="b4">
+  <div class="thead"><span class="tnum">4</span><h3>Store settings &mdash; Google marketing</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>In <b>Store settings &rarr; Manage how Google promotes your app</b>, <b>leave it on</b> (do <b>not</b> opt out).</span></div>
+    <p class="taskwhy"><b>Leave on.</b> Lets Google promote Candela across its ad networks and partner surfaces &mdash; free distribution of a free accessibility tool, serving TechEmpower&rsquo;s &ldquo;Access for All&rdquo; mission. It does <b>not</b> add ads inside Candela and doesn&rsquo;t change data collection; the targeting is in Google&rsquo;s promotion of your listing, not in the app. (Opting out is the brand-purity choice, but JP chose reach.)</p>
+  </div>
+</div>
+
+  <div class="secdiv" id="secC"><span class="n">Section C</span><h2>Release</h2><span class="rule"></span><span class="meta">Internal &rarr; Closed (12 testers / 14 days) &rarr; Production</span></div>
+  <p class="intro" style="margin:4px 2px 0">Start on <b>Internal testing</b> (instant, no review, up to 100 of your own testers). Google now gates Production behind a <b>Closed test</b>: you need <b>&ge;12 testers opted in for &ge;14 continuous days</b> before you can apply for Production. Play Console &rarr; <b>Test and release &rarr; Testing &rarr; Internal testing</b>.</p>
+  <div class="note safe"><span class="t">&#127881; Milestone &mdash; v1.13.0 (271) is LIVE on Internal testing</span>The Internal release is <b>published</b> and the <b>opt-in link is issued</b>. Next: <b>Testers</b> tab &rarr; add tester emails (your own Google account + your devices&rsquo;) &rarr; open the opt-in link on each device &rarr; install the <b>Play-signed</b> build.</div>
+  <div class="tablewrap"><table>
+    <tr><th>Track</th><th>Audience</th><th>Review?</th><th>Gate</th></tr>
+    <tr><td><b>Internal testing</b> <span class="pill auto">live</span></td><td>Up to 100 of your own testers</td><td class="no">No</td><td>Instant rollout</td></tr>
+    <tr><td>Closed testing</td><td>&ge;12 testers (email list / group)</td><td class="yes">Yes (first)</td><td><b>&ge;12 opted in for &ge;14 days</b> &rarr; unlocks Production</td></tr>
+    <tr><td>Production</td><td>Everyone</td><td class="yes">Yes</td><td>Apply once the closed-test criteria are met</td></tr>
+  </table></div>
+<div class="task" id="c1">
+  <div class="thead"><span class="tnum">1</span><h3>Internal testing &mdash; create release</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span><b>Test and release &rarr; Testing &rarr; Internal testing &rarr; Create new release</b>.</span></div>
+    <p class="taskwhy">Internal testing takes up to 100 testers, needs no Google review, and rolls out instantly &mdash; the safest first exposure. <b>App integrity:</b> Play App Signing is <b>ON</b> (Google holds the signing key; your keystore is only the upload key).</p>
+  </div>
+</div>
+<div class="task" id="c2">
+  <div class="thead"><span class="tnum">2</span><h3>Upload the AAB</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Under <b>App bundles</b>, drag in <code>candela-v1.13.0.aab</code> (local path below). Set the <b>Release name</b> to <b>&ldquo;1.13.0 (271) Fabled Jewel&rdquo;</b>.</span></div>
+    <div class="parch">
+  <h4>Local AAB path <button class="copy" data-copy="cp-aab" type="button">Copy</button></h4>
+  <div class="txt" id="cp-aab">/home/jp/Downloads/candela-v1.13.0.aab</div>
+</div>
+    <p class="taskwhy">It&rsquo;s an <b>AAB</b>, not an APK &mdash; Play App Signing re-signs it. versionCode <b>271</b>; if Play says the code was already used, bump it and rebuild.</p>
+  </div>
+</div>
+<div class="task" id="c3">
+  <div class="thead"><span class="tnum">3</span><h3>Release notes</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span>Paste the v1.13.0 notes below into <b>Release notes</b>. The Console wraps them per language (<code>&lt;en-US&gt;&hellip;&lt;/en-US&gt;</code>); keep them &le; <b>500 chars</b>.</span></div>
+    <div class="parch">
+  <h4>Release notes &mdash; v1.13.0 <span class="ct" id="ct-rn"></span><button class="copy" data-copy="cp-rn" type="button">Copy</button></h4>
+  <div class="txt body" id="cp-rn">v1.13.0: Fabled Jewel
+
+• Voice Notes: record a thought, memo, or meeting; Candela transcribes it on-device and, with your OK, turns it into a searchable AI summary
+• Choose your own default sleep-timer duration
+• Palace Project library sign-in now lives in Content Sources
+• AO3 account sign-in &amp; sign-out in Account settings</div>
+</div>
+  </div>
+</div>
+<div class="task" id="c4">
+  <div class="thead"><span class="tnum">4</span><h3>Review &amp; roll out</h3><span class="donebadge">&#10003; done</span></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span><b>Next &rarr; Preview and confirm</b> &rarr; <b>Start rollout to Internal testing</b>.</span></div>
+    <p class="taskwhy">Rollout to Internal is instant &mdash; no review, and nothing reaches the public from this track. The two warnings on the review screen are <b>non-blocking</b>: <b>&ldquo;No testers specified&rdquo;</b> is expected (you add them on the Testers tab next), and <b>&ldquo;No native debug symbols&rdquo;</b> is an optional build tweak (tracked in <code>#1674</code>).</p>
+  </div>
+</div>
+<div class="task" id="c5">
+  <div class="thead"><span class="tnum">5</span><h3>Add testers &rarr; path to Production</h3></div>
+  <div class="tbody">
+    <div class="do"><span class="do-tag">Do</span><span><b>Now:</b> Internal testing &rarr; <b>Testers</b> tab &rarr; add tester emails (your own Google account + your devices&rsquo;) &rarr; open the opt-in link on each device &rarr; install the Play-signed build.</span></div>
+    <div class="do"><span class="do-tag">Do</span><span><b>For Production:</b> publish a <b>Closed testing</b> release, get <b>&ge;12 testers opted in</b>, keep it running <b>&ge;14 continuous days</b>, then <b>apply for Production</b> access.</span></div>
+    <div class="note"><span class="t">Google&rsquo;s hard gate to Production</span>New personal/one-app developer accounts can&rsquo;t ship straight to Production &mdash; you must run a Closed test with <b>&ge;12 testers for &ge;14 days</b> first. The <b>first</b> Closed/Production release also goes through Google review (content-rating + policy check, hours to a couple of days); later updates to the same track usually clear fast.</div>
+  </div>
+</div>
+
+  <div class="secdiv" id="appendix"><span class="n">Appendix</span><h2>Signing, automation &amp; tracks</h2><span class="rule"></span><span class="meta">reference &mdash; not part of the task meter</span></div>
+
+  <div class="task">
+    <div class="thead"><span class="tnum">&#9670;</span><h3>Signing</h3></div>
+    <div class="tbody">
+      <p class="taskwhy plain">Upload key: <code>~/.storyvox-keystore/storyvox-release.keystore</code> (SHA256 <code>38:9F:BD:AA&hellip;85:E0:16</code>). Google holds the app-signing key via <b>Play App Signing</b>; this keystore is only the <i>upload</i> key. Both secrets live in Vaultwarden (<code>storyvox-release-keystore</code>).</p>
+      <div class="note danger"><span class="t">Do not rotate</span>Once Play App Signing accepts the keystore, <b>never rotate</b> it without Google&rsquo;s key-rotation flow &mdash; a wrong key against an existing app is rejected with <b>no recovery path</b>.</div>
     </div>
-    <div class="body">
-      <p class="intro">Target <b>Teen (13+)</b> with a user-generated-content advisory. Candela isn't a UGC <i>platform</i> — no feed, no posting, no social graph — but it surfaces content from sources it doesn't moderate.</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c5a"><label for="c5a"><span class="what">Complete the IARC questionnaire → target <b>Teen (13+)</b></span></label></li>
-        <li><input type="checkbox" id="c5b"><label for="c5b"><span class="what">Declare the user-generated-content advisory</span>
-          <span class="why"><b>Royal Road</b> &amp; <b>Archive of Our Own</b> carry community-written fiction that can include mature or explicit content (user-tagged, not enforced); <b>Discord / Slack / Matrix / Telegram</b> surface channel messages; the magic-link reader can open any public web page. The default landing surface (TechEmpower Home + library) is family-safe.</span></label></li>
-        <li><input type="checkbox" id="c5c"><label for="c5c"><span class="what">Confirm the moderation affordances reviewers look for</span>
-          <span class="why">In-app “Report objectionable content” (mailto) at Settings → About; the magic-link reader is <code>http/https</code>-only (no <code>file://</code> / <code>javascript:</code>). No social graph, so no block/mute is needed.</span></label></li>
-        <li><input type="checkbox" id="c5d"><label for="c5d"><span class="what">Target audience 13+, not child-directed — matches §I</span></label></li>
-      </ul>
-    </div>
-  </section>
+  </div>
 
-  <!-- ===================== VI. FIRST RELEASE ===================== -->
-  <section class="step" id="s6">
-    <div class="head">
-      <span class="seal">VI</span>
-      <div><h2>First release workflow</h2><div class="sub">service account · credentials · first upload</div></div>
-      <span class="secprog" data-secprog></span>
-    </div>
-    <div class="body">
-      <p class="intro">The service account is what lets <code>gradle</code> upload without a browser. Set it up once, then the per-release flow is one command.</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c6a"><label for="c6a"><span class="what">Create a Google Cloud project + enable the API</span><span class="pill once">once</span>
-          <span class="why">Project <code>techempower-storyvox-publishing</code> → APIs &amp; Services → enable <b>Google Play Android Developer API</b>.</span></label></li>
-        <li><input type="checkbox" id="c6b"><label for="c6b"><span class="what">Create service account + JSON key</span><span class="pill once">once</span>
-          <span class="why">IAM → Service Accounts → <code>storyvox-play-publisher</code> (no role here) → Keys → Add key → JSON.</span></label></li>
-        <li><input type="checkbox" id="c6c"><label for="c6c"><span class="what">Stash the JSON outside the repo</span><span class="pill once">once</span>
-          <span class="why plain"><code>~/.storyvox-keystore/play-service-account.json</code> — gitignored at the directory level.</span></label></li>
-        <li><input type="checkbox" id="c6d"><label for="c6d"><span class="what">Grant Play Console access — <b>Release manager</b>, Candela only</span><span class="pill once">once</span>
-          <span class="why">Play Console → Setup → API access → Link the Cloud project → Grant access → Release manager → Invite + accept. (Release manager can publish but not change app settings — exactly right.)</span></label></li>
-        <li><input type="checkbox" id="c6e"><label for="c6e"><span class="what">Wire the credential into the build</span><span class="pill once">once</span>
-          <span class="why">One line in gitignored <code>local.properties</code> (below). No keystore changes.</span></label></li>
-      </ul>
-      <pre><span class="c"># local.properties (gitignored)</span>
-storyvox.playPublisher.credentialsFile=/home/jp/.storyvox-keystore/play-service-account.json</pre>
-
-      <p class="intro" style="margin-top:18px">Then perform the first release:</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c6f"><label for="c6f"><span class="what">Bump <code>versionCode</code> + <code>versionName</code>, update CHANGELOG, tag &amp; push</span>
-          <span class="why">CI builds the AAB on tag push (self-hosted runner on katana) — the same AAB is what gets uploaded.</span></label></li>
-        <li><input type="checkbox" id="c6g"><label for="c6g"><span class="what">Upload to Internal Test (stages as DRAFT)</span></label></li>
-        <li><input type="checkbox" id="c6h"><label for="c6h"><span class="what">Click “Release” in Play Console → Internal Test</span>
-          <span class="why">A half-broken CI run can't auto-ship — publishing is always a deliberate click.</span></label></li>
-        <li><input type="checkbox" id="c6i"><label for="c6i"><span class="what">Submit first Production release for Google review</span>
-          <span class="why">Mandatory for the first Production release (content-rating accuracy, permissions). Subsequent updates usually clear automatically.</span></label></li>
-      </ul>
-      <pre><span class="c"># 1 · bump version in app/build.gradle.kts, update CHANGELOG.md</span>
-<span class="c"># 2 · tag + push (CI builds the AAB)</span>
-git tag -a v1.4.5 -m "v1.4.5 — six bug fixes + secrets audit"
-git push origin main v1.4.5
-
-<span class="c"># 3 · upload AAB → Internal Test as a draft, prints the edit URL</span>
-<span class="k">./gradlew :app:publishReleaseBundle</span>
-
-<span class="c"># 4 · open Play Console → Internal Test → click "Release"</span></pre>
-      <div class="note"><span class="t">If it says “requires credentials”</span>Re-check <code>storyvox.playPublisher.credentialsFile</code> in <code>local.properties</code> and that the JSON exists.</div>
-    </div>
-  </section>
-
-  <!-- ===================== VII. AUTOMATION ===================== -->
-  <section class="step" id="s7">
-    <div class="head">
-      <span class="seal">VII</span>
-      <div><h2>Per-release automation</h2><div class="sub">gradle-play-publisher · one command, then promote</div></div>
-      <span class="secprog" data-secprog></span>
-    </div>
-    <div class="body">
-      <p class="intro">After the rites above, <b>every</b> future release runs through one command — Triple-T's
-        <a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">gradle-play-publisher</a>,
-        configured in the <code>play { }</code> block of <code>app/build.gradle.kts</code>.</p>
-      <pre><span class="k">./gradlew :app:publishReleaseBundle</span>   <span class="c"># → AAB to Internal Test, staged as DRAFT</span></pre>
+  <div class="task">
+    <div class="thead"><span class="tnum">&#9670;</span><h3>Per-release automation (future releases)</h3></div>
+    <div class="tbody">
+      <p class="taskwhy plain">After the one-time service-account + credential wiring, every future release is one command &mdash; Triple-T&rsquo;s <a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">gradle-play-publisher</a>, configured in the <code>play { }</code> block of <code>app/build.gradle.kts</code>.</p>
+      <pre><span class="k">./gradlew :app:publishReleaseBundle</span>   <span class="c"># &rarr; AAB to Internal Test, staged as DRAFT</span></pre>
       <div class="tablewrap"><table>
         <tr><th>Setting</th><th>Value</th><th>Why</th></tr>
         <tr><td><code>track</code></td><td><code>internal</code></td><td>All uploads land in Internal Test; promote separately.</td></tr>
-        <tr><td><code>releaseStatus</code></td><td><code>DRAFT</code></td><td>Stages as a draft; you click “Release”. CI can't auto-ship.</td></tr>
+        <tr><td><code>releaseStatus</code></td><td><code>DRAFT</code></td><td>Stages as a draft; you click &ldquo;Release&rdquo;. CI can&rsquo;t auto-ship.</td></tr>
         <tr><td><code>defaultToAppBundles</code></td><td><code>true</code></td><td>AAB is the canonical path; APK only on explicit ask.</td></tr>
-        <tr><td><code>commit</code></td><td><code>false</code></td><td>Builds an “edit” without committing — prevents half-published state.</td></tr>
-        <tr><td><code>resolutionStrategy</code></td><td><code>IGNORE</code></td><td>Overrides a stale edit rather than failing; AGP <code>versionCode</code> is the source of truth.</td></tr>
+        <tr><td><code>resolutionStrategy</code></td><td><code>IGNORE</code></td><td>Overrides a stale edit rather than failing; AGP <code>versionCode</code> is source of truth.</td></tr>
       </table></div>
-      <ul class="checks">
-        <li><input type="checkbox" id="c7a"><label for="c7a"><span class="what">Promote Internal Test → Production after a test cycle</span><span class="pill auto">repeat</span>
-          <span class="why">UI: Production → Create new release → Add from library. Or gradle (below).</span></label></li>
-      </ul>
-      <pre><span class="c"># promote the tested internal build to production</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track production</pre>
-      <div class="note safe"><span class="t">Safety net</span>Every <code>publishReleaseBundle</code> is a <b>draft</b> until you click Release — a broken build never auto-publishes. The release keystore signs the AAB; the service-account JSON only has publishing rights (rotate immediately if exposed, via Cloud Console → Service Accounts → Keys).</div>
+      <pre><span class="c"># promote a tested build across tracks</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track alpha        <span class="c"># &rarr; Closed</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production        <span class="c"># &rarr; Production</span>
+<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production --user-fraction 0.1   <span class="c"># staged 10%</span></pre>
     </div>
-  </section>
+  </div>
 
-  <!-- ===================== VIII. BETA TRACK ===================== -->
-  <section class="step" id="s8">
-    <div class="head">
-      <span class="seal">VIII</span>
-      <div><h2>Beta testing track</h2><div class="sub">closed → open → production · testers before the world</div></div>
-      <span class="secprog" data-secprog></span>
-    </div>
-    <div class="body">
-      <p class="intro">Before going to Production, run the build through a <b>Closed</b> or <b>Open</b> testing track.
-        Closed testing targets an invite list (up to 2,000 per group); Open testing is anyone with the link. Both
-        give you crash reports, feedback, and a staged rollout before the public sees it.</p>
-
-      <div class="note"><span class="t">Track vocabulary</span>Play Console calls them <b>Internal</b>, <b>Closed</b>, and <b>Open</b> testing.
-        GPP uses the legacy names: <code>internal</code>, <code>alpha</code> (Closed), <code>beta</code> (Open).
-        The <code>promoteArtifact</code> task accepts either naming style, but the <code>track</code> property in <code>build.gradle.kts</code> must use the legacy names.</div>
-
+  <div class="task">
+    <div class="thead"><span class="tnum">&#9670;</span><h3>Track vocabulary</h3></div>
+    <div class="tbody">
+      <p class="taskwhy plain">Play Console calls them Internal / Closed / Open / Production; GPP uses the legacy names below (the <code>track</code> property in <code>build.gradle.kts</code> must use the legacy name).</p>
       <div class="tablewrap"><table>
-        <tr><th>Track</th><th>GPP name</th><th>Audience</th><th>Review?</th><th>Best for</th></tr>
-        <tr><td>Internal</td><td><code>internal</code></td><td>Up to 100 · email list</td><td>No</td><td>CI drafts, smoke-test builds</td></tr>
-        <tr><td>Closed</td><td><code>alpha</code></td><td>Up to 2,000 per group</td><td class="yes">Yes (first time)</td><td>Beta testers, org members, trusted users</td></tr>
-        <tr><td>Open</td><td><code>beta</code></td><td>Anyone with opt-in link</td><td class="yes">Yes (first time)</td><td>Public beta, wide feedback before GA</td></tr>
-        <tr><td>Production</td><td><code>production</code></td><td>Everyone</td><td class="yes">Yes (first time)</td><td>General availability</td></tr>
+        <tr><th>Track</th><th>GPP name</th><th>Audience</th><th>Review?</th></tr>
+        <tr><td>Internal</td><td><code>internal</code></td><td>Up to 100 &middot; email list</td><td class="no">No</td></tr>
+        <tr><td>Closed</td><td><code>alpha</code></td><td>Up to 2,000 per group</td><td class="yes">Yes (first time)</td></tr>
+        <tr><td>Open</td><td><code>beta</code></td><td>Anyone with opt-in link</td><td class="yes">Yes (first time)</td></tr>
+        <tr><td>Production</td><td><code>production</code></td><td>Everyone</td><td class="yes">Yes (first time)</td></tr>
       </table></div>
-
-      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">A · Create a Closed testing track</h3>
-      <p class="intro">The fastest path: promote the already-tested Internal build to Closed, share the opt-in link with your testers.</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c8a"><label for="c8a"><span class="what">Play Console → Testing → Closed testing → Create track</span><span class="pill once">once</span>
-          <span class="why">Name it something memorable ("Beta" or "Candela Beta"). Google creates the track and asks for a release.</span></label></li>
-        <li><input type="checkbox" id="c8b"><label for="c8b"><span class="what">Create a testers list</span><span class="pill once">once</span>
-          <span class="why">Closed testing → Manage track → Testers tab → Create email list. Add individual emails or a <b>Google Group</b> address. Google Group is easier to manage — add/remove members from Groups, not Play Console.</span></label></li>
-        <li><input type="checkbox" id="c8c"><label for="c8c"><span class="what">Set feedback URL or email</span><span class="pill once">once</span>
-          <span class="why">Testers tab → Feedback URL/email. Point it at a form, GitHub issue template, or an email you monitor. Testers see this on the opt-in page.</span></label></li>
-        <li><input type="checkbox" id="c8d"><label for="c8d"><span class="what">Copy the opt-in link</span>
-          <span class="why">Testers tab → Copy link. Share this with your testers — it's a <code>play.google.com/apps/testing/...</code> URL. Testers click it, accept, then the app appears in their Play Store as a beta version. The link stays the same across releases.</span></label></li>
-      </ul>
-      <div class="note safe"><span class="t">No store listing needed</span>Closed testing inherits your main store listing — you don't need separate screenshots or descriptions. The track is invisible to non-testers.</div>
-
-      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">B · Promote a build to the beta track</h3>
-      <p class="intro">Two paths: promote from Internal (recommended — the build is already tested) or upload directly.</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c8e"><label for="c8e"><span class="what">Option 1 — Promote from Internal via GPP</span><span class="pill auto">repeat</span>
-          <span class="why">The cleanest path: the same binary that passed your Internal smoke test gets promoted, no re-upload.</span></label></li>
-      </ul>
-      <pre><span class="c"># promote the current internal build → closed testing</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track alpha</pre>
-      <ul class="checks">
-        <li><input type="checkbox" id="c8f"><label for="c8f"><span class="what">Option 2 — Upload directly to Closed</span>
-          <span class="why">If you want to skip Internal and go straight to testers, change the <code>track</code> in <code>build.gradle.kts</code> or override on the command line.</span></label></li>
-      </ul>
-      <pre><span class="c"># upload AAB directly to closed testing (override track)</span>
-<span class="k">./gradlew :app:publishReleaseBundle</span> -Pplay.track=alpha</pre>
-      <ul class="checks">
-        <li><input type="checkbox" id="c8g"><label for="c8g"><span class="what">Click "Release" in Play Console → Closed testing</span>
-          <span class="why">Same as Internal: GPP stages a <b>draft</b>; you bless it with one click. First closed release goes through Google review (~hours to days).</span></label></li>
-      </ul>
-      <div class="note"><span class="t">Review timeline</span>The <b>first</b> Closed testing release triggers a Google review (content rating, policy compliance). This typically takes <b>a few hours to a couple of days</b>. Subsequent releases to the same track usually clear within minutes.</div>
-
-      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">C · Open testing (wider beta)</h3>
-      <p class="intro">Optional step — skip if your Closed beta gives enough coverage. Open testing lets <i>anyone</i> opt in via a public link; no email list required.</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c8h"><label for="c8h"><span class="what">Play Console → Testing → Open testing → Create track</span>
-          <span class="why">Like Closed, but no email list — anyone with the link can join. You can set a tester cap (e.g., 1,000) or leave it unlimited.</span></label></li>
-        <li><input type="checkbox" id="c8i"><label for="c8i"><span class="what">Promote from Closed → Open</span>
-          <span class="why">Same binary, wider audience. Or promote directly from Internal.</span></label></li>
-      </ul>
-      <pre><span class="c"># promote closed → open</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track beta
-
-<span class="c"># or skip closed, go internal → open</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track beta</pre>
-
-      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">D · Promote to Production</h3>
-      <p class="intro">After the beta cycle is solid, promote the tested build to Production — same command from §VII, but now you have confidence from real tester feedback.</p>
-      <ul class="checks">
-        <li><input type="checkbox" id="c8j"><label for="c8j"><span class="what">Review tester feedback + crash reports</span><span class="pill manual">check</span>
-          <span class="why">Play Console → Quality → Android vitals shows crash-free rates. Check the feedback channel you set in step A. Fix anything critical before promoting.</span></label></li>
-        <li><input type="checkbox" id="c8k"><label for="c8k"><span class="what">Promote to Production</span><span class="pill auto">repeat</span>
-          <span class="why">The final step. Use staged rollout (10% → 50% → 100%) for extra safety on big releases.</span></label></li>
-      </ul>
-      <pre><span class="c"># promote from beta (open) → production</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track beta --promote-track production
-
-<span class="c"># or from closed → production (if you skipped open)</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production
-
-<span class="c"># staged rollout: promote to 10% of production users first</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production --user-fraction 0.1</pre>
-      <div class="note safe"><span class="t">Staged rollout</span>Pass <code>--user-fraction 0.1</code> to roll out to 10% first. Monitor vitals for a day, then promote to 100% with <code>--user-fraction 1.0</code>. If something breaks, halt the rollout from Play Console → Production → Halt.</div>
-
-      <h3 style="color:var(--brass-bright);font-size:20px;margin:22px 0 10px;font-weight:600">E · Typical release flow</h3>
-      <p class="intro">Once the tracks are set up, a per-release beta cycle looks like this:</p>
-      <pre><span class="c"># 1 · tag + push → CI builds AAB</span>
-git tag -a v1.7.0 -m "v1.7.0 — new feature"
-git push origin main v1.7.0
-
-<span class="c"># 2 · upload to Internal Test (current default)</span>
-<span class="k">./gradlew :app:publishReleaseBundle</span>
-
-<span class="c"># 3 · smoke-test on Internal, then promote to Closed beta</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track internal --promote-track alpha
-
-<span class="c"># 4 · click "Release" in Play Console → Closed testing</span>
-
-<span class="c"># 5 · wait for tester feedback (hours/days) → fix if needed</span>
-
-<span class="c"># 6 · promote to Production (staged rollout optional)</span>
-<span class="k">./gradlew :app:promoteArtifact</span> --from-track alpha --promote-track production</pre>
     </div>
-  </section>
+  </div>
+
+  <div class="task">
+    <div class="thead"><span class="tnum">&#9670;</span><h3>Open follow-ups (post-publish, non-blocking)</h3></div>
+    <div class="tbody">
+      <div class="tablewrap"><table>
+        <tr><th>Issue</th><th>What</th></tr>
+        <tr><td><code>#1671</code></td><td>Finish the <b>TechEMPOWER</b> casing in user-facing strings.</td></tr>
+        <tr><td><code>#1672</code></td><td>Reader action-rail clips text &mdash; needs device repro.</td></tr>
+        <tr><td><code>#1673</code></td><td>Reader nav / Back-loop &mdash; needs device repro.</td></tr>
+        <tr><td><code>#1674</code></td><td>Native debug symbols in the release build (the non-blocking upload warning).</td></tr>
+        <tr><td><i>deferred</i></td><td>Publish the dedicated <code>/delete-account/</code> page &rarr; swap both Data-Safety deletion URLs (currently <code>/privacy/</code>); add <code>paths-ignore</code> to <code>android.yml</code> so doc pushes don&rsquo;t wake the release build; fix the privacy &sect;8 sign-out wording.</td></tr>
+      </table></div>
+    </div>
+  </div>
 
   <!-- ===================== TROUBLESHOOTING ===================== -->
   <section class="step" id="tshoot">
@@ -651,7 +733,7 @@ git push origin main v1.7.0
       <a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">gradle-play-publisher</a>
       <a href="https://cloud.google.com/iam/docs/keys-create-delete" target="_blank" rel="noopener">Key rotation</a>
     </div>
-    <p style="color:var(--faint);font-size:12px;margin-top:14px">Source: docs/play-store/RUNBOOK.md · listing/ · play-store-policy-check.md · release-keystore.md</p>
+    <p style="color:var(--faint);font-size:12px;margin-top:14px">Consolidated single source for the v1.13.0 publish — folds in RUNBOOK.md · listing/ · play-store-policy-check.md · play-store-readiness.md · play-store-screenshots.md · privacy.md · data-safety-checklist.md</p>
   </footer>
 
 </div>
@@ -659,6 +741,14 @@ git push origin main v1.7.0
 <script>
 (function(){
   "use strict";
+  /* preserve reading position across the 15s auto-refresh so the page never jumps to the top */
+  try{
+    var de=document.documentElement, prevSB=de.style.scrollBehavior; de.style.scrollBehavior='auto';
+    var sy=sessionStorage.getItem('wt-scroll');
+    if(sy!==null){ window.scrollTo(0, parseInt(sy,10)||0); }
+    de.style.scrollBehavior=prevSB||'';
+    window.addEventListener('scroll', function(){ sessionStorage.setItem('wt-scroll', String(window.scrollY)); }, {passive:true});
+  }catch(e){}
   var KEY="candela-playstore-walkthrough-v1";
   var boxes=Array.prototype.slice.call(document.querySelectorAll('ul.checks input[type=checkbox]'));
   var fill=document.getElementById('fill'), count=document.getElementById('count');
@@ -695,7 +785,7 @@ git push origin main v1.7.0
   /* count chars for listing blocks + copy-to-clipboard */
   function setCount(id,target){ var el=document.getElementById(id), t=document.getElementById(target);
     if(el&&t) el.textContent=t.textContent.trim().length+' chars'; }
-  setCount('ct-title','cp-title'); setCount('ct-short','cp-short'); setCount('ct-full','cp-full');
+  setCount('ct-title','cp-title'); setCount('ct-short','cp-short'); setCount('ct-full','cp-full'); setCount('ct-rn','cp-rn');
 
   document.querySelectorAll('.copy').forEach(function(btn){
     btn.addEventListener('click', function(){

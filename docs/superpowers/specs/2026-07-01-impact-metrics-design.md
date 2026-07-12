@@ -16,7 +16,7 @@ addendum below. Implementation may proceed against the amended design.
   user-triggered share/export**: the user taps "Share impact report" on the
   stats screen, previews the exact coarse payload, and sends it through the
   Android share sheet (email / message / form — their channel, their choice).
-  TechEmpower receives reports by whatever channel users pick and tallies them
+  TechEMPOWER receives reports by whatever channel users pick and tallies them
   in a spreadsheet; automated ingestion can be revisited later without
   touching the app-side design.
 
@@ -38,13 +38,13 @@ addendum below. Implementation may proceed against the amended design.
   deleted from the design. Settings keeps only a small "About impact sharing"
   explainer row (findability), not a switch.
 - **Q8 withdrawal honesty: KEPT, reworded** — "a report you shared lives
-  wherever you sent it; Candela keeps no copy and TechEmpower can't trace one
+  wherever you sent it; Candela keeps no copy and TechEMPOWER can't trace one
   back to you."
 - **§8 privacy-copy edits SOFTEN dramatically** (the brand outcome that
   motivated Q4(b)):
   - README keeps *"your stats never leave the phone"* and appends: *"— nothing
     is ever sent automatically. You can choose to share a rounded, anonymous
-    impact summary with TechEmpower yourself, from the stats screen."*
+    impact summary with TechEMPOWER yourself, from the stats screen."*
   - privacy.md §3's *"No 'anonymous usage statistics'"* **stays true and
     stays** (the app collects nothing); add §2.9 describing the manual
     share/export.
@@ -119,7 +119,7 @@ real decision, not a foregone conclusion.
 
 ## 1. Goals
 
-- Give TechEmpower (the 501(c)(3) operating Candela) the **aggregate impact
+- Give TechEMPOWER (the 501(c)(3) operating Candela) the **aggregate impact
   numbers grantmakers require**: total hours listened, chapters completed, books
   completed, breadth of sources used, and an active-device count — as
   *organization-wide sums*, never per-user.
@@ -259,7 +259,7 @@ admin token in the APK. So sync's transport is unsuitable and reused nowhere her
 **Recommended: a tiny stateless collector.**
 
 - **Endpoint:** `POST https://impact.techempower.org/v1/report` (or a path on an
-  existing TechEmpower host / a Cloudflare Worker — least infra that can accept a
+  existing TechEMPOWER host / a Cloudflare Worker — least infra that can accept a
   POST and append a row).
 - **Auth:** none. It's public and write-only. Abuse control = platform rate-limit
   + payload schema validation + a hard size cap. (There is nothing to steal: no
@@ -304,9 +304,9 @@ the numbers.
 
 ### 6.2 Copy draft (Library Nocturne tone, matches sync's voice)
 
-> **Card title:** Help TechEmpower, anonymously
+> **Card title:** Help TechEMPOWER, anonymously
 >
-> **Body:** Candela is run by TechEmpower, a nonprofit. Grants that keep the app
+> **Body:** Candela is run by TechEMPOWER, a nonprofit. Grants that keep the app
 > free need impact numbers — total hours listened, chapters finished, sources
 > used — across everyone, never you specifically. You can share *anonymous,
 > rounded monthly totals* to help. It's off by default.
@@ -334,7 +334,7 @@ the numbers.
   disclosed in copy and privacy policy. (Contrast with sync's "Delete cloud
   data," which works precisely *because* sync data is keyed by the user.)
 
-## 7. Grant-reporting output (what TechEmpower actually receives)
+## 7. Grant-reporting output (what TechEMPOWER actually receives)
 
 - **Not a dashboard v1.** Simplest honest deliverable: a **monthly CSV / one
   SQL view** over the collector store:
@@ -372,8 +372,8 @@ dies on these staying truthful.
   fingerprinting, and no per-user usage collection. The one exception is the
   opt-in Anonymous Impact Sharing feature (off by default, §2.9), which — only
   if you enable it — sends coarse, rounded, unlinkable monthly totals to
-  TechEmpower with no identifier of any kind."*
-- **§4 (third-party table)** — add a row for the collector endpoint *(TechEmpower
+  TechEMPOWER with no identifier of any kind."*
+- **§4 (third-party table)** — add a row for the collector endpoint *(TechEMPOWER
   self-operated, not a third party)* or a new "First-party services" note; state
   IP is not logged.
 
@@ -385,7 +385,7 @@ dies on these staying truthful.
   the reasoning documented, mirroring how OCR/BYOK are argued as "not collected."
   ⚠️ This is a JP call to confirm with the wizard open; the conservative
   alternative is declaring **App activity → Other actions** as *Optional*,
-  *not shared with third parties* (TechEmpower is first-party), purpose
+  *not shared with third parties* (TechEMPOWER is first-party), purpose
   *App functionality / Analytics*. Pick one and keep policy + form consistent.
 - `docs/play-store-walkthrough.html` §IV Data-Safety table must be updated to
   match whichever declaration is chosen (listing-copy lock-step, per project

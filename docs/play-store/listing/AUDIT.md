@@ -18,7 +18,7 @@ Listing copy already exists in **three** places, and they disagree:
 |---|---|---|
 | `app/src/main/play/listings/en-US/` (live publish path) | **Stale** | Title + full description still say **"storyvox"** (pre-rebrand). Title is **33 chars > 30 limit**. Release notes **519 chars > 500 limit**. gradle-play-publisher **auto-uploads these** on `publishReleaseBundle` → a stale, over-limit listing would ship. |
 | `docs/play-store-listing.md` (design brief, PR #610) | Good base, dated | Candela-branded + great IARC/data-safety detail, but assumes the **old 50-char title limit** (real limit is **30** — every title draft in it is over), and says "21 backends" (now 25). |
-| `README.md` | Current truth | "Candela", **25 backends**, 3 voice families, AI chat, Wear OS, TechEmpower-first. |
+| `README.md` | Current truth | "Candela", **25 backends**, 3 voice families, AI chat, Wear OS, TechEMPOWER-first. |
 
 **The live publish-path files are a release hazard, not just a doc nit.** They
 should be corrected (de-"storyvox", trimmed to limits) before the next
@@ -40,22 +40,22 @@ Ranked alternates (all ≤30):
 1. `Candela: Read Aloud` (19) ✅
 2. `Candela: books read aloud` (25)
 3. `Candela — listen to anything` (28)
-4. `Candela: free tech help, aloud` (30) — leads with the TechEmpower mission, at the limit.
+4. `Candela: free tech help, aloud` (30) — leads with the TechEMPOWER mission, at the limit.
 
-> The TechEmpower mission can't fit a 30-char title alongside the brand + a
+> The TechEMPOWER mission can't fit a 30-char title alongside the brand + a
 > function keyword; it carries in the short/full description and the
-> "TechEmpower" developer name shown on the listing. Flagging in case JP wants
+> "TechEMPOWER" developer name shown on the listing. Flagging in case JP wants
 > mission-first (option 4) over discovery-first (option 1).
 
 ### Short description — 70/80 ✅
 `Free books, tech guides, and the web — read aloud by on-device voices.`
 Alternates:
-- `Free books, tech guides, and accessible help — read aloud by TechEmpower.` (73) — mission-forward (the brief's pick).
+- `Free books, tech guides, and accessible help — read aloud by TechEMPOWER.` (73) — mission-forward (the brief's pick).
 - `Listen to free books, guides, fiction, and the web — beautiful on-device voices.` (79) — function-forward.
 
 ### Full description — 3196/4000 ✅
 Rewritten from the brief's draft: **"storyvox" → "Candela"**, **21 → 25 sources**,
-added LibriVox / Radio / OCR+PDF / per-book AI chat / Wear OS, kept the TechEmpower
+added LibriVox / Radio / OCR+PDF / per-book AI chat / Wear OS, kept the TechEMPOWER
 mission framing, accessibility, and offline-first posture. 800 chars of headroom
 for tuning.
 
@@ -68,7 +68,7 @@ consolidated here so it's in one place for the questionnaire.
 
 | IARC question | Answer | Why |
 |---|---|---|
-| Violence / sexual content / profanity / drugs / gambling *in the app itself* | No | Default surfaces are TechEmpower's resource library + a neutral library. |
+| Violence / sexual content / profanity / drugs / gambling *in the app itself* | No | Default surfaces are TechEMPOWER's resource library + a neutral library. |
 | Users can access **user-generated / unmoderated** content from third parties | **Yes** | Readability magic-link, Royal Road, AO3, RSS, Discord/Telegram/etc. fetch user-supplied URLs Candela does not moderate → this is what drives the 13+ rating. |
 | Users interact with each other / in-app messaging | **No** | Discord/Slack/Matrix/Telegram backends are **read-only feeds**; you can't post from inside Candela. |
 | Shares user location | No | No location features/permission. |
