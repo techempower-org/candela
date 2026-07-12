@@ -56,6 +56,11 @@ android {
             // Robolectric just to mock android.util.Log would be heavier
             // than the surface here justifies.
             isReturnDefaultValues = true
+            // #1661 — the Compose-UI test toolchain (createComposeRule under
+            // Robolectric) needs the merged resources + manifest on the
+            // unit-test classpath to inflate its host activity. Mirrors
+            // core-playback's Robolectric testOptions.
+            isIncludeAndroidResources = true
         }
     }
 }
@@ -139,4 +144,19 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.serialization.json)
+
+    // #1661 — Compose-UI test toolchain for :feature (deferred from Voice
+    // Notes Phase 4). Robolectric hosts createComposeRule() as a JVM unit
+    // test — no emulator: the Compose BOM pins ui-test-junit4 (createComposeRule
+    // + onNode*/assert* matchers), ui-test-manifest supplies the empty
+    // ComponentActivity the rule drives, and robolectric + the
+    // isIncludeAndroidResources testOption above give the SDK-36 sandbox its
+    // resources. NOTE (project memory): CI *compiles* these (Test Compile job)
+    // but the SDK-36 Robolectric sandbox needs local JDK 21 to *execute*
+    // (JDK 17 fails at classMethod) — so green CI proves the toolchain is
+    // wired, and running the Compose tests is a local-JDK21 concern.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
