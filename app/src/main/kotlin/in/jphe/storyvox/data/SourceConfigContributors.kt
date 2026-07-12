@@ -86,7 +86,7 @@ class NotionConfigContributor @Inject constructor(
     override val sourceId: String = SourceIds.NOTION
     override val displayName: String = "Notion"
     override val sectionHelp: String =
-        "Reads TechEmpower's public Notion content by default. Paste an " +
+        "Reads TechEMPOWER's public Notion content by default. Paste an " +
             "Internal Integration Token (notion.so/my-integrations) to read " +
             "your own workspace database."
 
@@ -95,7 +95,7 @@ class NotionConfigContributor @Inject constructor(
             key = "databaseId",
             label = "Database ID",
             help = "The Notion database the source reads in token mode. " +
-                "Defaults to TechEmpower's public database.",
+                "Defaults to TechEMPOWER's public database.",
             placeholder = "32-hex or hyphenated UUID",
         ),
         SourceConfigField.SecretText(

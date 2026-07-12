@@ -146,7 +146,7 @@ object NotionDefaults {
             title = "Guides",
             description = "Step-by-step guides for free tech, EBT support, and digital safety.",
             chapters = listOf(
-                "How to use TechEmpower.org" to "6c979ba4e43f48d7a4836e0027ea4178",
+                "How to use TechEMPOWER.org" to "6c979ba4e43f48d7a4836e0027ea4178",
                 "Free internet" to "bb5e537b083a417eb90ed9e984128c71",
                 "EV incentives" to "758054e1a2ec4c1aa077202ffedec710",
                 "EBT balance" to "272a4ee69520804fa68ad8c110af49f6",
@@ -165,7 +165,7 @@ object NotionDefaults {
                 "Free cell service" to "7519ef16d7b74519acd9b8262a7beb84",
             ),
             // v0.5.66 banner wire-up — Guides has no single "cover" page,
-            // so we lean on the first chapter ("How to use TechEmpower")
+            // so we lean on the first chapter ("How to use TechEMPOWER")
             // as the visual representative. JP can set a Notion banner
             // there and it'll surface as the Guides tile cover.
             coverPageId = "6c979ba4e43f48d7a4836e0027ea4178",
@@ -183,7 +183,7 @@ object NotionDefaults {
         `in`.jphe.storyvox.source.notion.TechEmpowerFiction.SinglePage(
             id = "about",
             title = "About",
-            description = "About TechEmpower.org.",
+            description = "About TechEMPOWER.org.",
             pageId = "dbf0ddece2ce468fb2bf9049e6322e8a",
             // v0.5.66 banner wire-up — same page as the fiction body.
             coverPageId = "dbf0ddece2ce468fb2bf9049e6322e8a",
@@ -191,7 +191,7 @@ object NotionDefaults {
         `in`.jphe.storyvox.source.notion.TechEmpowerFiction.SinglePage(
             id = "donate",
             title = "Donate",
-            description = "Support TechEmpower's mission.",
+            description = "Support TechEMPOWER's mission.",
             pageId = "59d8a4dab0cc484f8b044d33f240ce1d",
             // v0.5.66 banner wire-up — same page as the fiction body.
             coverPageId = "59d8a4dab0cc484f8b044d33f240ce1d",

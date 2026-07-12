@@ -114,7 +114,7 @@ fun TechEmpowerHelpIcons() {
     ) {
         Icon(
             imageVector = Icons.Filled.Forum,
-            contentDescription = "Open the TechEmpower peer-support Discord.",
+            contentDescription = "Open the TechEMPOWER peer-support Discord.",
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(24.dp),
         )

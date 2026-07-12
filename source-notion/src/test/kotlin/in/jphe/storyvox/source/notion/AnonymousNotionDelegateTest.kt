@@ -149,7 +149,7 @@ class AnonymousNotionDelegateTest {
         assertEquals(7, guides.chapters.size)
         // Order matches site.config.ts pageUrlOverrides — the website's
         // own navigation order is the contract.
-        assertEquals("How to use TechEmpower.org", guides.chapters[0].first)
+        assertEquals("How to use TechEMPOWER.org", guides.chapters[0].first)
         assertEquals("6c979ba4e43f48d7a4836e0027ea4178", guides.chapters[0].second)
         assertEquals("Free internet", guides.chapters[1].first)
         assertEquals("Free cell service", guides.chapters[6].first)
@@ -199,7 +199,7 @@ class AnonymousNotionDelegateTest {
     @Test
     fun `Guides coverPageId points at the first chapter page`() {
         // Guides has no single canonical "cover" page, so we lean on
-        // the first chapter ("How to use TechEmpower.org") as the
+        // the first chapter ("How to use TechEMPOWER.org") as the
         // visual representative. JP banners that page to drive the
         // Guides tile cover.
         val guides = NotionDefaults.techempowerFictions

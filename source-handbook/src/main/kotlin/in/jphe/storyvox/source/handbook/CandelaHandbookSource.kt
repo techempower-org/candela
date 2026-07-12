@@ -149,7 +149,7 @@ internal class CandelaHandbookSource @Inject constructor(
             id = HANDBOOK_FICTION_ID,
             sourceId = SOURCE_ID,
             title = "The Candela Handbook",
-            author = "TechEmpower",
+            author = "TechEMPOWER",
             description = "Candela's own guide, read aloud. Getting started, sources, " +
                 "voices, the reader & teleprompter, sync & privacy, and per-source " +
                 "setup walk-throughs — fully offline, no account.",

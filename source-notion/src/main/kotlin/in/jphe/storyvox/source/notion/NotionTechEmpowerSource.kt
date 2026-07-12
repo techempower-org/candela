@@ -29,15 +29,15 @@ import javax.inject.Singleton
  */
 @SourcePlugin(
     id = SourceIds.NOTION_TECHEMPOWER,
-    displayName = "TechEmpower",
+    displayName = "TechEMPOWER",
     defaultEnabled = true,
     category = SourceCategory.Text,
     supportsFollow = false,
     supportsSearch = true,
-    description = "TechEmpower guides, resources & about pages",
+    description = "TechEMPOWER guides, resources & about pages",
     sourceUrl = "https://www.notion.so",
-    // #1482 — chipLabel omitted: "TechEmpower" chip == displayName.
-    searchHint = "Search TechEmpower guides & resources",
+    // #1482 — chipLabel omitted: "TechEMPOWER" chip == displayName.
+    searchHint = "Search TechEMPOWER guides & resources",
 )
 @Singleton
 internal class NotionTechEmpowerSource @Inject constructor(
@@ -46,7 +46,7 @@ internal class NotionTechEmpowerSource @Inject constructor(
 ) : FictionSource, UrlMatcher {
 
     override val id: String = SourceIds.NOTION_TECHEMPOWER
-    override val displayName: String = "TechEmpower"
+    override val displayName: String = "TechEMPOWER"
 
     /** Issue #472 — `*.notion.so/<workspace>/<slug-with-32-hex-id>` or
      *  bare `notion.so/<32-hex-id>`. The pageId is the trailing 32-char

@@ -64,7 +64,7 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 /**
  * Issue #517 — TechEmpower Home screen. The dedicated landing for
- * "I'm here for TechEmpower's resources" — reached via the
+ * "I'm here for TechEMPOWER's resources" — reached via the
  * brass-edged TechEmpower hero card pinned at the top of Library.
  *
  * Structure (top to bottom):
@@ -126,7 +126,7 @@ fun TechEmpowerHomeScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "TechEmpower",
+                        "TechEMPOWER",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -265,7 +265,7 @@ fun TechEmpowerHomeScreen(
             }
             item {
                 TechEmpowerCard(
-                    title = "About TechEmpower",
+                    title = "About TechEMPOWER",
                     body = "Our mission, donate, partnerships, and contact.",
                     icon = Icons.Filled.Info,
                     onClick = onOpenAbout,
@@ -297,7 +297,7 @@ fun TechEmpowerHomeScreen(
 
 /**
  * Hero section — sun-disk logo + mission tagline. Reads as the
- * "you've arrived at TechEmpower" landmark. Logo is rendered at a
+ * "you've arrived at TechEMPOWER" landmark. Logo is rendered at a
  * fixed 96dp so it has presence without dominating the card grid
  * underneath.
  */
@@ -313,7 +313,7 @@ private fun TechEmpowerHero() {
     ) {
         Image(
             painter = painterResource(id = UiR.drawable.techempower_sun),
-            contentDescription = "TechEmpower sun-disk logo",
+            contentDescription = "TechEMPOWER sun-disk logo",
             modifier = Modifier
                 .size(96.dp)
                 .clip(MaterialTheme.shapes.large),
@@ -335,7 +335,7 @@ private fun TechEmpowerHero() {
         )
         Text(
             text = "Books, guides, and how-tos. " +
-                "TechEmpower's free library — pick something and we'll read it to you.",
+                "TechEMPOWER's free library — pick something and we'll read it to you.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -466,7 +466,7 @@ private fun FeaturedGuidesStrip(onOpenFiction: (String) -> Unit) {
         // on cold launch (no network), and the actual *content* is
         // still served by the Notion source when the user taps.
         val guideTitles = listOf(
-            "How to use TechEmpower.org",
+            "How to use TechEMPOWER.org",
             "Free internet",
             "EV incentives",
             "EBT balance",

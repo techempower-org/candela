@@ -766,7 +766,7 @@ private fun TechEmpowerHeroCard(onClick: () -> Unit) {
                 painter = androidx.compose.ui.res.painterResource(
                     id = `in`.jphe.storyvox.ui.R.drawable.techempower_sun,
                 ),
-                contentDescription = "TechEmpower sun-disk logo",
+                contentDescription = "TechEMPOWER sun-disk logo",
                 modifier = Modifier
                     .size(72.dp)
                     .clip(MaterialTheme.shapes.medium),
@@ -774,7 +774,7 @@ private fun TechEmpowerHeroCard(onClick: () -> Unit) {
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "TechEmpower",
+                    "TechEMPOWER",
                     style = MaterialTheme.typography.labelMedium,
                     color = brass,
                 )
@@ -797,7 +797,7 @@ private fun TechEmpowerHeroCard(onClick: () -> Unit) {
                     maxLines = 2,
                 )
                 Text(
-                    "Tap to see TechEmpower's free guides →",
+                    "Tap to see TechEMPOWER's free guides →",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,

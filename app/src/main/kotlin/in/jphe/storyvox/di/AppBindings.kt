@@ -968,7 +968,7 @@ private class RealFictionRepositoryUi(
 
     /**
      * Issues #644 + #647 (v1.0) — passthrough to [FictionRepository.browsePopular]
-     * for the onboarding's "Browse TechEmpower's free guides" CTA. Calling
+     * for the onboarding's "Browse TechEMPOWER's free guides" CTA. Calling
      * `browsePopular(page = 1, sourceId)` runs the source's `popular()`
      * round-trip and pipes the result through `cacheListing`, which is
      * what upserts the per-fiction rows into the `fictionDao` so that a
