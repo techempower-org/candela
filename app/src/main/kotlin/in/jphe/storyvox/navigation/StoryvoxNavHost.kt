@@ -284,7 +284,7 @@ object StoryvoxRoutes {
     const val TECHEMPOWER_HOME = "techempower/home"
 
     /**
-     * Issue #517 — "About TechEmpower" sub-screen with mission
+     * Issue #517 — "About TechEMPOWER" sub-screen with mission
      * statement, donate flow, partnerships contact, 501(c)(3)
      * attribution. Drill-down from TechEmpower Home.
      */
@@ -456,7 +456,7 @@ fun StoryvoxNavHost(
         // Playing transport surface with chapter 1 of the Guides
         // queued + auto-playing. The pre-fix two-step (hub →
         // Browse Resources → Guides → Play) collapses to a single
-        // tap on the "Browse TechEmpower's free guides" card.
+        // tap on the "Browse TechEMPOWER's free guides" card.
         onOpenTechEmpower = {
             navController.navigate(StoryvoxRoutes.TECHEMPOWER_HOME)
         },

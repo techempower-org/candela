@@ -522,7 +522,7 @@
     <string name="chat_dismiss_cd">Dismiss</string>
     <string name="chat_error_open_settings">Settings</string>
 
-    <!-- TechEmpower intents -->
+    <!-- TechEMPOWER intents -->
     <string name="techempower_copy">Copy</string>
     <string name="techempower_open_web">Open web</string>
     <string name="techempower_close">Close</string>
@@ -599,7 +599,7 @@
     <!-- Onboarding · FirstFictionPicker -->
     <string name="onboarding_first_fiction_headline">What would you like to hear?</string>
     <string name="onboarding_first_fiction_subtitle">Pick a starting point. You can always add more later.</string>
-    <string name="onboarding_pick_te_title">Browse TechEmpower\'s free guides</string>
+    <string name="onboarding_pick_te_title">Browse TechEMPOWER\'s free guides</string>
     <string name="onboarding_pick_te_body">Plain-English guides about computers, the internet, and getting set up.</string>
     <string name="onboarding_pick_add_title">Add a book from a website</string>
     <string name="onboarding_pick_add_body_clipboard">We noticed a link on your clipboard — tap to use it.</string>
@@ -1270,7 +1270,7 @@
     <!-- Issue #1463 — opt-in anonymous impact sharing (user-triggered share/export;
          no server, no auto-send, no toggle). Card on the stats screen + preview sheet. -->
     <string name="impact_card_title">Share your impact, anonymously</string>
-    <string name="impact_card_body">Candela is run by TechEmpower, a nonprofit. Grants that keep the app free need impact numbers across everyone — never you. You can choose to share an anonymous, rounded monthly summary to help. Nothing is ever sent automatically.</string>
+    <string name="impact_card_body">Candela is run by TechEMPOWER, a nonprofit. Grants that keep the app free need impact numbers across everyone — never you. You can choose to share an anonymous, rounded monthly summary to help. Nothing is ever sent automatically.</string>
     <!-- %1$s is a YYYY-MM month, e.g. "2026-07" -->
     <string name="impact_card_last_shared">Last shared: %1$s</string>
     <string name="impact_card_button">Preview what will be sent</string>
@@ -1288,7 +1288,7 @@
     <string name="impact_never_line_device">Your device, location, or IP address</string>
     <string name="impact_never_line_content">Titles, links, or anything you actually read</string>
     <string name="impact_never_line_traceback">Anything that could point back to you</string>
-    <string name="impact_preview_withdrawal">A report you share lives wherever you send it. Candela keeps no copy, and because it carries no identifier, TechEmpower can\'t trace one back to you.</string>
+    <string name="impact_preview_withdrawal">A report you share lives wherever you send it. Candela keeps no copy, and because it carries no identifier, TechEMPOWER can\'t trace one back to you.</string>
     <string name="impact_preview_share_button">Share report</string>
     <string name="impact_preview_privacy_link">Read the privacy policy</string>
     <string name="impact_share_chooser">Share impact report</string>
@@ -1299,7 +1299,7 @@
     <string name="settings_about_impact_title">About impact sharing</string>
     <string name="settings_about_impact_subtitle">How the optional anonymous summary works</string>
     <string name="impact_about_title">Impact sharing</string>
-    <string name="impact_about_intro">Candela is run by TechEmpower, a nonprofit. The grants that keep the app free — and radically private — need aggregate impact numbers: total hours listened, chapters and books finished, and the range of sources people use, summed across everyone who chooses to share. Never you specifically.</string>
+    <string name="impact_about_intro">Candela is run by TechEMPOWER, a nonprofit. The grants that keep the app free — and radically private — need aggregate impact numbers: total hours listened, chapters and books finished, and the range of sources people use, summed across everyone who chooses to share. Never you specifically.</string>
     <string name="impact_about_where">There\'s no switch to leave on and nothing is ever sent automatically. When you want to help, open your Listening Stats screen, preview the exact anonymous summary, and share it — that one tap is the whole feature.</string>
 
     <!-- Issue #1268 — extract hardcoded UI strings for localization / a11y.
@@ -1391,7 +1391,7 @@
     <string name="screener_intro">Answer a few questions to find local programs you may qualify for.</string>
     <string name="screener_offline_note">Works offline. Your answers stay on this device — nothing is sent anywhere.</string>
     <string name="screener_seed_banner_title">Sample data</string>
-    <string name="screener_seed_banner_body">These programs and questions are a preview. Final program rules come from TechEmpower.</string>
+    <string name="screener_seed_banner_body">These programs and questions are a preview. Final program rules come from TechEMPOWER.</string>
     <string name="screener_yes">Yes</string>
     <string name="screener_no">No</string>
     <string name="screener_show_results">See my results</string>
@@ -1410,7 +1410,7 @@
     <string name="screener_verified_prefix">Program details last verified: %1$s</string>
     <string name="screener_verified_unknown">These details are not yet verified.</string>
     <string name="screener_load_error">We could not open the program list. Please update the app and try again.</string>
-    <!-- Entry card on the TechEmpower Home grid. -->
+    <!-- Entry card on the TechEMPOWER Home grid. -->
     <string name="screener_card_title">Do I qualify?</string>
     <string name="screener_card_body">Answer a few quick questions to find local help you may be eligible for. Works offline.</string>
 
@@ -1420,7 +1420,7 @@
     <string name="decoder_intro">Take a photo of a benefits letter, or type its form number, and we will explain what it means and what to do.</string>
     <string name="decoder_offline_note">Works offline. The letter\'s text stays on this device.</string>
     <string name="decoder_seed_banner_title">Sample data</string>
-    <string name="decoder_seed_banner_body">These explainers are a preview. Final, verified explainers come from TechEmpower.</string>
+    <string name="decoder_seed_banner_body">These explainers are a preview. Final, verified explainers come from TechEMPOWER.</string>
     <string name="decoder_input_label">Letter text or form number</string>
     <string name="decoder_input_placeholder">For example: NA 200</string>
     <string name="decoder_scan">Scan a letter</string>
@@ -1442,7 +1442,7 @@
     <string name="decoder_verified_prefix">Explainer verified: %1$s</string>
     <string name="decoder_verified_unknown">This explainer is not yet verified.</string>
     <string name="decoder_load_error">We could not open the explainer library. Please update the app and try again.</string>
-    <!-- Entry card on the TechEmpower Home grid. -->
+    <!-- Entry card on the TechEMPOWER Home grid. -->
     <string name="decoder_card_title">Understand a letter</string>
     <string name="decoder_card_body">Photograph a confusing benefits notice — we will explain what it means, in English or Spanish. Works offline.</string>
 
@@ -1451,7 +1451,7 @@
     <string name="calls_back">Back</string>
     <string name="calls_intro">Some help is just one phone call away. Pick a program — we will give you the number, what to say, and a place to jot down the answers.</string>
     <string name="calls_seed_banner_title">Sample data</string>
-    <string name="calls_seed_banner_body">These call scripts are a preview. Verified numbers and details come from TechEmpower.</string>
+    <string name="calls_seed_banner_body">These call scripts are a preview. Verified numbers and details come from TechEMPOWER.</string>
     <string name="calls_best_time">Best time to call</string>
     <string name="calls_what_to_say">What to say</string>
     <string name="calls_what_to_ask">What to ask</string>
@@ -1467,7 +1467,7 @@
     <string name="calls_verified_prefix">Details verified: %1$s</string>
     <string name="calls_verified_unknown">Number not yet verified — connects you through 211.</string>
     <string name="calls_load_error">We could not open the call cards. Please update the app and try again.</string>
-    <!-- Entry card on the TechEmpower Home grid. -->
+    <!-- Entry card on the TechEMPOWER Home grid. -->
     <string name="calls_card_title">Make the call</string>
     <string name="calls_card_body">Program phone numbers, what to say, and a checklist — with help beating call anxiety. Works offline.</string>
 
@@ -1513,7 +1513,7 @@
     <string name="wallet_what_proves">What does this prove?</string>
     <string name="wallet_what_proves_intro">A %1$s can be used as proof for:</string>
     <string name="wallet_what_proves_none">We don\'t have a verified list of programs for this document type yet.</string>
-    <string name="wallet_what_proves_seed_note">Sample list — the verified program list is provided by TechEmpower.</string>
+    <string name="wallet_what_proves_seed_note">Sample list — the verified program list is provided by TechEMPOWER.</string>
     <string name="wallet_what_proves_title">What does this prove?</string>
     <!-- /#1514 -->
     <!-- #1519 — saved household profile (bilingual EN/ES; see values-es) -->

@@ -1209,7 +1209,7 @@ private fun Hero(fiction: UiFiction) {
             //
             // Issue #657 — on Tab A7 Lite portrait (800px) with a 120dp
             // cover thumbnail eating the left half of the hero, a long
-            // author name like "by TechEmpower" wrapped to two lines
+            // author name like "by TechEMPOWER" wrapped to two lines
             // (113×76px). That pushed the metadata row down, and the
             // last metadata pill ("Ongoing") was clipped or dropped by
             // the parent Row. Cap the byline at one line with ellipsis

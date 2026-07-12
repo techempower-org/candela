@@ -49,7 +49,7 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 import `in`.jphe.storyvox.ui.R as UiR
 
 /**
- * Issue #517 — "About TechEmpower" sub-screen reached from the
+ * Issue #517 — "About TechEMPOWER" sub-screen reached from the
  * TechEmpower Home grid. Mission statement, donate flow, partnerships
  * contact, and 501(c)(3) attribution.
  *
@@ -79,7 +79,7 @@ fun TechEmpowerAboutScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "About TechEmpower",
+                        "About TechEMPOWER",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -88,7 +88,7 @@ fun TechEmpowerAboutScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to TechEmpower",
+                            contentDescription = "Back to TechEMPOWER",
                         )
                     }
                 },
@@ -113,7 +113,7 @@ fun TechEmpowerAboutScreen(
                 ) {
                     Image(
                         painter = painterResource(id = UiR.drawable.techempower_sun),
-                        contentDescription = "TechEmpower sun-disk logo",
+                        contentDescription = "TechEMPOWER sun-disk logo",
                         modifier = Modifier
                             .size(120.dp)
                             .clip(MaterialTheme.shapes.large),
@@ -143,7 +143,7 @@ fun TechEmpowerAboutScreen(
             // contact rows because it's the lead conversion path.
             item {
                 BrassButton(
-                    label = "Donate to TechEmpower",
+                    label = "Donate to TechEMPOWER",
                     variant = BrassButtonVariant.Primary,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
@@ -242,11 +242,11 @@ fun TechEmpowerAboutScreen(
             item {
                 Spacer(Modifier.height(spacing.md))
                 Text(
-                    text = "TechEmpower is a registered 501(c)(3) " +
+                    text = "TechEMPOWER is a registered 501(c)(3) " +
                         "nonprofit organization. Contributions are " +
                         "tax-deductible to the extent allowed by law. " +
                         "storyvox is an open-source project built on " +
-                        "TechEmpower's mission.",
+                        "TechEMPOWER's mission.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

@@ -74,7 +74,7 @@ object StatsFormatting {
         SourceIds.RADIO, SourceIds.KVMR -> "Radio"
         SourceIds.LIBRIVOX -> "LibriVox"
         SourceIds.NOTION, SourceIds.NOTION_PAT -> "Notion"
-        SourceIds.NOTION_TECHEMPOWER -> "TechEmpower"
+        SourceIds.NOTION_TECHEMPOWER -> "TechEMPOWER"
         SourceIds.HACKERNEWS -> "Hacker News"
         SourceIds.GOOGLE_NEWS -> "Google News"
         SourceIds.ARXIV -> "arXiv"

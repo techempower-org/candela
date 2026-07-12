@@ -292,7 +292,7 @@ interface FictionRepositoryUi {
     /**
      * Issues #644 + #647 (v1.0) — seed the local Fiction DB with the
      * first-page "popular" tiles for [sourceId]. Used by the welcome
-     * flow's "Browse TechEmpower's free guides" CTA to ensure the
+     * flow's "Browse TechEMPOWER's free guides" CTA to ensure the
      * Notion fiction rows (notably `notion:guides`) exist in the
      * Fiction DAO before [fictionById] / [chaptersFor] attempt to
      * refresh detail — without this seeding pass, [refreshDetail]

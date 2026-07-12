@@ -145,8 +145,8 @@ internal class DiscordSource @Inject constructor(
                 id = discordFictionId(channelId),
                 sourceId = SourceIds.DISCORD,
                 title = "#peer-support",
-                author = "TechEmpower",
-                description = "TechEmpower's peer-support Discord — listen to past messages from the community.",
+                author = "TechEMPOWER",
+                description = "TechEMPOWER's peer-support Discord — listen to past messages from the community.",
                 status = FictionStatus.ONGOING,
             )
         }
@@ -310,8 +310,8 @@ internal class DiscordSource @Inject constructor(
             // surface it as the TechEmpower-branded entry so the
             // detail screen matches the Browse tile.
             channelName = "peer-support"
-            channelTopic = "TechEmpower's peer-support Discord — listen to past messages from the community."
-            channelAuthor = "TechEmpower"
+            channelTopic = "TechEMPOWER's peer-support Discord — listen to past messages from the community."
+            channelAuthor = "TechEMPOWER"
         } else {
             val channels = when (val r = api.listChannels(state.serverId)) {
                 is FictionResult.Success -> r.value

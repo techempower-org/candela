@@ -45,7 +45,7 @@ object TechEmpowerLinks {
     const val MISSION_STATEMENT: String =
         "Closing the digital divide for low-income individuals and " +
             "families with free tools, training, and software. " +
-            "TechEmpower is a 501(c)(3) nonprofit dedicated to making " +
+            "TechEMPOWER is a 501(c)(3) nonprofit dedicated to making " +
             "technology accessible to everyone."
 
     /**
