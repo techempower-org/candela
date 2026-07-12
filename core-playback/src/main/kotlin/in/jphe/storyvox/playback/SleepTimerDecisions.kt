@@ -69,3 +69,29 @@ fun shouldExtendOnShake(
     sleepTimerRemainingMs: Long?,
     fadeWindowMs: Long,
 ): Boolean = (sleepTimerRemainingMs ?: -1L) in 0L..fadeWindowMs
+
+/**
+ * #1618 — should the accelerometer keep listening in the post-stop
+ * shake-to-revive grace window? True iff the sleep timer fired within the last
+ * [graceWindowMs] (`0 <= msSinceFired <= graceWindowMs`). A null
+ * [msSinceFiredMs] — timer never fired, or already revived / window expired —
+ * maps to "not listening", so the sensor is released and doesn't drain battery
+ * overnight. Mirrors [shouldListenForShake] for the fade tail.
+ */
+fun shouldListenInGraceWindow(
+    msSinceFiredMs: Long?,
+    graceWindowMs: Long,
+): Boolean = (msSinceFiredMs ?: -1L) in 0L..graceWindowMs
+
+/**
+ * #1618 — when a shake fires after the timer stopped, should it revive
+ * playback (resume + re-arm the same duration)? Guards to the grace window so
+ * a shake landing after the window elapsed (sensor about to be released) is
+ * ignored. Same predicate as [shouldListenInGraceWindow]; kept as a separate
+ * name to mirror the fade-tail [shouldListenForShake] / [shouldExtendOnShake]
+ * pair and to read clearly at the call site.
+ */
+fun shouldReviveOnShake(
+    msSinceFiredMs: Long?,
+    graceWindowMs: Long,
+): Boolean = (msSinceFiredMs ?: -1L) in 0L..graceWindowMs
