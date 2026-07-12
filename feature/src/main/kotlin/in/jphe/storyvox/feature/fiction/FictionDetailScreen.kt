@@ -618,6 +618,23 @@ fun FictionDetailScreen(
                 val wideFiltered by remember(state.chapters, wideSearchQuery) {
                     derivedStateOf { filterChaptersByQuery(state.chapters, wideSearchQuery) }
                 }
+                // Issue #1676 — on first open, bring the resume chapter
+                // (first-unfinished-or-first) into view so the list opens where
+                // the listener left off. Once-only (rememberSaveable) so it
+                // never fights manual scrolling or re-fires on chapter-list
+                // updates (download / cache state). Reuses the jump feature's
+                // [wideHeaderOffset]. Live auto-follow of the playing chapter is
+                // the deferred #1676 half.
+                var wideDidResumeScroll by androidx.compose.runtime.saveable.rememberSaveable {
+                    mutableStateOf(false)
+                }
+                androidx.compose.runtime.LaunchedEffect(wideFiltered.isNotEmpty()) {
+                    if (!wideDidResumeScroll && wideFiltered.isNotEmpty()) {
+                        targetScrollIndex(wideFiltered, pickChapterToPlay(state.chapters)?.id)
+                            ?.let { wideListState.scrollToItem(it + wideHeaderOffset) }
+                        wideDidResumeScroll = true
+                    }
+                }
                 LazyColumn(
                     state = wideListState,
                     modifier = Modifier.weight(chapterWeight).fillMaxSize(),
@@ -731,6 +748,18 @@ fun FictionDetailScreen(
                 1 + // Synopsis
                 1 + // Notebook
                 (if (narrowShowSearch) 1 else 0)
+            // Issue #1676 — bring the resume chapter into view on first open,
+            // once-only (see the wide-layout note above). Reuses [narrowHeaderCount].
+            var narrowDidResumeScroll by androidx.compose.runtime.saveable.rememberSaveable {
+                mutableStateOf(false)
+            }
+            androidx.compose.runtime.LaunchedEffect(narrowFiltered.isNotEmpty()) {
+                if (!narrowDidResumeScroll && narrowFiltered.isNotEmpty()) {
+                    targetScrollIndex(narrowFiltered, pickChapterToPlay(state.chapters)?.id)
+                        ?.let { narrowListState.scrollToItem(it + narrowHeaderCount) }
+                    narrowDidResumeScroll = true
+                }
+            }
             LazyColumn(
                 state = narrowListState,
                 modifier = Modifier.fillMaxSize(),
@@ -1860,6 +1889,20 @@ private fun ChapterSearchBar(
 internal fun pickChapterToPlay(chapters: List<UiChapter>): UiChapter? {
     if (chapters.isEmpty()) return null
     return chapters.firstOrNull { !it.isFinished } ?: chapters.first()
+}
+
+/**
+ * Issue #1676 — the chapter-list index to scroll to on open, or null for
+ * "don't scroll". [resumeId] is `pickChapterToPlay(chapters)?.id` (the
+ * first-unfinished-or-first resume anchor). Returns that chapter's index in
+ * [chapters] (the rendered list), or null when the id is absent or the list is
+ * empty — defensive, so we never scroll to a bogus row. Live auto-follow of the
+ * currently-*playing* chapter is the deferred #1676 follow-up (needs new
+ * playback-state wiring the screen doesn't have today).
+ */
+internal fun targetScrollIndex(chapters: List<UiChapter>, resumeId: String?): Int? {
+    if (resumeId == null) return null
+    return chapters.indexOfFirst { it.id == resumeId }.takeIf { it >= 0 }
 }
 
 /** Issue #604 — derive the Play button label. Reads "Resume" when the
