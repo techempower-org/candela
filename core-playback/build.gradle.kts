@@ -115,7 +115,7 @@ dependencies {
     // EngineType.Kitten in this PR.
     // v2.10.0 (storyvox #1236) fixes Supertonic XNNPACK SIGSEGV — CPU only.
     implementation("com.github.techempower-org:VoxSherpa-TTS:v2.10.0")
-    implementation("com.github.k2-fsa:sherpa-onnx:1.13.3")
+    implementation("com.github.k2-fsa:sherpa-onnx:1.13.4")
 
     // Media3 — session, player base classes
     implementation(libs.androidx.media3.session)
