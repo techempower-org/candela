@@ -7,7 +7,9 @@ import `in`.jphe.storyvox.playback.EngineSampleRateCache
 import `in`.jphe.storyvox.playback.voice.CatalogEntry
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.PoolAttempt
 import `in`.jphe.storyvox.playback.voice.StreamingSynth
+import `in`.jphe.storyvox.playback.voice.buildCapOnFailurePool
 import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
@@ -96,8 +98,9 @@ class KokoroEnginePlugin @Inject constructor(
         tuning: StreamingTuning,
     ): List<StreamingSynth.Handle> {
         val s = spec as? ModelSpec.OnnxTokensVoices ?: return emptyList()
-        val handles = mutableListOf<StreamingSynth.Handle>()
-        for (i in 1..size) {
+        // #1503 — the cap-on-failure loop is shared (buildCapOnFailurePool);
+        // only the Kokoro-specific build/configure/load stays here in [attempt].
+        return buildCapOnFailurePool(size, "Kokoro", LOG_TAG) { _ ->
             val secondary = KokoroEngine()
             s.speakerId?.let { secondary.setActiveSpeakerId(it) }
             secondary.setSilenceScale(tuning.kokoroSilenceScale)
@@ -109,18 +112,12 @@ class KokoroEnginePlugin @Inject constructor(
                 threadsPerInstance,
             )
             if (r == "Success") {
-                handles += KokoroHandle(secondary)
+                PoolAttempt.Loaded(KokoroHandle(secondary))
             } else {
                 runCatching { secondary.destroy() }
-                android.util.Log.w(
-                    LOG_TAG,
-                    "Tier 3 secondary $i (Kokoro) load failed: " +
-                        "$r — capping at ${handles.size + 1} instances.",
-                )
-                break
+                PoolAttempt.Failed(r)
             }
         }
-        return handles
     }
 
     private class KokoroHandle(
