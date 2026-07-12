@@ -105,7 +105,7 @@ robolectric = "4.16.1"
 # that output on the Tab A7 Lite (Android 14, June 2025 patch).
 benchmark = "1.5.0-alpha07"
 uiautomator = "2.4.0"
-baselineprofile-gradle = "1.5.0-alpha06"
+baselineprofile-gradle = "1.5.0-alpha07"
 
 # Desugaring
 desugar = "2.1.5"
