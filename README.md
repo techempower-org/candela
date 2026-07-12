@@ -115,14 +115,14 @@ Candela uses an in-app WebView for the login flow. Your password never touches o
 
 ## Build from source
 
-Requires JDK 17, Android SDK 36, and a system gradle ≥ 8.10 for the wrapper bootstrap (the wrapper downloads Gradle 9.4.1).
+Requires JDK 17, Android SDK 37, and a system gradle ≥ 8.10 for the wrapper bootstrap (the wrapper downloads Gradle 9.6.1).
 
 ```sh
 git clone https://github.com/techempower-org/candela.git
 cd candela
 
 # One-time bootstrap
-gradle wrapper --gradle-version 9.4.1 --distribution-type bin
+gradle wrapper --gradle-version 9.6.1 --distribution-type bin
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 
 # Build
@@ -175,7 +175,7 @@ The CI workflow (`.github/workflows/android.yml`) shows the canonical build step
       │               │  Supertonic)   │
       ▼               │                ▼
 ┌─────────────────────────────┐  ┌──────────────────────┐
-│ Fiction sources (33)        │  │ :core-sync           │
+│ Fiction sources (34)        │  │ :core-sync           │
 │ ─────────────────────────── │  │ InstantDB sync —     │
 │ :source-royalroad           │  │ library / follows /  │
 │ :source-github              │  │ positions / book-    │
@@ -247,7 +247,7 @@ Per-dreamer detail specs live in `scratch/dreamers/`.
 
 | | |
 |---|---|
-| Language | Kotlin 2.3 |
+| Language | Kotlin 2.4 |
 | UI | Jetpack Compose, Material 3 |
 | DI | Hilt (KSP) |
 | Storage | Room, DataStore Preferences, EncryptedSharedPreferences |
@@ -265,27 +265,13 @@ Adding a fiction source or a TTS voice engine is a one-unit, scaffold-driven tas
 
 ## Roadmap
 
-The v0.4 line shipped 80+ point releases — the engine, six fiction sources, AI chat, OAuth, the Settings redesign, Azure HD as a remote TTS option, and the Tier 3 perf lane are all in. The next wave is the v0.5 line: better recall, more shaping of the read-aloud, and the long-promised knowledge graph.
+The v0.4 and v0.5 lines are shipped history now — the neural engine, the source plugin seam, AI chat, GitHub OAuth, the Settings hub, Azure HD, the Tier 3 perf lane, InstantDB cross-device sync, a twelve-finding accessibility pass, and the TechEMPOWER repositioning all landed there. Candela is on the **v1.x line** today (current release **v1.13.0**), which has since carried the app through the AGP 9 migration, the Supertonic voice family, listening statistics, tap-to-define, on-device language auto-switch, Voice Notes, and a top-to-bottom Settings overhaul.
 
-**Shipped in v0.4 (since v0.4.55):**
-- **Azure HD voices (BYOK).** Optional cloud TTS via Azure Cognitive Services. Settings UI ([#182](https://github.com/techempower-org/candela/issues/182)), engine wiring ([#183](https://github.com/techempower-org/candela/issues/183)), error handling and retries ([#184](https://github.com/techempower-org/candela/issues/184)), offline fallback ([#185](https://github.com/techempower-org/candela/issues/185)), full voice roster + cache eviction priority ([#186](https://github.com/techempower-org/candela/issues/186)). Bring your own key — never billed by Candela.
-- **Tier 3 multi-engine parallel synthesis.** Twin sliders for Engines × Threads/engine in Settings → Performance, producer pinned to a dedicated `URGENT_AUDIO` thread, engine multi-core synced with upstream main.
-- **EPUB import** ([#235](https://github.com/techempower-org/candela/issues/235)). Folder picker via Storage Access Framework + an OPF parser; any folder of EPUB files becomes a Browse tab.
-- **RSS / Atom feeds** ([#236](https://github.com/techempower-org/candela/issues/236)). Subscribe to any feed; suggested feeds curated in [candela-feeds](https://github.com/techempower-org/candela-feeds) ([#246](https://github.com/techempower-org/candela/issues/246)).
-- **Outline self-hosted-wiki backend** ([#245](https://github.com/techempower-org/candela/issues/245)). Treat your Outline collections as fictions, articles as chapters.
-- **Smart-resume CTA.** Library Resume button respects last paused/playing intent — no more surprise auto-play.
-- **AI Sessions surface** ([#218](https://github.com/techempower-org/candela/issues/218)) — Settings → AI → Sessions to review past chats.
-- **AI read-aloud per assistant turn** ([#214](https://github.com/techempower-org/candela/issues/214)) — speak any chat reply through the same TTS pipeline.
-- **Per-voice speed and pitch defaults** ([#195](https://github.com/techempower-org/candela/issues/195)).
-- **Punctuation cadence drives Kokoro `silence_scale`** ([#196](https://github.com/techempower-org/candela/issues/196)) — one slider, two engines, consistent feel.
-- **Stable debug-keystore signing** — clean upgrades over older debug builds without uninstall.
+The living record is split by purpose — this README's feature list stays current, and:
 
-**v0.5 candidates:**
-- **Knowledge graph for fiction.** Per-book Notebook (characters, places, who-said-what) seeding into MemPalace ([#147](https://github.com/techempower-org/candela/issues/147)).
-- **Engine knob exposure.** Loudness normalization, breath pause, pitch envelope as user-tunable settings ([research draft](docs/superpowers/specs/2026-05-08-voxsherpa-knobs-research.md)).
-- **PCM cache PRs C–H.** Auto-population, settings UI for cache size, graceful fallback ([#86](https://github.com/techempower-org/candela/issues/86)).
-
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the long-form roadmap and backlog.
+- **What shipped** — the [changelog](CHANGELOG.md) and the [latest release](https://github.com/techempower-org/candela/releases/latest), both always resolving to the current version.
+- **What's next** — [`docs/ROADMAP.md`](docs/ROADMAP.md) tracks the backlog (a living doc, last refreshed for v1.3.0 — direction, not a promise).
+- **In flight** — the [issue tracker](https://github.com/techempower-org/candela/issues) is the source of truth for open work.
 
 ## How it was built
 
@@ -302,6 +288,8 @@ The v0.4 line landed the in-process neural TTS engine, voice library, GitHub fic
 The May 8 round was the largest single-day landing yet — 30+ agents in parallel under JP's orchestration. Indigo specced the Settings redesign; Saga implemented it. Solara specced Azure HD; Ember specced GitHub OAuth; Thalia catalogued every engine knob worth exposing. Iris refreshed the README and clarified the GPL-3.0 license posture (downstream obligation, not branding). Calliope chased an auth-cookie race. Briar polished the README you're reading.
 
 Through the v0.4.56 → v0.4.83 stretch the dream-team kept landing: Solara's Azure work shipped end-to-end (BYOK Settings → engine wiring → retries → offline fallback → roster + eviction priority); Reeve and Lyra opened the source surface to RSS, EPUB, and Outline; Aurelia cut Tier 3 multi-engine parallel synthesis with twin Engines/Threads sliders; Hazel landed the smart-resume CTA so the Library button stops auto-playing at you. The dream-team retro reads as a thread of small, named contributions — each commit message preserves who did what, and `git log` reads as the credits.
+
+From the v0.5 line onward the same pattern scaled into **nightly autonomous runs** — a manager persona draining the open-issue backlog across a fleet of dream-named [Claude Opus](https://www.anthropic.com/claude) agents, each in its own git worktree, one PR per fix, reviewed adversarially before it merges. The v0.5 line opened the source surface past two dozen backends, shipped the AI-chat heavies (cross-fiction memory, function calling, multi-modal image input), hit the 0.8 s cold-launch target, and closed a twelve-finding accessibility audit. The v1.x line added the Supertonic voice family, listening statistics, on-device language auto-switch, and Voice Notes, and repositioned every user-facing surface around TechEMPOWER's mission — carrying Candela to **v1.13.0**. The credits still read best as `git log`.
 
 ## License
 

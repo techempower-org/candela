@@ -43,11 +43,12 @@ Candela is **forty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38).
       │               │ :engine-lib    │ (function calling) +
       │               │ (Piper /       │ ImageContentBlock
       │               │  Kokoro /      │ (multi-modal)
-      │               │  KittenTTS,    │
+      │               │  KittenTTS /   │
+      │               │  Supertonic,   │
       │               │  in-process)   │
       ▼               │                ▼
 ┌─────────────────────────────┐  ┌──────────────────────┐
-│ Fiction sources (25)        │  │ :core-sync           │
+│ Fiction sources (34)        │  │ :core-sync           │
 │ ─────────────────────────── │  │ InstantDB sync —     │
 │ :source-royalroad           │  │ library / follows /  │
 │ :source-github              │  │ positions / book-    │
@@ -81,6 +82,17 @@ Candela is **forty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38).
 │ :source-pdf                 │
 │ :source-ocr                 │
 │ :source-librivox            │
+│                             │
+│ v1.x sources:               │
+│ ─────────────────────────── │
+│ :source-reddit              │
+│ :source-google-drive        │
+│ :source-google-news         │
+│ :source-calendar            │
+│ :source-bookshare           │
+│ :source-primegaming         │
+│ :source-epic-free-games     │
+│ :source-handbook            │
 │                             │
 │ TTS backends                │
 │ ─────────────────────────── │
@@ -138,14 +150,14 @@ UI never imports a source module directly. RSS, EPUB, Outline, Notion, Telegram,
 
 ## TTS-backend plug-in pattern
 
-Same shape, applied to voice engines. The local Piper/Kokoro engine and the optional Azure HD backend both implement a `VoiceEngine` interface in `:core-playback` and bind into a `Map<EngineKind, VoiceEngine>`. `EnginePlayer` routes synthesis to whichever engine the currently-selected voice belongs to, with offline fallback to the local engine if Azure errors or the network drops mid-chapter.
+Same shape, applied to voice engines. The four in-process neural families (Piper, Kokoro, KittenTTS, Supertonic) and the optional Azure HD cloud backend each implement a `VoiceEnginePlugin` in `:core-playback`, annotated `@VoicePlugin(engineId)` — KSP generates the Hilt bindings, mirroring the `@SourcePlugin` pattern (the device's built-in System TTS is wired the same way as a zero-download fallback). `EnginePlayer` routes synthesis to whichever engine the currently-selected voice belongs to, with offline fallback to a local voice if Azure errors or the network drops mid-chapter.
 
 ## Playback pipeline
 
 Playback is **independent of UI**. `EnginePlayer` is a Media3 `SimpleBasePlayer` subclass that exposes a standard player surface to MediaSession (lock-screen art, BT transport, headphone media buttons) while internally pipelining sentence synthesis against AudioTrack writes.
 
 ```
-sentences ──► VoiceEngine (Piper or Kokoro inference)
+sentences ──► VoiceEngine (Piper / Kokoro / KittenTTS / Supertonic inference)
               │
               ▼
        ┌──────────────────┐
@@ -178,7 +190,7 @@ In v0.4.78+ the producer can run **1–8 VoxSherpa engine instances side-by-side
 
 ## In-process TTS
 
-Candela links the local TTS engine **in-process** via the [VoxSherpa-TTS](https://github.com/techempower-org/VoxSherpa-TTS) `:engine-lib` AAR (published to JitPack). That AAR re-projects [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) inference plus the Piper and Kokoro engine wrappers into a single dependency.
+Candela links the local TTS engine **in-process** via the [VoxSherpa-TTS](https://github.com/techempower-org/VoxSherpa-TTS) `:engine-lib` AAR (published to JitPack). That AAR re-projects [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) inference plus the Piper, Kokoro, KittenTTS, and Supertonic engine wrappers into a single dependency.
 
 We bypass Android's `TextToSpeech` framework entirely, manage our own `AudioTrack` with a fat buffer, and pipeline next-sentence generation against current playback. **No second APK, no install gate, no engine-binding handshake** — synthesis runs in Candela's own process.
 
