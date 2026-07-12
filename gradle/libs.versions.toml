@@ -27,7 +27,7 @@ compose-material-icons = "1.7.8"
 # 15.x is the AGP 9 / Compose 1.10 line; the `.plugin.android` plugin variant
 # (split out in v13) auto-generates the dependency + license metadata into the
 # consuming module's `R.raw.aboutlibraries` during the Android build, GMS-free.
-aboutlibraries = "15.0.2"
+aboutlibraries = "15.0.3"
 
 # Hilt + Hilt-Work
 hilt = "2.60.1"
