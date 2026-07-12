@@ -368,6 +368,17 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // #1674 — bundle FULL native debug symbols into the release
+            // artifact so the Play Console can symbolicate native crash
+            // traces. Candela ships no native code of its own, but the
+            // VoxSherpa-TTS / sherpa-onnx AAR contributes prebuilt `.so`
+            // libraries — without this their frames land in Play as raw
+            // addresses. "FULL" = unwind tables + line numbers (per #1674);
+            // AGP's mergeReleaseNativeDebugMetadata extracts them into the
+            // APK/AAB. Exercised by the release assemble in CI's Build APK.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             // #952 — pick the keystore by task-graph intent:
             //   * `:app:bundleRelease` / `:app:publishReleaseBundle`
             //     (the Play AAB path) → release keystore when wired
