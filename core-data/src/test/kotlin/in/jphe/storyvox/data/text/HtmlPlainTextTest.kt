@@ -165,4 +165,121 @@ class HtmlPlainTextTest {
         assertEquals("Just one paragraph here.", out)
         assertFalse(out.contains("\n"))
     }
+
+    // ── htmlToInlineText: single-line metadata contract (#1628) ─────
+
+    @Test
+    fun `htmlToInlineText collapses blocks and newlines to one line`() {
+        val out = "<h2>Title</h2><p>First line\n  second line</p>".htmlToInlineText()
+        assertEquals("Title First line second line", out)
+        assertFalse("inline output must be one line", out.contains("\n"))
+    }
+
+    @Test
+    fun `htmlToInlineText strips tags and drops non-content`() {
+        val out = "<style>.c{}</style><p>Body <em>text</em>.</p><script>x()</script>"
+            .htmlToInlineText()
+        assertEquals("Body text.", out)
+    }
+
+    @Test
+    fun `htmlToInlineText blank and empty inputs yield empty string`() {
+        assertEquals("", "".htmlToInlineText())
+        assertEquals("", "   \n\t ".htmlToInlineText())
+        assertEquals("", "<body></body>".htmlToInlineText())
+    }
+
+    @Test
+    fun `htmlToInlineText passes plain (non-markup) metadata through unchanged`() {
+        // arXiv citation_* meta content / SE schema:name are plain text.
+        assertEquals("Attention Is All You Need", "Attention Is All You Need".htmlToInlineText())
+    }
+
+    // ── #1628 named failure modes: RTL, nested lists, CDATA, entities ─
+
+    @Test
+    fun `RTL text survives intact in both converters`() {
+        // Codepoint-safe extraction — no byte-level mangling of Arabic/Hebrew.
+        val arabic = "<p>مرحبا بالعالم</p>"
+        assertEquals("مرحبا بالعالم", arabic.htmlToPlainText())
+        assertEquals("مرحبا بالعالم", arabic.htmlToInlineText())
+        val mixed = "<p>Hello <span>שלום</span> world</p>"
+        assertEquals("Hello שלום world", mixed.htmlToInlineText())
+    }
+
+    @Test
+    fun `nested lists keep every item and leak no list markup`() {
+        val html = "<ul><li>One<ul><li>Two</li><li>Three</li></ul></li><li>Four</li></ul>"
+        // Inline: one clean spaced run — the metadata contract.
+        assertEquals("One Two Three Four", html.htmlToInlineText())
+
+        val plain = html.htmlToPlainText()
+        listOf("One", "Two", "Three", "Three", "Four").forEach {
+            assertTrue("item $it present", plain.contains(it))
+        }
+        assertFalse("no <li> markup leaks", plain.contains("<li"))
+        // Known htmlToPlainText limitation (pre-#1628, shared by all migrated
+        // sources): a parent <li>'s own text abuts its first nested child's
+        // text ("OneTwo") because block-nav emits the break on close, not
+        // open. Harmless for prose; nested lists are rare in narrated bodies.
+        // Pinned so a future change to the block walk is a deliberate choice.
+        assertEquals("OneTwo\n\nThree\n\nFour", plain)
+    }
+
+    @Test
+    fun `CDATA markers never leak and unwrapped feed content cleans`() {
+        // RSS `content:encoded` arrives CDATA-unwrapped from the XML layer;
+        // the util then cleans the inner HTML. Markers must never survive.
+        val mixed = "<p>Before</p><![CDATA[note text]]><p>After</p>"
+        listOf(mixed.htmlToPlainText(), mixed.htmlToInlineText()).forEach { out ->
+            assertFalse("no CDATA open marker", out.contains("CDATA"))
+            assertFalse("no CDATA close marker", out.contains("]]>"))
+            assertTrue(out.contains("Before"))
+            assertTrue(out.contains("After"))
+        }
+        // The realistic path: content already unwrapped by the feed parser.
+        val unwrapped = "<p>Chapter body with an &amp; and a curly quote&#8217;s tail.</p>"
+        assertEquals("Chapter body with an & and a curly quote’s tail.", unwrapped.htmlToPlainText())
+    }
+
+    @Test
+    fun `exotic entities decode — the entity-table gap fix`() {
+        // The per-source regex tables (arXiv/PLOS/Wikisource/SE/Prime Gaming)
+        // decoded only ~6-10 named entities, leaking curly quotes, hex refs,
+        // and accents into the reader + TTS narration. jsoup decodes them all.
+        val html = "<p>&rsquo;&lsquo;&ldquo;&rdquo; &mdash; &hellip; " +
+            "&#x2019;hex &#8217;dec Sch&ouml;n caf&eacute; na&#xEF;ve</p>"
+        listOf(html.htmlToPlainText(), html.htmlToInlineText()).forEach { out ->
+            assertTrue("right single quote", out.contains("’"))
+            assertTrue("left single quote", out.contains("‘"))
+            assertTrue("left double quote", out.contains("“"))
+            assertTrue("right double quote", out.contains("”"))
+            assertTrue("em-dash", out.contains("—"))
+            assertTrue("ellipsis", out.contains("…"))
+            assertTrue("hex numeric ref", out.contains("’hex"))
+            assertTrue("decimal numeric ref", out.contains("’dec"))
+            assertTrue("named accent (o-umlaut)", out.contains("Schön"))
+            assertTrue("named accent (e-acute)", out.contains("café"))
+            assertTrue("hex accent (i-diaeresis)", out.contains("naïve"))
+            assertFalse("no raw entity survives", out.contains("&"))
+        }
+    }
+
+    @Test
+    fun `astral-plane numeric refs decode via surrogate pair, never throw (#1539)`() {
+        // The #1539 regression: Char(code) threw above U+FFFF. jsoup uses the
+        // full-codepoint decode, so an emoji numeric ref round-trips.
+        assertEquals("Fun 😀!", "Fun &#128512;!".htmlToInlineText())
+    }
+
+    @Test
+    fun `malformed numeric refs do not leak raw and do not throw`() {
+        // Out-of-range / lone-surrogate refs follow HTML5: jsoup emits U+FFFD
+        // rather than the per-source decoders' old literal passthrough. Never
+        // the raw `&#…;` code (which TTS would try to narrate).
+        val out = "bad &#1114112; ref and &#55296; too".htmlToInlineText()
+        assertFalse("no raw numeric ref leaks", out.contains("&#"))
+        assertTrue(out.contains("bad"))
+        assertTrue(out.contains("ref"))
+    }
 }
