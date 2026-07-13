@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -98,6 +99,15 @@ data class FictionDetailUiState(
      *  affordance instead of a bare empty list while a slow feed (e.g. a fresh
      *  RSS subscription) hydrates its chapters. */
     val chaptersRefreshing: Boolean = false,
+    /** Issue #1676 (live auto-follow half) — the id of the chapter currently
+     *  playing, but ONLY when the playing fiction is *this* detail screen's
+     *  fiction; null otherwise (nothing playing, or another book is playing).
+     *  Sourced from [PlaybackControllerUi.state] — the same flow the mini-player
+     *  reads. Drives two things in the chapter list: the playing-row highlight
+     *  (`ChapterCard.isCurrent`) and the live auto-follow scroll (the list keeps
+     *  the playing chapter in view as playback advances). Gating on the fiction
+     *  match keeps the list inert while a different book plays. */
+    val playingChapterId: String? = null,
 )
 
 /**
@@ -410,6 +420,29 @@ class FictionDetailViewModel @Inject constructor(
             // / connectivity folds above.
             .combine(repo.detailRefreshing(fictionId)) { state, refreshing ->
                 state.copy(chaptersRefreshing = refreshing)
+            }
+            // Issue #1676 — fold in the live playing-chapter id from the shared
+            // playback flow (same source the mini-player reads). Only surface it
+            // when the *playing* fiction is this screen's fiction, so the list
+            // follows its own playback and stays inert while another book plays.
+            // Appended as a binary combine (the `base` combine is at its 5-arg
+            // ceiling) — same shape as the companion / connectivity / refresh
+            // folds above.
+            //
+            // `onStart { emit(null) }` is load-bearing: `playback.state` is a
+            // shareIn(WhileSubscribed) over a combine that only ticks while
+            // playing, so on an idle app it may not emit until the first
+            // playback — and a `combine` withholds ALL output until every source
+            // has emitted once. Without the seed the whole detail screen would
+            // sit on the skeleton until something played. distinctUntilChanged
+            // coalesces the seed with an identical first real value.
+            .combine(
+                playback.state
+                    .map { pb -> pb.chapterId?.takeIf { pb.fictionId == fictionId } }
+                    .distinctUntilChanged()
+                    .onStart { emit(null) },
+            ) { state, playingChapterId ->
+                state.copy(playingChapterId = playingChapterId)
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FictionDetailUiState())
     }

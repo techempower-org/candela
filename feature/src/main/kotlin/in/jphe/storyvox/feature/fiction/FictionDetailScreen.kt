@@ -4,7 +4,14 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +35,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -43,6 +52,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -65,6 +75,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -623,8 +634,8 @@ fun FictionDetailScreen(
                 // the listener left off. Once-only (rememberSaveable) so it
                 // never fights manual scrolling or re-fires on chapter-list
                 // updates (download / cache state). Reuses the jump feature's
-                // [wideHeaderOffset]. Live auto-follow of the playing chapter is
-                // the deferred #1676 half.
+                // [wideHeaderOffset]. Live auto-follow of the *playing* chapter
+                // is a separate concern — see [rememberChapterAutoFollow] below.
                 var wideDidResumeScroll by androidx.compose.runtime.saveable.rememberSaveable {
                     mutableStateOf(false)
                 }
@@ -635,9 +646,20 @@ fun FictionDetailScreen(
                         wideDidResumeScroll = true
                     }
                 }
+                // Issue #1676 — live auto-follow of the playing chapter (+ the
+                // "playing" re-engage chip). Operates on [wideFiltered] so a
+                // filtered-out playing chapter simply stops following (index
+                // absent → no scroll / no chip).
+                val wideFollow = rememberChapterAutoFollow(
+                    listState = wideListState,
+                    chapters = wideFiltered,
+                    playingChapterId = state.playingChapterId,
+                    headerOffset = wideHeaderOffset,
+                )
+                Box(modifier = Modifier.weight(chapterWeight).fillMaxSize()) {
                 LazyColumn(
                     state = wideListState,
-                    modifier = Modifier.weight(chapterWeight).fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = spacing.md, bottom = spacing.md),
                 ) {
                     // Issue #638 — action row pinned at the top of the
@@ -688,7 +710,7 @@ fun FictionDetailScreen(
                     }
                     items(wideFiltered, key = { it.id }) { ch ->
                         ChapterCard(
-                            state = ch.toCardState(currentId = null),
+                            state = ch.toCardState(currentId = state.playingChapterId),
                             onClick = { viewModel.listen(ch.id) },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -723,6 +745,14 @@ fun FictionDetailScreen(
                             )
                         }
                     }
+                }
+                FollowPlayingChip(
+                    direction = wideFollow.chipDirection,
+                    onClick = wideFollow.onReEngage,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = spacing.lg),
+                )
                 }
             }
         } else {
@@ -760,6 +790,15 @@ fun FictionDetailScreen(
                     narrowDidResumeScroll = true
                 }
             }
+            // Issue #1676 — live auto-follow of the playing chapter (+ chip),
+            // same contract as the wide layout. Operates on [narrowFiltered].
+            val narrowFollow = rememberChapterAutoFollow(
+                listState = narrowListState,
+                chapters = narrowFiltered,
+                playingChapterId = state.playingChapterId,
+                headerOffset = narrowHeaderCount,
+            )
+            Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = narrowListState,
                 modifier = Modifier.fillMaxSize(),
@@ -874,7 +913,7 @@ fun FictionDetailScreen(
                 }
                 items(narrowFiltered, key = { it.id }) { ch ->
                     ChapterCard(
-                        state = ch.toCardState(currentId = null),
+                        state = ch.toCardState(currentId = state.playingChapterId),
                         onClick = { viewModel.listen(ch.id) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -907,6 +946,14 @@ fun FictionDetailScreen(
                         )
                     }
                 }
+            }
+            FollowPlayingChip(
+                direction = narrowFollow.chipDirection,
+                onClick = narrowFollow.onReEngage,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = spacing.lg),
+            )
             }
         }
     }
@@ -1896,13 +1943,235 @@ internal fun pickChapterToPlay(chapters: List<UiChapter>): UiChapter? {
  * "don't scroll". [resumeId] is `pickChapterToPlay(chapters)?.id` (the
  * first-unfinished-or-first resume anchor). Returns that chapter's index in
  * [chapters] (the rendered list), or null when the id is absent or the list is
- * empty — defensive, so we never scroll to a bogus row. Live auto-follow of the
- * currently-*playing* chapter is the deferred #1676 follow-up (needs new
- * playback-state wiring the screen doesn't have today).
+ * empty — defensive, so we never scroll to a bogus row. This is the
+ * *resume-on-open* anchor; live auto-follow of the currently-*playing* chapter
+ * is the sibling [followScrollIndex] decision.
  */
 internal fun targetScrollIndex(chapters: List<UiChapter>, resumeId: String?): Int? {
     if (resumeId == null) return null
     return chapters.indexOfFirst { it.id == resumeId }.takeIf { it >= 0 }
+}
+
+/**
+ * Issue #1676 (live auto-follow half) — the LazyColumn *item* index to
+ * animate-scroll to so the currently-*playing* chapter follows into view as
+ * playback advances, or null for "leave the list where it is". This is the pure
+ * core of the auto-follow effect (the Compose `animateScrollToItem` is
+ * device-verified; this decision is CI-provable).
+ *
+ * Returns null when:
+ *  - [suspended] — the user manually scrolled and hasn't re-engaged (the chip
+ *    owns re-engagement; auto-follow must not fight a manual scroll);
+ *  - nothing from this fiction is playing ([playingChapterId] null, or absent
+ *    from the rendered [chapters] — defensive);
+ *  - the playing row is already *comfortably* visible: inside the visible item
+ *    range with at least [edgeMargin] rows of breathing room from either edge,
+ *    so we don't re-scroll on every position tick while it's plainly in view.
+ *
+ * Otherwise returns the playing chapter's list-item index ([chapters] index +
+ * [headerOffset], mirroring [targetScrollIndex]'s header math). [firstVisibleItemIndex]
+ * / [lastVisibleItemIndex] come from the list's `layoutInfo`.
+ */
+internal fun followScrollIndex(
+    chapters: List<UiChapter>,
+    playingChapterId: String?,
+    headerOffset: Int,
+    firstVisibleItemIndex: Int,
+    lastVisibleItemIndex: Int,
+    suspended: Boolean,
+    edgeMargin: Int = 1,
+): Int? {
+    if (suspended || playingChapterId == null) return null
+    val chapterIndex = chapters.indexOfFirst { it.id == playingChapterId }
+    if (chapterIndex < 0) return null
+    val target = chapterIndex + headerOffset
+    val comfortablyVisible =
+        target in (firstVisibleItemIndex + edgeMargin)..(lastVisibleItemIndex - edgeMargin)
+    return if (comfortablyVisible) null else target
+}
+
+/** Issue #1676 — which way the "playing" re-engage chip should point, or null
+ *  when it shouldn't show at all. */
+internal enum class FollowChipDirection { Up, Down }
+
+/**
+ * Issue #1676 — the direction the "↓ playing" re-engage chip should point, or
+ * null to hide it. The chip is purely a re-engagement affordance, so it shows
+ * ONLY while auto-follow is [suspended] AND the playing chapter is entirely
+ * off-screen (outside `[firstVisibleItemIndex, lastVisibleItemIndex]`): pointing
+ * [FollowChipDirection.Up] when the playing row is above the viewport,
+ * [FollowChipDirection.Down] when below. Hidden (null) when following (not
+ * suspended), when nothing from this fiction is playing, or when the playing
+ * row is even partially visible — tapping to scroll to a row you can already
+ * see would be pointless.
+ */
+internal fun followChipDirection(
+    chapters: List<UiChapter>,
+    playingChapterId: String?,
+    headerOffset: Int,
+    firstVisibleItemIndex: Int,
+    lastVisibleItemIndex: Int,
+    suspended: Boolean,
+): FollowChipDirection? {
+    if (!suspended || playingChapterId == null) return null
+    val chapterIndex = chapters.indexOfFirst { it.id == playingChapterId }
+    if (chapterIndex < 0) return null
+    val target = chapterIndex + headerOffset
+    return when {
+        target < firstVisibleItemIndex -> FollowChipDirection.Up
+        target > lastVisibleItemIndex -> FollowChipDirection.Down
+        else -> null
+    }
+}
+
+/** Issue #1676 — handle returned by [rememberChapterAutoFollow] carrying the
+ *  re-engage chip's direction (null = hidden) and the tap-to-re-engage action. */
+private data class ChapterAutoFollow(
+    val chipDirection: FollowChipDirection?,
+    val onReEngage: () -> Unit,
+)
+
+/**
+ * Issue #1676 (live auto-follow half) — wires live playing-chapter auto-follow
+ * onto a chapter [listState], shared verbatim by the wide + narrow layouts:
+ *
+ *  - **Follow:** as playback advances (`playingChapterId` changes) the list
+ *    animate-scrolls to keep the playing chapter comfortably in view
+ *    ([followScrollIndex]).
+ *  - **Suspend on manual scroll:** a genuine user drag suspends the follow so
+ *    it never fights the wheel. We watch the list's [DragInteraction]s — a
+ *    programmatic `animateScrollToItem` (this follow, the resume-on-open scroll,
+ *    the jump-to-#) never emits one, so the follow can't suspend *itself* (no
+ *    guard flag needed). This is ReaderView's "manual scroll owns the wheel"
+ *    idea, but *sticky*: unlike ReaderView's wall-clock grace window that
+ *    auto-resumes, re-engagement here is explicit (the chip), so the list never
+ *    yanks itself back under the reader.
+ *  - **Re-engage:** [ChapterAutoFollow.onReEngage] clears the suspend; the
+ *    follow effect (keyed on the flag) then scrolls to the playing chapter.
+ *
+ * `suspended` is [androidx.compose.runtime.saveable.rememberSaveable] so a
+ * rotate mid-suspend doesn't silently re-arm the follow.
+ */
+@Composable
+private fun rememberChapterAutoFollow(
+    listState: LazyListState,
+    chapters: List<UiChapter>,
+    playingChapterId: String?,
+    headerOffset: Int,
+): ChapterAutoFollow {
+    var suspended by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) suspended = true
+        }
+    }
+
+    // Follow on advance / re-engage / first hydration. Keyed on the playing id
+    // (chapter advance), the suspend flag (re-engage flips it false), and the
+    // list going non-empty (a currently-playing book opened whose chapters
+    // hydrate after first composition). NOT keyed on the visible range — that's
+    // read imperatively at fire time so a scroll that leaves the row comfortably
+    // visible doesn't re-fire.
+    LaunchedEffect(playingChapterId, suspended, chapters.isNotEmpty()) {
+        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            ?: listState.firstVisibleItemIndex
+        followScrollIndex(
+            chapters = chapters,
+            playingChapterId = playingChapterId,
+            headerOffset = headerOffset,
+            firstVisibleItemIndex = listState.firstVisibleItemIndex,
+            lastVisibleItemIndex = lastVisible,
+            suspended = suspended,
+        )?.let { listState.animateScrollToItem(it) }
+    }
+
+    // Chip visibility/direction tracks scroll (visible range), the suspend flag,
+    // and the playing id — all read live so the chip appears/hides as the user
+    // scrolls the playing row on/off screen.
+    val chipDirection by remember(chapters, playingChapterId, headerOffset) {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                ?: listState.firstVisibleItemIndex
+            followChipDirection(
+                chapters = chapters,
+                playingChapterId = playingChapterId,
+                headerOffset = headerOffset,
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                lastVisibleItemIndex = lastVisible,
+                suspended = suspended,
+            )
+        }
+    }
+
+    return ChapterAutoFollow(
+        chipDirection = chipDirection,
+        onReEngage = { suspended = false },
+    )
+}
+
+/**
+ * Issue #1676 — the brass "playing" re-engage chip. A small Library-Nocturne
+ * brass pill floating bottom-center over the chapter list while auto-follow is
+ * suspended and the playing chapter is off-screen; it points ↓/↑ toward the
+ * playing row and, on tap, re-engages the follow (which scrolls to it). Renders
+ * nothing when [direction] is null; fades + slides for the transition. Apply
+ * `Modifier.align(Alignment.BottomCenter)` at the (Box) call site.
+ */
+@Composable
+private fun FollowPlayingChip(
+    direction: FollowChipDirection?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    // Hold the last shown direction so the arrow doesn't flip mid-fade-out.
+    var lastDirection by remember { mutableStateOf(FollowChipDirection.Down) }
+    if (direction != null) lastDirection = direction
+    val description = stringResource(R.string.fiction_follow_playing_chip_desc)
+    AnimatedVisibility(
+        visible = direction != null,
+        enter = fadeIn() + slideInVertically { it / 2 },
+        exit = fadeOut() + slideOutVertically { it / 2 },
+        modifier = modifier,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(percent = 50),
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 6.dp,
+            modifier = Modifier.clickable(
+                role = Role.Button,
+                onClickLabel = description,
+                onClick = onClick,
+            ),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+                modifier = Modifier.padding(
+                    start = spacing.sm,
+                    end = spacing.md,
+                    top = spacing.xs,
+                    bottom = spacing.xs,
+                ),
+            ) {
+                Icon(
+                    imageVector = if (lastDirection == FollowChipDirection.Up) {
+                        Icons.Filled.KeyboardArrowUp
+                    } else {
+                        Icons.Filled.KeyboardArrowDown
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = stringResource(R.string.fiction_follow_playing_chip),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
 }
 
 /** Issue #604 — derive the Play button label. Reads "Resume" when the

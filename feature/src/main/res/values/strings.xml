@@ -444,6 +444,11 @@
     <string name="fiction_chapter_search_label">Search chapters</string>
     <string name="fiction_chapter_jump_label">Go to #</string>
     <string name="fiction_chapter_search_no_results">No chapters match your search.</string>
+    <!-- Issue #1676 — live auto-follow "playing" re-engage chip. Shown floating
+         over the chapter list after the listener manually scrolls away from the
+         playing chapter; tapping it re-engages auto-follow and scrolls back. -->
+    <string name="fiction_follow_playing_chip">Playing</string>
+    <string name="fiction_follow_playing_chip_desc">Scroll to the chapter that\'s playing</string>
     <!-- Issue #1489 — shown in the chapter-list slot while a slow feed (e.g. a
          fresh RSS subscription) is still fetching its chapters. -->
     <string name="fiction_fetching_chapters">Fetching chapters…</string>
