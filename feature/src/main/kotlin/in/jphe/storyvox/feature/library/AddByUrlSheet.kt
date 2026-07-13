@@ -75,7 +75,11 @@ fun AddByUrlSheet(
     val sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val spacing = LocalSpacing.current
     val context = LocalContext.current
-    var input by remember { mutableStateOf("") }
+    // #1679 — seed from the Open state's prefill so a shared / clipboard URL
+    // lands in the field ready to confirm. `remember` initialises once per
+    // open (the sheet returns early while Hidden above, disposing this state),
+    // so the user's edits survive recomposition but a fresh open re-seeds.
+    var input by remember { mutableStateOf((state as? AddByUrlSheetState.Open)?.prefill.orEmpty()) }
 
     val error: String? = (state as? AddByUrlSheetState.Open)?.error
     val isSubmitting = state === AddByUrlSheetState.Submitting
