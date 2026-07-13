@@ -85,9 +85,12 @@ class GoogleNewsParserTest {
         // FIX the old table left raw in the browse card / narration.
         val descHtml =
             """<ol><li><a href="#">Mat &amp; Friends&#8217; <b>big</b> day</a></li>""" +
-                """<li><a href="#">Other &lt;coverage&gt;</a></li></ol>"""
+                """<li><a href="#">Other &lt;coverage&gt;</a></li>""" +
+                // R1: old stripHtml replaced a tag with a SPACE; the shared
+                // util uses source whitespace, so an intra-word tag merges.
+                """<li><a href="#">Sky<i>net</i>rises</a></li></ol>"""
         assertEquals(
-            listOf("Mat & Friends’ big day", "Other <coverage>"),
+            listOf("Mat & Friends’ big day", "Other <coverage>", "Skynetrises"),
             GoogleNewsParser.relatedHeadlinesFrom(descHtml, exclude = ""),
         )
     }

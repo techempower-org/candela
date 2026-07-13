@@ -121,6 +121,7 @@ class PrimeGamingFeedTest {
                 <id>https://feed.example/lootscraper/99999</id>
                 <title>Amazon Prime (Game) - Caf&#233; Story</title>
                 <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><ul><li><b>Description:</b> A rodent&#x2019;s tale &mdash; fun &#128512; &amp; friends.</li></ul></div></content>
+                <link href="https://luna.amazon.com/claims/x?a=1&amp;b=2"/>
               </entry>
             </feed>
         """.trimIndent()
@@ -130,5 +131,9 @@ class PrimeGamingFeedTest {
         assertEquals("Café Story", entry.game)
         // Hex ref + named em-dash + astral emoji + &amp; all decode.
         assertEquals("A rodent’s tale — fun 😀 & friends.", entry.description)
+        // R2: claimUrl still routes through the shared util — an href's
+        // `&amp;` decodes to `&` (correct for an Atom href) and the URL is
+        // otherwise preserved (no over-decode/mangle of a real claim link).
+        assertEquals("https://luna.amazon.com/claims/x?a=1&b=2", entry.claimUrl)
     }
 }
