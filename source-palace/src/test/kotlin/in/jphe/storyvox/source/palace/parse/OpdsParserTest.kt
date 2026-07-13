@@ -168,6 +168,9 @@ class OpdsParserTest {
         // local stripHtml stripped tags but NEVER decoded entities, so
         // `&amp;` leaked into the browse-card subtitle. Field cleanup now
         // uses the shared htmlToInlineText (tag-strip + full entity decode).
+        // Content below also pins R1: the old stripHtml replaced a tag with
+        // a SPACE, so an intra-word tag ("Sky<i>net</i>rises") split into
+        // three words; the shared util merges it ("Skynetrises").
         val xml = """
             <?xml version="1.0" encoding="utf-8"?>
             <feed xmlns="http://www.w3.org/2005/Atom">
@@ -176,7 +179,7 @@ class OpdsParserTest {
                 <id>urn:test:works/7777</id>
                 <title>Entity Test Book</title>
                 <author><name>Ent Author</name></author>
-                <content type="html">&lt;i&gt;Wit&lt;/i&gt; &amp;amp; wonder</content>
+                <content type="html">Sky&lt;i&gt;net&lt;/i&gt;rises &amp;amp; wit</content>
                 <link rel="http://opds-spec.org/acquisition/open-access"
                       type="application/epub+zip"
                       href="https://lib.example/works/7777/download.epub"/>
@@ -185,7 +188,7 @@ class OpdsParserTest {
         """.trimIndent()
 
         val feed = OpdsParser.parse(xml, baseUrl = "https://lib.example/opds")
-        assertEquals("Wit & wonder", feed.entries.single().summary)
+        assertEquals("Skynetrises & wit", feed.entries.single().summary)
     }
 
     @Test(expected = OpdsParseException::class)

@@ -88,6 +88,16 @@ class HackerNewsParseTest {
     }
 
     @Test
+    fun `toPlainText decodes the wider entity table and merges adjacent tags (#1628)`() {
+        // &mdash; is outside the old 7-entity table — the entity-gap FIX.
+        assertEquals("Wit — wonder", "Wit &mdash; wonder".toPlainText())
+        // R1: the old stripper put a SPACE where a tag sat; the shared util
+        // uses source whitespace, so an intra-word tag merges (chosen,
+        // pinned outcome — prose always spaces its emphasis anyway).
+        assertEquals("Skynetrises", "Sky<i>net</i>rises".toPlainText())
+    }
+
+    @Test
     fun `parses Algolia search response into hits`() {
         // Truncated real Algolia response. The real shape has lots
         // more fields (highlight ranges, _tags, created_at, etc.) —

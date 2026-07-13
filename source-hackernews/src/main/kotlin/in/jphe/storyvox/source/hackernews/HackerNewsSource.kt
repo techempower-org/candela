@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.source.hackernews
 
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.data.text.htmlToInlineText
 import `in`.jphe.storyvox.data.source.filter.FilterDimension
 import `in`.jphe.storyvox.data.source.filter.FilterState
 import `in`.jphe.storyvox.data.source.model.ChapterContent
@@ -433,23 +434,13 @@ internal fun chapterIdFor(fictionId: String): String = "${fictionId}::c0"
 
 /**
  * HN renders comment / Ask bodies as a tiny HTML subset — paragraphs,
- * `<i>`, `<a>`, `<pre><code>`, line breaks. The TTS pipeline
- * normalizes plaintext on top of whatever we hand it; this strip
- * just removes the tags and decodes the basic entities so the engine
- * doesn't read out angle brackets and `&#x27;`.
+ * `<i>`, `<a>`, `<pre><code>`, line breaks. #1628 — routed through the
+ * shared [htmlToInlineText]: same single-line collapse this always did,
+ * now with the full entity table (was 7 named/`&#x27;` refs). Note this
+ * intentionally keeps the one-line shape; restoring paragraph structure
+ * (`htmlToPlainText`) is a separate, on-device-verified change.
  */
-internal fun String.toPlainText(): String {
-    val withoutTags = Regex("<[^>]+>").replace(this, " ")
-    val decoded = withoutTags
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#x27;", "'")
-        .replace("&#39;", "'")
-        .replace("&nbsp;", " ")
-    return decoded.replace(Regex("\\s+"), " ").trim()
-}
+internal fun String.toPlainText(): String = htmlToInlineText()
 
 /** Minimal HTML escape for the htmlBody round-trip. The reader view
  *  treats this body as a single `<p>` so newlines and ampersands
