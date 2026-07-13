@@ -162,6 +162,32 @@ class OpdsParserTest {
         )
     }
 
+    @Test
+    fun `html content summary strips tags and decodes entities (#1628)`() {
+        // OPDS `<content type="html">` carries escaped markup. The old
+        // local stripHtml stripped tags but NEVER decoded entities, so
+        // `&amp;` leaked into the browse-card subtitle. Field cleanup now
+        // uses the shared htmlToInlineText (tag-strip + full entity decode).
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <feed xmlns="http://www.w3.org/2005/Atom">
+              <title>Sample Library</title>
+              <entry>
+                <id>urn:test:works/7777</id>
+                <title>Entity Test Book</title>
+                <author><name>Ent Author</name></author>
+                <content type="html">&lt;i&gt;Wit&lt;/i&gt; &amp;amp; wonder</content>
+                <link rel="http://opds-spec.org/acquisition/open-access"
+                      type="application/epub+zip"
+                      href="https://lib.example/works/7777/download.epub"/>
+              </entry>
+            </feed>
+        """.trimIndent()
+
+        val feed = OpdsParser.parse(xml, baseUrl = "https://lib.example/opds")
+        assertEquals("Wit & wonder", feed.entries.single().summary)
+    }
+
     @Test(expected = OpdsParseException::class)
     fun `rejects non-OPDS root element`() {
         // RSS root → not an OPDS feed → throw at parse-time so the
