@@ -78,7 +78,17 @@ class GoogleNewsParserTest {
     }
 
     @Test
-    fun `stripHtml removes tags and decodes the basic entities`() {
-        assertEquals("A & B", GoogleNewsParser.stripHtml("<b>A</b> &amp; <i>B</i>"))
+    fun `related headlines strip tags and decode entities via shared util (#1628)`() {
+        // Field cleanup moved from the local stripHtml (7-entity table) to
+        // the shared htmlToInlineText. Tag-strip + &amp;/&lt;/&gt; are
+        // behaviour-preserving; the curly quote (&#8217;) is the entity-gap
+        // FIX the old table left raw in the browse card / narration.
+        val descHtml =
+            """<ol><li><a href="#">Mat &amp; Friends&#8217; <b>big</b> day</a></li>""" +
+                """<li><a href="#">Other &lt;coverage&gt;</a></li></ol>"""
+        assertEquals(
+            listOf("Mat & Friends’ big day", "Other <coverage>"),
+            GoogleNewsParser.relatedHeadlinesFrom(descHtml, exclude = ""),
+        )
     }
 }

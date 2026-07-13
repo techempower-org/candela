@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox.source.wikipedia.net
 
 import `in`.jphe.storyvox.data.source.model.FictionResult
+import `in`.jphe.storyvox.data.text.htmlToInlineText
 import `in`.jphe.storyvox.source.wikipedia.config.WikipediaConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -132,8 +133,7 @@ internal class WikipediaApi @Inject constructor(
                         res.value.query?.search.orEmpty().map { hit ->
                             WikipediaSearchHit(
                                 title = hit.title,
-                                // strip MediaWiki's <span class="searchmatch"> highlighting
-                                description = hit.snippet.replace(Regex("<[^>]+>"), "").trim(),
+                                description = cleanSearchSnippet(hit.snippet),
                                 url = "",
                             )
                         },
@@ -260,6 +260,15 @@ internal class WikipediaApi @Inject constructor(
 
 private fun JsonElement.contentOrEmpty(): String =
     runCatching { jsonPrimitive.contentOrNull }.getOrNull().orEmpty()
+
+/**
+ * Clean a MediaWiki search `snippet` into a plain one-line card subtitle.
+ * The snippet carries `<span class="searchmatch">` highlight markup and
+ * HTML entities. #1628 — routed through the shared [htmlToInlineText]
+ * (strip tags + full entity decode); the old inline strip removed tags
+ * but left entities like `&amp;` raw in the browse card.
+ */
+internal fun cleanSearchSnippet(rawSnippet: String): String = rawSnippet.htmlToInlineText()
 
 // ─── wire types ───────────────────────────────────────────────────────
 
