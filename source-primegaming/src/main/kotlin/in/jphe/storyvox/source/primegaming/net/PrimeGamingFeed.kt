@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.primegaming.net
 
+import `in`.jphe.storyvox.data.text.htmlToInlineText
+
 /**
  * Issue #1494 — typed view of the LootScraper "Free Amazon Prime Games" Atom
  * feed. One [PrimeGamingEntry] per claimable title.
@@ -25,6 +27,14 @@ package `in`.jphe.storyvox.source.primegaming.net
  * If LootScraper's template ever shifts we re-key the regexes; the unit tests
  * pin the canonical layout so a silent break surfaces at CI, not on a user's
  * empty chapter list.
+ *
+ * Captured field text (tag-stripping + entity decode + whitespace collapse)
+ * goes through the shared [htmlToInlineText] in core-data (#1628) — one
+ * entity table for the whole app, adding the hex refs the old local decoder
+ * missed. jsoup follows HTML5 for malformed numeric refs (out-of-range /
+ * lone-surrogate code points → U+FFFD) rather than leaking the raw `&#…;`;
+ * emoji and the common `&#039;` / `&amp;` cases still decode as before.
+ * jsoup stays transitive to core-data; this module adds no jsoup dep.
  */
 internal data class PrimeGamingFeed(
     /** Feed-level `<title>` (e.g. "Free Amazon Prime Games (PC)"). */
@@ -87,7 +97,7 @@ internal data class PrimeGamingFeed(
             val firstEntry = xml.indexOf("<entry", ignoreCase = true)
             val head = if (firstEntry >= 0) xml.substring(0, firstEntry) else xml
             val feedTitle = FEED_TITLE_REGEX.find(head)?.groupValues?.get(1)
-                ?.let(::decodeXmlEntities)?.collapseWhitespace()?.ifBlank { null }
+                ?.htmlToInlineText()?.ifBlank { null }
             val feedUpdated = FEED_UPDATED_REGEX.find(head)?.groupValues?.get(1)?.trim()
                 ?.ifBlank { null }
 
@@ -106,7 +116,7 @@ internal data class PrimeGamingFeed(
             // template change that drops the numeric id doesn't collapse every
             // chapter onto one key.
             val rawTitle = TITLE_REGEX.find(body)?.groupValues?.get(1)
-                ?.let(::decodeXmlEntities)?.collapseWhitespace().orEmpty()
+                ?.htmlToInlineText().orEmpty()
             val game = TITLE_PREFIX_REGEX.replace(rawTitle, "").trim()
             val id = idUrl.substringAfterLast('/', "").ifBlank { slug(game) }
 
@@ -117,17 +127,17 @@ internal data class PrimeGamingFeed(
             val validTo = VALID_TO_REGEX.find(content)?.groupValues?.get(1)?.trim()?.ifBlank { null }
             val releaseDate = RELEASE_DATE_REGEX.find(content)?.groupValues?.get(1)?.trim()?.ifBlank { null }
             val description = DESCRIPTION_REGEX.find(content)?.groupValues?.get(1)
-                ?.let(::stripTags)?.let(::decodeXmlEntities)?.collapseWhitespace()?.ifBlank { null }
+                ?.htmlToInlineText()?.ifBlank { null }
 
             // Genres: prefer the <category label="…"> tags (clean); fall back to
             // the inline "Genres: Action, Adventure" list in the content body.
             val categoryGenres = CATEGORY_LABEL_REGEX.findAll(body)
-                .map { decodeXmlEntities(it.groupValues[1]).trim() }
+                .map { it.groupValues[1].htmlToInlineText() }
                 .filter { it.isNotBlank() }
                 .toList()
             val genres = categoryGenres.ifEmpty {
                 GENRES_INLINE_REGEX.find(content)?.groupValues?.get(1)
-                    ?.let(::stripTags)?.let(::decodeXmlEntities)
+                    ?.htmlToInlineText()
                     ?.split(',')?.map { it.trim() }?.filter { it.isNotBlank() }
                     ?: emptyList()
             }
@@ -148,7 +158,7 @@ internal data class PrimeGamingFeed(
                 releaseDate = releaseDate,
                 description = description,
                 genres = genres,
-                claimUrl = claimUrl?.let(::decodeXmlEntities),
+                claimUrl = claimUrl?.htmlToInlineText(),
                 updated = updated,
             )
         }
@@ -170,35 +180,3 @@ internal data class PrimeGamingEntry(
     val claimUrl: String?,
     val updated: String?,
 )
-
-private val WHITESPACE_RE = Regex("""\s+""")
-private val TAG_RE = Regex("""<[^>]+>""")
-private val NUMERIC_ENTITY_RE = Regex("""&#(\d+);""")
-
-/** Collapse the multi-line, indented XHTML text into a single spaced line. */
-internal fun String.collapseWhitespace(): String = WHITESPACE_RE.replace(trim(), " ")
-
-/** Drop any residual HTML tags left in a captured fragment. */
-internal fun stripTags(html: String): String = TAG_RE.replace(html, " ")
-
-/**
- * Decode the entities LootScraper actually emits — named plus numeric
- * (`&#039;` for an apostrophe is common in its game titles). `&amp;` is
- * decoded LAST so a doubly-safe `&amp;lt;` doesn't turn into `<`.
- */
-internal fun decodeXmlEntities(text: String): String =
-    NUMERIC_ENTITY_RE.replace(text) { m ->
-        m.groupValues[1].toIntOrNull()
-            // Supplementary-plane chars (emoji in game descriptions, e.g.
-            // &#128512;) need Character.toChars — Char(code) throws above
-            // 0xFFFF. Out-of-range and surrogate code points stay literal.
-            ?.takeIf { it in 0..0x10FFFF && it !in 0xD800..0xDFFF }
-            ?.let { code -> String(Character.toChars(code)) }
-            ?: m.value
-    }
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
-        .replace("&#39;", "'")
-        .replace("&amp;", "&")
