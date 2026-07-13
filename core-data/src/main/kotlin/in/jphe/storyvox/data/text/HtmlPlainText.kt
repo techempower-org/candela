@@ -38,7 +38,7 @@ fun String.htmlToPlainText(): String {
     if (isBlank()) return ""
     val doc = Jsoup.parse(this)
     // Non-content: strip so their text never reaches the reader / narration.
-    doc.select("head, script, style, noscript, svg, title").remove()
+    doc.select(NON_CONTENT_SELECTOR).remove()
     val sb = StringBuilder()
     doc.body().traverse(object : NodeVisitor {
         override fun head(node: Node, depth: Int) {
@@ -58,6 +58,39 @@ fun String.htmlToPlainText(): String {
     })
     return sb.toString().normalizeBlockWhitespace()
 }
+
+/**
+ * Issue #1628 — single-line sibling of [htmlToPlainText] for **metadata**
+ * fields (titles, author names, subject lists, one-line descriptions, an
+ * abstract block) rather than multi-paragraph chapter bodies.
+ *
+ * Where [htmlToPlainText] preserves `\n\n` paragraph breaks (paragraph-nav
+ * keys on them), a metadata field wants exactly one clean line: strip tags,
+ * decode **every** entity natively (jsoup — the curly quotes / numeric refs /
+ * **hex refs** `&#x2019;` / accents the per-source regex tables missed,
+ * #1628), and collapse every run of whitespace — including newlines — to a
+ * single space. This matches the `stripTags → decode → collapseWhitespace`
+ * shape the arXiv / Standard Ebooks / Prime Gaming parsers hand-rolled, so
+ * migrating them to it is behaviour-preserving except for the entity FIXES.
+ *
+ * jsoup follows the HTML5 spec for malformed numeric refs (out-of-range /
+ * surrogate code points → U+FFFD replacement char) rather than leaking the
+ * raw `&#…;` text; real machine-generated feeds never emit those, and a
+ * replacement char is safer in narration than a spoken entity code.
+ *
+ * Accepts full documents and bare fragments alike; blank in → blank out.
+ */
+fun String.htmlToInlineText(): String {
+    if (isBlank()) return ""
+    val doc = Jsoup.parse(this)
+    doc.select(NON_CONTENT_SELECTOR).remove()
+    // Element.text() decodes entities, strips tags, and collapses all
+    // whitespace (incl. newlines) to single spaces — the inline contract.
+    return doc.body().text().trim()
+}
+
+/** Non-content elements whose text must never reach the reader / narration. */
+private const val NON_CONTENT_SELECTOR = "head, script, style, noscript, svg, title"
 
 /** Block-level tags whose close introduces a paragraph break. Inline tags
  *  (`<em>`, `<strong>`, `<a>`, …) are intentionally absent so their text
