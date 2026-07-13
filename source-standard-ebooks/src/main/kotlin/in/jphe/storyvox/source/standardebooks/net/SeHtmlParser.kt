@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.standardebooks.net
 
+import `in`.jphe.storyvox.data.text.htmlToInlineText
+
 /**
  * Issue #375 — focused regex extractor over the public Standard Ebooks
  * listing and per-book HTML pages.
@@ -16,6 +18,12 @@ package `in`.jphe.storyvox.source.standardebooks.net
  * extraction shape an OPDS `<entry>` walker would. If SE ever ships a
  * public OPDS feed, the API client can swap to a `<feed><entry>` parser
  * and leave this file behind unchanged.
+ *
+ * Captured field text (tag-stripping + entity decode + whitespace
+ * collapse) goes through the shared [htmlToInlineText] in core-data
+ * (#1628) — one entity table for the whole app, decoding the curly
+ * quotes / em-dashes / accents the old local `htmlDecode` left raw.
+ * jsoup stays transitive to core-data; this module adds no jsoup dep.
  */
 internal object SeHtmlParser {
 
@@ -78,8 +86,6 @@ internal object SeHtmlParser {
         """<section\s+id="description">([\s\S]*?)</section>""",
     )
     private val PARAGRAPH_REGEX = Regex("""<p>([\s\S]*?)</p>""")
-    private val TAG_STRIP_REGEX = Regex("""<[^>]+>""")
-    private val WHITESPACE_REGEX = Regex("""\s+""")
 
     /**
      * Parse one HTML listing page into the wire shape consumed by
@@ -95,23 +101,21 @@ internal object SeHtmlParser {
             val block = m.groupValues[3]
 
             val title = TITLE_REGEX.find(block)?.groupValues?.get(1)
-                ?.htmlDecode()
-                ?.trim()
+                ?.htmlToInlineText()
                 ?: return@mapNotNull null
 
             // Author falls back to the slug prettified if the chip is
             // missing — SE always emits the chip, but a defensive
             // default protects against a layout shift.
             val author = AUTHOR_REGEX.find(block)?.groupValues?.get(1)
-                ?.htmlDecode()
-                ?.trim()
+                ?.htmlToInlineText()
                 ?: authorSlug.replace('-', ' ').replaceFirstChar { it.uppercase() }
 
             val coverPath = COVER_REGEX.find(block)?.groupValues?.get(1)
             val coverUrl = coverPath?.let { absolutize(it) }
 
             val tags = TAG_REGEX.findAll(block)
-                .map { it.groupValues[2].htmlDecode().trim() }
+                .map { it.groupValues[2].htmlToInlineText() }
                 .toList()
 
             SeBookEntry(
@@ -139,7 +143,7 @@ internal object SeHtmlParser {
         val section = DESCRIPTION_SECTION_REGEX.find(html)?.groupValues?.get(1)
             ?: return null
         val paragraphs = PARAGRAPH_REGEX.findAll(section)
-            .map { it.groupValues[1].stripTags().htmlDecode().trim() }
+            .map { it.groupValues[1].htmlToInlineText() }
             .filter { it.isNotEmpty() }
             .toList()
         if (paragraphs.isEmpty()) return null
@@ -159,23 +163,4 @@ internal object SeHtmlParser {
         path.startsWith("/") -> "https://standardebooks.org$path"
         else -> "https://standardebooks.org/$path"
     }
-
-    private fun String.stripTags(): String =
-        TAG_STRIP_REGEX.replace(this, " ")
-            .let { WHITESPACE_REGEX.replace(it, " ") }
-            .trim()
-
-    /**
-     * Cheap HTML-entity decoder for the handful of entities SE actually
-     * emits in titles/authors/descriptions (`&amp;`, `&quot;`, `&#39;`,
-     * the Unicode-encoded curly quotes / em-dashes pass through raw).
-     */
-    private fun String.htmlDecode(): String =
-        replace("&amp;", "&")
-            .replace("&quot;", "\"")
-            .replace("&#39;", "'")
-            .replace("&apos;", "'")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&nbsp;", " ")
 }
