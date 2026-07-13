@@ -118,6 +118,7 @@ import `in`.jphe.storyvox.ui.theme.ReaderColors
 import `in`.jphe.storyvox.ui.theme.ReaderTypography
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -127,6 +128,10 @@ import kotlinx.coroutines.launch
  * whatever they're reading ahead.
  */
 private const val MANUAL_SCROLL_GRACE_MS = 5_000L
+
+// Issue #1672 — how long narration runs hands-off before the brass FAB
+// cluster auto-hides so it stops occluding the text it floats over.
+private const val RAIL_AUTO_HIDE_DELAY_MS = 3_500L
 
 /** Where on the viewport the highlighted sentence should land — 40% from the top. */
 internal const val HIGHLIGHT_VIEWPORT_FRACTION = 0.40f
@@ -403,6 +408,25 @@ fun ReaderTextView(
     LaunchedEffect(scroll) {
         snapshotFlow { scroll.isScrollInProgress }.collect { dragging ->
             if (dragging) lastManualScrollAt = System.currentTimeMillis()
+        }
+    }
+
+    // Issue #1672 — the end-aligned brass FAB cluster floats OVER the
+    // full-width chapter text and was clipping the last characters of
+    // lines that pass beneath it (confirmed on-device, SM-F711U). Rather
+    // than narrowing the text measure for the whole page (a permanent
+    // typographic tax) the rail auto-hides once narration has been
+    // running hands-off for a few seconds — the same passive-reading
+    // moment where the occlusion hurts. Any manual scroll re-stamps
+    // [lastManualScrollAt] and restores the rail instantly, as does
+    // pausing. AnimatedVisibility removes the FABs from composition
+    // while hidden, so no invisible tap-targets sit over the prose.
+    var railAutoHidden by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isPlaying, lastManualScrollAt) {
+        railAutoHidden = false
+        if (state.isPlaying) {
+            delay(RAIL_AUTO_HIDE_DELAY_MS)
+            railAutoHidden = true
         }
     }
 
@@ -896,6 +920,14 @@ fun ReaderTextView(
         // toggling off closes the bar and clears the query so the match
         // highlights vanish. Only shown when there's chapter text to search.
         if (chapterText.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = !railAutoHidden,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = spacing.md, bottom = 296.dp),
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
             SmallFloatingActionButton(
                 onClick = {
                     searchOpen = !searchOpen
@@ -905,8 +937,6 @@ fun ReaderTextView(
                     }
                 },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = spacing.md, bottom = 296.dp)
                     .semantics { contentDescription = searchHint },
                 containerColor = if (searchOpen) {
                     MaterialTheme.colorScheme.primary
@@ -921,6 +951,7 @@ fun ReaderTextView(
             ) {
                 Icon(imageVector = Icons.Outlined.Search, contentDescription = null)
             }
+            }
         }
 
         // Issue #1239 — Teleprompter / rehearsal toggle. Top of the brass
@@ -928,11 +959,17 @@ fun ReaderTextView(
         // teleprompter is already on (the transport's exit returns you).
         // When on, the bottom chrome becomes the teleprompter controls.
         if (!focusModeEnabled && !teleprompterEnabled) {
+            AnimatedVisibility(
+                visible = !railAutoHidden,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = spacing.md, bottom = 360.dp),
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
             SmallFloatingActionButton(
                 onClick = { onSetTeleprompterEnabled(true) },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = spacing.md, bottom = 360.dp)
                     .semantics {
                         contentDescription = "Teleprompter rehearsal mode. Tap to start."
                     },
@@ -940,6 +977,7 @@ fun ReaderTextView(
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ) {
                 Icon(imageVector = Icons.Outlined.Slideshow, contentDescription = null)
+            }
             }
         }
 
@@ -949,11 +987,17 @@ fun ReaderTextView(
         // use to leave the distraction-reduced view. Filled-brass when
         // on, dimmed-surface when off, mirroring the auto-scroll toggle's
         // state-tint language.
+        AnimatedVisibility(
+            visible = !railAutoHidden,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = spacing.md, bottom = 232.dp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
         SmallFloatingActionButton(
             onClick = { onToggleFocusMode(!focusModeEnabled) },
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = spacing.md, bottom = 232.dp)
                 .semantics {
                     contentDescription = if (focusModeEnabled) {
                         "Focused Reading on. Tap to turn off."
@@ -976,6 +1020,7 @@ fun ReaderTextView(
                 imageVector = Icons.Outlined.CenterFocusStrong,
                 contentDescription = null,
             )
+        }
         }
 
         // Issue #946 — magical auto-scroll on/off toggle. Sits above the
@@ -1000,11 +1045,17 @@ fun ReaderTextView(
             label = "autoscroll-sparkle-alpha",
         )
         if (!focusModeEnabled && !teleprompterEnabled) {
+            AnimatedVisibility(
+                visible = !railAutoHidden,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = spacing.md, bottom = 168.dp),
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
             SmallFloatingActionButton(
                 onClick = { onToggleAutoScroll(!autoScrollEnabled) },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = spacing.md, bottom = 168.dp)
                     .semantics {
                         contentDescription = if (autoScrollEnabled) {
                             "Auto-scroll on. Tap to turn off."
@@ -1044,8 +1095,13 @@ fun ReaderTextView(
                     }
                 }
             }
+            }
         }
         // Issue #919 — floating "scroll to current sentence" button.
+        // (#1672: deliberately NOT auto-hidden with the brass cluster —
+        // it only appears when the spoken sentence is out of view, which
+        // is exactly when the user needs it, and it sits at the lowest
+        // slot above the transport bar where occlusion cost is smallest.)
         // Positioned above the bottom transport bar (bottom = 104dp to
         // clear the bar + spacing), end-aligned. Uses Material 3
         // SmallFloatingActionButton with the app's primary/onPrimary
