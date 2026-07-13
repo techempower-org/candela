@@ -159,4 +159,30 @@ class SeHtmlParserTest {
         val pageWithoutDescription = "<html><body><h1>Nope</h1></body></html>"
         assertNull(SeHtmlParser.parseBookDescription(pageWithoutDescription))
     }
+
+    @Test
+    fun `parseBookDescription decodes curly quotes, dashes, and accents (#1628)`() {
+        // The old local htmlDecode handled only ~7 named entities; curly
+        // quotes / em-dashes / accents leaked into the browse card + TTS.
+        // Field text now flows through the shared htmlToInlineText (jsoup).
+        val bookPage = """
+            <main><section id="description">
+                <h2>Description</h2>
+                <p>A rogue&#8217;s tale &mdash; wit, <em>daring</em>&hellip; and a curly &ldquo;quote&rdquo;.</p>
+                <p>Caf&eacute; na&#xEF;ve &amp; bold.</p>
+            </section></main>
+        """.trimIndent()
+
+        val desc = SeHtmlParser.parseBookDescription(bookPage)
+        assertNotNull(desc)
+        assertEquals(
+            "A rogue’s tale — wit, daring… and a curly “quote”.\n\nCafé naïve & bold.",
+            desc,
+        )
+        // No raw entity codes and no inline markup survive.
+        assertFalse(desc!!.contains("&#"))
+        assertFalse(desc.contains("&mdash;"))
+        assertFalse(desc.contains("&ldquo;"))
+        assertFalse(desc.contains("<em>"))
+    }
 }

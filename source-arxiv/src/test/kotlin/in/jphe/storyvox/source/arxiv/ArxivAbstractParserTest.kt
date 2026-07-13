@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.source.arxiv
 import `in`.jphe.storyvox.source.arxiv.net.ArxivAbstractParser
 import `in`.jphe.storyvox.source.arxiv.net.formatAuthors
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -96,6 +97,31 @@ class ArxivAbstractParserTest {
         assertTrue(parsed.authors.isEmpty())
         // No comments row → nullable comments field stays null.
         assertNull(parsed.comments)
+    }
+
+    @Test
+    fun `decodes hex, named, and accented entities the local table missed (#1628)`() {
+        // The old decodeXmlEntities handled only 6 XML entities — hex refs
+        // (&#xF6;), named accents (&ouml;), and curly quotes (&#8217;) leaked
+        // into the chapter body and TTS narration. The shared htmlToInlineText
+        // decodes them all. citation_* meta tags carry the field text.
+        val html = """
+            <html><head>
+            <meta name="citation_title" content="Caf&#233; Habits &amp; Sch&ouml;lkopf&#8217;s Method">
+            <meta name="citation_author" content="Sch&#xF6;lkopf, Bernhard">
+            <meta name="citation_abstract" content="A na&#xEF;ve rodent&#x2019;s tale &mdash; fun&#8230;">
+            </head><body></body></html>
+        """.trimIndent()
+        val parsed = ArxivAbstractParser.parse(html)
+
+        assertEquals("Café Habits & Schölkopf’s Method", parsed.title)
+        assertEquals(listOf("Schölkopf, Bernhard"), parsed.authors)
+        assertEquals("A naïve rodent’s tale — fun…", parsed.abstract)
+        // No raw entity codes reach the reader / narration.
+        listOf(parsed.title, parsed.authors.first(), parsed.abstract).forEach {
+            assertFalse("no named entity leaks", it.contains("&amp;") || it.contains("&ouml;"))
+            assertFalse("no numeric ref leaks", it.contains("&#"))
+        }
     }
 
     private fun readFixture(name: String): String {
