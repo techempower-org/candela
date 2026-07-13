@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.palace.parse
 
+import `in`.jphe.storyvox.data.text.htmlToInlineText
 import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
 import java.io.StringReader
@@ -141,7 +142,7 @@ internal object OpdsParser {
                     // crudely so it renders as a plain card subtitle.
                     val txt = readText(parser).trim()
                     if (summary.isNullOrBlank() && txt.isNotEmpty()) {
-                        summary = stripHtml(txt)
+                        summary = txt.htmlToInlineText()
                     }
                 }
                 "category" -> {
@@ -294,14 +295,6 @@ internal object OpdsParser {
             href
         }
     }
-
-    /** Cheap HTML→plain for entry summaries that arrived as `type="html"`.
-     *  The detail/listing UI shows these at-a-glance so we don't need
-     *  the full HTML→text pipeline; strip tags and collapse whitespace. */
-    private fun stripHtml(input: String): String =
-        Regex("<[^>]+>").replace(input, " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
 
     /** Classified entry shape. The parser walks once and dispatches in
      *  the caller; an entry can be exactly one of these. */
