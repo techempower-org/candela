@@ -9,6 +9,35 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.13.1] -- 2026-07-12
+
+**Jade Forge.** The overnight-crew release: two quality-of-life fixes that
+shipped from the issue queue while the town slept, plus a big stack of
+housekeeping.
+
+### Fixed
+- Sharing a link from another app (Chrome, news readers, anywhere) now
+  actually lands in Candela: the Add-by-URL sheet opens pre-filled with the
+  shared link, one tap from your library. Previously the URL was silently
+  dropped. (#1679)
+- In-app brand casing corrected to TechEMPOWER across user-facing strings. (#1671)
+
+### Added
+- Chapter lists open scrolled to your resume chapter instead of the top --
+  no more flinging through a hundred chapters to find your place. Live
+  follow-the-playing-chapter is tracked separately in #1676.
+- Release builds now bundle native debug symbols for crash symbolication
+  (#1674; upstream symbol coverage tracked in #1691).
+
+### Under the hood
+- Voice-engine pool builders deduplicated across Piper/Kokoro/KittenTTS (#1503).
+- Compose-UI test toolchain enabled for :feature (#1661) and the Voice Notes
+  backup-rules test hardened (#1659).
+- Ten dependency updates (Compose BOM, Dagger Hilt 2.60.1, sherpa-onnx 1.13.4,
+  Wear, testing, and friends) landed via a serialized Dependabot cascade, and
+  the auto-rebase swarm that used to OOM the CI runner is structurally fixed
+  (rebase-strategy: disabled).
+
 ## [1.13.0] -- 2026-07-10
 
 **Fabled Jewel.** Voice Notes arrives — record a thought, meeting, or memo and Candela transcribes it on-device and, with your consent, turns it into an AI summary, saved as a searchable note. Plus three Settings additions.

@@ -1,6 +1,5 @@
-v1.13.0: Fabled Jewel
+v1.13.1: Jade Forge
 
-• Voice Notes: record a thought, memo, or meeting; Candela transcribes it on-device and, with your OK, turns it into a searchable AI summary
-• Choose your own default sleep-timer duration
-• Palace Project library sign-in now lives in Content Sources
-• AO3 account sign-in & sign-out in Account settings
+• Share a link from any app and Candela opens ready to add it to your library
+• Chapter lists now open scrolled to where you left off
+• Updated libraries, crash-report symbols, and stability fixes throughout
