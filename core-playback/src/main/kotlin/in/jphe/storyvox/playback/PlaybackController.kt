@@ -903,6 +903,14 @@ class DefaultPlaybackController @Inject constructor(
         player?.setPunctuationPauseMultiplier(multiplier)
     }
 
+    /**
+     * Issue #1618 — the sleep-timer "fired" event (the mode that just elapsed
+     * and paused), surfaced from [SleepTimer] for the playback service's
+     * shake-to-revive grace window. Concrete-only (deliberately NOT on the
+     * [PlaybackController] interface, so its fakes need no change).
+     */
+    val timerFired: SharedFlow<SleepTimerMode> get() = sleepTimer.timerFired
+
     override fun startSleepTimer(mode: SleepTimerMode) {
         sleepTimer.start(mode)
     }
