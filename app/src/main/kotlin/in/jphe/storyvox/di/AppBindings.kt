@@ -151,6 +151,22 @@ object AppBindings {
         impl: `in`.jphe.storyvox.data.PalaceConfigContributor,
     ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
 
+    // source-endless — the endless-litrpg daemon's LAN address. Host-only
+    // (that daemon has no auth), and there is no default: it's a self-hosted
+    // service whose address moves, so it must be configured, never assumed.
+    @Provides @Singleton @IntoSet
+    fun provideEndlessConfigContributor(
+        impl: `in`.jphe.storyvox.data.EndlessConfigContributor,
+    ): `in`.jphe.storyvox.data.source.plugin.SourceConfigContributor = impl
+
+    /** The read side of the endless-litrpg daemon host setting, consumed by
+     *  `:source-endless` (which stays DataStore-free and cannot mutate what
+     *  it reads). `:app` is the sole provider — mirrors `PalaceLibraryConfig`. */
+    @Provides @Singleton
+    fun provideEndlessConfig(
+        impl: `in`.jphe.storyvox.data.EndlessConfigImpl,
+    ): `in`.jphe.storyvox.source.endless.config.EndlessConfig = impl
+
     /** Issue #1228 — bridges the `:feature` [DocumentImporterUi] seam to
      *  the app-side single-file import path (the same one MainActivity's
      *  "Open With" ingest uses), so the Library "Import a file…" picker can

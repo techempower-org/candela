@@ -130,6 +130,12 @@ include(":source-reddit")
 // see scratch/libby-hoopla-palace-scope/lcp-drm-scope.md). Libby +
 // Hoopla follow-ups defer to their own PRs (see sibling scope notes).
 include(":source-palace")
+// source-endless — a self-hosted endless-litrpg daemon (github.com/jphein/
+// endlesslitrpg): an always-generating LitRPG serial whose chapters arrive
+// with pre-rendered multi-voice audio, played through Media3 rather than
+// re-synthesised on device. Host is user-configured; there is no public
+// instance, so the plugin ships default-disabled.
+include(":source-endless")
 // Issue #1002 — Bookshare / accessible-library (DAISY) source. Ships a
 // DAISY text parser + a guarded FictionSource scaffold; functional
 // integration is partnership/DRM-gated (see the #1002 research comment).
