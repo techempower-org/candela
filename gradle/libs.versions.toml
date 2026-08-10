@@ -1,8 +1,8 @@
 [versions]
 # Build tools
 agp = "9.2.0"
-kotlin = "2.4.0"
-ksp = "2.3.10"
+kotlin = "2.4.10"
+ksp = "2.3.11"
 # Triple-T gradle-play-publisher — `./gradlew publishReleaseBundle` uploads
 # the signed AAB to Play Console without the browser. Requires a Google
 # Cloud service-account JSON with Play Console "Release manager"
