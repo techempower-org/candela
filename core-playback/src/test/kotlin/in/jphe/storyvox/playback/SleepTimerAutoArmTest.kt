@@ -91,4 +91,29 @@ class SleepTimerAutoArmTest {
     @Test fun `extends at the fade-tail end boundary`() {
         assertTrue(shouldExtendOnShake(sleepTimerRemainingMs = 0L, fadeWindowMs = fade))
     }
+
+    // ── #1618 — post-stop shake-to-revive grace window ─────────────
+
+    private val grace = 60_000L
+
+    @Test fun `does not listen in grace window when the timer never fired`() {
+        assertFalse(shouldListenInGraceWindow(msSinceFiredMs = null, graceWindowMs = grace))
+    }
+
+    @Test fun `listens right after the timer fires and partway through`() {
+        assertTrue(shouldListenInGraceWindow(msSinceFiredMs = 0L, graceWindowMs = grace))
+        assertTrue(shouldListenInGraceWindow(msSinceFiredMs = 30_000L, graceWindowMs = grace))
+    }
+
+    @Test fun `listens at the grace-window end boundary but not past it`() {
+        assertTrue(shouldListenInGraceWindow(msSinceFiredMs = 60_000L, graceWindowMs = grace))
+        assertFalse(shouldListenInGraceWindow(msSinceFiredMs = 60_001L, graceWindowMs = grace))
+    }
+
+    @Test fun `revives on a shake inside the window, ignores one past it or with no fire`() {
+        assertTrue(shouldReviveOnShake(msSinceFiredMs = 0L, graceWindowMs = grace))
+        assertTrue(shouldReviveOnShake(msSinceFiredMs = 60_000L, graceWindowMs = grace))
+        assertFalse(shouldReviveOnShake(msSinceFiredMs = 60_001L, graceWindowMs = grace))
+        assertFalse(shouldReviveOnShake(msSinceFiredMs = null, graceWindowMs = grace))
+    }
 }
