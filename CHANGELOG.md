@@ -9,6 +9,52 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.14.0] -- 2026-09-05
+
+**Arcane Herald.** The tester-readiness release: the queue drained, stranded
+work recovered, and the seams a first-time tester hits first -- resume,
+shake-to-revive, chapter follow -- made honest.
+
+### Added
+- **Shake to revive.** When the sleep timer stops playback, a quick shake
+  within the next 60 seconds brings it back and re-arms the same timer --
+  no unlocking, no hunting for the app. A manual resume or a new timer
+  closes the window, so a stray shake can't clobber what you just did. (#1618)
+- **Live follow in the chapter list.** While narration plays, the chapter
+  list tracks the playing chapter; opening it still lands on your resume
+  point. (#1676)
+- **Endless LitRPG source.** Reads the self-hosted endless-serial daemon --
+  chapter list, per-chapter text, and its MP3 renders re-hosted on the
+  configured authority -- as a first-class source. 37 sources now.
+
+### Fixed
+- **Resume goes where you actually were.** The Play/Resume button on a book
+  (and the chapter-list scroll anchor) picked the first *unfinished* chapter
+  -- a progress frontier -- so re-listening to chapter 10 of a
+  finished-through-50 book sent you to chapter 51. It now uses the most
+  recently played position, the same signal the Library tile already had. (#1685)
+- The brass FAB rail auto-hides during hands-off narration instead of
+  covering the text. (#1672)
+- Play Store full description trimmed back under the 4000-character hard
+  cap (it had drifted to 4007) and source counts synced to 37.
+
+### Under the hood
+- **One HTML-to-text path.** Every source now converts through the shared
+  jsoup `htmlToPlainText` / `htmlToInlineText`; the last hand-rolled regex
+  strippers (Gutenberg and Palace chapter bodies, eight metadata parsers)
+  are gone, so paragraph navigation and entity decoding -- curly quotes,
+  em-dashes, numeric refs -- behave the same on every source. (#1628)
+- Room schema 17.json backfilled from a time-travel build of the v17 commit,
+  with a byte-identical 16.json as the positive control; the migration tests
+  now have a v17 fixture. (#1655)
+- Eleven dependency updates landed as two verified batches instead of a
+  serialized Dependabot cascade: AGP 9.3.1, Kotlin 2.4.10 / KSP 2.3.11,
+  Compose BOM 2026.08.00, baselineprofile 1.5.0-rc01, benchmark 1.5.0-beta01,
+  jsoup 1.23.1, commonmark 0.30.0, aboutlibraries 15.0.4, and the Wear
+  tiles/protolayout pair. (#1720 #1722 #1724)
+- Gradle 9.7 is held back: it cannot initialize its Configuration Cache
+  keystore on the CI runners (reproduced, tracked in #1725).
+
 ## [1.13.1] -- 2026-07-12
 
 **Jade Forge.** The overnight-crew release: two quality-of-life fixes that
