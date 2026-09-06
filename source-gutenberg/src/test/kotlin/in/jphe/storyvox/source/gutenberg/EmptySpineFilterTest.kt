@@ -10,8 +10,8 @@ import org.junit.Test
 /**
  * Issue #733 — playback fails on real Gutenberg books because the
  * first spine entry is the `coverpage-wrapper` HTML containing only an
- * SVG `<image>` reference to the cover JPEG. Its [stripTags] yields an
- * empty string, so the chapter row's `plainBody` lands empty in the
+ * SVG `<image>` reference to the cover JPEG. Its plain text (the shared
+ * `htmlToPlainText`, #1628) is empty, so the chapter row's `plainBody` lands empty in the
  * DB. The render worker logs `PRERENDER-SKIP-NOTEXT`; the foreground
  * `loadAndPlay` path returns null from `chapterRepo.getChapter()` and
  * surfaces `ChapterFetchFailed`.
@@ -27,7 +27,7 @@ import org.junit.Test
 class EmptySpineFilterTest {
 
     @Test
-    fun `drops cover SVG entry whose stripTags is empty`() {
+    fun `drops cover SVG entry whose plain text is empty`() {
         // Real-shape coverpage-wrapper from a PG EPUB3 build — body
         // contains only an SVG <image>; no visible text.
         val coverHtml = """
@@ -131,12 +131,12 @@ class EmptySpineFilterTest {
     }
 
     @Test
-    fun `style-only spine entry is dropped because stripTags removes style contents`() {
+    fun `style-only spine entry is dropped because style contents are non-content`() {
         // The #442 fix removes the contents of <style> blocks. A spine
         // entry that contains only `<head>` + `<body><style>…</style></body>`
         // (rare but seen on a couple of pre-2010 Gutenberg builds where
         // the converter dropped a full stylesheet into the body) yields
-        // an empty stripTags — and would silently break playback the
+        // empty plain text — and would silently break playback the
         // same way the cover SVG does.
         val styleOnly = """
             <html><head><title>x</title></head>
