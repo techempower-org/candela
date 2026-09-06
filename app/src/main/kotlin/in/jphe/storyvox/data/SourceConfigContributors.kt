@@ -332,6 +332,57 @@ class OutlineConfigContributor @Inject constructor(
 }
 
 /**
+ * Endless LitRPG — the self-hosted endless-serial daemon's host. Host-only:
+ * the daemon has no auth at all (every route open on a LAN port, a documented
+ * decision in that project's spec §9.1), so unlike [OutlineConfigContributor]
+ * there is no key field to pair with the URL. Closest sibling is
+ * [PalaceConfigContributor] — one URL, no credentials.
+ *
+ * Deliberately no placeholder address. The daemon moves between JP's machines,
+ * and a plausible-looking example IP in the field is the kind of thing that
+ * gets accepted as a default and then fails as a connect timeout.
+ */
+@Singleton
+class EndlessConfigContributor @Inject constructor(
+    private val config: EndlessConfigImpl,
+) : SourceConfigContributor {
+    override val sourceId: String = "endless"
+    override val displayName: String = "Endless LitRPG"
+    override val sectionHelp: String =
+        "Read a self-hosted endless-litrpg daemon: an always-generating LitRPG " +
+            "serial whose chapters arrive with pre-rendered multi-voice audio. " +
+            "Enter your daemon's LAN URL."
+
+    /**
+     * [SourceConfigField.UrlText] validates that the value starts with a
+     * scheme, so the help text asks for one rather than for a bare
+     * `host:port`. That is the better prompt anyway: the daemon has no TLS,
+     * so `http://` vs `https://` is a real choice the user is making (a
+     * TLS-fronted proxy is supported and honoured), and it should be
+     * visible rather than silently defaulted.
+     */
+    override fun fields(): List<SourceConfigField> = listOf(
+        SourceConfigField.UrlText(
+            key = "host",
+            label = "Daemon URL",
+            help = "Your endless-litrpg daemon on the local network, including " +
+                "the port. Must resolve to a LAN address. Blank disables the source.",
+            placeholder = "http://story.example.local:8093",
+        ),
+    )
+
+    override val values: Flow<Map<String, SourceConfigValue>> = config.state.map { s ->
+        mapOf("host" to SourceConfigValue.Text(s.host))
+    }
+
+    override suspend fun set(key: String, raw: String) {
+        when (key) {
+            "host" -> config.setHost(raw.ifBlank { null })
+        }
+    }
+}
+
+/**
  * Issue #1624 — Wikipedia (#377) migrated onto the generic seam. Was a bespoke
  * `WikipediaLanguageRow` (free-text language code) in the legacy monolith; now
  * a single plain field through the seam. Wraps the same [WikipediaConfigImpl]

@@ -1,6 +1,6 @@
 # Candela
 
-Android app that turns text from 33 sources into narrated audiobooks via TTS. Kotlin, Jetpack Compose, Hilt, Room, OkHttp.
+Android app that turns text from 37 sources into narrated audiobooks via TTS. Kotlin, Jetpack Compose, Hilt, Room, OkHttp.
 
 ## Build
 
@@ -31,7 +31,7 @@ Wait ~60s for boot, then CI picks up automatically. Never compile locally on kat
 - **core-plugin-ksp** — `@SourcePlugin` annotation processor → Hilt `@IntoSet` factories
 - **wear** — Wear OS companion app (Library Nocturne on the watch)
 - **baselineprofile** — Macrobenchmark module that generates the R8 baseline profile
-- **source-*** — 35 source modules; 32 implement `FictionSource` (33 registered sources — `source-notion` registers two: PAT + TechEMPOWER). The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
+- **source-*** — 37 source modules; 34 implement `FictionSource` (37 registered sources — `source-notion` registers PAT + TechEMPOWER, and `source-slack` and `source-telegram` each register two). The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
 
 ## Key patterns
 

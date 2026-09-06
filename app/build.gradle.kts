@@ -685,6 +685,11 @@ dependencies {
     // documented under scratch/libby-hoopla-palace-scope/ but deferred
     // to their own PRs.
     implementation(project(":source-palace"))
+    // source-endless — self-hosted endless-litrpg daemon. Pre-rendered
+    // multi-voice MP3 per chapter (Media3, bypasses TTS); host is a user
+    // setting surfaced through the generic SourceConfigContributor seam, so
+    // `:app` also owns its EndlessConfigImpl DataStore.
+    implementation(project(":source-endless"))
     // Issue #1002 — Bookshare accessible-library (DAISY) source. Guarded
     // scaffold today (partner API key + PDTB DRM + per-user OAuth pending);
     // ships the DAISY text parser as the non-gated groundwork.
