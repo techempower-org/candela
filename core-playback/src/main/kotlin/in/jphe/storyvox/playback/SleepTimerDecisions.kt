@@ -95,3 +95,19 @@ fun shouldReviveOnShake(
     msSinceFiredMs: Long?,
     graceWindowMs: Long,
 ): Boolean = (msSinceFiredMs ?: -1L) in 0L..graceWindowMs
+
+/**
+ * #1618 — is the post-stop shake-to-revive grace window now stale and safe to
+ * clear? True iff the user has taken over manually since the timer fired:
+ * playback is active again, or a fresh timer is running. During a *legitimate*
+ * open window neither holds — the fired timer paused playback (`isPlaying`
+ * false) and left no timer running (`sleepTimerRunning` false) — so the window
+ * survives. But if the user manually resumed, or started a new timer, inside
+ * the 60s window, a later stray shake must NOT resurrect the old fired mode
+ * and clobber their action (Gemini review, PR #1696): clearing the window here
+ * both releases the accelerometer and disarms [shouldReviveOnShake].
+ */
+fun shouldClearGraceWindow(
+    isPlaying: Boolean,
+    sleepTimerRunning: Boolean,
+): Boolean = isPlaying || sleepTimerRunning

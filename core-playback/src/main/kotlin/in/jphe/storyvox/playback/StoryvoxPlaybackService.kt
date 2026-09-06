@@ -241,7 +241,11 @@ class StoryvoxPlaybackService : MediaSessionService() {
         // otherwise so long sessions don't drain battery.
         shakeJob = scope.launch {
             controller.state
-                .map { it.sleepTimerRemainingMs to it.shakeToExtendEnabled }
+                // #1618 — `isPlaying` is in the key so a MANUAL resume (which
+                // moves neither remaining nor the toggle) still triggers
+                // [refreshShakeListening], letting it close a now-stale grace
+                // window the user superseded by resuming (Gemini review, #1696).
+                .map { Triple(it.sleepTimerRemainingMs, it.shakeToExtendEnabled, it.isPlaying) }
                 .distinctUntilChanged()
                 .collect { refreshShakeListening() }
         }
@@ -504,6 +508,16 @@ class StoryvoxPlaybackService : MediaSessionService() {
      */
     private fun refreshShakeListening() {
         val s = controller.state.value
+        // #1618 — a manual resume or a freshly-started timer supersedes the
+        // post-stop grace window; drop it so a stray shake can't revive the
+        // old fired mode over the user's action (Gemini review, #1696).
+        if (sleepTimerFiredAtMs != null &&
+            shouldClearGraceWindow(s.isPlaying, s.sleepTimerRemainingMs != null)
+        ) {
+            sleepTimerFiredAtMs = null
+            lastFiredSleepMode = null
+            Log.d(TAG, "Shake-to-revive: grace window cleared — user resumed/re-armed manually")
+        }
         val enabled = s.shakeToExtendEnabled
         val inFadeTail = shouldListenForShake(s.sleepTimerRemainingMs, enabled, SHAKE_FADE_WINDOW_MS)
         val sinceFired = sleepTimerFiredAtMs?.let { android.os.SystemClock.uptimeMillis() - it }
