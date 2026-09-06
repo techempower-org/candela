@@ -641,7 +641,7 @@ fun FictionDetailScreen(
                 }
                 androidx.compose.runtime.LaunchedEffect(wideFiltered.isNotEmpty()) {
                     if (!wideDidResumeScroll && wideFiltered.isNotEmpty()) {
-                        targetScrollIndex(wideFiltered, pickChapterToPlay(state.chapters)?.id)
+                        targetScrollIndex(wideFiltered, pickChapterToPlay(state.chapters, state.resumeChapterId)?.id)
                             ?.let { wideListState.scrollToItem(it + wideHeaderOffset) }
                         wideDidResumeScroll = true
                     }
@@ -680,12 +680,12 @@ fun FictionDetailScreen(
                                 }
                             },
                             onFollowOnSource = viewModel::toggleFollowOnSource,
-                            onPlay = pickChapterToPlay(state.chapters)?.let { picked ->
+                            onPlay = pickChapterToPlay(state.chapters, state.resumeChapterId)?.let { picked ->
                                 { viewModel.listen(picked.id) }
                             },
                             playLabel = playButtonLabel(
                                 state.chapters,
-                                pickChapterToPlay(state.chapters),
+                                pickChapterToPlay(state.chapters, state.resumeChapterId),
                             ),
                         )
                     }
@@ -785,7 +785,7 @@ fun FictionDetailScreen(
             }
             androidx.compose.runtime.LaunchedEffect(narrowFiltered.isNotEmpty()) {
                 if (!narrowDidResumeScroll && narrowFiltered.isNotEmpty()) {
-                    targetScrollIndex(narrowFiltered, pickChapterToPlay(state.chapters)?.id)
+                    targetScrollIndex(narrowFiltered, pickChapterToPlay(state.chapters, state.resumeChapterId)?.id)
                         ?.let { narrowListState.scrollToItem(it + narrowHeaderCount) }
                     narrowDidResumeScroll = true
                 }
@@ -853,12 +853,12 @@ fun FictionDetailScreen(
                         onFollowOnSource = viewModel::toggleFollowOnSource,
                         // Issue #604 — Play CTA. First non-finished
                         // chapter (resume) or fall back to chapter 1.
-                        onPlay = pickChapterToPlay(state.chapters)?.let { picked ->
+                        onPlay = pickChapterToPlay(state.chapters, state.resumeChapterId)?.let { picked ->
                             { viewModel.listen(picked.id) }
                         },
                         playLabel = playButtonLabel(
                             state.chapters,
-                            pickChapterToPlay(state.chapters),
+                            pickChapterToPlay(state.chapters, state.resumeChapterId),
                         ),
                     )
                 }
@@ -1927,14 +1927,34 @@ private fun ChapterSearchBar(
     }
 }
 
-/** Issue #604 — pick the chapter the Play button should open.
- *  Strategy: first non-finished chapter, fall back to first chapter.
- *  Returns null when there are no chapters to play (loading state,
- *  empty fiction). Exposed `internal` so FictionDetailScreenTest can
- *  pin the contract without rendering the whole composable.
+/** Issue #604 / #1685 — pick the chapter the Play button should open.
+ *
+ *  Strategy, in order:
+ *  1. **Most recent position wins** (#1685). When [resumeChapterId] — the
+ *     chapter of this fiction's most-recently-updated saved position — is
+ *     present in [chapters], return it, *finished or not*. A listener who
+ *     went back to re-listen to chapter 10 of a 50-chapter book must resume
+ *     in chapter 10, and chapter 10 is already marked played, so the finished
+ *     flag cannot be used to skip it. The saved offset inside that chapter
+ *     is restored by the playback layer, not here.
+ *  2. First non-finished chapter (the original #604 progress frontier) when
+ *     there is no saved position, or it points at a chapter no longer in the
+ *     list (e.g. a source pruned it).
+ *  3. First chapter (replay a fully-finished book from the top).
+ *
+ *  Returns null when there are no chapters to play (loading state, empty
+ *  fiction). Exposed `internal` so the pure contract is pinned by
+ *  FictionDetailPlayButtonTest / PickChapterToPlayResumeTest without
+ *  rendering the composable.
  */
-internal fun pickChapterToPlay(chapters: List<UiChapter>): UiChapter? {
+internal fun pickChapterToPlay(
+    chapters: List<UiChapter>,
+    resumeChapterId: String? = null,
+): UiChapter? {
     if (chapters.isEmpty()) return null
+    if (resumeChapterId != null) {
+        chapters.firstOrNull { it.id == resumeChapterId }?.let { return it }
+    }
     return chapters.firstOrNull { !it.isFinished } ?: chapters.first()
 }
 

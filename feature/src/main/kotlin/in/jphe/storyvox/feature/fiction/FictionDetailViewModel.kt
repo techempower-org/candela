@@ -14,6 +14,7 @@ import `in`.jphe.storyvox.data.db.entity.FictionMemoryEntry
 import `in`.jphe.storyvox.data.network.ConnectivityObserver
 import `in`.jphe.storyvox.data.repository.AnnotationRepository
 import `in`.jphe.storyvox.data.repository.FictionMemoryRepository
+import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
 import `in`.jphe.storyvox.data.repository.pronunciation.PronunciationDictRepository
 import `in`.jphe.storyvox.data.source.companion.CompanionMatch
 import `in`.jphe.storyvox.data.source.companion.CompanionResolver
@@ -99,6 +100,14 @@ data class FictionDetailUiState(
      *  affordance instead of a bare empty list while a slow feed (e.g. a fresh
      *  RSS subscription) hydrates its chapters. */
     val chaptersRefreshing: Boolean = false,
+    /** Issue #1685 — the chapter holding this fiction's **most recently
+     *  updated** playback position (from [PlaybackPositionRepository.observePosition],
+     *  `ORDER BY updatedAt DESC LIMIT 1`), or null when the user has never
+     *  played it. Feeds [pickChapterToPlay] so the Play/Resume button and the
+     *  open-scroll anchor (#1676) follow where the listener *actually* was —
+     *  not the first unfinished chapter, which is a progress frontier and
+     *  never moves back when someone re-listens to an earlier chapter. */
+    val resumeChapterId: String? = null,
     /** Issue #1676 (live auto-follow half) — the id of the chapter currently
      *  playing, but ONLY when the playing fiction is *this* detail screen's
      *  fiction; null otherwise (nothing playing, or another book is playing).
@@ -211,6 +220,10 @@ class FictionDetailViewModel @Inject constructor(
     private val exportAnnotations: ExportAnnotationsUseCase,
     /** Issue #1208 — cross-source audio↔text companion matcher (LibriVox↔Gutenberg). */
     private val companionResolver: CompanionResolver,
+    /** Issue #1685 — most-recent playback position for this fiction. Folded
+     *  into [uiState] as [FictionDetailUiState.resumeChapterId] so the
+     *  Play/Resume button resumes the chapter the user was last *in*. */
+    private val positionRepo: PlaybackPositionRepository,
     /** Issue #1314 — live network reachability. Folded into [uiState] so the
      *  screen can flag "showing cached data" while offline. */
     private val connectivity: ConnectivityObserver,
@@ -420,6 +433,12 @@ class FictionDetailViewModel @Inject constructor(
             // / connectivity folds above.
             .combine(repo.detailRefreshing(fictionId)) { state, refreshing ->
                 state.copy(chaptersRefreshing = refreshing)
+            }
+            // Issue #1685 — fold in the most-recently-updated saved position so
+            // Play/Resume (and the #1676 open-scroll anchor) target the chapter
+            // the listener was last in, not the first-unfinished frontier.
+            .combine(positionRepo.observePosition(fictionId)) { state, pos ->
+                state.copy(resumeChapterId = pos?.chapterId)
             }
             // Issue #1676 — fold in the live playing-chapter id from the shared
             // playback flow (same source the mini-player reads). Only surface it
