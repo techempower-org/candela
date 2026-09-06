@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.gutenberg
 
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.filter.FilterDimension
@@ -348,7 +349,7 @@ internal class GutenbergSource @Inject constructor(
             ChapterContent(
                 info = info,
                 htmlBody = ch.htmlBody,
-                plainBody = ch.htmlBody.stripTags(),
+                plainBody = ch.htmlBody.htmlToPlainText(),
             ),
         )
     }
@@ -519,7 +520,7 @@ private fun GutendexBook.toSummary(): FictionSummary =
 
 /**
  * Issue #733 — drop spine entries whose visible text content is empty
- * after [stripTags]. Project Gutenberg's EPUB3 builds always front-load
+ * after [htmlToPlainText] (#1628 replaced the module-local regex stripper). Project Gutenberg's EPUB3 builds always front-load
  * the spine with a `coverpage-wrapper` page that contains only an SVG
  * `<image>` referencing the cover JPEG — no text. The catalog row's
  * `<dc:title>` doesn't tell the reader this; the user sees "Chapter 1"
@@ -540,32 +541,4 @@ private fun GutendexBook.toSummary(): FictionSummary =
  * `firstOrNull { it.index == idx }` rather than list position.
  */
 internal fun EpubBook.withoutEmptySpineItems(): EpubBook =
-    copy(chapters = chapters.filter { it.htmlBody.stripTags().isNotEmpty() })
-
-/** Cheap HTML→plaintext for the chapter body the engine receives.
- *  The downstream pipeline normalizes further; this just gets the
- *  visible text out of the wrapper tags so the TTS engine doesn't
- *  read out angle-bracket noise.
- *
- *  Issue #442 — strip non-visible regions before stripping tags. PG
- *  EPUB spine entries are full HTML documents with `<head>` (style,
- *  meta, scripts), and a permissive `<[^>]+>` regex leaves the
- *  *contents* of those blocks in the output. On Frankenstein chapter
- *  one ("Letter I", spine[0]) that meant the synth queue saw the
- *  CSS text of the embedded stylesheet rather than the actual prose
- *  — Piper synthesised that as a long, slow, mostly-silent buffer
- *  while the user saw `state=PLAYING, position=0` indefinitely.
- *  Pre-strip `<head>...</head>`, `<script>...</script>`, and
- *  `<style>...</style>` (DOTALL across newlines) so only the visible
- *  body text survives. Case-insensitive because EPUB spine documents
- *  in the wild use both `<HEAD>` and `<head>`.
- */
-internal fun String.stripTags(): String {
-    val noHead = Regex("(?is)<head\\b[^>]*>.*?</head>").replace(this, " ")
-    val noScript = Regex("(?is)<script\\b[^>]*>.*?</script>").replace(noHead, " ")
-    val noStyle = Regex("(?is)<style\\b[^>]*>.*?</style>").replace(noScript, " ")
-    val noComments = Regex("(?s)<!--.*?-->").replace(noStyle, " ")
-    return Regex("<[^>]+>").replace(noComments, " ")
-        .replace(Regex("\\s+"), " ")
-        .trim()
-}
+    copy(chapters = chapters.filter { it.htmlBody.htmlToPlainText().isNotEmpty() })
