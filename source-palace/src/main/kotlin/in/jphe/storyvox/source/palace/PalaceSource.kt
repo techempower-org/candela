@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.palace
 
+import `in`.jphe.storyvox.data.text.htmlToPlainText
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.RouteMatch
 import `in`.jphe.storyvox.data.source.SourceIds
@@ -379,7 +380,7 @@ internal class PalaceSource @Inject constructor(
             ChapterContent(
                 info = info,
                 htmlBody = ch.htmlBody,
-                plainBody = ch.htmlBody.stripTags(),
+                plainBody = ch.htmlBody.htmlToPlainText(),
             ),
         )
     }
@@ -662,23 +663,6 @@ internal fun chapterIndexFrom(chapterId: String): Int? =
     chapterId.substringAfterLast("::", missingDelimiterValue = "")
         .takeIf { it.isNotEmpty() }
         ?.toIntOrNull()
-
-/** Cheap HTML→plaintext for the chapter body the engine receives.
- *  The downstream pipeline normalizes further; this just gets the
- *  visible text out of the wrapper tags so the TTS engine doesn't
- *  read out angle-bracket noise. Same shape as the equivalent helper
- *  on `:source-gutenberg` (which already handles `<head>` / `<script>`
- *  / `<style>` stripping for SE / PG EPUBs — Palace EPUBs are the same
- *  EPUB 3 shape). */
-internal fun String.stripTags(): String {
-    val noHead = Regex("(?is)<head\\b[^>]*>.*?</head>").replace(this, " ")
-    val noScript = Regex("(?is)<script\\b[^>]*>.*?</script>").replace(noHead, " ")
-    val noStyle = Regex("(?is)<style\\b[^>]*>.*?</style>").replace(noScript, " ")
-    val noComments = Regex("(?s)<!--.*?-->").replace(noStyle, " ")
-    return Regex("<[^>]+>").replace(noComments, " ")
-        .replace(Regex("\\s+"), " ")
-        .trim()
-}
 
 /** Build a filesystem-safe filename from a fictionId. Uses
  *  [String.hashCode] formatted as 8-hex — collision-prone in theory but
