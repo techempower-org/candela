@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.arxiv.net
 
+import `in`.jphe.storyvox.data.text.htmlToInlineText
+
 /**
  * Issue #378 — typed view of an arXiv API Atom feed response from
  * `export.arxiv.org/api/query`. arXiv returns a standard Atom 1.0
@@ -108,13 +110,11 @@ internal data class ArxivAtomFeed(
 
         private fun parseEntry(body: String): ArxivFeedEntry {
             val title = TITLE_REGEX.find(body)?.groupValues?.get(1)
-                ?.let(::decodeXmlEntities)
-                ?.collapseWhitespace()
+                ?.htmlToInlineText()
                 .orEmpty()
 
             val summary = SUMMARY_REGEX.find(body)?.groupValues?.get(1)
-                ?.let(::decodeXmlEntities)
-                ?.collapseWhitespace()
+                ?.htmlToInlineText()
                 .orEmpty()
 
             val id = ID_REGEX.find(body)?.groupValues?.get(1)?.trim().orEmpty()
@@ -128,7 +128,7 @@ internal data class ArxivAtomFeed(
             val published = PUBLISHED_REGEX.find(body)?.groupValues?.get(1)?.trim()
 
             val authors = AUTHOR_NAME_REGEX.findAll(body)
-                .map { decodeXmlEntities(it.groupValues[1]).collapseWhitespace() }
+                .map { it.groupValues[1].htmlToInlineText() }
                 .filter { it.isNotBlank() }
                 .toList()
 
@@ -191,19 +191,3 @@ internal fun extractArxivId(idUrl: String): String {
     // Strip trailing version suffix; keep any slash in archive-style ids.
     return tail.replace(Regex("v\\d+$"), "")
 }
-
-private val WHITESPACE_RE = Regex("""\s+""")
-
-/** Atom titles / summaries arrive multi-line with leading indentation; collapse. */
-internal fun String.collapseWhitespace(): String =
-    WHITESPACE_RE.replace(trim(), " ")
-
-/** Decode the half-dozen XML entities arXiv actually emits in titles/summaries. */
-internal fun decodeXmlEntities(text: String): String =
-    text
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&apos;", "'")
-        .replace("&#39;", "'")
-        .replace("&amp;", "&")

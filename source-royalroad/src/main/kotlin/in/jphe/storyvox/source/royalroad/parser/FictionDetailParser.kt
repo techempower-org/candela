@@ -4,6 +4,7 @@ import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import `in`.jphe.storyvox.data.source.model.FictionDetail
 import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
+import `in`.jphe.storyvox.data.text.htmlToInlineText
 import `in`.jphe.storyvox.source.royalroad.model.RoyalRoadIds
 import `in`.jphe.storyvox.source.royalroad.model.extractChapterIdFromHref
 import kotlinx.serialization.json.Json
@@ -188,10 +189,12 @@ internal object FictionDetailParser {
         }
     }
 
-    private val TAG_RE = Regex("""<[^>]+>""")
-    private fun stripHtmlTags(s: String): String = s.replace(TAG_RE, "")
-        .replace("&nbsp;", " ").replace("&amp;", "&").replace("&#x2013;", "–")
-        .replace("&quot;", "\"").replace("&#x27;", "'").trim()
+    /** #1628 — RoyalRoad's JSON-LD `description` carries inline HTML +
+     *  entities. Was a local 5-entity table (tags→empty, no whitespace
+     *  collapse); now the shared [htmlToInlineText] — full entity decode +
+     *  single line, matching the parser's `div.hidden-content`.text()
+     *  HTML-selector fallback. `internal` so the parity test can pin it. */
+    internal fun stripHtmlTags(s: String): String = s.htmlToInlineText()
 
     private fun parseIso8601(s: String): Long? = runCatching {
         java.time.OffsetDateTime.parse(s).toInstant().toEpochMilli()

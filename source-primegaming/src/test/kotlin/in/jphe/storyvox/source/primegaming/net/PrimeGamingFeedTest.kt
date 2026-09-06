@@ -107,14 +107,33 @@ class PrimeGamingFeedTest {
     }
 
     @Test
-    fun `numeric entities decode across planes and never throw`() {
-        // BMP apostrophe — the common LootScraper case.
-        assertEquals("Rat's Quest", decodeXmlEntities("Rat&#039;s Quest"))
-        // Supplementary plane: emoji must decode via a surrogate pair,
-        // not throw (Char(code) IAE above 0xFFFF — the #1539 regression).
-        assertEquals("Fun 😀!", decodeXmlEntities("Fun &#128512;!"))
-        // Out-of-Unicode-range and surrogate code points stay literal.
-        assertEquals("bad &#1114112; ref", decodeXmlEntities("bad &#1114112; ref"))
-        assertEquals("lone &#55296; ref", decodeXmlEntities("lone &#55296; ref"))
+    fun `decodes hex, named, decimal, and astral entities via the shared util (#1628, #1539)`() {
+        // Field text now flows through core-data's htmlToInlineText (jsoup).
+        // This pins the entity-table FIX the local decoder missed — hex refs
+        // (&#x2019;) and named entities (&mdash;) — plus the #1539 guard that
+        // an astral emoji numeric ref decodes via a surrogate pair (never a
+        // Char(code) IAE) and &amp;/&#233; still decode as before.
+        val feed = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <feed xmlns="http://www.w3.org/2005/Atom">
+              <title>Free Amazon Prime Games (PC)</title>
+              <entry>
+                <id>https://feed.example/lootscraper/99999</id>
+                <title>Amazon Prime (Game) - Caf&#233; Story</title>
+                <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><ul><li><b>Description:</b> A rodent&#x2019;s tale &mdash; fun &#128512; &amp; friends.</li></ul></div></content>
+                <link href="https://luna.amazon.com/claims/x?a=1&amp;b=2"/>
+              </entry>
+            </feed>
+        """.trimIndent()
+
+        val entry = PrimeGamingFeed.parse(feed).entries.single()
+        // Decimal accent in the title (prefix stripped, &#233; -> é).
+        assertEquals("Café Story", entry.game)
+        // Hex ref + named em-dash + astral emoji + &amp; all decode.
+        assertEquals("A rodent’s tale — fun 😀 & friends.", entry.description)
+        // R2: claimUrl still routes through the shared util — an href's
+        // `&amp;` decodes to `&` (correct for an Atom href) and the URL is
+        // otherwise preserved (no over-decode/mangle of a real claim link).
+        assertEquals("https://luna.amazon.com/claims/x?a=1&b=2", entry.claimUrl)
     }
 }

@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.source.arxiv.net
 
+import `in`.jphe.storyvox.data.text.htmlToInlineText
+
 /**
  * Issue #378 — focused regex extractor over the arXiv abstract page
  * (`arxiv.org/abs/<id>`). Pulls a small, narrating-friendly set of
@@ -23,8 +25,13 @@ package `in`.jphe.storyvox.source.arxiv.net
  * abstract pages have a stable, decade-old layout; the `<meta
  * name="citation_*">` tags are part of arXiv's published metadata
  * contract (they're how Google Scholar indexes papers). Regex over
- * those anchors is plenty robust, runs on the plain JUnit classpath,
- * and avoids pulling jsoup just for one parser pass.
+ * those anchors is plenty robust and runs on the plain JUnit classpath.
+ *
+ * Field text (tag-stripping + full entity decode + whitespace collapse)
+ * goes through the shared [htmlToInlineText] in core-data (#1628) — one
+ * entity table for the whole app, covering the hex refs / accents / curly
+ * quotes the old local decoder missed. jsoup stays transitive to core-data;
+ * this module adds no jsoup dependency of its own.
  */
 internal object ArxivAbstractParser {
 
@@ -82,32 +89,25 @@ internal object ArxivAbstractParser {
      */
     fun parse(html: String): ArxivAbstract {
         val title = META_TITLE_REGEX.find(html)?.groupValues?.get(1)
-            ?.let(::decodeXmlEntities)
-            ?.collapseWhitespace()
+            ?.htmlToInlineText()
             ?: H1_TITLE_REGEX.find(html)?.groupValues?.get(1)
-                ?.let(::stripTags)
-                ?.let(::decodeXmlEntities)
-                ?.collapseWhitespace()
-                // Descriptor span gets stripped above; the leading
-                // "Title:" label survives as raw text and needs to come
-                // off AFTER whitespace collapse (otherwise the leading
-                // newline / indent prevents the prefix match).
+                ?.htmlToInlineText()
+                // The "Title:" descriptor-span label survives as text and
+                // comes off AFTER whitespace collapse (the leading indent
+                // would otherwise prevent the prefix match).
                 ?.removePrefix("Title:")
                 ?.trim()
             ?: ""
 
         val authors = META_AUTHOR_REGEX.findAll(html)
-            .map { decodeXmlEntities(it.groupValues[1]).collapseWhitespace() }
+            .map { it.groupValues[1].htmlToInlineText() }
             .filter { it.isNotBlank() }
             .toList()
 
         val abstract = META_ABSTRACT_REGEX.find(html)?.groupValues?.get(1)
-            ?.let(::decodeXmlEntities)
-            ?.collapseWhitespace()
+            ?.htmlToInlineText()
             ?: ABSTRACT_BLOCK_REGEX.find(html)?.groupValues?.get(1)
-                ?.let(::stripTags)
-                ?.let(::decodeXmlEntities)
-                ?.collapseWhitespace()
+                ?.htmlToInlineText()
                 // Strip the leading "Abstract:" label AFTER whitespace
                 // collapses — same shape as the title fallback above.
                 ?.removePrefix("Abstract:")
@@ -115,15 +115,11 @@ internal object ArxivAbstractParser {
             ?: ""
 
         val subjects = SUBJECTS_REGEX.find(html)?.groupValues?.get(1)
-            ?.let(::stripTags)
-            ?.let(::decodeXmlEntities)
-            ?.collapseWhitespace()
+            ?.htmlToInlineText()
             .orEmpty()
 
         val comments = COMMENTS_REGEX.find(html)?.groupValues?.get(1)
-            ?.let(::stripTags)
-            ?.let(::decodeXmlEntities)
-            ?.collapseWhitespace()
+            ?.htmlToInlineText()
             ?.takeIf { it.isNotBlank() }
 
         return ArxivAbstract(
@@ -193,9 +189,6 @@ internal object ArxivAbstractParser {
             append("Abstract. ").append(abstract.abstract)
         }
     }.trim()
-
-    private fun stripTags(html: String): String =
-        html.replace(Regex("<[^>]+>"), "")
 
     private fun escapeHtml(text: String): String =
         text.replace("&", "&amp;")

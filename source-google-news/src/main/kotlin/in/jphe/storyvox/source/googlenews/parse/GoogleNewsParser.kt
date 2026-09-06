@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.googlenews.parse
 
+import `in`.jphe.storyvox.data.text.htmlToInlineText
 import org.w3c.dom.Element
 import org.xml.sax.InputSource
 import java.io.StringReader
@@ -110,7 +111,7 @@ internal object GoogleNewsParser {
     internal fun relatedHeadlinesFrom(descriptionHtml: String, exclude: String): List<String> {
         if (descriptionHtml.isBlank()) return emptyList()
         return A_TAG.findAll(descriptionHtml)
-            .map { stripHtml(it.groupValues[1]) }
+            .map { it.groupValues[1].htmlToInlineText() }
             .filter { it.isNotBlank() && !it.equals(exclude, ignoreCase = true) }
             .distinct()
             .take(MAX_RELATED)
@@ -141,21 +142,6 @@ internal object GoogleNewsParser {
         return null
     }
 
-    /** Strip a tiny HTML subset to plain text and decode the basic
-     *  entities, mirroring the TTS-plaintext helper in `:source-rss` /
-     *  `:source-hackernews`. */
-    internal fun stripHtml(s: String): String =
-        s.replace(TAG, " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&#x27;", "'")
-            .replace("&#39;", "'")
-            .replace("&nbsp;", " ")
-            .replace(WHITESPACE, " ")
-            .trim()
-
     private const val MAX_RELATED = 6
 
     private const val DISALLOW_DOCTYPE = "http://apache.org/xml/features/disallow-doctype-decl"
@@ -164,8 +150,6 @@ internal object GoogleNewsParser {
 
     private val EMPTY = GoogleNewsFeed(title = "", items = emptyList())
     private val A_TAG = Regex("<a\\b[^>]*>(.*?)</a>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-    private val TAG = Regex("<[^>]+>")
-    private val WHITESPACE = Regex("\\s+")
     private val DATE_PATTERNS = listOf(
         "EEE, dd MMM yyyy HH:mm:ss zzz",
         "EEE, dd MMM yyyy HH:mm:ss Z",
