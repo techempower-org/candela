@@ -8,11 +8,11 @@ ksp = "2.3.11"
 # Cloud service-account JSON with Play Console "Release manager"
 # permission (see docs/play-store/RUNBOOK.md). Plugin is wired but no-ops
 # unless `storyvox.playPublisher.credentialsFile` is set in local.properties.
-play-publisher = "4.0.0"
+play-publisher = "4.1.1"
 
 # AndroidX core
 core-ktx = "1.19.0"
-appcompat = "1.7.1"
+appcompat = "1.8.0"
 activity-compose = "1.13.0"
 lifecycle = "2.11.0"
 navigation-compose = "2.9.8"
@@ -27,7 +27,7 @@ compose-material-icons = "1.7.8"
 # 15.x is the AGP 9 / Compose 1.10 line; the `.plugin.android` plugin variant
 # (split out in v13) auto-generates the dependency + license metadata into the
 # consuming module's `R.raw.aboutlibraries` during the Android build, GMS-free.
-aboutlibraries = "15.0.4"
+aboutlibraries = "15.2.0"
 
 # Hilt + Hilt-Work
 hilt = "2.60.1"
@@ -40,7 +40,7 @@ work = "2.11.2"
 datastore = "1.2.1"
 
 # Media3 (playback / session / Auto)
-media3 = "1.10.1"
+media3 = "1.11.0"
 
 # Networking + parsing
 okhttp = "4.12.0"
@@ -55,7 +55,7 @@ readability4j = "1.0.8"
 # for text-layer extraction; scanned/image PDFs route through the
 # pluggable OCR seam (#995) since they carry no text layer.
 pdfbox-android = "2.0.27.0"
-androidx-webkit = "1.16.0"
+androidx-webkit = "1.17.0"
 androidx-browser = "1.10.0"
 
 # Concurrency
@@ -65,7 +65,7 @@ coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
 
 # Image loading
-coil = "3.5.0"
+coil = "3.6.1"
 
 # Legacy media (MediaBrowserServiceCompat for Auto)
 androidx-media = "1.8.0"
@@ -103,9 +103,9 @@ robolectric = "4.16.1"
 # handle Android 14's new "Waiting for app processes to flush
 # profiles..." prefix line. 1.3.x throws IllegalStateException on
 # that output on the Tab A7 Lite (Android 14, June 2025 patch).
-benchmark = "1.5.0-beta01"
+benchmark = "1.5.0-rc02"
 uiautomator = "2.4.0"
-baselineprofile-gradle = "1.5.0-rc01"
+baselineprofile-gradle = "1.5.0-rc02"
 
 # Desugaring
 desugar = "2.1.5"
