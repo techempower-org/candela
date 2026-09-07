@@ -285,3 +285,16 @@
     public static int d(...);
     public static int i(...);
 }
+
+# ── #1727 — ML Kit component registrars ────────────────────────────────────
+# ML Kit's MlKitInitProvider discovers its ComponentRegistrar classes by name
+# (from the merged manifest <meta-data>) and instantiates them REFLECTIVELY via
+# the no-arg constructor. R8 keeps the class names (manifest-referenced) but
+# strips the unreferenced <init>() — so every release cold start logged
+#   W ComponentDiscovery: Could not instantiate com.google.mlkit.common.internal.CommonComponentRegistrar
+#   Caused by: java.lang.NoSuchMethodException: ...CommonComponentRegistrar.<init> []
+# (also TextRegistrar + VisionCommonRegistrar) and text recognition had no
+# components registered. The AARs' consumer rules did not cover this under R8
+# full mode. Keep the no-arg ctor of every registrar; nothing else is needed.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
+-keep class com.google.mlkit.**Registrar { <init>(); }
