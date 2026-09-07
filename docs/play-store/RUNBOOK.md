@@ -104,8 +104,10 @@ Once the steps above are done, **every future release** runs through:
 git tag -a v0.5.69 -m "v0.5.69 — ..."
 git push origin main v0.5.69
 
-# 4. CI builds the AAB on tag push (self-hosted runner on katana).
-#    The same AAB is what gets uploaded.
+# 4. CI (GitHub-hosted) builds and attaches the two sideload APKs only. The AAB is
+#    NOT a CI artifact — build it here on katana, where the release keystore lives:
+#    ./gradlew :app:bundleRelease        # separate invocation from assembleRelease (#952)
+#    → app/build/outputs/bundle/release/app-release.aab
 
 # 5. Upload to Play Console Internal Test:
 ./gradlew :app:publishReleaseBundle
