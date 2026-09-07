@@ -11,13 +11,7 @@ Android app that turns text from 37 sources into narrated audiobooks via TTS. Ko
 ./gradlew testDebugUnitTest           # all tests
 ```
 
-CI runs on self-hosted runners (katana + familiar). Tags trigger release APK build + GitHub release.
-
-**CI runner — familiar**: familiar sleeps when idle. If a CI run stays queued >60s, wake it:
-```bash
-realm wol wake familiar
-```
-Wait ~60s for boot, then CI picks up automatically. Never compile locally on katana — push and let CI be the compile gate.
+CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo — switched 2026-09-06 from the self-hosted katana/familiar/ubox0 pool, which stays registered but idle). Tags trigger the release APK + AAB build and the GitHub release. Everything the build needs beyond the checkout comes from Actions secrets: `INSTANTDB_APP_ID` (cloud sync) and `RELEASE_KEYSTORE_B64` + `RELEASE_STORE_PASSWORD` + `RELEASE_KEY_ALIAS` + `RELEASE_KEY_PASSWORD` (release-signs the Play AAB; source of truth is `~/.storyvox-keystore/` + `local.properties` on katana). A GitHub-hosted `Build APK` takes ~20–30 min cold, faster with the Gradle cache. Never compile locally on katana — push and let CI be the compile gate.
 
 ## Module layout
 

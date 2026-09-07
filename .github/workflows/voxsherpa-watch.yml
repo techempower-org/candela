@@ -36,9 +36,9 @@ jobs:
   watch:
     name: Check VoxSherpa-TTS upstream
     # Match the repo convention (android.yml / release-docs-sync.yml): the
-    # self-hosted katana runner avoids the hosted Actions-minutes cap. This
+    # GitHub-hosted; the repo is public so Actions minutes are free. This
     # job only needs git + gh + jq, all present on the runner.
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
