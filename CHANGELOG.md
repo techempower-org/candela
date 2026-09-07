@@ -9,6 +9,24 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.14.1] -- 2026-09-06
+
+**Kindled Dominion.** Same-night fast-follow to 1.14.0, from the release check itself.
+
+### Fixed
+- **On-device OCR works in release builds again.** Every release since at
+  least 1.13.1 shipped with ML Kit's component registrars stripped of their
+  no-arg constructors by R8 -- the classes survived, the constructors did
+  not -- so text recognition had no components registered. Debug builds are
+  not minified, which is how it hid. Two keep rules restore them. (#1727)
+
+### Under the hood
+- The release phone-check now fails only on a real crash signature (FATAL
+  EXCEPTION / AndroidRuntime for our package, whole-PID lifetime) instead of
+  any log line containing "exception"; non-fatal W/E exceptions are reported
+  as a note. It had failed a healthy 1.14.0 launch on the ML Kit warning
+  above. (#1726)
+
 ## [1.14.0] -- 2026-09-05
 
 **Arcane Herald.** The tester-readiness release: the queue drained, stranded
