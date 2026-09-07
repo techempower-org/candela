@@ -1,6 +1,6 @@
 [versions]
 # Build tools
-agp = "9.3.1"
+agp = "9.4.0"
 kotlin = "2.4.10"
 ksp = "2.3.11"
 # Triple-T gradle-play-publisher — `./gradlew publishReleaseBundle` uploads
