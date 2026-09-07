@@ -87,10 +87,10 @@ jobs:
       - name: Materialize local.properties
         env:
           INSTANTDB_APP_ID: ${{ secrets.INSTANTDB_APP_ID }}
-          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
+          NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           # GitHub-hosted runner: nothing is seeded from a developer machine any more.
@@ -99,19 +99,16 @@ jobs:
           if [ -n "${INSTANTDB_APP_ID:-}" ]; then
             echo "INSTANTDB_APP_ID=$INSTANTDB_APP_ID" >> ./local.properties
           fi
-          # Release keystore (release-signs the Play AAB; the sideload APKs keep the
-          # checked-in debug keystore on purpose — see app/build.gradle.kts). Decoded
-          # into RUNNER_TEMP, which is wiped with the job.
-          if [ -n "${RELEASE_KEYSTORE_B64:-}" ]; then
-            KS="$RUNNER_TEMP/storyvox-release.keystore"
-            printf '%s' "$RELEASE_KEYSTORE_B64" | base64 -d > "$KS"
-            {
-              echo "storyvox.releaseStoreFile=$KS"
-              echo "storyvox.releaseStorePassword=$RELEASE_STORE_PASSWORD"
-              echo "storyvox.releaseKeyAlias=$RELEASE_KEY_ALIAS"
-              echo "storyvox.releaseKeyPassword=$RELEASE_KEY_PASSWORD"
-            } >> ./local.properties
-          fi
+          # Optional BYO OAuth client ids (Notion, Google Drive) — baked into
+          # BuildConfig when the secrets exist; the features stay hidden otherwise.
+          for k in NOTION_OAUTH_CLIENT_ID NOTION_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET; do
+            v="${!k:-}"; [ -n "$v" ] && echo "$k=$v" >> ./local.properties
+          done
+          # No release keystore here on purpose: CI builds only the two sideload APKs
+          # (debug-signed for upgrade continuity, #952). The Play AAB is built and
+          # release-signed manually on katana and uploaded to Play Console — it is
+          # never a GitHub release asset (an AAB is not installable by anyone; only
+          # Play consumes it). See docs/release-keystore.md.
           if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
             if [ -z "${INSTANTDB_APP_ID:-}" ]; then
               echo "::warning::INSTANTDB_APP_ID secret is unset — this release APK will ship with cloud sync DISABLED. Set the INSTANTDB_APP_ID Actions secret."
@@ -119,9 +116,6 @@ jobs:
                ! printf '%s' "$INSTANTDB_APP_ID" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
               echo "::error::INSTANTDB_APP_ID secret is not a valid UUID. A malformed app-id ships broken Cloud Sync that surfaces as a false 'email doesn't look right' error (#1452). Fix the Actions secret — no quotes or whitespace."
               exit 1
-            fi
-            if [ -z "${RELEASE_KEYSTORE_B64:-}" ]; then
-              echo "::warning::RELEASE_KEYSTORE_B64 secret is unset — the AAB will be debug-signed and withheld from the release (#1476 guard)."
             fi
           fi
       - name: Assemble release APK
@@ -134,69 +128,6 @@ jobs:
         # checked-in debug keystore (no signature change for users —
         # existing sideload installs upgrade in place).
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:assembleRelease --no-daemon --stacktrace
-
-      - name: Bundle release AAB (Play Store)
-        # Issue #1456 — Android App Bundle for Play Store distribution.
-        # Tag-only: the AAB is a release artifact; PR / main pushes stay
-        # APK-only so PR CI stays fast (assembleRelease above is the compile
-        # gate, and bundleRelease shares its compile graph — a bundle-only
-        # break is near-impossible if the APK assembled).
-        #
-        # MUST stay a SEPARATE gradle invocation from assembleRelease above —
-        # never `./gradlew :app:assembleRelease :app:bundleRelease`. The
-        # signing split in app/build.gradle.kts (#952, isBundleOrPublishBuild)
-        # release-signs any invocation whose task graph contains "bundle";
-        # a combined call would release-sign the *APK* too and break sideload
-        # upgrade continuity (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Separate
-        # steps = separate task graphs → the APK stays debug-signed and the
-        # AAB gets the Play release keystore (on a runner with the
-        # storyvox.release* props; otherwise a harmless debug-signed AAB).
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:bundleRelease --no-daemon --stacktrace
-
-      - name: Guard — reject debug-signed AAB (#1476)
-        # The release AAB is only correctly signed on a runner that holds the
-        # storyvox release keystore (katana today). On familiar / ubox0 it falls
-        # back to the checked-in DEBUG keystore, and Play Console rejects
-        # debug-signed bundles (#1476, hit for real on v1.7.0).
-        #
-        # Rather than sink the whole tag build — the debug-signed *sideload*
-        # APK + Wear APK are perfectly good and must still ship — this guard:
-        #   (a) reads the AAB's v1 (JAR) signer-cert CN with openssl (no keytool
-        #       needed: unzip the META-INF/*.RSA block → pkcs7 → x509 subject);
-        #   (b) if it's debug-signed (or the signer can't be verified), WITHHOLDS
-        #       the bundle — removes it so the release step below can't attach it
-        #       — and records AAB_DEBUG_SIGNED=true;
-        #   (c) a later step fails the run so the signing gap is impossible to
-        #       miss. The GitHub release is created first, so it is NOT torpedoed.
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          set -u
-          AAB_DIR=app/build/outputs/bundle/release
-          AAB="$AAB_DIR/app-release.aab"
-          if [ ! -f "$AAB" ]; then
-            echo "::error::#1476 guard: expected the release bundle at $AAB but none was produced."
-            echo "AAB_DEBUG_SIGNED=true" >> "$GITHUB_ENV"
-            exit 0
-          fi
-          # AABs are jarsigner-signed (v1): the signer block is META-INF/*.RSA
-          # (or *.EC / *.DSA). Stream it through openssl to read the cert subject.
-          SIG_ENTRY=$(unzip -Z1 "$AAB" 2>/dev/null | grep -iE '^META-INF/.*\.(RSA|EC|DSA)$' | head -1)
-          SUBJECT=""
-          if [ -n "$SIG_ENTRY" ]; then
-            SUBJECT=$(unzip -p "$AAB" "$SIG_ENTRY" \
-              | openssl pkcs7 -inform DER -print_certs 2>/dev/null \
-              | openssl x509 -noout -subject 2>/dev/null || true)
-          fi
-          echo "AAB signer subject: ${SUBJECT:-<none found>}"
-          if [ -z "$SUBJECT" ] || echo "$SUBJECT" | grep -qi 'debug'; then
-            echo "::error::#1476 — the tag-built AAB is debug-signed (${SUBJECT:-no signer found}); Play Console rejects debug-signed bundles, so it has NOT been attached to this release. Check the RELEASE_KEYSTORE_B64 / RELEASE_* Actions secrets and re-run the tag build, or build the bundle locally with the release keystore (./gradlew :app:bundleRelease — a SEPARATE invocation, per #952) and upload candela-${GITHUB_REF_NAME}.aab to the Play Console manually. The sideload APK + Wear APK in this release are unaffected."
-            rm -f "$AAB" "$AAB_DIR"/candela-*.aab
-            echo "AAB_DEBUG_SIGNED=true" >> "$GITHUB_ENV"
-          else
-            echo "::notice::#1476 — AAB is release-signed ($SUBJECT); attaching it to the release."
-            echo "AAB_DEBUG_SIGNED=false" >> "$GITHUB_ENV"
-          fi
 
       - name: Assemble Wear release APK
         # Companion watch app ("Library Nocturne"). Signed with the same
@@ -254,25 +185,6 @@ jobs:
           # its output is always wear-release.apk. Copy to the tag name.
           WEAR_DIR=wear/build/outputs/apk/release
           cp "$WEAR_DIR/wear-release.apk" "$WEAR_DIR/candela-wear-${TAG}.apk"
-          # AAB (#1456): the applicationVariants rename fires for APK outputs
-          # only, so the bundle output stays app-release.aab. Copy it to the
-          # git-tag name for the Play Store upload asset (prefer a branded
-          # name if a bundle rename ever starts firing, else app-release.aab).
-          AAB_DIR=app/build/outputs/bundle/release
-          AAB_SRC=$(ls "$AAB_DIR"/candela-v*.aab 2>/dev/null | head -1)
-          if [ -z "$AAB_SRC" ]; then
-            AAB_SRC="$AAB_DIR/app-release.aab"
-          fi
-          AAB_DST="$AAB_DIR/candela-${TAG}.aab"
-          # #1476 — the debug-signed-AAB guard above removes the bundle when it
-          # fails the signing check, so the source may be absent here. Only
-          # rename a bundle that still exists; a withheld AAB is simply not
-          # attached (softprops fail_on_unmatched_files defaults to false, so the
-          # missing glob is skipped rather than failing the release step).
-          if [ -f "$AAB_SRC" ] && [ "$AAB_SRC" != "$AAB_DST" ]; then
-            cp "$AAB_SRC" "$AAB_DST"
-          fi
-
       - name: Create GitHub release
         # Used to be a separate `release:` job that pulled the APK
         # via actions/download-artifact. Collapsed into the build
@@ -294,23 +206,8 @@ jobs:
 
             - `candela-${{ github.ref_name }}.apk` — phone / tablet (sideload)
             - `candela-wear-${{ github.ref_name }}.apk` — Wear OS companion ("Library Nocturne"), sideload to the watch
-            - `candela-${{ github.ref_name }}.aab` — Android App Bundle for Play Store upload (#1456)
 
-            > The two APKs are signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs — sideload-only distribution today. The `.aab` is release-signed for Play upload with the keystore held in Actions secrets (a debug-signed bundle is withheld by the #1476 guard). Upload to Play Console is still manual until #1456's GPP credentials land.
+            > Both APKs are signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs — sideload distribution. There is no AAB here: it is not installable by anyone; it is built and release-signed on katana and submitted straight to Play Console (docs/release-keystore.md, #1456).
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
-            app/build/outputs/bundle/release/candela-${{ github.ref_name }}.aab
-
-      - name: Fail the tag build if the AAB was withheld (#1476)
-        # Runs AFTER "Create GitHub release", so the sideload APK + Wear APK are
-        # already published — this never torpedoes the APK release. Its only job
-        # is to turn the run RED when the guard withheld a debug-signed bundle,
-        # so the signing gap is impossible to miss and someone produces the AAB
-        # on katana + uploads it to Play. Uses the runner-provided
-        # $GITHUB_REF_NAME shell var (not ${{ }} interpolation) to keep run: free
-        # of injected expressions.
-        if: startsWith(github.ref, 'refs/tags/v') && env.AAB_DEBUG_SIGNED == 'true'
-        run: |
-          echo "::error::#1476 — release ${GITHUB_REF_NAME} was published WITHOUT a Play AAB: the CI-built bundle was debug-signed (RELEASE_KEYSTORE_B64 / RELEASE_* secrets missing or wrong). Fix the secrets and re-run, or build ./gradlew :app:bundleRelease locally with the release keystore (separate invocation, per #952) and upload candela-${GITHUB_REF_NAME}.aab to the Play Console. Tracking: #1476."
-          exit 1

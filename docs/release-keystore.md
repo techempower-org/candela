@@ -185,49 +185,32 @@ $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs \
 
 ---
 
-## CI wiring (self-hosted runner fleet)
+## CI wiring (GitHub-hosted runners, since 2026-09-06) — and why the key is NOT in CI
 
-The CI workflow at `.github/workflows/android.yml` materializes
-`local.properties` in two layers (see the **Materialize local.properties**
-step):
+CI runs on GitHub-hosted `ubuntu-latest` (`.github/workflows/android.yml`) and
+builds **only the two sideload APKs** (`:app:assembleRelease`,
+`:wear:assembleRelease`), both intentionally debug-signed for sideload
+upgrade continuity (#952). The **Materialize local.properties** step writes
+the file from Actions secrets: `INSTANTDB_APP_ID` (a public client id kept
+out of the tree) and, when present, the optional `NOTION_OAUTH_*` /
+`GOOGLE_OAUTH_*` client ids.
 
-1. **Seed from katana's persistent checkout.** When
-   `/home/jp/Projects/candela/local.properties` is present (it is on
-   katana — `…/storyvox` is a symlink to it), the step copies it verbatim.
-   That file carries `sdk.dir`, `INSTANTDB_APP_ID`, **and the four
-   `storyvox.release*` keystore lines** — so **once JP adds the
-   release-keystore lines to katana's `local.properties`, a tag build that
-   runs on katana picks them up automatically**.
-2. **Backfill on every other runner.** familiar / ubox0 / game (and any
-   future/hosted runner) have no such file. The step writes `sdk.dir` from
-   the SDK env and `INSTANTDB_APP_ID` from the **`INSTANTDB_APP_ID` GitHub
-   Actions secret**. Without this backfill, a release that happened to be
-   scheduled onto a non-katana runner silently shipped
-   `INSTANTDB_APP_ID=PLACEHOLDER` (cloud sync disabled). A tag build still
-   emits a CI warning if the value ends up unset.
+**The release keystore is deliberately not in CI, and the Play AAB is never a
+GitHub release asset.** An AAB cannot be installed by anyone — it is not
+sideloadable; its only consumer is Play Console, which re-signs it and serves
+users APKs. So it is built and release-signed on katana, where the keystore
+file and the `storyvox.release*` lines in `local.properties` live, and
+submitted straight to Play:
 
-> **Action required:** create the `INSTANTDB_APP_ID` repo secret
-> (Settings → Secrets and variables → Actions). It is a *public* InstantDB
-> client id, not a credential — the secret only keeps it out of the public
-> source tree. This is the fix for "sync missing on CI runners."
+```bash
+./gradlew :app:bundleRelease          # SEPARATE invocation from assembleRelease (#952)
+# → app/build/outputs/bundle/release/app-release.aab  → upload in Play Console
+# or, once the GPP service account exists (#1456): ./gradlew :app:publishReleaseBundle
+```
 
-The **release keystore is NOT wired through CI secrets today.** The GitHub
-Release APK (`:app:assembleRelease`, what CI runs) is intentionally
-debug-signed for sideload continuity (see `#952`), so CI never needs the
-release key. The release key is only used by the **manual Play AAB path**
-(`:app:publishReleaseBundle`), run on katana where the keystore file +
-`storyvox.release*` lines already live. If you ever want tag builds on
-*any* runner to also be release-signed, add the keystore via secrets per
-the ubuntu-latest migration steps below — but gate it to non-PR events so
-the key is never exposed to a pull-request build.
-
-If we ever move back to a hosted ubuntu-latest runner, the migration is:
-
-1. Encode keystore to base64: `base64 -w0 ~/.storyvox-keystore/storyvox-release.keystore`
-2. Store in GitHub Secrets as `STORYVOX_RELEASE_KEYSTORE_B64`
-3. Store the four passwords as `STORYVOX_RELEASE_*` secrets
-4. CI step writes `local.properties` + decodes the keystore before
-   `./gradlew :app:assembleRelease`
+(2026-09-06: the keystore was briefly copied into Actions secrets and CI had
+been attaching AABs to releases v1.7.0–v1.14.1; both reverted the same day —
+secrets deleted, all 17 assets removed.)
 
 ---
 

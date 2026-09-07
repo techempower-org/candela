@@ -11,7 +11,7 @@ Android app that turns text from 37 sources into narrated audiobooks via TTS. Ko
 ./gradlew testDebugUnitTest           # all tests
 ```
 
-CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo — switched 2026-09-06 from the self-hosted katana/familiar/ubox0 pool, which stays registered but idle). Tags trigger the release APK + AAB build and the GitHub release. Everything the build needs beyond the checkout comes from Actions secrets: `INSTANTDB_APP_ID` (cloud sync) and `RELEASE_KEYSTORE_B64` + `RELEASE_STORE_PASSWORD` + `RELEASE_KEY_ALIAS` + `RELEASE_KEY_PASSWORD` (release-signs the Play AAB; source of truth is `~/.storyvox-keystore/` + `local.properties` on katana). A GitHub-hosted `Build APK` takes ~20–30 min cold, faster with the Gradle cache. Never compile locally on katana — push and let CI be the compile gate.
+CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo — switched 2026-09-06 from the self-hosted katana/familiar/ubox0 pool, which stays registered but idle). Tags build the two sideload APKs (phone + Wear, debug-signed for upgrade continuity, #952) and publish the GitHub release. CI reads `INSTANTDB_APP_ID` (and optional OAuth client ids) from Actions secrets; **the release keystore is NOT in CI and the Play AAB is never a GitHub asset** — an AAB is not installable by anyone, only Play consumes it. Build it on katana when submitting: `./gradlew :app:bundleRelease` (separate invocation from assembleRelease, #952) → upload in Play Console. A hosted `Build APK` takes ~20 min cold. Never compile locally on katana except that AAB step — push and let CI be the compile gate.
 
 ## Module layout
 

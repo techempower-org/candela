@@ -134,7 +134,7 @@ _TechEMPOWER — Technology for All. Access Made Easy._ (techempower.org · disc
 :lock: PBKDF2 bumped 100k → 600k rounds (NIST 2024 / OWASP) for user-derived sync keys; envelope format v2 drops the cosmetic salt.
 :test_tube: Room schema → v6 (1→2→3→4→5→6, all additive). `chapter_history` rebased v5→v6 at merge time because shelves claimed v5 first; renumber kdoc'd in the migration file so the next person hits the same paved path.
 :scroll: Introduces `CHANGELOG.md` — no more "see git log".
-:tools: Self-hosted runner on katana still doing the CI work while jphein's hosted Actions remain capped through 2026-06-01.
+:tools: CI on GitHub-hosted runners (ubuntu-latest) since 2026-09-06 — the familiar/katana self-hosted pool is retired from the build path.
 
 *Install*
 :tablet: Direct APK → https://github.com/techempower-org/candela/releases/download/v0.5.12/storyvox-v0.5.12.apk
@@ -155,7 +155,7 @@ Before drafting a release post, walk this:
 
 - [ ] `app/build.gradle.kts` versionName matches the git tag being announced
 - [ ] CHANGELOG.md has an entry for this version (Added / Changed / Fixed sections)
-- [ ] `gh release view {{VERSION}} --json assets` confirms the APK is attached (self-hosted runner must have finished)
+- [ ] `gh release view {{VERSION}} --json assets` confirms the APK is attached (the tag build takes ~20 min on GitHub-hosted runners)
 - [ ] Sigil computed from short `SIGIL_HASH` (8 chars from `git rev-parse --short=8 HEAD` on the tagged commit)
 - [ ] APK installed on R83W80CAFZB and the app launches without a migration crash (logcat scanned)
 - [ ] Feature emojis pulled from the palette above — no off-roster substitutions

@@ -34,9 +34,9 @@ Notion is an **OAuth 2.0 confidential client** — after you save, it shows an
 
 ## 2 · Wire the credentials
 
-Add **two lines** to `local.properties` (gitignored; lives only on JP's
-machine + the self-hosted CI runner — never committed, never passed via
-`-P`):
+Add **two lines** to `local.properties` (gitignored; lives only on JP's machine — never committed, never passed via
+`-P`; CI reads the same two values from the `NOTION_OAUTH_CLIENT_ID` /
+`NOTION_OAUTH_CLIENT_SECRET` GitHub Actions secrets):
 
 ```properties
 NOTION_OAUTH_CLIENT_ID=<the OAuth client ID>

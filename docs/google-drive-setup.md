@@ -68,8 +68,9 @@ Go to the **Google Cloud console → APIs & Services**:
 
 ## 2 · Wire the credentials
 
-Add to `local.properties` (gitignored; lives only on your machine + the
-self-hosted CI runner — never committed, never passed via `-P`):
+Add to `local.properties` (gitignored; lives only on your machine — never committed, never passed via `-P`;
+CI reads the same two values from the `GOOGLE_OAUTH_CLIENT_ID` /
+`GOOGLE_OAUTH_CLIENT_SECRET` GitHub Actions secrets):
 
 ```properties
 GOOGLE_OAUTH_CLIENT_ID=<the OAuth client ID>
