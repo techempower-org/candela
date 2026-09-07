@@ -44,9 +44,9 @@ jobs:
     # Self-hosted runner (see android.yml header note for context on
     # the 2026-05-12 cap-hit migration). This job only reads the repo and
     # pushes the .wiki repo, so a hosted runner would also work — but
-    # self-hosted is free. Runner-agnostic: no `gh` dependency (only git +
-    # python3 + curl), so it can't 127 on the gh-less familiar runner.
-    runs-on: [self-hosted, linux]
+    # GitHub-hosted (free for this public repo). Runner-agnostic: no `gh` dependency (only git +
+    # python3 + curl).
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout main (for CHANGELOG.md + the render script)
@@ -141,8 +141,8 @@ jobs:
           NAME: ${{ github.event.repository.name }}
         continue-on-error: true
         run: |
-          # Use the REST API via curl rather than `gh` — the self-hosted runner
-          # pool is mixed (katana has gh, familiar does NOT), so any `gh`
+          # Use the REST API via curl rather than `gh` — keeps the job
+          # runner-agnostic, so any `gh`
           # invocation 127s when the job lands on a runner without it. curl is
           # present on every runner. jq builds the JSON body so the homepage
           # value is safely escaped.

@@ -24,44 +24,28 @@ concurrency:
 jobs:
   test-compile:
     name: Test Compile
-    runs-on: [self-hosted, linux, android]
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.event_name == 'pull_request'
-    env:
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-      ANDROID_HOME: /home/jp/Android/Sdk
-      ANDROID_SDK_ROOT: /home/jp/Android/Sdk
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle (dependency + build cache)
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Materialize local.properties
-        # Test-compile only needs the SDK path; INSTANTDB_APP_ID=PLACEHOLDER
-        # compiles fine (the sync DI graph routes to DisabledBackend). We do
-        # NOT inject the INSTANTDB_APP_ID secret here because this job runs
-        # on pull_request — keeping secrets off PR-triggered runs is the
-        # GitHub-recommended posture (fork PRs never receive them anyway).
         run: |
           set -euo pipefail
-          # Seed from katana's persistent dev checkout when present (the
-          # `storyvox` path is a symlink to `candela`; try the canonical
-          # name first). Other runners have no such file — that's fine,
-          # the SDK env below supplies what the compile needs.
-          for seed in /home/jp/Projects/candela/local.properties \
-                      /home/jp/Projects/storyvox/local.properties; do
-            if [ -f "$seed" ]; then
-              cp "$seed" ./local.properties
-              break
-            fi
-          done
-          touch ./local.properties
-          if ! grep -q '^sdk.dir=' ./local.properties; then
-            echo "sdk.dir=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}" >> ./local.properties
-          fi
-
+          # GitHub-hosted runner: the Android SDK ships preinstalled at $ANDROID_HOME.
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
       - name: Compile test sources
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew compileDebugUnitTestKotlin --no-daemon --stacktrace
 
@@ -79,104 +63,67 @@ jobs:
     # When/if we move back to hosted, swap `runs-on` for
     # `ubuntu-latest` and re-add the setup-java / setup-android /
     # actions/cache steps from git history.
-    runs-on: [self-hosted, linux, android]
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       # write required by softprops/action-gh-release on tag builds.
       # PR / main pushes don't reach that step, but the permission is
       # declared at job scope to keep `if:` step gating simple.
       contents: write
-    env:
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-      ANDROID_HOME: /home/jp/Android/Sdk
-      ANDROID_SDK_ROOT: /home/jp/Android/Sdk
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle (dependency + build cache)
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Materialize local.properties
-        # The runner's fresh checkout has no local.properties (gitignored),
-        # so we assemble it from two sources to guarantee an identical,
-        # sync-enabled build on EVERY runner in the fleet (katana +
-        # familiar + ubox0 + game + any future/hosted runner):
-        #
-        #   1. katana keeps a persistent dev checkout at
-        #      /home/jp/Projects/candela (the `storyvox` path is a symlink
-        #      to it). When present we seed from it — carrying sdk.dir,
-        #      INSTANTDB_APP_ID, and the release-keystore props exactly as
-        #      before, so katana's behavior is unchanged.
-        #   2. Every other runner has no such file. We backfill sdk.dir
-        #      from the SDK env each android-labeled runner already exports,
-        #      and INSTANTDB_APP_ID from the repo Actions secret. Without
-        #      this, builds that landed on a non-katana runner silently
-        #      shipped INSTANTDB_APP_ID=PLACEHOLDER — cloud sync routed to
-        #      DisabledBackend in the published APK. This step fixes that.
-        #
-        # INSTANTDB_APP_ID is a *public* InstantDB client id (like a
-        # Firebase project id), NOT a credential: the backend authorizes
-        # per-user via an `as-token` refresh token, never an admin secret
-        # (see core-sync/.../HttpInstantBackend.kt). It lives in a repo
-        # secret only to keep it out of the public source tree / abuse
-        # surface, not because disclosure would be a breach.
-        #
-        # No untrusted input is interpolated into run: — INSTANTDB_APP_ID
-        # comes from secrets via env (quoted on use) and GITHUB_REF is a
-        # runner-provided env var, so there is no command-injection surface.
         env:
           INSTANTDB_APP_ID: ${{ secrets.INSTANTDB_APP_ID }}
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          # 1. Seed from katana's persistent checkout when available.
-          for seed in /home/jp/Projects/candela/local.properties \
-                      /home/jp/Projects/storyvox/local.properties; do
-            if [ -f "$seed" ]; then
-              cp "$seed" ./local.properties
-              break
-            fi
-          done
-          touch ./local.properties
-          # 2. Ensure sdk.dir (every android-labeled runner exports the SDK path).
-          if ! grep -q '^sdk.dir=' ./local.properties; then
-            echo "sdk.dir=${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}" >> ./local.properties
+          # GitHub-hosted runner: nothing is seeded from a developer machine any more.
+          # Everything the build needs beyond the checkout comes from Actions secrets.
+          printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
+          if [ -n "${INSTANTDB_APP_ID:-}" ]; then
+            echo "INSTANTDB_APP_ID=$INSTANTDB_APP_ID" >> ./local.properties
           fi
-          # 3. Ensure INSTANTDB_APP_ID from the repo secret when the seed
-          #    file didn't supply it (any runner other than katana).
-          if ! grep -q '^INSTANTDB_APP_ID=' ./local.properties; then
-            if [ -n "${INSTANTDB_APP_ID:-}" ]; then
-              echo "INSTANTDB_APP_ID=$INSTANTDB_APP_ID" >> ./local.properties
-            fi
+          # Release keystore (release-signs the Play AAB; the sideload APKs keep the
+          # checked-in debug keystore on purpose — see app/build.gradle.kts). Decoded
+          # into RUNNER_TEMP, which is wiped with the job.
+          if [ -n "${RELEASE_KEYSTORE_B64:-}" ]; then
+            KS="$RUNNER_TEMP/storyvox-release.keystore"
+            printf '%s' "$RELEASE_KEYSTORE_B64" | base64 -d > "$KS"
+            {
+              echo "storyvox.releaseStoreFile=$KS"
+              echo "storyvox.releaseStorePassword=$RELEASE_STORE_PASSWORD"
+              echo "storyvox.releaseKeyAlias=$RELEASE_KEY_ALIAS"
+              echo "storyvox.releaseKeyPassword=$RELEASE_KEY_PASSWORD"
+            } >> ./local.properties
           fi
-          # 4. On a release (tag) build, warn loudly if sync would ship
-          #    disabled. Visible in the run summary; the real fix is to set
-          #    the INSTANTDB_APP_ID Actions secret (Settings → Secrets and
-          #    variables → Actions) so step 3 backfills it on any runner.
-          #    Flip this to `::error::` + `exit 1` once the secret exists if
-          #    you want a sync-disabled release to hard-fail CI.
           if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
-            if ! grep -q '^INSTANTDB_APP_ID=..*' ./local.properties; then
-              echo "::warning::INSTANTDB_APP_ID is unset on runner '$(hostname)' — this release APK will ship with cloud sync DISABLED. Set the INSTANTDB_APP_ID Actions secret, or run the tag build on katana."
-            fi
-          fi
-          # 4b. #1452 — a *malformed* app-id (present but not a UUID: quotes,
-          #     whitespace, or a wrong value) passes the app's `isConfigured`
-          #     gate, so sync isn't "disabled" — instead InstantDB rejects it
-          #     as "Malformed parameter: app-id", which the sign-in UI once
-          #     mislabeled as a bogus "email doesn't look right" error. Hard-
-          #     fail a tagged build so a corrupt secret can never ship again.
-          #     Mirrors the gradle read (value trimmed; PLACEHOLDER is the
-          #     disabled sentinel handled by the warn above).
-          if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
-            appid="$(grep -m1 '^INSTANTDB_APP_ID=' ./local.properties 2>/dev/null | sed 's/^INSTANTDB_APP_ID=//' | tr -d '[:space:]' || true)"
-            if [ -n "$appid" ] && [ "$appid" != "PLACEHOLDER" ] && \
-               ! printf '%s' "$appid" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
-              echo "::error::INSTANTDB_APP_ID on runner '$(hostname)' is not a valid UUID. A malformed app-id ships broken Cloud Sync that surfaces as a false 'email doesn't look right' error (#1452). Fix the Actions secret — no quotes or whitespace."
+            if [ -z "${INSTANTDB_APP_ID:-}" ]; then
+              echo "::warning::INSTANTDB_APP_ID secret is unset — this release APK will ship with cloud sync DISABLED. Set the INSTANTDB_APP_ID Actions secret."
+            elif [ "$INSTANTDB_APP_ID" != "PLACEHOLDER" ] && \
+               ! printf '%s' "$INSTANTDB_APP_ID" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+              echo "::error::INSTANTDB_APP_ID secret is not a valid UUID. A malformed app-id ships broken Cloud Sync that surfaces as a false 'email doesn't look right' error (#1452). Fix the Actions secret — no quotes or whitespace."
               exit 1
             fi
+            if [ -z "${RELEASE_KEYSTORE_B64:-}" ]; then
+              echo "::warning::RELEASE_KEYSTORE_B64 secret is unset — the AAB will be debug-signed and withheld from the release (#1476 guard)."
+            fi
           fi
-
       - name: Assemble release APK
         # Issue #529 — was `:app:assembleDebug` through v0.5.57. Flipped
         # to `:app:assembleRelease` so the shipped artifact carries
@@ -243,7 +190,7 @@ jobs:
           fi
           echo "AAB signer subject: ${SUBJECT:-<none found>}"
           if [ -z "$SUBJECT" ] || echo "$SUBJECT" | grep -qi 'debug'; then
-            echo "::error::#1476 — the tag-built AAB is debug-signed (${SUBJECT:-no signer found}); Play Console rejects debug-signed bundles, so it has NOT been attached to this release. Build the release bundle on katana (the runner holding ~/.storyvox-keystore/storyvox-release.keystore): ./gradlew :app:bundleRelease (a SEPARATE invocation, per #952), then upload candela-${GITHUB_REF_NAME}.aab to the Play Console manually — until #1476's signing path is decided. The sideload APK + Wear APK in this release are unaffected."
+            echo "::error::#1476 — the tag-built AAB is debug-signed (${SUBJECT:-no signer found}); Play Console rejects debug-signed bundles, so it has NOT been attached to this release. Check the RELEASE_KEYSTORE_B64 / RELEASE_* Actions secrets and re-run the tag build, or build the bundle locally with the release keystore (./gradlew :app:bundleRelease — a SEPARATE invocation, per #952) and upload candela-${GITHUB_REF_NAME}.aab to the Play Console manually. The sideload APK + Wear APK in this release are unaffected."
             rm -f "$AAB" "$AAB_DIR"/candela-*.aab
             echo "AAB_DEBUG_SIGNED=true" >> "$GITHUB_ENV"
           else
@@ -334,7 +281,7 @@ jobs:
         # upload-artifact + download-artifact would fail. GitHub
         # *releases* use a different storage quota that isn't capped,
         # so attaching directly via softprops/action-gh-release stays
-        # within budget. Since both halves now share a self-hosted
+        # within budget. Since both halves now share a GitHub-hosted
         # runner, the APK is just on disk; no transfer needed.
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -349,7 +296,7 @@ jobs:
             - `candela-wear-${{ github.ref_name }}.apk` — Wear OS companion ("Library Nocturne"), sideload to the watch
             - `candela-${{ github.ref_name }}.aab` — Android App Bundle for Play Store upload (#1456)
 
-            > The two APKs are signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs — sideload-only distribution today. The `.aab` is release-signed for Play upload **only when built on a runner that has the `storyvox.release*` keystore props** (katana); on any other runner it is debug-signed and Play will reject it. Upload to Play Console is still manual (no publisher automation yet).
+            > The two APKs are signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs — sideload-only distribution today. The `.aab` is release-signed for Play upload with the keystore held in Actions secrets (a debug-signed bundle is withheld by the #1476 guard). Upload to Play Console is still manual until #1456's GPP credentials land.
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
@@ -365,5 +312,5 @@ jobs:
         # of injected expressions.
         if: startsWith(github.ref, 'refs/tags/v') && env.AAB_DEBUG_SIGNED == 'true'
         run: |
-          echo "::error::#1476 — release ${GITHUB_REF_NAME} was published WITHOUT a Play AAB: the CI-built bundle was debug-signed (this runner lacks the release keystore). Produce it on katana — ./gradlew :app:bundleRelease (separate invocation, per #952) — then upload candela-${GITHUB_REF_NAME}.aab to the Play Console. Tracking: #1476."
+          echo "::error::#1476 — release ${GITHUB_REF_NAME} was published WITHOUT a Play AAB: the CI-built bundle was debug-signed (RELEASE_KEYSTORE_B64 / RELEASE_* secrets missing or wrong). Fix the secrets and re-run, or build ./gradlew :app:bundleRelease locally with the release keystore (separate invocation, per #952) and upload candela-${GITHUB_REF_NAME}.aab to the Play Console. Tracking: #1476."
           exit 1
