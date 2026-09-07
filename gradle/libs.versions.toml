@@ -55,7 +55,7 @@ readability4j = "1.0.8"
 # for text-layer extraction; scanned/image PDFs route through the
 # pluggable OCR seam (#995) since they carry no text layer.
 pdfbox-android = "2.0.27.0"
-androidx-webkit = "1.16.0"
+androidx-webkit = "1.17.0"
 androidx-browser = "1.10.0"
 
 # Concurrency
