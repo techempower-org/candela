@@ -35,7 +35,7 @@ hilt-navigation-compose = "1.4.0"
 hilt-work = "1.4.0"
 
 # Persistence + work
-room = "2.8.4"
+room = "2.8.5"
 work = "2.11.2"
 datastore = "1.2.1"
 
