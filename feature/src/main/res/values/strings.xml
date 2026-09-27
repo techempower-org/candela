@@ -666,7 +666,7 @@
 
     <!-- Settings · hub (SettingsHubScreen) -->
     <string name="settings_hub_title">Settings</string>
-    <string name="settings_hub_heading">Candela</string>
+    <string name="settings_hub_heading" translatable="false">Candela</string>
     <string name="settings_hub_descriptor">Pick a section to configure.</string>
     <string name="settings_hub_search_label">Search settings</string>
     <string name="settings_hub_clear_search">Clear search</string>
@@ -692,10 +692,10 @@
     <string name="settings_hub_pronunciation_title">Pronunciation dictionary</string>
     <string name="settings_hub_pronunciation_subtitle">Per-word phonetic overrides.</string>
     <string name="settings_hub_account_title">Account</string>
-    <string name="settings_hub_account_subtitle">Royal Road, GitHub.</string>
-    <string name="settings_hub_memory_palace_title">Memory Palace</string>
+    <string name="settings_hub_account_subtitle" translatable="false">Royal Road, GitHub.</string>
+    <string name="settings_hub_memory_palace_title" translatable="false">Memory Palace</string>
     <string name="settings_hub_memory_palace_subtitle">Daemon host, probe, integration.</string>
-    <string name="settings_hub_bookshare_title">Bookshare</string>
+    <string name="settings_hub_bookshare_title" translatable="false">Bookshare</string>
     <string name="settings_hub_bookshare_subtitle">Accessible DAISY library · partner API key.</string>
     <string name="settings_hub_advanced_title">Advanced</string>
     <string name="settings_hub_advanced_subtitle">Android Auto, integration tunables.</string>
@@ -713,16 +713,16 @@
     <string name="settings_hub_benefits_title">Benefits</string>
     <string name="settings_hub_benefits_subtitle">Do-I-qualify screener &amp; letter decoder.</string>
     <!-- #1633 — Teleprompter recording presets subscreen (gear in Scripts; EN-only #1583) -->
-    <string name="teleprompter_settings_title">Teleprompter</string>
+    <string name="teleprompter_settings_title" translatable="false">Teleprompter</string>
     <string name="scripts_recording_wpm_title">Scroll speed</string>
     <string name="scripts_recording_wpm_value">%1$d wpm</string>
     <string name="scripts_recording_countdown_title">Countdown before recording</string>
     <string name="scripts_recording_countdown_off">Off</string>
-    <string name="scripts_recording_countdown_value">%1$d s</string>
+    <string name="scripts_recording_countdown_value" translatable="false">%1$d s</string>
     <string name="scripts_recording_opacity_title">Script overlay opacity</string>
-    <string name="scripts_recording_opacity_value">%1$d%%</string>
+    <string name="scripts_recording_opacity_value" translatable="false">%1$d%%</string>
     <string name="scripts_recording_fontsize_title">Script text size</string>
-    <string name="scripts_recording_fontsize_value">%1$d sp</string>
+    <string name="scripts_recording_fontsize_value" translatable="false">%1$d sp</string>
     <string name="scripts_recording_mirror_title">Mirror script</string>
     <string name="scripts_recording_mirror_subtitle">Flip horizontally for beam-splitter teleprompter glass.</string>
     <string name="scripts_recording_camera_title">Front camera</string>
@@ -819,19 +819,19 @@
     <string name="settings_reading_font_title">Font</string>
     <string name="settings_reading_font_subtitle">Applies to the chapter text only, not the rest of the app.</string>
     <string name="settings_reading_font_default">Default</string>
-    <string name="settings_reading_font_opendyslexic">OpenDyslexic</string>
-    <string name="settings_reading_font_atkinson">Atkinson</string>
+    <string name="settings_reading_font_opendyslexic" translatable="false">OpenDyslexic</string>
+    <string name="settings_reading_font_atkinson" translatable="false">Atkinson</string>
     <string name="settings_reading_size_title">Text size</string>
-    <string name="settings_reading_size_value">%1$d sp</string>
+    <string name="settings_reading_size_value" translatable="false">%1$d sp</string>
     <string name="settings_reading_size_cd">Reading text size</string>
     <string name="settings_reading_line_title">Line spacing</string>
-    <string name="settings_reading_line_value">%1$.2f×</string>
+    <string name="settings_reading_line_value" translatable="false">%1$.2f×</string>
     <string name="settings_reading_line_cd">Reading line spacing</string>
     <string name="settings_reading_letter_title">Letter spacing</string>
-    <string name="settings_reading_letter_value">%1$.3f em</string>
+    <string name="settings_reading_letter_value" translatable="false">%1$.3f em</string>
     <string name="settings_reading_letter_cd">Reading letter spacing</string>
     <string name="settings_reading_paragraph_title">Paragraph spacing</string>
-    <string name="settings_reading_paragraph_value">%1$.2f×</string>
+    <string name="settings_reading_paragraph_value" translatable="false">%1$.2f×</string>
     <string name="settings_reading_paragraph_cd">Reading paragraph spacing</string>
     <string name="settings_reading_preview_label">Preview</string>
     <string name="settings_reading_preview_text">The quick brown fox jumps over the lazy dog. Reading should feel comfortable.</string>
@@ -856,8 +856,8 @@
     <string name="settings_cloud_voices_title">Cloud voices</string>
 
     <!-- Settings · Memory Palace subscreen -->
-    <string name="settings_memory_palace_title">Memory Palace</string>
-    <string name="settings_bookshare_title">Bookshare</string>
+    <string name="settings_memory_palace_title" translatable="false">Memory Palace</string>
+    <string name="settings_bookshare_title" translatable="false">Bookshare</string>
     <string name="settings_bookshare_key_label">Partner API key</string>
     <string name="settings_bookshare_help">Bookshare requires a partner API key issued by Benetech. With a key stored, you can search and browse the accessible-book catalog. Downloading protected titles needs a separate partner agreement.</string>
     <string name="settings_bookshare_save">Save key</string>
@@ -872,7 +872,7 @@
 
     <!-- Settings · About subscreen -->
     <string name="settings_about_title">About</string>
-    <string name="settings_about_version">Candela v%1$s</string>
+    <string name="settings_about_version" translatable="false">Candela v%1$s</string>
     <string name="settings_about_dirty"> · dirty</string>
     <string name="settings_about_built"> · built %1$s</string>
     <string name="settings_about_privacy_policy">Privacy Policy</string>
@@ -910,12 +910,12 @@
     <string name="settings_voice_library_title">Voice library</string>
     <string name="settings_voice_library_subtitle">Pick a voice and hear samples.</string>
     <string name="settings_voice_speed_title">Speed</string>
-    <string name="settings_voice_speed_value">%1$s×</string>
+    <string name="settings_voice_speed_value" translatable="false">%1$s×</string>
     <string name="settings_voice_speed_cd">Default speech speed</string>
     <string name="settings_voice_speed_state">%1$s times</string>
-    <string name="settings_voice_tick_natural">▲ 1×</string>
+    <string name="settings_voice_tick_natural" translatable="false">▲ 1×</string>
     <string name="settings_voice_pitch_title">Pitch</string>
-    <string name="settings_voice_pitch_value">%1$s×</string>
+    <string name="settings_voice_pitch_value" translatable="false">%1$s×</string>
     <string name="settings_voice_pitch_cd">Default pitch</string>
     <string name="settings_voice_pitch_state">%1$s, neutral at one</string>
     <string name="settings_voice_hq_pitch_title">High-quality pitch interpolation</string>
@@ -928,14 +928,14 @@
     <string name="settings_voice_pronunciation_subtitle">Teach the voice how to say specific names and words.</string>
     <string name="settings_voice_skip_distance_title">Skip distance</string>
     <string name="settings_voice_skip_distance_subtitle">Seconds the +N / -N buttons jump per tap.</string>
-    <string name="settings_voice_skip_distance_option">%1$ds</string>
+    <string name="settings_voice_skip_distance_option" translatable="false">%1$ds</string>
     <string name="settings_voice_rewind_title">Skip-back: jump to start when within</string>
     <string name="settings_voice_rewind_subtitle">Past this point in a chapter, the prev-track button rewinds to the start. Within it, jumps to the previous chapter. Off (0s) always goes to the previous chapter.</string>
     <string name="settings_voice_rewind_off">Off</string>
-    <string name="settings_voice_rewind_option">%1$ds</string>
+    <string name="settings_voice_rewind_option" translatable="false">%1$ds</string>
     <string name="settings_voice_shake_extend_title">Sleep timer: shake-to-extend</string>
     <string name="settings_voice_shake_extend_subtitle">Minutes the timer extends when you shake during the 10-second fade tail.</string>
-    <string name="settings_voice_shake_extend_option">%1$d min</string>
+    <string name="settings_voice_shake_extend_option" translatable="false">%1$d min</string>
     <!-- #1577 — these two are INVERSE features with confusingly-similar names
          (half of why JP couldn't find #1574). Relabelled so the direction of
          causation is obvious, and BOTH now name "Do Not Disturb" so either is
@@ -950,7 +950,7 @@
     <string name="settings_voice_sleep_group_title">Sleep timer</string>
     <string name="settings_voice_sleep_default_title">Default duration</string>
     <string name="settings_voice_sleep_default_subtitle">How long a new sleep timer runs when you start one without picking a time.</string>
-    <string name="settings_voice_sleep_default_option">%1$d min</string>
+    <string name="settings_voice_sleep_default_option" translatable="false">%1$d min</string>
     <string name="settings_voice_shake_enable_title">Shake to extend</string>
     <string name="settings_voice_shake_enable_subtitle">Shake your device during the timer\'s fade-out to keep listening.</string>
 
@@ -983,13 +983,13 @@
     <string name="settings_performance_cache_size_subtitle">How much disk to use for cached audiobook PCM. Larger = more chapters playable instantly; smaller = less disk used.</string>
     <string name="settings_performance_cache_used_title">Currently used</string>
     <string name="settings_performance_cache_no_cap">no cap</string>
-    <string name="settings_performance_cache_used_value">%1$s / %2$s</string>
+    <string name="settings_performance_cache_used_value" translatable="false">%1$s / %2$s</string>
     <string name="settings_performance_clear_cache">Clear cache</string>
     <string name="settings_performance_clear_cache_confirm_title">Clear audio cache?</string>
     <string name="settings_performance_clear_cache_confirm_body">Frees %1$s of disk. Chapters you replay will re-render the first time you play them. Library and reading positions are not affected.</string>
     <string name="settings_performance_prerender_window_title">Pre-render window</string>
     <string name="settings_performance_prerender_window_subtitle">How many chapters ahead the cache renders. Smaller = less disk + bandwidth; larger = more chapters ready for instant playback.</string>
-    <string name="settings_performance_prerender_window_option">N+%1$d</string>
+    <string name="settings_performance_prerender_window_option" translatable="false">N+%1$d</string>
     <string name="settings_performance_network_patience_title">Network patience</string>
     <string name="settings_performance_network_patience_subtitle">Network timeout budget for source plugins. Aggressive fails fast on flaky links; Patient gives slow APIs more room.</string>
     <string name="settings_performance_network_patience_aggressive">Aggressive (5s)</string>
@@ -1014,7 +1014,7 @@
     <string name="settings_accessibility_touch_targets_title">Larger touch targets</string>
     <string name="settings_accessibility_touch_targets_subtitle">Increase tap-target minimums from 48dp to 64dp where feasible. Auto-enables when Switch Access is active.</string>
     <string name="settings_accessibility_pauses_title">Screen-reader pauses</string>
-    <string name="settings_accessibility_pauses_value">%1$d ms</string>
+    <string name="settings_accessibility_pauses_value" translatable="false">%1$d ms</string>
     <string name="settings_accessibility_pauses_subtitle">Extra pause between sentences when TalkBack is active.</string>
     <string name="settings_accessibility_pauses_cd">Screen-reader inter-sentence pause</string>
     <string name="settings_accessibility_pauses_state">%1$d milliseconds</string>
@@ -1024,7 +1024,7 @@
     <string name="settings_accessibility_speak_numbers">Numbers only</string>
     <string name="settings_accessibility_speak_titles">Titles only</string>
     <string name="settings_accessibility_font_scale_title">Font scale override</string>
-    <string name="settings_accessibility_font_scale_value">%1$s×</string>
+    <string name="settings_accessibility_font_scale_value" translatable="false">%1$s×</string>
     <string name="settings_accessibility_font_scale_subtitle">Multiplier on top of Android\'s system font scale.</string>
     <string name="settings_accessibility_font_scale_cd">Font scale override</string>
     <string name="settings_accessibility_font_scale_state">%1$s times</string>
@@ -1059,7 +1059,7 @@
     <string name="settings_appearance_cover_branded_subtitle">Bold magical · sun-disk + EB Garamond title</string>
     <string name="settings_appearance_cover_only_label">Cover only</string>
     <string name="settings_appearance_cover_only_subtitle">Real cover when available, dim sigil outline otherwise</string>
-    <string name="settings_appearance_cover_radio_cd">%1$s. %2$s</string>
+    <string name="settings_appearance_cover_radio_cd" translatable="false">%1$s. %2$s</string>
     <string name="settings_appearance_preview_label">Preview</string>
     <string name="settings_appearance_preview_chip_cd">%1$s preview — tap to select</string>
     <string name="settings_appearance_about_covers_title">About these covers</string>
@@ -1104,10 +1104,10 @@
     <string name="settings_account_cloud_sync_signin_subtitle">Sign in to sync library, follows, positions, and secrets across devices.</string>
     <string name="settings_account_royal_road_signed_in">Royal Road · signed in</string>
     <string name="settings_account_royal_road_not_signed_in">Royal Road · not signed in</string>
-    <string name="settings_account_royal_road_title">Royal Road</string>
+    <string name="settings_account_royal_road_title" translatable="false">Royal Road</string>
     <string name="settings_account_royal_road_signed_in_subtitle">Signed in</string>
     <string name="settings_account_royal_road_signin_subtitle">Sign-in unlocks Premium chapters and your Follows list.</string>
-    <string name="settings_account_ao3_title">Archive of Our Own</string>
+    <string name="settings_account_ao3_title" translatable="false">Archive of Our Own</string>
     <string name="settings_account_ao3_signed_in">AO3: signed in</string>
     <string name="settings_account_ao3_not_signed_in">AO3: not signed in</string>
     <string name="settings_account_ao3_signed_in_subtitle">Your AO3 session unlocks Subscriptions and Marked for Later in Browse.</string>
@@ -1158,7 +1158,7 @@
     <string name="settings_section_account_descriptor">Sign-in for fiction sources that need it.</string>
 
     <!-- Settings · legacy Memory Palace section -->
-    <string name="settings_section_palace_label">Memory Palace</string>
+    <string name="settings_section_palace_label" translatable="false">Memory Palace</string>
     <string name="settings_section_palace_descriptor">Browse your local mempalace as fictions (LAN only).</string>
 
     <!-- Settings · legacy Cloud voices section -->
@@ -1216,7 +1216,7 @@
     <string name="sync_status_permanent">Stopped: %1$s</string>
 
     <!-- Settings · GitHub sign-in row -->
-    <string name="settings_github_title">GitHub</string>
+    <string name="settings_github_title" translatable="false">GitHub</string>
     <string name="settings_github_anon_subtitle">Sign in lifts the 60 req/hr anon cap to 5,000 req/hr and unlocks repository READMEs as fictions. read:user + public_repo only.</string>
     <string name="settings_github_signed_in_as_scope">Signed in as @%1$s · scope %2$s</string>
     <string name="settings_github_signed_in_scope">Signed in · scope %1$s</string>
