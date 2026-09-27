@@ -390,6 +390,10 @@ object AppBindings {
     @Provides @Singleton
     fun provideGoogleDriveConfig(impl: `in`.jphe.storyvox.data.GoogleDriveConfigImpl): `in`.jphe.storyvox.source.googledrive.config.GoogleDriveConfig = impl
 
+    /** #1677 — Browse's connect / pick / disconnect seam for Google Drive. */
+    @Provides @Singleton
+    fun provideGoogleDriveConnector(impl: `in`.jphe.storyvox.auth.googledrive.GoogleDriveConnectorImpl): `in`.jphe.storyvox.feature.api.GoogleDriveConnector = impl
+
     /** Bridges source-discord DiscordConfig (#403) to the app-side
      *  DataStore + EncryptedSharedPreferences impl. Same shape as
      *  Notion / Outline — server id + coalesce window in plaintext,

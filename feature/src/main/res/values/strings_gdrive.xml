@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Issue #1677 — Google Drive: choose files (Google Picker) + disconnect. -->
+    <string name="browse_gdrive_pick_title">Choose what Candela can read</string>
+    <string name="browse_gdrive_pick_body">Pick Google Docs, PDFs, EPUBs or text files — or a whole folder — in Google Drive. Candela only sees what you pick.</string>
+    <string name="browse_gdrive_pick_unavailable_body">Google Drive is connected, but choosing files isn\'t set up in this version of the app yet.</string>
+    <string name="browse_gdrive_pick_button">Choose from Google Drive</string>
+    <string name="browse_gdrive_disconnect">Disconnect Google Drive</string>
+    <string name="browse_gdrive_manage_title">Google Drive</string>
+    <string name="browse_gdrive_manage_body">Add more files from your Drive, or disconnect. Disconnecting also removes Candela\'s access in your Google account.</string>
+    <string name="browse_gdrive_fab_cd">Choose files or manage Google Drive</string>
+</resources>

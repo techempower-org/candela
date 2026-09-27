@@ -2258,9 +2258,18 @@ object DeepLinkResolver {
      * fields) means "this WAS our redirect, handle it and stop". URL-decodes
      * each value.
      */
-    fun parseGoogleDriveOAuthCallback(dataString: String?): GoogleDriveOAuthCallback? {
+    fun parseGoogleDriveOAuthCallback(
+        dataString: String?,
+        // #1677 — the reversed-client-id redirect
+        // (`com.googleusercontent.apps.<n>:/oauth2redirect`) Google requires
+        // for installed-app clients; null when the build has no such id.
+        reversedRedirectPrefix: String? = null,
+    ): GoogleDriveOAuthCallback? {
         if (dataString == null) return null
-        if (!dataString.startsWith(GOOGLE_DRIVE_OAUTH_REDIRECT_PREFIX)) return null
+        if (isGoogleDrivePickerReturn(dataString)) return null
+        val ours = dataString.startsWith(GOOGLE_DRIVE_OAUTH_REDIRECT_PREFIX) ||
+            (!reversedRedirectPrefix.isNullOrBlank() && dataString.startsWith(reversedRedirectPrefix))
+        if (!ours) return null
         val query = dataString.substringAfter('?', "")
         if (query.isBlank()) return GoogleDriveOAuthCallback(code = null, state = null, error = null)
         val params = query.split('&').mapNotNull { pair ->
@@ -2280,8 +2289,21 @@ object DeepLinkResolver {
     /** Issue #1496 — Intent wrapper for [parseGoogleDriveOAuthCallback]. */
     fun googleDriveOAuthCallback(intent: Intent): GoogleDriveOAuthCallback? {
         if (intent.action != Intent.ACTION_VIEW) return null
-        return parseGoogleDriveOAuthCallback(intent.dataString)
+        val reversed = `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthConfig.redirectUri
+            .takeIf { it != `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthConfig.LEGACY_REDIRECT_URI }
+        return parseGoogleDriveOAuthCallback(intent.dataString, reversedRedirectPrefix = reversed)
     }
+
+    /** #1677 — the Google Picker page's "back to Candela" link. */
+    const val GOOGLE_DRIVE_PICKER_RETURN_PREFIX = "candela://oauth/googledrive/picked"
+
+    /** #1677 — pure check for the Picker return link (no android.net.Uri). */
+    fun isGoogleDrivePickerReturn(dataString: String?): Boolean =
+        dataString != null && dataString.startsWith(GOOGLE_DRIVE_PICKER_RETURN_PREFIX)
+
+    /** #1677 — Intent wrapper for [isGoogleDrivePickerReturn]. */
+    fun isGoogleDrivePickerReturn(intent: Intent): Boolean =
+        intent.action == Intent.ACTION_VIEW && isGoogleDrivePickerReturn(intent.dataString)
 
     /** Lightweight URL sniffer — accepts http(s) URLs only. Apps that
      *  share plaintext frequently emit "title\nURL" or "URL extra

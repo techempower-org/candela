@@ -136,6 +136,30 @@ val googleOAuthClientId: String =
 val googleOAuthClientSecret: String =
     (localProperties.getProperty("GOOGLE_OAUTH_CLIENT_SECRET") ?: "").trim()
 
+/**
+ * Issue #1677 — the reversed-client-id redirect scheme Google requires for
+ * installed-app OAuth clients (`1234-abc.apps.googleusercontent.com` →
+ * `com.googleusercontent.apps.1234-abc`). Registered in the manifest via the
+ * `googleOAuthRedirectScheme` placeholder; GoogleDriveOAuthConfig derives the
+ * identical value at runtime. With no id, a never-used placeholder scheme.
+ */
+val googleOAuthRedirectScheme: String =
+    googleOAuthClientId.removeSuffix(".apps.googleusercontent.com").let { prefix ->
+        if (prefix.isNotBlank() && prefix != googleOAuthClientId) "com.googleusercontent.apps.$prefix"
+        else "candela-gdrive-unconfigured"
+    }
+
+/**
+ * Issue #1677 — Google Picker values (the "Choose from Google Drive" step).
+ * Both public-by-design and empty by default; the button hides without them.
+ *   GOOGLE_PICKER_API_KEY=...          # browser key: Picker API + Pages referrer
+ *   GOOGLE_CLOUD_PROJECT_NUMBER=...    # Picker appId = the OAuth client's project
+ */
+val googlePickerApiKey: String =
+    (localProperties.getProperty("GOOGLE_PICKER_API_KEY") ?: "").trim()
+val googleCloudProjectNumber: String =
+    (localProperties.getProperty("GOOGLE_CLOUD_PROJECT_NUMBER") ?: "").trim()
+
 val releaseStoreFilePath: String? = localProperties.getProperty("storyvox.releaseStoreFile")
 val releaseStorePassword: String? = localProperties.getProperty("storyvox.releaseStorePassword")
 val releaseKeyAlias: String? = localProperties.getProperty("storyvox.releaseKeyAlias")
@@ -272,6 +296,10 @@ android {
         // OAuth client types).
         buildConfigField("String", "GOOGLE_OAUTH_CLIENT_ID", "\"$googleOAuthClientId\"")
         buildConfigField("String", "GOOGLE_OAUTH_CLIENT_SECRET", "\"$googleOAuthClientSecret\"")
+        // Issue #1677 — Picker key + appId, and the redirect scheme placeholder.
+        buildConfigField("String", "GOOGLE_PICKER_API_KEY", "\"$googlePickerApiKey\"")
+        buildConfigField("String", "GOOGLE_CLOUD_PROJECT_NUMBER", "\"$googleCloudProjectNumber\"")
+        manifestPlaceholders["googleOAuthRedirectScheme"] = googleOAuthRedirectScheme
     }
 
     signingConfigs {

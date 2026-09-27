@@ -25,6 +25,22 @@ interface GoogleDriveConfig {
 
     /** Synchronous snapshot for code paths that can't suspend. */
     suspend fun current(): GoogleDriveConfigState
+
+    /**
+     * #1677 — the access token to send *now*. The production impl refreshes
+     * proactively when the stored token is at/near its expiry and a refresh
+     * token exists; blank means "not connected". Default: the stored token
+     * as-is (test fakes and any impl without refresh support).
+     */
+    suspend fun freshAccessToken(): String = current().accessToken
+
+    /**
+     * #1677 — force a refresh after the API answered 401/403 with the current
+     * token. Returns the new access token, or null when no refresh is possible
+     * (no refresh token, revoked grant, network down) — the source then
+     * surfaces `AuthRequired` so the UI offers Connect again. Default: null.
+     */
+    suspend fun refreshAccessToken(): String? = null
 }
 
 /**

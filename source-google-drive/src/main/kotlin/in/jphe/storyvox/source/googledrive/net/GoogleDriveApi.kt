@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.ResponseBody
 import java.io.IOException
 import java.net.URLEncoder
 import javax.inject.Inject
@@ -108,6 +109,21 @@ internal open class GoogleDriveApi @Inject constructor(
         get("/files/${enc(fileId)}?alt=media&supportsAllDrives=true", accessToken, "*/*") { it }
 
     /**
+     * #1677 — `GET /files/{id}?alt=media` as raw bytes, for the binary
+     * formats we parse locally (EPUB zip, PDF). Refuses bodies larger than
+     * [MAX_BINARY_BYTES] (declared via Content-Length) rather than risk an
+     * OOM on a phone — the whole file is held in memory for parsing.
+     */
+    suspend fun downloadBytes(accessToken: String, fileId: String): FictionResult<ByteArray> =
+        getBody("/files/${enc(fileId)}?alt=media&supportsAllDrives=true", accessToken, "*/*") { body ->
+            val declared = body.contentLength()
+            if (declared > MAX_BINARY_BYTES) {
+                throw IOException("Google Drive file is too large to read ($declared bytes)")
+            }
+            body.bytes()
+        }
+
+    /**
      * IO-pinned GET with the shared status→[FictionResult] mapping. Adds a
      * `Bearer` header only when [accessToken] is non-blank; a blank token
      * lets the server answer 401 → [FictionResult.AuthRequired] (the source
@@ -119,6 +135,14 @@ internal open class GoogleDriveApi @Inject constructor(
         accessToken: String,
         accept: String,
         parse: (String) -> T,
+    ): FictionResult<T> = getBody(path, accessToken, accept) { parse(it.string()) }
+
+    /** [get] over the raw [ResponseBody] — the byte-level variant (#1677). */
+    private suspend fun <T> getBody(
+        path: String,
+        accessToken: String,
+        accept: String,
+        parse: (ResponseBody) -> T,
     ): FictionResult<T> = withContext(Dispatchers.IO) {
         val url = baseUrl + path
         try {
@@ -161,12 +185,12 @@ internal open class GoogleDriveApi @Inject constructor(
                         IOException("HTTP ${resp.code}"),
                     )
                     else -> {
-                        val text = resp.body?.string()
+                        val body = resp.body
                             ?: return@withContext FictionResult.NetworkError(
                                 "empty body",
                                 IOException("empty body"),
                             )
-                        FictionResult.Success(parse(text))
+                        FictionResult.Success(parse(body))
                     }
                 }
             }
@@ -189,6 +213,9 @@ internal open class GoogleDriveApi @Inject constructor(
         const val BASE_URL = "https://www.googleapis.com/drive/v3"
 
         private const val DEFAULT_PAGE_SIZE = 100
+
+        /** #1677 — ceiling for an in-memory EPUB/PDF download (100 MiB). */
+        const val MAX_BINARY_BYTES: Long = 100L * 1024 * 1024
 
         /** Field mask for list responses — id + the metadata the mapper reads. */
         private const val LIST_FIELDS =

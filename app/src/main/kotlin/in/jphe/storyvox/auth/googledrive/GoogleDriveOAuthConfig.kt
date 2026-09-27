@@ -41,14 +41,32 @@ object GoogleDriveOAuthConfig {
     /** Token exchange + refresh endpoint. */
     const val TOKEN_URL = "https://oauth2.googleapis.com/token"
 
+    /** #1677 — token revocation endpoint (Disconnect). */
+    const val REVOKE_URL = "https://oauth2.googleapis.com/revoke"
+
     /**
-     * Custom-scheme redirect. MUST match the AndroidManifest intent-filter
-     * (`candela://oauth/googledrive`) AND the redirect URI registered in the
-     * Google Cloud console, byte-for-byte. Google requires a custom scheme
-     * OAuth client (iOS/Chrome type) or the reversed-client-id scheme; see
-     * docs/google-drive-setup.md for the registration + fallback note.
+     * Legacy / fallback custom-scheme redirect (`candela://oauth/googledrive`).
+     * Used only when the client id is not a standard
+     * `<n>.apps.googleusercontent.com` id. Google's iOS and Android client
+     * types only accept the **reversed-client-id** scheme, so for any real
+     * client [redirectUri] resolves to that instead (#1677).
      */
-    const val REDIRECT_URI = "candela://oauth/googledrive"
+    const val LEGACY_REDIRECT_URI = "candela://oauth/googledrive"
+
+    /** Path component of the reversed-client-id redirect. */
+    const val REVERSED_REDIRECT_PATH = "/oauth2redirect"
+
+    /**
+     * #1677 — the redirect the Custom Tab returns to. For a standard Google
+     * client id this is `com.googleusercontent.apps.<n>:/oauth2redirect` —
+     * the only custom scheme Google accepts for installed-app clients. The
+     * manifest registers that scheme via the `googleOAuthRedirectScheme`
+     * placeholder app/build.gradle.kts derives from the same id, so the two
+     * can't drift. See docs/google-drive-setup.md.
+     */
+    val redirectUri: String
+        get() = reversedClientIdScheme(clientId)?.let { "$it:$REVERSED_REDIRECT_PATH" }
+            ?: LEGACY_REDIRECT_URI
 
     /**
      * The ONLY scope requested. Non-sensitive; grants per-file access to
@@ -83,7 +101,7 @@ object GoogleDriveOAuthConfig {
     fun authorizeUrl(state: String, codeChallenge: String): String {
         val params = listOf(
             "client_id" to clientId,
-            "redirect_uri" to REDIRECT_URI,
+            "redirect_uri" to redirectUri,
             "response_type" to "code",
             "scope" to SCOPE,
             "code_challenge" to codeChallenge,
@@ -97,6 +115,23 @@ object GoogleDriveOAuthConfig {
         }
         return "$AUTHORIZE_URL?$query"
     }
+}
+
+/** Google's standard installed-app client-id suffix. */
+private const val GOOGLE_CLIENT_ID_SUFFIX = ".apps.googleusercontent.com"
+
+/**
+ * #1677 — `1234-abc.apps.googleusercontent.com` →
+ * `com.googleusercontent.apps.1234-abc`; null for a blank or non-standard id.
+ * Pure (no BuildConfig) so it unit-tests; mirrored by the
+ * `googleOAuthRedirectScheme` manifest placeholder in app/build.gradle.kts.
+ */
+internal fun reversedClientIdScheme(clientId: String): String? {
+    val id = clientId.trim()
+    if (!id.endsWith(GOOGLE_CLIENT_ID_SUFFIX)) return null
+    val prefix = id.removeSuffix(GOOGLE_CLIENT_ID_SUFFIX)
+    if (prefix.isBlank()) return null
+    return "com.googleusercontent.apps.$prefix"
 }
 
 /**

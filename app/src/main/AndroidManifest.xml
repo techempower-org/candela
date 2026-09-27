@@ -172,6 +172,23 @@
             </intent-filter>
 
             <!--
+                Issue #1677 — Google's installed-app (iOS / Android) OAuth
+                clients only redirect to the reversed-client-id scheme,
+                com.googleusercontent.apps.<n>:/oauth2redirect. The scheme is
+                derived from GOOGLE_OAUTH_CLIENT_ID in app/build.gradle.kts
+                (a harmless unused placeholder scheme when no id is set), and
+                GoogleDriveOAuthConfig.redirectUri derives the same value, so
+                the two cannot drift. Scheme-only: the URI has no host, and
+                Android ignores path attributes on a host-less filter.
+            -->
+            <intent-filter android:label="@string/open_with_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${googleOAuthRedirectScheme}" />
+            </intent-filter>
+
+            <!--
                 Issue #472 — Magic-link audiobook. Accept ACTION_SEND
                 with text/plain so the user can share any URL from any
                 app (browser, RSS reader, podcast app, social-media

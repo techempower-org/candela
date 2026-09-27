@@ -108,6 +108,7 @@ class GoogleDriveOAuthManager @Inject constructor(
                     config.saveOAuthSession(
                         accessToken = r.accessToken,
                         refreshToken = r.refreshToken,
+                        expiresInSeconds = r.expiresInSeconds,
                     )
                     runCatching { settings.get().setSourcePluginEnabled(SOURCE_ID, true) }
                         .onFailure { Log.w(TAG, "auto-enable google-drive failed", it) }

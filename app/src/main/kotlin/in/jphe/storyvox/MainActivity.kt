@@ -159,6 +159,9 @@ class MainActivity : ComponentActivity() {
      *  cold-launch reason as [notionOAuth]; only resolved when a
      *  `candela://oauth/googledrive` redirect actually arrives. */
     @Inject lateinit var googleDriveOAuth: Lazy<`in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthManager>
+    /** Issue #1677 — told when the Google Picker page returns, so Browse
+     *  re-lists the newly granted Drive files. */
+    @Inject lateinit var googleDriveConnector: Lazy<`in`.jphe.storyvox.auth.googledrive.GoogleDriveConnectorImpl>
 
     /** Issue #1469 — foreground poll of the push-to-Candela inbox. [Lazy] and
      *  resolved on IO (never during activity injection) — see [onStart]. */
@@ -338,6 +341,14 @@ class MainActivity : ComponentActivity() {
                         // fall through to import / resolve. The
                         // GoogleDriveConfig state flow re-emits on success, so
                         // any observing UI updates reactively.
+                        // Issue #1677 — back from the Google Picker page:
+                        // the picks already granted access server-side, so
+                        // just nudge Browse to re-list and stop.
+                        if (DeepLinkResolver.isGoogleDrivePickerReturn(i)) {
+                            googleDriveConnector.get().onPickerReturned()
+                            intentFlow.value = null
+                            return@let
+                        }
                         val driveCallback = DeepLinkResolver.googleDriveOAuthCallback(i)
                         if (driveCallback != null) {
                             this@MainActivity.lifecycleScope.launch {
