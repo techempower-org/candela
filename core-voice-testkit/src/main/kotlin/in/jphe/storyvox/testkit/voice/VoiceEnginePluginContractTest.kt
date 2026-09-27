@@ -29,17 +29,12 @@ import org.junit.Test
  * CI's `:app` build proves the Hilt binding and on-device QA proves
  * audio.
  *
- * ## Why the `supportsExport = false` null contract matters
+ * ## Export vs background render
  *
- * The flag is load-bearing beyond the export picker: a
- * `supportsExport = false` engine that reaches the background
- * pre-render worker WITHOUT an upstream pre-filter hits
- * `ChapterRenderJob`'s capability gate and reads as a LOAD FAILURE →
- * `Result.retry()` with backoff (not permanent-fail, not an
- * empty-but-complete cache entry). Today's cloud/framework engines are
- * pre-filtered upstream so the gate is defensive; a new engine relying
- * on it inherits retry semantics — set the flag honestly and give your
- * engine an upstream filter if retry-backoff isn't what you want.
+ * `supportsExport` gates offline audiobook export only. The background
+ * pre-render worker asks `supportsBackgroundRender` (#1501; defaults to
+ * `supportsExport`), and a `false` there is a clean skip — no retry loop.
+ * Set both honestly.
  *
  * See docs/CONTRIBUTING-VOICES.md for the walkthrough this kit anchors.
  */

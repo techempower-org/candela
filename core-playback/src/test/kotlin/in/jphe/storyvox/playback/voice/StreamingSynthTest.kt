@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.playback.voice
 
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -9,7 +10,8 @@ import org.junit.Test
  * epic/plugin-dx B2 — fake-based proof of the StreamingSynth pool
  * lifecycle EnginePlayer drives through [StreamingPoolLifecycle]:
  * acquisition count, generate routing, and the #1383/#1386-critical
- * destroy-STALE-before-acquire ordering (`StreamingDispatch.swapStepOrder`).
+ * destroy-STALE-before-acquire ordering, and (#1501) the full voice-swap
+ * sequence [StreamingPoolLifecycle.swapTo] runs for every engine.
  */
 class StreamingSynthTest {
 
@@ -41,7 +43,7 @@ class StreamingSynthTest {
             events += "acquire:$poolPrefix:size=$size:nt=$threadsPerInstance"
             acquireCalls += Triple(spec, size, tuning)
             // Cap-on-failure semantics: the achieved pool is the prefix
-            // before the first failing index (StreamingDispatch.achievedSecondaries).
+            // before the first failing index (buildCapOnFailurePool).
             val achieved = minOf(size, failFromIndex)
             return List(achieved) { FakeHandle("$poolPrefix-${it + 1}") }
         }
@@ -144,5 +146,98 @@ class StreamingSynthTest {
         assertEquals(0, after.size)
         assertTrue("destroy:a" in events)
         assertTrue("destroy:b" in events)
+    }
+
+    // ---- #1501: StreamingPoolLifecycle.swapTo — the production swap path ----
+
+    private val steps = mutableListOf<SwapStep>()
+
+    private fun swap(
+        currentPool: List<StreamingSynth.Handle>,
+        currentFamily: String?,
+        targetFamily: String,
+        synth: StreamingSynth?,
+        primary: String = "Success",
+        size: Int = 2,
+    ): PoolSwap = StreamingPoolLifecycle.swapTo(
+        currentPool = currentPool,
+        currentFamily = currentFamily,
+        targetFamily = targetFamily,
+        synth = synth,
+        spec = spec,
+        size = size,
+        threadsPerInstance = 1,
+        tuning = tuning,
+        onStep = { steps += it },
+    ) {
+        events += "primary:$targetFamily"
+        primary
+    }
+
+    @Test fun `swap to a pooled engine runs the pinned order`() {
+        val stale = listOf<StreamingSynth.Handle>(FakeHandle("k-old"))
+        val result = swap(stale, "voice_kokoro", "voice_kokoro", FakeStreamingSynth("k"))
+        // Same family: the pool survives the preamble and is destroyed as
+        // the own stale pool, strictly before the rebuild (#1383/#1386).
+        assertEquals(
+            listOf(
+                SwapStep.CONFIGURE_AND_LOAD_PRIMARY,
+                SwapStep.DESTROY_OWN_STALE_POOL,
+                SwapStep.BUILD_SECONDARIES,
+            ),
+            steps,
+        )
+        val primary = events.indexOf("primary:voice_kokoro")
+        val destroy = events.indexOf("destroy:k-old")
+        val acquire = events.indexOfFirst { it.startsWith("acquire:k") }
+        assertTrue(primary < destroy && destroy < acquire)
+        assertEquals(2, result.pool.size)
+        assertEquals("voice_kokoro", result.poolFamily)
+        assertEquals("Success", result.primaryResult)
+    }
+
+    @Test fun `swap across families frees the other pool before the primary loads`() {
+        val piperPool = listOf<StreamingSynth.Handle>(FakeHandle("p-1"))
+        val result = swap(piperPool, "voice_piper", "voice_kitten", FakeStreamingSynth("kit"))
+        assertEquals(SwapStep.DESTROY_OTHER_FAMILY_POOLS, steps.first())
+        assertTrue(events.indexOf("destroy:p-1") < events.indexOf("primary:voice_kitten"))
+        assertEquals("voice_kitten", result.poolFamily)
+        assertEquals(2, result.pool.size)
+    }
+
+    @Test fun `swap to a non-pooled engine tears down and runs serial`() {
+        val pool = listOf<StreamingSynth.Handle>(FakeHandle("p-1"))
+        val result = swap(pool, "voice_piper", "voice_supertonic", synth = null)
+        assertEquals(
+            listOf(SwapStep.DESTROY_OTHER_FAMILY_POOLS, SwapStep.CONFIGURE_AND_LOAD_PRIMARY),
+            steps,
+        )
+        assertTrue("destroy:p-1" in events)
+        assertTrue(result.pool.isEmpty())
+        assertEquals(null, result.poolFamily)
+    }
+
+    @Test fun `a failed primary leaves no pool resident`() {
+        val stale = listOf<StreamingSynth.Handle>(FakeHandle("k-old"))
+        val synth = FakeStreamingSynth("k")
+        val result = swap(stale, "voice_kokoro", "voice_kokoro", synth, primary = "Error: boom")
+        assertEquals("Error: boom", result.primaryResult)
+        assertTrue("destroy:k-old" in events)
+        assertTrue("no secondaries built", synth.acquireCalls.isEmpty())
+        assertTrue(result.pool.isEmpty())
+        assertEquals(null, result.poolFamily)
+    }
+
+    @Test fun `slider at one tags the family with an empty pool`() {
+        val result = swap(emptyList(), null, "voice_piper", FakeStreamingSynth("p"), size = 0)
+        assertTrue(result.pool.isEmpty())
+        assertEquals("voice_piper", result.poolFamily)
+    }
+
+    @Test fun `preamble keeps only a same-family pooled target's pool`() {
+        assertTrue(StreamingPoolLifecycle.keepsPoolThroughPreamble("voice_kokoro", "voice_kokoro", true))
+        assertFalse(StreamingPoolLifecycle.keepsPoolThroughPreamble("voice_piper", "voice_kokoro", true))
+        assertFalse(StreamingPoolLifecycle.keepsPoolThroughPreamble("voice_kokoro", "voice_kokoro", false))
+        assertFalse(StreamingPoolLifecycle.keepsPoolThroughPreamble(null, "voice_kokoro", true))
     }
 }

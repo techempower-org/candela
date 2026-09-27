@@ -83,6 +83,19 @@ interface VoiceEnginePlugin {
      */
     val supportsExport: Boolean
 
+    /**
+     * #1501 — whether the background pre-render worker (`ChapterRenderJob`)
+     * may render this engine into the PCM cache. Split from [supportsExport]
+     * so the two questions stop being conflated: an engine can be allowed in
+     * one and not the other. Defaults to [supportsExport] (the old combined
+     * gate), so every existing engine behaves exactly as before.
+     *
+     * `false` is a clean SKIP (`Result.success`, no cache entry) — never a
+     * retry loop. Set it `false` for live-render-only engines (framework or
+     * network synthesis that must run in the foreground).
+     */
+    val supportsBackgroundRender: Boolean get() = supportsExport
+
     /** True when this plugin owns [type]. Keeps the `is EngineType.X`
      *  discrimination inside the engine instead of a central `when`. */
     fun handles(type: EngineType): Boolean

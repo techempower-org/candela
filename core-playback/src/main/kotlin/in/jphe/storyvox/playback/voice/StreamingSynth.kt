@@ -43,7 +43,7 @@ package `in`.jphe.storyvox.playback.voice
  * [acquirePool] performs native loads — call it where the old inline
  * loops ran: inside `engineMutex` on `Dispatchers.IO`. Callers own the
  * returned handles and MUST [Handle.destroy] each before dropping the
- * pool, observing `StreamingDispatch.swapStepOrder()`: pipeline stopped
+ * pool, observing the [SwapStep] order `StreamingPoolLifecycle.swapTo` runs: pipeline stopped
  * first (#89 — destroys must hit idle instances), stale pool destroyed
  * strictly before a rebuild (#1383/#1386).
  */
@@ -70,7 +70,7 @@ interface StreamingSynth {
      * Construct, configure and model-load up to [size] secondary
      * instances for [spec]. Returns the ACHIEVED pool — construction
      * caps at the first failed load (that instance is destroyed, the
-     * prefix is kept: `StreamingDispatch.achievedSecondaries`). A
+     * prefix is kept — use [buildCapOnFailurePool]). A
      * failed/short pool is not an error; playback runs with fewer
      * parallel producers, exactly like the inline loops it replaces.
      *

@@ -144,6 +144,16 @@ class DeSealedEngineTest {
         assertTrue(ModelSpec.SharedDir(emptyDir).isPresentOnDisk())
     }
 
+    @Test fun `background render defaults to the export flag and can diverge`() {
+        assertFalse(FakePlugin().supportsBackgroundRender)
+        val liveOnly = object : VoiceEnginePlugin by FakePlugin() {
+            override val supportsExport: Boolean = true
+            override val supportsBackgroundRender: Boolean = false
+        }
+        assertTrue(liveOnly.supportsExport)
+        assertFalse(liveOnly.supportsBackgroundRender)
+    }
+
     private companion object {
         const val FAKE_ID = "voice_fake"
     }

@@ -68,7 +68,6 @@ import `in`.jphe.storyvox.playback.voice.StreamingPoolLifecycle
 import `in`.jphe.storyvox.playback.voice.StreamingSynth
 import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
-import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import `in`.jphe.storyvox.playback.voice.VoiceManager
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.toEngineKey
@@ -664,17 +663,18 @@ class EnginePlayer @AssistedInject constructor(
      *  GENERICALLY as [StreamingSynth.Handle]s — construction, loading
      *  and destruction live in the pooled engines' plugins
      *  (Piper/Kokoro/Kitten implement [StreamingSynth]); EnginePlayer
-     *  only drives the lifecycle via [StreamingPoolLifecycle] in the
-     *  pinned `StreamingDispatch.swapStepOrder()` order. Empty list =
+     *  only drives the lifecycle via [StreamingPoolLifecycle.swapTo]
+     *  (the pinned [`in`.jphe.storyvox.playback.voice.SwapStep] order). Empty list =
      *  serial mode. Supertonic stays serial by design (#1114 — four
      *  ONNX graphs per session); Azure's lookahead fan-out is
      *  deliberately NOT part of this pool (no native lifecycle). */
     @Volatile
     private var streamingPool: List<StreamingSynth.Handle> = emptyList()
 
-    /** The engine family (a VoiceFamilyIds constant) that built
-     *  [streamingPool] — voice-swap arms use it to keep the old
-     *  preamble-vs-own-stale teardown ordering with a single pool. */
+    /** The engine id that built [streamingPool] (null = none resident).
+     *  [StreamingPoolLifecycle.swapTo] uses it for the preamble-vs-own-stale
+     *  teardown decision; [StreamingDispatch.poolServes] uses it as the
+     *  pipeline's family guard. */
     @Volatile
     private var streamingPoolFamily: String? = null
 
@@ -2264,127 +2264,81 @@ class EnginePlayer @AssistedInject constructor(
                     "This voice isn't fully downloaded — re-download it in Voices, or pick another voice."
                 } else when (active.engineType) {
                     EngineType.Piper -> {
-                        // Voice swap AWAY from another pooled family →
-                        // free its pool here, the PREAMBLE position of
-                        // the pinned StreamingDispatch.swapStepOrder().
-                        // A same-family stale pool is destroyed by the
-                        // rebuild below instead (own-stale position).
-                        if (streamingPoolFamily != VoiceFamilyIds.PIPER) {
-                            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
-                            streamingPoolFamily = null
-                        }
-                        // #676 — voice swap AWAY from System TTS frees
-                        // the framework TextToSpeech instance.
-                        systemTtsEngine?.shutdown()
-                        systemTtsEngine = null
-                        loadedSystemTtsEngineName = null
-                        loadedSystemTtsVoiceName = null
-
-                        val voiceDir = voiceManager.voiceDirFor(active.id)
-                        val onnx = File(voiceDir, "model.onnx").absolutePath
-                        val tokens = File(voiceDir, "tokens.txt").absolutePath
                         val parallelState = parallelSynthConfig.currentParallelSynthState()
                         val nt = parallelState.threadsPerInstance
-                        // PR-Tier3-Diag — log slider snapshot at pipeline-
-                        // construction time so we can confirm the read is
-                        // actually returning the user's value (vs. a stale
-                        // 1). If you see "Tier 3 init Piper instances=N
-                        // threadsPerInstance=M" in logcat with N>=2, the
-                        // loop below WILL execute; if you also see no
-                        // "Tier 3 secondary K loaded" lines, the loadModel
-                        // is returning a non-Success status silently.
-                        android.util.Log.i(
-                            "EnginePlayer",
-                            "Tier 3 init Piper instances=${parallelState.instances} " +
-                                "threadsPerInstance=$nt onnx=${onnx.takeLast(60)}",
-                        )
-                        val primaryResult = VoiceEngine.getInstance()
-                            .loadModel(context, onnx, tokens, nt)
-                        android.util.Log.i(
-                            "EnginePlayer",
-                            "Tier 3 primary Piper load: result=$primaryResult",
-                        )
-                        // Tier 3 (#88) — slider replaces the boolean
-                        // toggle. epic/plugin-dx B2: the (instances-1)
-                        // secondary construction (incl. the noiseScale
-                        // prosody match) lives in PiperEnginePlugin.
-                        // acquirePool; the lifecycle helper destroys the
-                        // same-family stale pool strictly before
-                        // acquiring (pinned #1383/#1386 ordering).
-                        val poolPlugin = voiceEngines.byId(VoiceFamilyIds.PIPER)
-                        streamingPool = StreamingPoolLifecycle.rebuild(
-                            old = streamingPool,
-                            synth = poolPlugin as? StreamingSynth,
-                            spec = poolPlugin?.modelSpec(active.engineType, active.id)
-                                ?: ModelSpec.None,
-                            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
-                            threadsPerInstance = nt,
-                            tuning = streamingTuningSnapshot(),
-                        )
-                        streamingPoolFamily = VoiceFamilyIds.PIPER
-                        primaryResult ?: "Error: load returned null"
+                        // #1501 — ONE pool sequence for every pooled engine
+                        // (StreamingPoolLifecycle.swapTo): other-family pool
+                        // freed first, then the primary loads (below), then
+                        // the own-stale pool is destroyed strictly before the
+                        // secondaries are acquired via PiperEnginePlugin.
+                        // acquirePool (noiseScale prosody match inside).
+                        swapPool(active, parallelState) {
+                            // #676 — voice swap AWAY from System TTS frees
+                            // the framework TextToSpeech instance.
+                            releaseSystemTts()
+                            val voiceDir = voiceManager.voiceDirFor(active.id)
+                            val onnx = File(voiceDir, "model.onnx").absolutePath
+                            val tokens = File(voiceDir, "tokens.txt").absolutePath
+                            // PR-Tier3-Diag — log slider snapshot at pipeline-
+                            // construction time so we can confirm the read is
+                            // actually returning the user's value (vs. a stale
+                            // 1). If you see "Tier 3 init Piper instances=N
+                            // threadsPerInstance=M" in logcat with N>=2 but no
+                            // secondaries, acquirePool's loads are failing.
+                            android.util.Log.i(
+                                "EnginePlayer",
+                                "Tier 3 init Piper instances=${parallelState.instances} " +
+                                    "threadsPerInstance=$nt onnx=${onnx.takeLast(60)}",
+                            )
+                            val primaryResult = VoiceEngine.getInstance()
+                                .loadModel(context, onnx, tokens, nt)
+                            android.util.Log.i(
+                                "EnginePlayer",
+                                "Tier 3 primary Piper load: result=$primaryResult",
+                            )
+                            primaryResult ?: "Error: load returned null"
+                        }
                     }
                     is EngineType.Kokoro -> {
-                        // Voice swap AWAY from another pooled family →
-                        // free its pool (preamble position of the pinned
-                        // swapStepOrder; own-stale handled by the rebuild).
-                        if (streamingPoolFamily != VoiceFamilyIds.KOKORO) {
-                            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
-                            streamingPoolFamily = null
-                        }
-                        // #676 — voice swap AWAY from System TTS.
-                        systemTtsEngine?.shutdown()
-                        systemTtsEngine = null
-                        loadedSystemTtsEngineName = null
-                        loadedSystemTtsVoiceName = null
-                        // All 53 Kokoro speakers share a single ~325MB fp32
-                        // multi-speaker model. Switching speakers reuses the
-                        // loaded engine; first load takes 30+s as sherpa-onnx
-                        // builds the onnxruntime session and runs a warm-up
-                        // generate.
-                        val sharedDir = voiceManager.kokoroSharedDir()
-                        val onnx = File(sharedDir, "model.onnx").absolutePath
-                        val tokens = File(sharedDir, "tokens.txt").absolutePath
-                        val voicesBin = File(sharedDir, "voices.bin").absolutePath
-                        KokoroEngine.getInstance().setActiveSpeakerId(
-                            (active.engineType as EngineType.Kokoro).speakerId,
-                        )
-                        // #196 — drive Kokoro's within-sentence comma
-                        // pause from the same punctuation-cadence
-                        // multiplier we use for between-sentence
-                        // silence. 0.2f baseline = engine default; the
-                        // multiplier scales it linearly so a 0× user
-                        // collapses commas, a 2× user stretches them
-                        // to ~0.4f. Field on the engine is read at
-                        // config-build time inside loadModel, so set
-                        // before loadModel — not after.
-                        KokoroEngine.getInstance().setSilenceScale(
-                            KOKORO_SILENCE_SCALE_BASELINE * currentPunctuationPauseMultiplier,
-                        )
                         val parallelState = parallelSynthConfig.currentParallelSynthState()
                         val nt = parallelState.threadsPerInstance
-                        val primaryResult = KokoroEngine.getInstance()
-                            .loadModel(context, onnx, tokens, voicesBin, nt)
-                        // Tier 3 (#88) — Kokoro N-instance support.
-                        // Each loaded Kokoro session is ~325 MB and
-                        // first-load takes ~30 s. epic/plugin-dx B2:
-                        // sequential construction + speaker pinning +
-                        // silence scale live in KokoroEnginePlugin.
+                        // Tier 3 (#88) — Kokoro N-instance support. Each
+                        // loaded Kokoro session is ~325 MB and first-load
+                        // takes ~30 s. Sequential construction + speaker
+                        // pinning + silence scale live in KokoroEnginePlugin.
                         // acquirePool (speaker rides ModelSpec.speakerId);
-                        // the lifecycle helper destroys the same-family
-                        // stale pool strictly before acquiring.
-                        val poolPlugin = voiceEngines.byId(VoiceFamilyIds.KOKORO)
-                        streamingPool = StreamingPoolLifecycle.rebuild(
-                            old = streamingPool,
-                            synth = poolPlugin as? StreamingSynth,
-                            spec = poolPlugin?.modelSpec(active.engineType, active.id)
-                                ?: ModelSpec.None,
-                            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
-                            threadsPerInstance = nt,
-                            tuning = streamingTuningSnapshot(),
-                        )
-                        streamingPoolFamily = VoiceFamilyIds.KOKORO
-                        primaryResult ?: "Error: load returned null"
+                        // swapTo orders the teardown (#1501).
+                        swapPool(active, parallelState) {
+                            // #676 — voice swap AWAY from System TTS.
+                            releaseSystemTts()
+                            // All 53 Kokoro speakers share a single ~325MB fp32
+                            // multi-speaker model. Switching speakers reuses the
+                            // loaded engine; first load takes 30+s as sherpa-onnx
+                            // builds the onnxruntime session and runs a warm-up
+                            // generate.
+                            val sharedDir = voiceManager.kokoroSharedDir()
+                            val onnx = File(sharedDir, "model.onnx").absolutePath
+                            val tokens = File(sharedDir, "tokens.txt").absolutePath
+                            val voicesBin = File(sharedDir, "voices.bin").absolutePath
+                            KokoroEngine.getInstance().setActiveSpeakerId(
+                                (active.engineType as EngineType.Kokoro).speakerId,
+                            )
+                            // #196 — drive Kokoro's within-sentence comma
+                            // pause from the same punctuation-cadence
+                            // multiplier we use for between-sentence
+                            // silence. 0.2f baseline = engine default; the
+                            // multiplier scales it linearly so a 0× user
+                            // collapses commas, a 2× user stretches them
+                            // to ~0.4f. Field on the engine is read at
+                            // config-build time inside loadModel, so set
+                            // before loadModel — not after.
+                            KokoroEngine.getInstance().setSilenceScale(
+                                KOKORO_SILENCE_SCALE_BASELINE * currentPunctuationPauseMultiplier,
+                            )
+                            KokoroEngine.getInstance()
+                                .loadModel(context, onnx, tokens, voicesBin, nt)
+                                ?: "Error: load returned null"
+                        }
                     }
                     is EngineType.Kitten -> {
                         // Issue #119 — Kitten parallels Kokoro: all 8
@@ -2392,46 +2346,26 @@ class EnginePlayer @AssistedInject constructor(
                         // multi-speaker model. Switching speakers reuses
                         // the loaded engine via setActiveSpeakerId; first
                         // load is fast (~2–4 s) because the model is tiny.
-                        // Voice swap AWAY from another pooled family →
-                        // free its pool (preamble position of the pinned
-                        // swapStepOrder; own-stale handled by the rebuild).
-                        if (streamingPoolFamily != VoiceFamilyIds.KITTEN) {
-                            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
-                            streamingPoolFamily = null
-                        }
-                        // #676 — voice swap AWAY from System TTS.
-                        systemTtsEngine?.shutdown()
-                        systemTtsEngine = null
-                        loadedSystemTtsEngineName = null
-                        loadedSystemTtsVoiceName = null
-                        val sharedDir = voiceManager.kittenSharedDir()
-                        val onnx = File(sharedDir, "model.onnx").absolutePath
-                        val tokens = File(sharedDir, "tokens.txt").absolutePath
-                        val voicesBin = File(sharedDir, "voices.bin").absolutePath
-                        KittenEngine.getInstance().setActiveSpeakerId(
-                            (active.engineType as EngineType.Kitten).speakerId,
-                        )
+                        // Tier 3 (#88) N-instance support (small ~60–80 MB
+                        // fp16 sessions; friendliest engine for the slider
+                        // on low-end hardware) — construction + speaker
+                        // pinning live in KittenEnginePlugin.acquirePool.
                         val parallelState = parallelSynthConfig.currentParallelSynthState()
                         val nt = parallelState.threadsPerInstance
-                        val primaryResult = KittenEngine.getInstance()
-                            .loadModel(context, onnx, tokens, voicesBin, nt)
-                        // Tier 3 (#88) — Kitten N-instance support
-                        // (small ~60–80 MB fp16 sessions; friendliest
-                        // engine for the slider on low-end hardware).
-                        // epic/plugin-dx B2: construction + speaker
-                        // pinning live in KittenEnginePlugin.acquirePool.
-                        val poolPlugin = voiceEngines.byId(VoiceFamilyIds.KITTEN)
-                        streamingPool = StreamingPoolLifecycle.rebuild(
-                            old = streamingPool,
-                            synth = poolPlugin as? StreamingSynth,
-                            spec = poolPlugin?.modelSpec(active.engineType, active.id)
-                                ?: ModelSpec.None,
-                            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
-                            threadsPerInstance = nt,
-                            tuning = streamingTuningSnapshot(),
-                        )
-                        streamingPoolFamily = VoiceFamilyIds.KITTEN
-                        primaryResult ?: "Error: load returned null"
+                        swapPool(active, parallelState) {
+                            // #676 — voice swap AWAY from System TTS.
+                            releaseSystemTts()
+                            val sharedDir = voiceManager.kittenSharedDir()
+                            val onnx = File(sharedDir, "model.onnx").absolutePath
+                            val tokens = File(sharedDir, "tokens.txt").absolutePath
+                            val voicesBin = File(sharedDir, "voices.bin").absolutePath
+                            KittenEngine.getInstance().setActiveSpeakerId(
+                                (active.engineType as EngineType.Kitten).speakerId,
+                            )
+                            KittenEngine.getInstance()
+                                .loadModel(context, onnx, tokens, voicesBin, nt)
+                                ?: "Error: load returned null"
+                        }
                     }
                     is EngineType.Supertonic -> {
                         // Issue #1114 — Supertonic 3 loadAndPlay path.
@@ -2870,19 +2804,19 @@ class EnginePlayer @AssistedInject constructor(
             // the plugins; the #801 power-save producer priority stays a
             // caller concern, applied in this adapter exactly as the three
             // per-family wrappers it replaces did.
-            // #1501 — a de-sealed StreamingSynth engine's pool is adapted by
-            // the very same branch; a non-pooled plugin has no pool for its
-            // family, so the family guard below yields serial.
+            // epic/plugin-dx B2 / #1501 — ONE generic branch for every pooled
+            // engine (built-in or de-sealed plugin): [streamingPool] holds
+            // StreamingSynth.Handles built by the active engine's plugin;
+            // adapt each to the VoiceEngineHandle SAM here AT THE BOUNDARY
+            // (EngineStreamingSource internals untouched). Handle.sampleRate
+            // routes through the #582 lock-free EngineSampleRateCache in the
+            // plugins; the #801 power-save producer priority stays a caller
+            // concern, applied in this adapter. The family guard
+            // (StreamingDispatch.poolServes) degrades a stale cross-family
+            // pool to serial; a non-pooled engine never has a pool tagged
+            // with its id, so it runs serial by construction.
             is EngineType.Piper, is EngineType.Kokoro, is EngineType.Kitten, is EngineType.Plugin ->
-                // The pool can lag a cross-family voice swap: the deferred
-                // observeActiveVoice path and ensureVoiceLoaded both update
-                // the active engine without rebuilding [streamingPool], and
-                // the #569 fast path then skips the swap arm entirely.
-                // Handles from the previous family would synthesize routed
-                // sentences in the OLD voice — a family mismatch must
-                // degrade to serial, exactly as the old empty per-family
-                // lists did by construction.
-                if (streamingPoolFamily != engineType.toEngineKey().engineId) {
+                if (!StreamingDispatch.poolServes(streamingPoolFamily, engineType.toEngineKey())) {
                     emptyList()
                 } else streamingPool.map { handle ->
                     object : EngineStreamingSource.VoiceEngineHandle {
@@ -4083,36 +4017,59 @@ class EnginePlayer @AssistedInject constructor(
             ?: return "Error: ${active.engineKey.engineId} is not a plugin engine"
         val plugin = voiceEngines.byKey(type.key)
             ?: return "Error: no voice engine registered for ${type.key.engineId}"
-        val family = plugin.engineId
-        if (!pooled || streamingPoolFamily != family) {
-            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
-            streamingPoolFamily = null
+        val spec = plugin.modelSpec(type, active.id)
+        val load = {
+            // Voice swap AWAY from System TTS frees the framework instance (#676).
+            releaseSystemTts()
+            plugin.loadModel(spec)
         }
-        // Voice swap AWAY from System TTS frees the framework instance (#676).
+        if (!pooled) {
+            // Recap: primary only — leave any resident pool to the next swap.
+            return load()
+        }
+        return swapPool(active, parallelSynthConfig.currentParallelSynthState(), load)
+    }
+
+    /**
+     * #1501 — the single voice-swap pool path for EVERY engine. Resolves the
+     * active engine's plugin BY KEY (no hardcoded family ids): if it
+     * implements [StreamingSynth] its pool is rebuilt at the slider's size,
+     * otherwise any resident pool is torn down and playback runs serial.
+     * [StreamingPoolLifecycle.swapTo] executes the pinned #1383/#1386 order
+     * around [loadPrimary]. Caller holds engineMutex on Dispatchers.IO and
+     * has already stopped the pipeline (#89). Returns the primary's load
+     * string.
+     */
+    private inline fun swapPool(
+        active: UiVoiceInfo,
+        parallelState: `in`.jphe.storyvox.data.repository.playback.ParallelSynthState,
+        loadPrimary: () -> String,
+    ): String {
+        val plugin = voiceEngines.byKey(active.engineKey)
+        val synth = plugin as? StreamingSynth
+        val swap = StreamingPoolLifecycle.swapTo(
+            currentPool = streamingPool,
+            currentFamily = streamingPoolFamily,
+            targetFamily = active.engineKey.engineId,
+            synth = synth,
+            spec = plugin?.takeIf { synth != null }?.modelSpec(active.engineType, active.id) ?: ModelSpec.None,
+            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
+            threadsPerInstance = parallelState.threadsPerInstance,
+            tuning = streamingTuningSnapshot(),
+            onStep = {},
+            loadPrimary = loadPrimary,
+        )
+        streamingPool = swap.pool
+        streamingPoolFamily = swap.poolFamily
+        return swap.primaryResult
+    }
+
+    /** #676 — voice swap AWAY from System TTS frees the framework instance. */
+    private fun releaseSystemTts() {
         systemTtsEngine?.shutdown()
         systemTtsEngine = null
         loadedSystemTtsEngineName = null
         loadedSystemTtsVoiceName = null
-        val spec = plugin.modelSpec(type, active.id)
-        val primaryResult = plugin.loadModel(spec)
-        if (!pooled) return primaryResult
-        val synth = plugin as? StreamingSynth
-        if (synth == null || primaryResult != "Success") {
-            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
-            streamingPoolFamily = null
-            return primaryResult
-        }
-        val parallelState = parallelSynthConfig.currentParallelSynthState()
-        streamingPool = StreamingPoolLifecycle.rebuild(
-            old = streamingPool,
-            synth = synth,
-            spec = spec,
-            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
-            threadsPerInstance = parallelState.threadsPerInstance,
-            tuning = streamingTuningSnapshot(),
-        )
-        streamingPoolFamily = family
-        return primaryResult
     }
 
     /**
