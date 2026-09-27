@@ -1,6 +1,8 @@
 package `in`.jphe.storyvox.data.briefing
 
+import `in`.jphe.storyvox.data.db.entity.InboxEvent
 import `in`.jphe.storyvox.data.repository.FictionRepository
+import `in`.jphe.storyvox.data.repository.InboxRepository
 import `in`.jphe.storyvox.data.source.model.ChapterInfo
 import `in`.jphe.storyvox.data.source.model.FictionDetail
 import `in`.jphe.storyvox.data.source.model.FictionResult
@@ -26,7 +28,7 @@ class BriefingBuilderTest {
             latest["arxiv"] = summaries("arxiv", 1, 2)
             everySummaryHasOneChapter()
         }
-        val builder = DefaultBriefingBuilder(repo)
+        val builder = DefaultBriefingBuilder(repo, FakeInbox())
 
         val items = builder.build(
             BriefingConfig(listOf(SourceQuota("hackernews", 2), SourceQuota("arxiv", 5))),
@@ -46,7 +48,7 @@ class BriefingBuilderTest {
             latest["arxiv"] = summaries("arxiv", 1)
             everySummaryHasOneChapter()
         }
-        val builder = DefaultBriefingBuilder(repo)
+        val builder = DefaultBriefingBuilder(repo, FakeInbox())
 
         val items = builder.build(
             BriefingConfig(listOf(SourceQuota("hackernews", 3), SourceQuota("arxiv", 3))),
@@ -64,7 +66,7 @@ class BriefingBuilderTest {
                 chapters = listOf(ChapterInfo(id = "chap-arxiv:2", sourceChapterId = "s2", index = 0, title = "T")),
             )
         }
-        val builder = DefaultBriefingBuilder(repo)
+        val builder = DefaultBriefingBuilder(repo, FakeInbox())
 
         val items = builder.build(BriefingConfig(listOf(SourceQuota("arxiv", 5))))
 
@@ -76,14 +78,87 @@ class BriefingBuilderTest {
             latest["arxiv"] = summaries("arxiv", 1)
             everySummaryHasOneChapter()
         }
-        val builder = DefaultBriefingBuilder(repo)
+        val builder = DefaultBriefingBuilder(repo, FakeInbox())
 
         val items = builder.build(BriefingConfig(listOf(SourceQuota("arxiv", 0))))
 
         assertTrue(items.isEmpty())
     }
 
+    @Test fun `a disabled quota fetches nothing`() = runTest {
+        val repo = FakeRepo().apply {
+            latest["arxiv"] = summaries("arxiv", 1)
+            everySummaryHasOneChapter()
+        }
+        val builder = DefaultBriefingBuilder(repo, FakeInbox())
+
+        val items = builder.build(BriefingConfig(listOf(SourceQuota("arxiv", 3, enabled = false))))
+
+        assertTrue(items.isEmpty())
+        assertTrue(repo.browsed.isEmpty())
+    }
+
+    @Test fun `the inbox pseudo-source plays unread new chapters without a listing fetch`() = runTest {
+        val repo = FakeRepo().apply {
+            latest["rss"] = summaries("rss", 1)
+            everySummaryHasOneChapter()
+        }
+        val inbox = FakeInbox(
+            listOf(
+                InboxEvent(id = 1, sourceId = "royalroad", fictionId = "rr:1", chapterId = "rr:1:c9", title = "1 new chapter in A", body = "Ch 9", ts = 20, deepLinkUri = null),
+                InboxEvent(id = 2, sourceId = "royalroad", fictionId = null, chapterId = null, title = "source-wide", body = null, ts = 30, deepLinkUri = null),
+            ),
+        )
+        val builder = DefaultBriefingBuilder(repo, inbox)
+
+        val items = builder.build(
+            BriefingConfig(listOf(SourceQuota(BriefingSources.INBOX, 5), SourceQuota("rss", 1))),
+        )
+
+        assertEquals(listOf("rr:1:c9", "chap-rss:1"), items.map { it.chapterId })
+        assertEquals(BriefingSources.INBOX, items.first().sourceId)
+        assertEquals(listOf("rss"), repo.browsed)
+    }
+
+    @Test fun `a chapter queued by an earlier source is not repeated`() = runTest {
+        val repo = FakeRepo().apply {
+            latest["rss"] = summaries("rss", 1, 2)
+            everySummaryHasOneChapter()
+        }
+        val inbox = FakeInbox(
+            listOf(InboxEvent(id = 1, sourceId = "rss", fictionId = "rss:1", chapterId = "chap-rss:1", title = "t", body = null, ts = 1, deepLinkUri = null)),
+        )
+        val builder = DefaultBriefingBuilder(repo, inbox)
+
+        val items = builder.build(
+            BriefingConfig(listOf(SourceQuota(BriefingSources.INBOX, 1), SourceQuota("rss", 1))),
+        )
+
+        // rss:1 was already queued via the Inbox; the RSS slot backfills with rss:2.
+        assertEquals(listOf("chap-rss:1", "chap-rss:2"), items.map { it.chapterId })
+    }
+
     // ─── helpers ──────────────────────────────────────────────────────────────
+
+    /** Hand-rolled [InboxRepository] fake — only [observeAll] is read by the builder. */
+    private class FakeInbox(private val events: List<InboxEvent> = emptyList()) : InboxRepository {
+        override fun observeAll(): Flow<List<InboxEvent>> = flowOf(events)
+        override fun observeAfter(afterTs: Long): Flow<List<InboxEvent>> = flowOf(events.filter { it.ts > afterTs })
+        override fun observeUnreadCount(): Flow<Int> = flowOf(events.count { !it.isRead })
+        override suspend fun record(
+            sourceId: String,
+            fictionId: String?,
+            chapterId: String?,
+            title: String,
+            body: String?,
+            ts: Long,
+            deepLinkUri: String?,
+            newChapterCount: Int,
+            fictionTitle: String?,
+        ): Long = TODO()
+        override suspend fun markRead(id: Long) = TODO()
+        override suspend fun markAllRead() = TODO()
+    }
 
     private fun summaries(source: String, vararg ns: Int): FictionResult<ListPage<FictionSummary>> =
         FictionResult.Success(
@@ -128,8 +203,13 @@ class BriefingBuilderTest {
         override suspend fun browseLatest(
             page: Int,
             sourceId: String,
-        ): FictionResult<ListPage<FictionSummary>> =
-            latest[sourceId] ?: FictionResult.Success(ListPage(emptyList(), page, hasNext = false))
+        ): FictionResult<ListPage<FictionSummary>> {
+            browsed += sourceId
+            return latest[sourceId] ?: FictionResult.Success(ListPage(emptyList(), page, hasNext = false))
+        }
+
+        /** Source ids whose listing was fetched, in call order. */
+        val browsed = mutableListOf<String>()
 
         override suspend fun refreshDetail(id: String, force: Boolean): FictionResult<Unit> =
             FictionResult.Success(Unit)
