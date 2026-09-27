@@ -55,7 +55,7 @@ class BriefingQueueController(
     /** The live briefing, or null when none is playing. UI observes this. */
     val session: StateFlow<BriefingSession?> = _session.asStateFlow()
 
-    /** The `BookFinished` listener for the active briefing; cancelled on stop/finish. */
+    /** The advance listener for the active briefing; cancelled on stop/finish. */
     private var listenerJob: Job? = null
 
     /**
@@ -65,7 +65,8 @@ class BriefingQueueController(
      */
     suspend fun start(config: BriefingConfig): Boolean {
         stop()
-        return startWith(builder.build(config))
+        // Briefing items are single chapters: advance per item, not per fiction.
+        return startWith(builder.build(config), advanceOnChapterDone = true)
     }
 
     /**
@@ -73,14 +74,30 @@ class BriefingQueueController(
      * other caller's cross-fiction playlist — e.g. the #1675 "For you" feed)
      * as one continuous episode, beginning at [startIndex] (coerced into
      * range). Returns false and starts nothing when [items] is empty.
+     *
+     * [advanceOnChapterDone] picks the advance trigger:
+     *  - `false` — advance on [PlaybackUiEvent.BookFinished], i.e. each item
+     *    plays its whole fiction out (the controller's in-fiction auto-advance
+     *    runs first).
+     *  - `true` — per-item semantics: advance on
+     *    [PlaybackUiEvent.ChapterDone] **only** when its chapterId is the
+     *    current item's, and ignore `BookFinished`. On a fiction's last chapter
+     *    both events fire, so listening to both would double-advance.
+     *    `ChapterDone` is emitted before the engine's in-fiction
+     *    `ChapterChanged`, so our `play(next)` overrides that advance. A
+     *    multi-chapter RSS feed therefore contributes exactly its one item.
      */
-    suspend fun startWith(items: List<BriefingItem>, startIndex: Int = 0): Boolean {
+    suspend fun startWith(
+        items: List<BriefingItem>,
+        startIndex: Int = 0,
+        advanceOnChapterDone: Boolean = false,
+    ): Boolean {
         stop()
         if (items.isEmpty()) return false
         _session.value = BriefingSession(items = items, index = startIndex.coerceIn(0, items.lastIndex))
         listenerJob = scope.launch {
             controller.events.collect { ev ->
-                if (ev is PlaybackUiEvent.BookFinished) onCurrentItemFinished()
+                if (shouldAdvance(ev, _session.value, advanceOnChapterDone)) onCurrentItemFinished()
             }
         }
         playCurrent()
@@ -113,6 +130,20 @@ class BriefingQueueController(
     }
 
     internal companion object {
+        /** Pure advance-trigger decision; see [startWith] for the two modes. */
+        fun shouldAdvance(
+            event: PlaybackUiEvent,
+            session: BriefingSession?,
+            advanceOnChapterDone: Boolean,
+        ): Boolean {
+            val current = session?.current ?: return false
+            return if (advanceOnChapterDone) {
+                event is PlaybackUiEvent.ChapterDone && event.chapterId == current.chapterId
+            } else {
+                event is PlaybackUiEvent.BookFinished
+            }
+        }
+
         /**
          * Pure cursor transition: given a session, produce the session after the
          * current item finishes. Advancing off the end marks it [finished]
