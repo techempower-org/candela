@@ -136,6 +136,11 @@ class BriefingPlannerTest {
         assertEquals(BriefingPlanner.configKey(cfg), BriefingPlanner.configKey(withOff))
     }
 
+    @Test fun `the live-computed calendar agenda is never pre-rendered`() {
+        val list = items("rss", 1) + item(BriefingSources.CALENDAR, 1) + items("hackernews", 1)
+        assertEquals(listOf("rss:1", "hackernews:1"), BriefingPlanner.prerenderTargets(list).map { it.fictionId })
+    }
+
     // ─── scheduling ──────────────────────────────────────────────────────────
 
     private val zone = ZoneId.of("America/Los_Angeles")

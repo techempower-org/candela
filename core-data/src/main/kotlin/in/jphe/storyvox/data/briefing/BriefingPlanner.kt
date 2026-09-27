@@ -130,6 +130,14 @@ object BriefingPlanner {
         return target.toInstant().toEpochMilli() - nowMillis
     }
 
+    /**
+     * Items the daily prebuild should download + pre-render ahead of time.
+     * The calendar's chapters are computed live from the current day, so a
+     * cached render would go stale; it is always read fresh.
+     */
+    fun prerenderTargets(items: List<BriefingItem>): List<BriefingItem> =
+        items.filter { it.sourceId != BriefingSources.CALENDAR }
+
     /** Picker stepper bounds per source. */
     const val MIN_COUNT = 1
     const val MAX_COUNT = 10
