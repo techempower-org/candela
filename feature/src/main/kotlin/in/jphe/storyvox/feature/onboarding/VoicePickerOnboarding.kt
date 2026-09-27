@@ -23,10 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -43,12 +47,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.feature.engine.VoicePickerGateViewModel
+import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.VoiceManager
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.BrassProgressBar
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
+import java.util.Locale
 
 /**
  * Issue #599 + #600 + #627 — second of three first-launch welcome
@@ -91,6 +97,12 @@ fun VoicePickerOnboarding(
     // engines installed) → banner renders above the friendly Piper tiles
     // with an "Install Google TTS" CTA.
     val hasSystemTts by viewModel.hasSystemTtsEngines.collectAsStateWithLifecycle()
+    // Issue #1466 — Spanish-first path. Keyed on the effective UI locale,
+    // so it covers both the in-app override picked on the Welcome step
+    // and a phone that is simply set to Spanish.
+    val uiLocale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val spanishUi = isSpanish(uiLocale.language)
+    val spanishRecommended by viewModel.spanishRecommended.collectAsStateWithLifecycle()
 
     // Latch on the initial activeVoice — if the user already had a
     // voice picked (post-reset replay), we don't want
@@ -105,8 +117,15 @@ fun VoicePickerOnboarding(
     // change voices via Settings → Voice library. Pre-fix the
     // download-only Piper picker rendered anyway, re-blocking the
     // exact zero-download path #676 was supposed to enable.
+    //
+    // #1466 — on the Spanish path only a SPANISH active voice counts: the
+    // #676 seed picks the OS's first System TTS voice, which is usually
+    // English, and skipping past the picker with it would leave a
+    // Spanish-speaking family listening to an English voice.
+    fun satisfies(voice: UiVoiceInfo?): Boolean =
+        voice != null && (!spanishUi || isSpanish(voice.language))
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        if (initialActive != null) {
+        if (satisfies(initialActive)) {
             onContinue()
         }
     }
@@ -115,16 +134,41 @@ fun VoicePickerOnboarding(
         //   - activeVoice transitions from initial (typically null)
         //     to non-null AND
         //   - the download isn't mid-flight anymore.
-        if (activeVoice != null && activeVoice != initialActive && downloadingId == null) {
+        if (satisfies(activeVoice) && activeVoice != initialActive && downloadingId == null) {
             onContinue()
         }
     }
+    // #1466 — flip the default, don't just offer it: when the phone
+    // already has a Spanish voice and the current voice is only the
+    // automatic System TTS seed (or nothing), switch to the Spanish one.
+    // It's already installed, so this is instant and needs no download;
+    // the auto-advance above then moves on. Once per onboarding run, so
+    // a later deliberate choice is never overridden.
+    var spanishDefaultApplied by rememberSaveable { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(spanishUi, spanishRecommended, activeVoice) {
+        if (!spanishUi || spanishDefaultApplied || downloadingId != null) return@LaunchedEffect
+        val current = activeVoice
+        val replaceable = current == null ||
+            (current.engineType is EngineType.SystemTts && !isSpanish(current.language))
+        if (!replaceable) return@LaunchedEffect
+        val onDevice = spanishRecommended.firstOrNull {
+            it.engineType is EngineType.SystemTts && it.isInstalled
+        } ?: return@LaunchedEffect
+        spanishDefaultApplied = true
+        viewModel.pick(onDevice.id)
+    }
+    val hasOnDeviceSpanish = spanishRecommended.any { it.engineType is EngineType.SystemTts }
 
     VoicePickerOnboardingContent(
         recommended = recommended,
+        spanishRecommended = spanishRecommended.takeIf { spanishUi },
+        uiLocale = uiLocale,
         downloadingVoiceId = downloadingId,
         progress = progress,
-        showInstallSystemTtsBanner = !hasSystemTts,
+        // #1466 — on the Spanish path the banner is about getting a free
+        // Spanish voice, so it shows whenever the phone has none yet
+        // (even if it has English System TTS voices).
+        showInstallSystemTtsBanner = if (spanishUi) !hasOnDeviceSpanish else !hasSystemTts,
         onPick = { voiceId ->
             viewModel.pick(voiceId)
         },
@@ -138,6 +182,9 @@ fun VoicePickerOnboarding(
 @Composable
 private fun VoicePickerOnboardingContent(
     recommended: List<UiVoiceInfo>,
+    /** #1466 — non-null on the Spanish path: replaces [recommended]. */
+    spanishRecommended: List<UiVoiceInfo>?,
+    uiLocale: Locale,
     downloadingVoiceId: String?,
     progress: VoiceManager.DownloadProgress?,
     showInstallSystemTtsBanner: Boolean,
@@ -171,7 +218,13 @@ private fun VoicePickerOnboardingContent(
             )
             Spacer(Modifier.height(spacing.sm))
             Text(
-                stringResource(R.string.onboarding_voice_subtitle),
+                stringResource(
+                    if (spanishRecommended != null) {
+                        R.string.onboarding_voice_spanish_subtitle
+                    } else {
+                        R.string.onboarding_voice_subtitle
+                    },
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -191,7 +244,13 @@ private fun VoicePickerOnboardingContent(
             // already have System TTS engines (Z Flip 3, most modern
             // phones) the banner is hidden and behavior matches v0.5.72.
             if (showInstallSystemTtsBanner) {
-                InstallSystemTtsBanner()
+                InstallSystemTtsBanner(
+                    copyRes = if (spanishRecommended != null) {
+                        R.string.onboarding_voice_install_tts_banner_spanish
+                    } else {
+                        R.string.onboarding_voice_install_tts_banner
+                    },
+                )
                 Spacer(Modifier.height(spacing.md))
             }
 
@@ -202,7 +261,13 @@ private fun VoicePickerOnboardingContent(
             // personality*, not three rows of "Lessac" that look like
             // bugs. The full picker (More voices) keeps every tier
             // visible for power users.
-            val friendlyVoices = remember(recommended) { friendlyVoiceSelection(recommended) }
+            val friendlyVoices = remember(recommended, spanishRecommended, uiLocale) {
+                if (spanishRecommended != null) {
+                    spanishFriendlyVoiceSelection(spanishRecommended, uiLocale)
+                } else {
+                    friendlyVoiceSelection(recommended)
+                }
+            }
 
             friendlyVoices.forEach { friendly ->
                 FriendlyVoiceTile(
@@ -262,10 +327,12 @@ private fun VoicePickerOnboardingContent(
  * "Install Google TTS, button".
  */
 @Composable
-private fun InstallSystemTtsBanner() {
+private fun InstallSystemTtsBanner(
+    @androidx.annotation.StringRes copyRes: Int = R.string.onboarding_voice_install_tts_banner,
+) {
     val context = LocalContext.current
     val spacing = LocalSpacing.current
-    val copy = stringResource(R.string.onboarding_voice_install_tts_banner)
+    val copy = stringResource(copyRes)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -369,7 +436,16 @@ private fun FriendlyVoiceTile(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    stringResource(R.string.onboarding_voice_free_size, sizeMb.toInt()),
+                    // #1466 — honest size line per engine: a voice already on
+                    // the phone costs nothing; Kokoro's speakers share one
+                    // big model, so the per-voice 0-byte size would lie.
+                    when {
+                        voice.voice.isInstalled ->
+                            stringResource(R.string.onboarding_voice_on_device)
+                        voice.voice.engineType is EngineType.Kokoro ->
+                            stringResource(R.string.onboarding_voice_kokoro_size, KOKORO_SHARED_MODEL_MB)
+                        else -> stringResource(R.string.onboarding_voice_free_size, sizeMb.toInt())
+                    },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -543,3 +619,51 @@ internal fun friendlyVoiceSelection(recommended: List<UiVoiceInfo>): List<Friend
         }
     }
 }
+
+/**
+ * Issue #1466 — friendly overlay for the Spanish-first voice step.
+ * System TTS voices get their locale's own name in the UI language
+ * ("Español (Estados Unidos)") instead of the roster's engine-flavoured
+ * label; Kokoro's Dora and Alex keep their first names with a curated
+ * description. Same-named rows get a " 2", " 3" suffix so two on-device
+ * voices for one region don't read as a duplicate.
+ */
+internal fun spanishFriendlyVoiceSelection(
+    suggestions: List<UiVoiceInfo>,
+    uiLocale: Locale,
+): List<FriendlyVoice> {
+    val counts = mutableMapOf<String, Int>()
+    return suggestions.map { v ->
+        val base = if (v.engineType is EngineType.SystemTts) {
+            Locale.forLanguageTag(v.language.replace('_', '-'))
+                .getDisplayName(uiLocale)
+                .replaceFirstChar { it.titlecase(uiLocale) }
+                .ifBlank { v.displayName }
+        } else {
+            v.displayName
+        }
+        val n = (counts[base] ?: 0) + 1
+        counts[base] = n
+        val name = if (n > 1) "$base $n" else base
+        val descriptionRes = when {
+            v.engineType is EngineType.SystemTts -> R.string.voice_desc_system_es
+            v.displayName.equals("dora", ignoreCase = true) -> R.string.voice_desc_dora
+            v.displayName.equals("alex", ignoreCase = true) -> R.string.voice_desc_alex
+            else -> null
+        }
+        if (descriptionRes != null) {
+            FriendlyVoice(voice = v, displayName = name, descriptionRes = descriptionRes)
+        } else {
+            FriendlyVoice(
+                voice = v,
+                displayName = name,
+                descriptionRes = R.string.voice_desc_fallback,
+                descriptionFallbackArg = name,
+            )
+        }
+    }
+}
+
+/** Kokoro's shared model size, rounded (see `VoiceFamilyDescriptors` —
+ *  "~330 MB single download"). Every Kokoro speaker rides on it. */
+private const val KOKORO_SHARED_MODEL_MB = 330

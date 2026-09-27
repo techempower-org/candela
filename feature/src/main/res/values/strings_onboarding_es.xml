@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Issue #1466 — Spanish-first onboarding path. Spanish twin: values-es/strings_onboarding_es.xml. -->
+<resources>
+    <!-- Bilingual on purpose so a reader of either language finds it; never translated. -->
+    <string name="onboarding_language_title" translatable="false">Choose your language · Elige tu idioma</string>
+    <string name="onboarding_language_hint">You can change this later in Settings.</string>
+
+    <string name="onboarding_voice_spanish_subtitle">These voices read in Spanish. You can change it any time.</string>
+    <string name="onboarding_voice_install_tts_banner_spanish">Install Google TTS to get a free Spanish voice with no big download, or pick a voice below.</string>
+    <string name="onboarding_voice_on_device">Free · already on your phone</string>
+    <string name="onboarding_voice_kokoro_size">Free · one %1$d MB download for all these voices</string>
+
+    <string name="voice_desc_system_es">A Spanish voice built into your phone — nothing to download.</string>
+    <string name="voice_desc_dora">Spanish narrator from Spain — warm and clear.</string>
+    <string name="voice_desc_alex">Spanish narrator from Spain — calm and steady.</string>
+</resources>

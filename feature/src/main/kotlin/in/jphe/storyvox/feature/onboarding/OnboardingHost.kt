@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,6 +38,8 @@ import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.SettingsRepositoryUi
 import `in`.jphe.storyvox.feature.components.overlayBackground
 import `in`.jphe.storyvox.feature.components.overlayForeground
+import `in`.jphe.storyvox.feature.settings.AppLanguage
+import `in`.jphe.storyvox.feature.settings.AppLanguageController
 
 /**
  * Issue #599 (v1.0 blocker) — the three-screen first-launch welcome
@@ -88,6 +92,8 @@ fun OnboardingHost(
     content: @Composable () -> Unit,
 ) {
     val show by viewModel.shouldShow.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val uiLanguage = LocalConfiguration.current.locales[0]?.language.orEmpty()
     Box(modifier = Modifier.fillMaxSize()) {
         // #1026 — hide the live NavHost beneath from TalkBack while the
         // welcome overlay is up, so a screen-reader user can't swipe past
@@ -155,6 +161,26 @@ fun OnboardingHost(
                                 onSkip = {
                                     viewModel.markCompleted()
                                 },
+                                // #1466 — Spanish-first path. Reads the live
+                                // UI locale so a Spanish phone (no override)
+                                // shows Español as already selected.
+                                language = effectiveOnboardingLanguage(
+                                    override = AppLanguageController.current(context),
+                                    uiLanguage = uiLanguage,
+                                ),
+                                onPickLanguage = { choice ->
+                                    // Content defaults first (the ViewModel
+                                    // outlives the locale-change restart),
+                                    // then the UI language itself. The step
+                                    // is rememberSaveable, so the user lands
+                                    // back on this screen, now in [choice].
+                                    viewModel.applyLanguageDefaults(choice)
+                                    val shown = effectiveOnboardingLanguage(
+                                        override = AppLanguageController.current(context),
+                                        uiLanguage = uiLanguage,
+                                    )
+                                    if (shown != choice) AppLanguageController.set(context, choice)
+                                },
                             )
                             OnboardingStep.VoicePick -> VoicePickerOnboarding(
                                 onContinue = { step = OnboardingStep.SourcePick },
@@ -216,6 +242,19 @@ fun OnboardingHost(
     }
 }
 
+/** #1466 — Wikipedia language code for an onboarding language choice;
+ *  null for "follow the device" (leave the source alone). */
+internal fun wikipediaCodeFor(language: AppLanguage): String? = when (language) {
+    AppLanguage.English -> "en"
+    AppLanguage.Spanish -> "es"
+    AppLanguage.System -> null
+}
+
+/** #1466 — swap only between the onboarding pair (en ↔ es, or unset);
+ *  any other code is a deliberate user choice and is kept. */
+internal fun shouldSwapWikipediaLanguage(current: String, target: String): Boolean =
+    current != target && current.trim().lowercase() in setOf("", "en", "es")
+
 /** The four pages of the welcome flow, in display order. #1370 added
  *  [SourcePick] between the voice picker and the first-fiction picker. */
 internal enum class OnboardingStep { Welcome, VoicePick, SourcePick, FirstFiction }
@@ -261,6 +300,22 @@ class OnboardingHostViewModel @Inject constructor(
      *  from the composition. */
     fun markCompleted() {
         viewModelScope.launch { settings.markOnboardingCompletedV1() }
+    }
+
+    /**
+     * Issue #1466 — content defaults that follow the onboarding language
+     * pick. Today: the Wikipedia source's language (`es.wikipedia.org`
+     * for Español). Only swaps between the two onboarding languages, so
+     * a user who deliberately set Wikipedia to, say, German keeps it.
+     */
+    fun applyLanguageDefaults(language: AppLanguage) {
+        val code = wikipediaCodeFor(language) ?: return
+        viewModelScope.launch {
+            val current = settings.settings.first().wikipediaLanguageCode
+            if (shouldSwapWikipediaLanguage(current, code)) {
+                settings.setWikipediaLanguageCode(code)
+            }
+        }
     }
 
     /**
