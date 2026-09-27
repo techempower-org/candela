@@ -6,11 +6,21 @@ name: VoxSherpa upstream watch
 # whatever git tag you name — there is no Maven metadata for dependabot to
 # poll — so new VoxSherpa releases would otherwise slip past unnoticed.
 #
-# This job closes that gap: weekly (and on demand) it reads the pinned tag from
-# core-playback/build.gradle.kts, asks the GitHub API for the newest semver tag
-# on both the published fork (techempower-org/VoxSherpa-TTS, the JitPack
-# coordinate) and the upstream source (CodeBySonu95/VoxSherpa-TTS), and opens a
-# single `dependencies`-labelled issue when either is ahead of the pin.
+# This job closes that gap: weekly (and on demand) it checks two things and
+# opens a single `dependencies`-labelled issue when either fires:
+#
+#   1. Fork release — the newest semver tag on the published fork
+#      (techempower-org/VoxSherpa-TTS, the JitPack coordinate) is ahead of the
+#      pin in core-playback/build.gradle.kts → bump the pin.
+#   2. Upstream engine changes — upstream (CodeBySonu95/VoxSherpa-TTS) has
+#      commits after UPSTREAM_REVIEWED_SHA that touch the engine source files
+#      the fork's engine-lib AAR re-exports → review them for a fork-side port.
+#
+# #1713: upstream's own tags (v3.0, v4.0, …) are APP releases in a version
+# namespace unrelated to the fork's engine-lib semver, so comparing them to the
+# pin was a perpetual false positive. Upstream is tracked by commit instead:
+# after reviewing new upstream engine commits (porting what's wanted into the
+# fork), advance UPSTREAM_REVIEWED_SHA to the reviewed upstream main sha.
 #
 # Idempotent: a stable marker line in the issue body is grepped across open
 # issues before filing, so a stale "new version" issue is updated/skipped
@@ -45,6 +55,15 @@ jobs:
       # The published fork (JitPack coordinate) and the upstream source.
       FORK_REPO: techempower-org/VoxSherpa-TTS
       UPSTREAM_REPO: CodeBySonu95/VoxSherpa-TTS
+      # Upstream main as of the last fork-side review (#1713, 2026-09-27:
+      # nativeLock UAF guard ported as fork v2.11.0/v2.11.1; the rest of v4.0 was
+      # reviewed and deliberately not taken). Advance after each review.
+      UPSTREAM_REVIEWED_SHA: 7f05a35762f033a39c3c8be0d3ff8db982737ea7
+      # Upstream sources the fork's engine-lib re-exports (mirror of the
+      # `java.includes` whitelist in the fork's engine-lib/build.gradle).
+      # Upstream commits touching anything else (app UI, docs, site) are
+      # irrelevant to Candela and never fire the watch.
+      ENGINE_PATH_REGEX: '^app/src/main/java/com/CodeBySonu/VoxSherpa/(KokoroEngine|VoiceEngine|KittenEngine|SupertonicEngine|Sonic|AudioEmotionHelper|KokoroVoiceHelper|GenerationParams)\.java$|^app/build\.gradle$'
       # Stable marker embedded in the issue body so the idempotency search
       # matches our own issues and nothing else.
       MARKER: '<!-- voxsherpa-watch -->'
@@ -89,11 +108,9 @@ jobs:
           }
 
           FORK_LATEST="$(latest_semver_tag "$FORK_REPO" || true)"
-          UPSTREAM_LATEST="$(latest_semver_tag "$UPSTREAM_REPO" || true)"
           echo "Fork ($FORK_REPO) latest semver tag: ${FORK_LATEST:-<none>}"
-          echo "Upstream ($UPSTREAM_REPO) latest semver tag: ${UPSTREAM_LATEST:-<none>}"
 
-          # --- Compare ---------------------------------------------------------
+          # --- 1. Fork release ahead of the pin --------------------------------
           # Strip leading 'v' for sort -V; it copes with it either way but be
           # explicit so the comparison is unambiguous.
           PIN_NUM="${PINNED#v}"
@@ -101,8 +118,23 @@ jobs:
           if [ -n "${FORK_LATEST:-}" ] && version_gt "${FORK_LATEST#v}" "$PIN_NUM"; then
             NEWER+=("$FORK_REPO -> $FORK_LATEST (JitPack coordinate; bump core-playback/build.gradle.kts)")
           fi
-          if [ -n "${UPSTREAM_LATEST:-}" ] && version_gt "${UPSTREAM_LATEST#v}" "$PIN_NUM"; then
-            NEWER+=("$UPSTREAM_REPO -> $UPSTREAM_LATEST (upstream source; may need a fork-side release before JitPack can build it)")
+
+          # --- 2. Upstream engine commits since the last review ----------------
+          # Upstream tags are NOT compared (see header, #1713). Compare the
+          # reviewed sha to upstream main and keep only engine-source files.
+          # gh api prints the error JSON to stdout on a 404, so gate on its
+          # exit status, not on empty output.
+          if ! COMPARE_JSON="$(gh api "repos/${UPSTREAM_REPO}/compare/${UPSTREAM_REVIEWED_SHA}...main" 2>/dev/null)"; then
+            echo "::warning::Could not compare ${UPSTREAM_REPO} ${UPSTREAM_REVIEWED_SHA}...main (sha gone after a force-push?)"
+            NEWER+=("$UPSTREAM_REPO: reviewed sha \`${UPSTREAM_REVIEWED_SHA:0:7}\` no longer comparable to main — re-review upstream and reset UPSTREAM_REVIEWED_SHA")
+          else
+            UP_AHEAD="$(jq -r '.ahead_by' <<<"$COMPARE_JSON")"
+            ENGINE_FILES="$(jq -r '.files[]?.filename' <<<"$COMPARE_JSON" | grep -E "$ENGINE_PATH_REGEX" || true)"
+            echo "Upstream commits since reviewed sha: $UP_AHEAD; engine files touched: ${ENGINE_FILES:-<none>}"
+            if [ -n "$ENGINE_FILES" ]; then
+              UP_HEAD="$(jq -r '.commits[-1].sha // empty' <<<"$COMPARE_JSON")"
+              NEWER+=("$UPSTREAM_REPO: $UP_AHEAD commit(s) since \`${UPSTREAM_REVIEWED_SHA:0:7}\` touch engine sources ($(echo "$ENGINE_FILES" | sed 's#.*/##' | paste -sd, -)) — review for a fork-side port: https://github.com/${UPSTREAM_REPO}/compare/${UPSTREAM_REVIEWED_SHA}...${UP_HEAD:-main}")
+            fi
           fi
 
           if [ "${#NEWER[@]}" -eq 0 ]; then
@@ -116,7 +148,7 @@ jobs:
           if [ -n "${EXISTING:-}" ] && [ "$EXISTING" != "null" ]; then
             echo "Open VoxSherpa-watch issue #$EXISTING already exists — leaving a refresh comment instead of duplicating."
             {
-              echo "Re-checked on $(date -u '+%Y-%m-%d %H:%M UTC'). Pinned: \`$PINNED\`. Newer versions still available:"
+              echo "Re-checked on $(date -u '+%Y-%m-%d %H:%M UTC'). Pinned: \`$PINNED\`. Still outstanding:"
               for n in "${NEWER[@]}"; do echo "- $n"; done
             } | gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body-file -
             exit 0
@@ -136,21 +168,23 @@ jobs:
           {
             echo "$MARKER"
             echo
-            echo "A newer **VoxSherpa-TTS** release is available than the one pinned in"
-            echo "\`core-playback/build.gradle.kts\`. Dependabot can't see this because the"
+            echo "**VoxSherpa-TTS** needs attention: a fork release is ahead of the pin in"
+            echo "\`core-playback/build.gradle.kts\`, and/or upstream changed engine sources"
+            echo "since the last fork-side review. Dependabot can't see this because the"
             echo "dependency is resolved through JitPack as a raw GitHub coordinate"
             echo "(\`com.github.techempower-org:VoxSherpa-TTS:vX.Y.Z\`), so this scheduled"
             echo "watch tracks it instead."
             echo
             echo "**Currently pinned:** \`$PINNED\`"
             echo
-            echo "**Newer available:**"
+            echo "**Findings:**"
             for n in "${NEWER[@]}"; do echo "- $n"; done
             echo
             echo "### To bump"
-            echo "1. If only the upstream (\`$UPSTREAM_REPO\`) is ahead, cut a matching"
-            echo "   tag/release on the fork \`$FORK_REPO\` first — JitPack builds the"
-            echo "   fork coordinate, not upstream."
+            echo "1. Upstream engine changes: review the compare link, port what's wanted"
+            echo "   into the fork \`$FORK_REPO\` and tag a fork release (JitPack builds the"
+            echo "   fork coordinate, not upstream). Then advance \`UPSTREAM_REVIEWED_SHA\`"
+            echo "   in \`.github/workflows/voxsherpa-watch.yml\` to the reviewed upstream sha."
             echo "2. Update the pin in \`core-playback/build.gradle.kts\`:"
             echo "   \`implementation(\"com.github.techempower-org:VoxSherpa-TTS:<new>\")\`"
             echo "3. Build \`:core-playback:assembleDebug\` + \`:app:assembleDebug\`, then do an"
@@ -162,8 +196,8 @@ jobs:
 
           gh issue create \
             --repo "$GITHUB_REPOSITORY" \
-            --title "VoxSherpa-TTS upstream is newer than the pinned $PINNED" \
+            --title "VoxSherpa-TTS: fork release or upstream engine changes ahead of $PINNED" \
             --label dependencies \
             --body-file "$BODY_FILE"
 
-          echo "Filed VoxSherpa upstream-watch issue."
+          echo "Filed VoxSherpa watch issue."
