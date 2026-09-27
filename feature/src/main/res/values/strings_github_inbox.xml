@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1470 — GitHub inbox narrator: Browse tab labels. -->
+<resources>
+    <string name="browse_tab_github_inbox">Inbox</string>
+    <string name="browse_tab_github_reviews">Reviews</string>
+</resources>

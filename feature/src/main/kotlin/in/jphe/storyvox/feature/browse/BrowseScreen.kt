@@ -403,7 +403,8 @@ fun BrowseScreen(
                         text = if (tab == BrowseTab.Search) null else {
                             {
                                 Text(
-                                    text = tab.label,
+                                    text = BrowseSourceUi.tabLabelRes(state.sourceId, tab)
+                                        ?.let { stringResource(it) } ?: tab.label,
                                     style = MaterialTheme.typography.labelLarge,
                                     maxLines = 1,
                                     softWrap = false,

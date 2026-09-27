@@ -50,4 +50,6 @@ dependencies {
     // uses); mirrors the pattern in :core-llm where the LLM provider tests
     // pull mockwebserver explicitly because okhttp is implementation-scoped.
     testImplementation(libs.okhttp.mockwebserver)
+    // #1470 — FictionSourceContractTest for the GitHub inbox narrator.
+    testImplementation(project(":core-source-testkit"))
 }
