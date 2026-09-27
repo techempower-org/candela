@@ -54,7 +54,7 @@ open class GoogleDriveOAuthApi(
     open suspend fun exchangeCode(
         code: String,
         codeVerifier: String,
-        redirectUri: String = GoogleDriveOAuthConfig.REDIRECT_URI,
+        redirectUri: String = GoogleDriveOAuthConfig.redirectUri,
     ): GoogleDriveOAuthResult {
         val form = FormBody.Builder()
             .add("grant_type", "authorization_code")
@@ -88,6 +88,24 @@ open class GoogleDriveOAuthApi(
             .build()
         return post(form)
     }
+
+    /**
+     * #1677 — best-effort revoke on Disconnect (`POST /revoke`). Revoking the
+     * refresh token also drops the `drive.file` grant at Google, so the user's
+     * Google Account → Security page stops listing Candela. Returns true on
+     * HTTP 200; any failure is swallowed — the local session is cleared either
+     * way.
+     */
+    open suspend fun revoke(token: String): Boolean = withContext(Dispatchers.IO) {
+        if (token.isBlank()) return@withContext false
+        val req = Request.Builder()
+            .url(revokeUrl)
+            .post(FormBody.Builder().add("token", token).build())
+            .build()
+        runCatching { client.newCall(req).execute().use { it.isSuccessful } }.getOrDefault(false)
+    }
+
+    open val revokeUrl: String = GoogleDriveOAuthConfig.REVOKE_URL
 
     private suspend fun post(form: FormBody): GoogleDriveOAuthResult = withContext(Dispatchers.IO) {
         if (GoogleDriveOAuthConfig.clientId.isBlank()) {

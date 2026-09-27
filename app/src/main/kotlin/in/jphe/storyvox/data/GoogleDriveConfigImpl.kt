@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** EncryptedSharedPreferences key for the Google Drive OAuth access token.
@@ -25,6 +26,10 @@ internal const val GDRIVE_REFRESH_TOKEN_PREF = "googledrive.refresh_token"
 /** Display-only "connected as" label from the token flow. Empty for
  *  drive.file-only grants (no email is returned). */
 internal const val GDRIVE_ACCOUNT_LABEL_PREF = "googledrive.account_label"
+
+/** #1677 — wall-clock ms at which the stored access token expires (0 when
+ *  unknown). Drives the proactive refresh in [GoogleDriveConfigImpl.freshAccessToken]. */
+internal const val GDRIVE_EXPIRES_AT_PREF = "googledrive.expires_at_ms"
 
 /** CSRF `state` nonce persisted before the Custom Tab launches, verified on
  *  return. Single-use; survives process death. */
@@ -45,7 +50,16 @@ internal const val GDRIVE_CODE_VERIFIER_PREF = "googledrive.code_verifier"
 @Singleton
 class GoogleDriveConfigImpl @Inject constructor(
     private val secrets: SharedPreferences,
+    // #1677 — token refresh. GoogleDriveOAuthApi has no deps of its own, so
+    // this adds no cycle (the OAuth manager depends on THIS class, not back).
+    private val oauthApi: `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthApi,
 ) : GoogleDriveConfig {
+
+    /** Serialises refreshes so N concurrent 401s spend one refresh call. */
+    private val refreshLock = kotlinx.coroutines.sync.Mutex()
+
+    /** Test seam for the expiry clock. */
+    internal var nowMs: () -> Long = { System.currentTimeMillis() }
 
     /** Bumped on every write so [state] re-emits with fresh values. */
     private val secretsTick = MutableStateFlow(0L)
@@ -62,6 +76,52 @@ class GoogleDriveConfigImpl @Inject constructor(
     override suspend fun current(): GoogleDriveConfigState =
         withContext(Dispatchers.IO) { snapshot() }
 
+    /**
+     * #1677 — refresh proactively when the stored token is within
+     * [EXPIRY_SKEW_MS] of expiry (and a refresh token exists); otherwise the
+     * stored token. A failed proactive refresh still returns the old token —
+     * the source's 401 path then gets its own chance.
+     */
+    override suspend fun freshAccessToken(): String = withContext(Dispatchers.IO) {
+        val token = secrets.getString(GDRIVE_ACCESS_TOKEN_PREF, "").orEmpty()
+        if (token.isBlank()) return@withContext ""
+        val expiresAt = secrets.getLong(GDRIVE_EXPIRES_AT_PREF, 0L)
+        if (expiresAt > 0L && nowMs() >= expiresAt - EXPIRY_SKEW_MS && refreshTokenValue() != null) {
+            refreshLocked(staleToken = token) ?: token
+        } else {
+            token
+        }
+    }
+
+    /** #1677 — forced refresh after a 401/403 with the current token. */
+    override suspend fun refreshAccessToken(): String? = withContext(Dispatchers.IO) {
+        val token = secrets.getString(GDRIVE_ACCESS_TOKEN_PREF, "").orEmpty()
+        if (token.isBlank()) return@withContext null
+        refreshLocked(staleToken = token)
+    }
+
+    /**
+     * Refresh under [refreshLock]. If another caller already rotated the
+     * token while we waited ([staleToken] no longer current), reuse theirs.
+     * An `invalid_grant` (revoked / expired refresh token) clears the session
+     * so the UI falls back to Connect instead of retrying forever.
+     */
+    private suspend fun refreshLocked(staleToken: String): String? = refreshLock.withLock {
+        val current = secrets.getString(GDRIVE_ACCESS_TOKEN_PREF, "").orEmpty()
+        if (current.isNotBlank() && current != staleToken) return@withLock current
+        val refresh = refreshTokenValue() ?: return@withLock null
+        when (val r = oauthApi.refresh(refresh)) {
+            is `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthResult.Success -> {
+                updateOAuthTokens(r.accessToken, r.refreshToken, r.expiresInSeconds)
+                r.accessToken
+            }
+            is `in`.jphe.storyvox.auth.googledrive.GoogleDriveOAuthResult.Failure -> {
+                if (r.code == "invalid_grant") clear()
+                null
+            }
+        }
+    }
+
     private fun snapshot(): GoogleDriveConfigState = GoogleDriveConfigState(
         accessToken = secrets.getString(GDRIVE_ACCESS_TOKEN_PREF, "").orEmpty(),
         accountLabel = secrets.getString(GDRIVE_ACCOUNT_LABEL_PREF, "").orEmpty(),
@@ -72,7 +132,12 @@ class GoogleDriveConfigImpl @Inject constructor(
      * response omits one (Google returns a refresh token only on first
      * consent / with `prompt=consent`, never on a plain refresh).
      */
-    fun saveOAuthSession(accessToken: String, refreshToken: String?, accountLabel: String = "") {
+    fun saveOAuthSession(
+        accessToken: String,
+        refreshToken: String?,
+        accountLabel: String = "",
+        expiresInSeconds: Long? = null,
+    ) {
         secrets.edit()
             .putString(GDRIVE_ACCESS_TOKEN_PREF, accessToken.trim())
             .apply {
@@ -80,6 +145,7 @@ class GoogleDriveConfigImpl @Inject constructor(
                     putString(GDRIVE_REFRESH_TOKEN_PREF, refreshToken.trim())
                 }
                 putString(GDRIVE_ACCOUNT_LABEL_PREF, accountLabel)
+                putLong(GDRIVE_EXPIRES_AT_PREF, expiresAtMs(expiresInSeconds))
             }
             .apply()
         bump()
@@ -87,17 +153,23 @@ class GoogleDriveConfigImpl @Inject constructor(
 
     /** Rotate only the access token after a silent refresh (Google keeps the
      *  same refresh token; swap it only if a new one arrives). */
-    fun updateOAuthTokens(accessToken: String, refreshToken: String?) {
+    fun updateOAuthTokens(accessToken: String, refreshToken: String?, expiresInSeconds: Long? = null) {
         secrets.edit()
             .putString(GDRIVE_ACCESS_TOKEN_PREF, accessToken.trim())
             .apply {
                 if (!refreshToken.isNullOrBlank()) {
                     putString(GDRIVE_REFRESH_TOKEN_PREF, refreshToken.trim())
                 }
+                putLong(GDRIVE_EXPIRES_AT_PREF, expiresAtMs(expiresInSeconds))
             }
             .apply()
         bump()
     }
+
+    /** 0 (unknown) when Google omitted `expires_in`. */
+    private fun expiresAtMs(expiresInSeconds: Long?): Long =
+        if (expiresInSeconds == null || expiresInSeconds <= 0L) 0L
+        else nowMs() + expiresInSeconds * 1000L
 
     /** The stored refresh token, or null if none. */
     fun refreshTokenValue(): String? =
@@ -139,6 +211,7 @@ class GoogleDriveConfigImpl @Inject constructor(
             .remove(GDRIVE_ACCESS_TOKEN_PREF)
             .remove(GDRIVE_REFRESH_TOKEN_PREF)
             .remove(GDRIVE_ACCOUNT_LABEL_PREF)
+            .remove(GDRIVE_EXPIRES_AT_PREF)
             .remove(GDRIVE_OAUTH_STATE_PREF)
             .remove(GDRIVE_CODE_VERIFIER_PREF)
             .apply()
@@ -146,4 +219,10 @@ class GoogleDriveConfigImpl @Inject constructor(
     }
 
     private fun bump() { secretsTick.value = secretsTick.value + 1 }
+
+    private companion object {
+        /** Refresh this long before the stated expiry (clock skew + a
+         *  long chapter download starting just before the hour). */
+        const val EXPIRY_SKEW_MS = 2 * 60 * 1000L
+    }
 }

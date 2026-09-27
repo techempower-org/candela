@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -164,6 +165,8 @@ class BrowseViewModel @Inject constructor(
     // banner and downgrade the full-screen error to a banner when cached
     // items exist, instead of waiting out the OkHttp socket timeout.
     connectivity: ConnectivityObserver,
+    // #1677 — Google Drive connect / pick / disconnect seam.
+    private val googleDrive: `in`.jphe.storyvox.feature.api.GoogleDriveConnector,
 ) : ViewModel() {
 
     /** Default selected source — first defaultEnabled plugin, or
@@ -771,18 +774,46 @@ class BrowseViewModel @Inject constructor(
      *  [GoogleDriveConnectionUi.oauthAvailable] is surfaced — the Connect
      *  button is shown only when the build can actually run the flow. */
     val googleDriveConnection: StateFlow<GoogleDriveConnectionUi> =
-        settings.settings
-            .map { GoogleDriveConnectionUi(oauthAvailable = it.googleDriveOAuthAvailable) }
+        googleDrive.state
+            .map {
+                GoogleDriveConnectionUi(
+                    oauthAvailable = it.oauthAvailable,
+                    pickerAvailable = it.pickerAvailable,
+                    connected = it.connected,
+                    pickGeneration = it.pickGeneration,
+                )
+            }
             .distinctUntilChanged()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GoogleDriveConnectionUi())
 
     /**
-     * #1534 — begin the Google Drive OAuth flow: delegates to the app-level
-     * GoogleDriveOAuthManager (via the settings seam), which persists PKCE +
-     * state and returns the authorize URL for the caller to open in a Custom
-     * Tab, or null when this build has no OAuth client id.
+     * #1534 — begin the Google Drive OAuth flow: persists PKCE + state and
+     * returns the authorize URL for the caller to open in a Custom Tab, or
+     * null when this build has no OAuth client id.
      */
-    suspend fun beginGoogleDriveOAuth(): String? = settings.beginGoogleDriveOAuth()
+    suspend fun beginGoogleDriveOAuth(): String? = googleDrive.beginConnect()
+
+    /** #1677 — the Google Picker URL (fresh token in the fragment), or null. */
+    suspend fun googleDrivePickerUrl(): String? = googleDrive.pickerUrl()
+
+    /** #1677 — revoke + forget the Drive session (the collector below
+     *  re-lists, landing the chip back on Connect). */
+    fun disconnectGoogleDrive() {
+        viewModelScope.launch { googleDrive.disconnect() }
+    }
+
+    // #1677 — re-list the Drive chip when the user returns from the Picker
+    // (pickGeneration) or connects/disconnects. drop(1) skips the first real
+    // emission so merely opening Browse doesn't double-fetch.
+    init {
+        viewModelScope.launch {
+            googleDrive.state
+                .map { it.pickGeneration to it.connected }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { if (_sourceId.value == GOOGLE_DRIVE_SOURCE_ID) refresh() }
+        }
+    }
 }
 
 /** #1507 — Browse-side snapshot of the Notion connection for the manage sheet. */
@@ -808,6 +839,12 @@ internal fun notionPaginatorRefreshKey(sourceId: String, notionConfigKey: String
 /** #1534 — Browse-side snapshot for the "Connect Google Drive" empty state. */
 data class GoogleDriveConnectionUi(
     val oauthAvailable: Boolean = false,
+    /** #1677 — the build can open the Google Picker ("Choose from Drive"). */
+    val pickerAvailable: Boolean = false,
+    /** #1677 — a Drive session is stored. */
+    val connected: Boolean = false,
+    /** #1677 — bumps on every Picker return; Browse re-lists on change. */
+    val pickGeneration: Long = 0L,
 )
 
 private val AUTH_ONLY_GH_TABS: Set<BrowseTab> = setOf(BrowseTab.MyRepos, BrowseTab.Starred, BrowseTab.Gists)

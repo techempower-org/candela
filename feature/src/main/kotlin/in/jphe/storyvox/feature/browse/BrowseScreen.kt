@@ -101,7 +101,6 @@ import `in`.jphe.storyvox.ui.layout.isAtLeastExpanded
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 // Issue #1534 — Google Drive connect: open the authorize URL in a Custom Tab.
 import android.net.Uri
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.rememberCoroutineScope
 
 /**
@@ -213,6 +212,14 @@ fun BrowseScreen(
     val googleDriveConnection by viewModel.googleDriveConnection.collectAsStateWithLifecycle()
     val driveConnectScope = rememberCoroutineScope()
     val driveConnectContext = androidx.compose.ui.platform.LocalContext.current
+    // #1677 — Google Picker in a Custom Tab (the page returns via
+    // candela://oauth/googledrive/picked → pickGeneration bump below).
+    val openDrivePicker: () -> Unit = {
+        driveConnectScope.launch {
+            launchDriveCustomTab(driveConnectContext, viewModel.googleDrivePickerUrl())
+        }
+    }
+    var showDriveManageDialog by remember { mutableStateOf(false) }
     val spacing = LocalSpacing.current
     var showFilterSheet by remember { mutableStateOf(false) }
     /** Issue #247 — RSS feed management moved out of Settings into a
@@ -574,17 +581,16 @@ fun BrowseScreen(
                 state.items.isEmpty() &&
                 !state.isLoading &&
                 (state.error == null || state.authRequired) ->
-                GoogleDriveConnectEmptyState(
-                    oauthAvailable = googleDriveConnection.oauthAvailable,
+                GoogleDriveEmptyState(
+                    connection = googleDriveConnection,
+                    authRequired = state.authRequired,
                     onConnect = {
                         driveConnectScope.launch {
-                            val url = viewModel.beginGoogleDriveOAuth()
-                            if (!url.isNullOrBlank()) {
-                                CustomTabsIntent.Builder().build()
-                                    .launchUrl(driveConnectContext, Uri.parse(url))
-                            }
+                            launchDriveCustomTab(driveConnectContext, viewModel.beginGoogleDriveOAuth())
                         }
                     },
+                    onPick = openDrivePicker,
+                    onDisconnect = viewModel::disconnectGoogleDrive,
                 )
             // Issue #669 — Local backend empty state. Without this branch
             // tapping the Local chip on a fresh install rendered a
@@ -875,6 +881,19 @@ fun BrowseScreen(
             Icon(Icons.Filled.Add, contentDescription = "Connect or manage Notion")
         }
     }
+    // Issue #1677 — connected Drive chip: add more files / disconnect.
+    if (state.sourceId == GOOGLE_DRIVE_SOURCE_ID && googleDriveConnection.connected) {
+        FloatingActionButton(
+            onClick = { showDriveManageDialog = true },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(spacing.lg),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.browse_gdrive_fab_cd))
+        }
+    }
     }  // Box
     }  // BrowseScaffoldOrFrame body
 
@@ -889,6 +908,15 @@ fun BrowseScreen(
         BrowseNotionManageSheet(
             viewModel = viewModel,
             onDismiss = { showNotionManageSheet = false },
+        )
+    }
+
+    if (showDriveManageDialog) {
+        GoogleDriveManageDialog(
+            pickerAvailable = googleDriveConnection.pickerAvailable,
+            onPick = openDrivePicker,
+            onDisconnect = viewModel::disconnectGoogleDrive,
+            onDismiss = { showDriveManageDialog = false },
         )
     }
 
@@ -1248,64 +1276,6 @@ private fun NotionConnectEmptyState(onConnect: () -> Unit) {
                 onClick = onConnect,
                 variant = BrassButtonVariant.Primary,
             )
-        }
-    }
-}
-
-/**
- * Issue #1534 — "Connect Google Drive" empty state. The `google-drive` source
- * returns [FictionResult.AuthRequired] until the user connects; this makes that
- * otherwise-dead state actionable. The Connect button runs the OAuth flow
- * (`drive.file` scope) and opens the authorize URL in a Custom Tab
- * (MainActivity's GoogleDriveOAuthManager handles the redirect).
- *
- * When the build carries no OAuth client id ([oauthAvailable] false — the
- * default/CI case) the button is hidden and the copy explains the source isn't
- * set up in this build, rather than dangling a dead button.
- *
- * Folder-grant Picker (#1534 item 2) is a deferred follow-up: under `drive.file`
- * the user must additionally pick a folder in Google's Picker (a JS API hosted
- * on an authorized origin) for its contents to become visible. This surface is
- * the entry point that the Picker plugs into.
- */
-@Composable
-private fun GoogleDriveConnectEmptyState(oauthAvailable: Boolean, onConnect: () -> Unit) {
-    val spacing = LocalSpacing.current
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.sm),
-            modifier = Modifier.padding(horizontal = spacing.xl),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp),
-            )
-            Text(
-                stringResource(R.string.browse_gdrive_connect_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(
-                    if (oauthAvailable) R.string.browse_gdrive_connect_body
-                    else R.string.browse_gdrive_unavailable_body,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            if (oauthAvailable) {
-                Spacer(Modifier.height(spacing.md))
-                BrassButton(
-                    label = stringResource(R.string.browse_gdrive_connect_button),
-                    onClick = onConnect,
-                    variant = BrassButtonVariant.Primary,
-                )
-            }
         }
     }
 }
