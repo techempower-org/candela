@@ -67,6 +67,7 @@ import `in`.jphe.storyvox.feature.settings.MemoryPalaceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.PerformanceSettingsScreen
 import `in`.jphe.storyvox.feature.settings.ReadingSettingsScreen
 import `in`.jphe.storyvox.feature.briefing.MorningBriefingScreen
+import `in`.jphe.storyvox.feature.feed.FeedScreen
 import `in`.jphe.storyvox.feature.settings.SettingsHubScreen
 import `in`.jphe.storyvox.feature.stats.ListeningStatsScreen
 import `in`.jphe.storyvox.feature.settings.SettingsScreen
@@ -145,6 +146,9 @@ object StoryvoxRoutes {
 
     /** Issue #1467 — morning-briefing / personal-podcast queue, reached from the Settings hub. */
     const val MORNING_BRIEFING = "morning_briefing"
+
+    /** Issue #1675 — listening feed ("For you"), reached from the Settings hub. */
+    const val FEED = "feed"
 
     /** Issue #1369 — teleprompter script manager (save/edit/organize). The
      *  list is reached from the Settings hub and (once wired) the teleprompter
@@ -1283,6 +1287,7 @@ private fun StoryvoxNavHostContent(
                     onOpenAdvanced = { navController.navigate(StoryvoxRoutes.SETTINGS_ADVANCED) },
                     onOpenStats = { navController.navigate(StoryvoxRoutes.STATS) },
                     onOpenBriefing = { navController.navigate(StoryvoxRoutes.MORNING_BRIEFING) },
+                    onOpenFeed = { navController.navigate(StoryvoxRoutes.FEED) },
                     onOpenScripts = { navController.navigate(StoryvoxRoutes.SCRIPT_LIST) },
                     onOpenBenefits = { navController.navigate(StoryvoxRoutes.TECHEMPOWER_HOME) },
                     // #1624 — Cloud Voices hub row (screen + route already
@@ -1319,6 +1324,17 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 MorningBriefingScreen(onBack = { navController.popBackStack() })
+            }
+
+            // Issue #1675 — listening feed, a Settings-hub drill-down.
+            composable(
+                StoryvoxRoutes.FEED,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                FeedScreen(onBack = { navController.popBackStack() })
             }
 
             // Issue #1369 — teleprompter script manager. List + editor are
