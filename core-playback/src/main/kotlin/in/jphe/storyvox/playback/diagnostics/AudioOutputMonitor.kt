@@ -48,8 +48,9 @@ import javax.inject.Singleton
  *     EnginePlayer, which only advances when the framework actually
  *     consumed frames. If that position stalls while engineState=Playing,
  *     audio is NOT reaching the speakers.
- *  2. [AudioFocusController.isHeld] — process-wide focus state. Lost
- *     focus → known stall.
+ *  2. [AudioFocusController.isTakenByAnotherApp] — process-wide focus
+ *     state. Lost or refused focus → known stall (#1769: not-yet-
+ *     requested focus is not a loss).
  *  3. [AudioManager.getStreamVolume] / `isStreamMute` — device muted.
  *  4. [AudioManager.getDevices] + [AudioDeviceCallback] — route changes.
  *  5. [EngineState] — warming / buffering distinction.
@@ -265,12 +266,19 @@ class AudioOutputMonitor @Inject constructor(
         }
 
         // 3. Audio focus lost → we asked the framework, the framework
-        //    said no. Translate the most-likely-cause (best effort —
-        //    Android doesn't expose the focus-stack contents).
+        //    said no (or took it back). Translate the most-likely-cause
+        //    (best effort — Android doesn't expose the focus-stack
+        //    contents).
         //    Skip for live-audio chapters (#1225): ExoPlayer manages its
         //    own focus (handleAudioFocus=true); AudioFocusController is
         //    only relevant for the TTS AudioTrack path.
-        if (!state.isLiveAudioChapter && !audioFocus.isHeld()) {
+        //    #1769 — "not held" is NOT "lost". Focus is not requested
+        //    until the pipeline starts, and loadAndPlay publishes
+        //    isPlaying=true before the voice model loads, so a plain
+        //    `!isHeld()` showed "Paused for a call" through every warm-up
+        //    with no call and an empty focus stack. Only a real loss or a
+        //    refused request counts.
+        if (!state.isLiveAudioChapter && audioFocus.isTakenByAnotherApp()) {
             return WaitReason.FocusLost(cause = guessFocusCause())
         }
 

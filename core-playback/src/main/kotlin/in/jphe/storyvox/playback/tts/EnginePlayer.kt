@@ -2133,6 +2133,18 @@ class EnginePlayer @AssistedInject constructor(
                 error = null,
             )
         }
+        // Issue #1769 — claim focus at the moment we tell the world we're
+        // playing, not only in startPlaybackPipeline() after the voice
+        // model loads (30 s+ on a Tab A7 Lite). The user's tap is the
+        // play intent Android's focus guidance keys on, and it replaces
+        // any stale LOSS status from an earlier interruption, so the
+        // "Why are we waiting?" panel shows the warm-up instead of a false
+        // "Paused for a call". A real denial (a call IS active) still
+        // surfaces FocusLost honestly. Idempotent with the pipeline's own
+        // acquire().
+        if (autoPlay) {
+            runCatching { audioFocus.acquire() }
+        }
         // Issue #956 — synchronously align the persisted `playback_position`
         // row with the just-loaded `(fictionId, chapterId, charOffset)` BEFORE
         // any external surface (Library Resume tile, Auto/Wear browser,
@@ -5535,6 +5547,13 @@ class EnginePlayer @AssistedInject constructor(
         stopPlaybackPipeline()
         sentences = emptyList()
         currentSentenceIndex = 0
+        // Issue #1769 — release the TTS path's focus before the ExoPlayer
+        // (handleAudioFocus=true) requests its own. Focus requests from
+        // the same app still compete: left held, ours would receive
+        // AUDIOFOCUS_LOSS the instant ExoPlayer asks, and the service's
+        // onFocusLost hook would pause the stream we just started. The
+        // TTS path re-acquires on its next loadAndPlay / pipeline start.
+        runCatching { audioFocus.abandon() }
         // #1192 — drop the previous station's cached position so a station
         // swap starts the (hidden) live scrubber at 0 rather than inheriting
         // the prior stream's higher latched value.
