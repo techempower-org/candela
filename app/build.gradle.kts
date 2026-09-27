@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -222,6 +223,20 @@ val hasPlayPublisherCredentials: Boolean = playPublisherCredentialsPath != null 
 android {
     namespace = "in.jphe.storyvox"
     compileSdk = 37
+    // #1691 — pin the NDK used to strip / extract native debug symbols.
+    // Unpinned, AGP asks for its own default NDK (28.2.13676358 on AGP 9.3),
+    // which katana does not have (it has 27.2 and 29.0). The katana AAB
+    // build then logs "Unable to strip the following libraries, packaging
+    // them as they are", and extractReleaseNativeDebugMetadata extracts
+    // nothing: it skips any .so whose stripped length equals its merged
+    // length. So v1.14.1 (274) reached Play with no
+    // BUNDLE-METADATA/com.android.tools.build.debugsymbols, and Play showed
+    // its "you've not uploaded debug symbols" warning. 29.0.14206865 is
+    // installed on katana AND on the ubuntu-24.04 GitHub runner image.
+    // If either one drops it, bump this version. The bundleRelease guard
+    // at the bottom of this file fails loudly if the symbols go missing
+    // again.
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "org.techempower.candela"
@@ -370,12 +385,26 @@ android {
             )
             // #1674 — bundle FULL native debug symbols into the release
             // artifact so the Play Console can symbolicate native crash
-            // traces. Candela ships no native code of its own, but the
-            // VoxSherpa-TTS / sherpa-onnx AAR contributes prebuilt `.so`
-            // libraries — without this their frames land in Play as raw
-            // addresses. "FULL" = unwind tables + line numbers (per #1674);
-            // AGP's mergeReleaseNativeDebugMetadata extracts them into the
-            // APK/AAB. Exercised by the release assemble in CI's Build APK.
+            // traces. Candela ships no native code of its own. Every .so
+            // comes prebuilt from an AAR (sherpa-onnx, ML Kit OCR, CameraX,
+            // androidx graphics/datastore).
+            //
+            // #1691 — what this can and cannot recover (checked with readelf
+            // on the v1.14.1 AAB):
+            //   * sherpa-onnx c-api/cxx-api/jni: arrive stripped, no .symtab.
+            //     The JitPack AAR is byte-identical (same GNU build-id) to
+            //     upstream's own sherpa-onnx-v1.13.4-android.tar.bz2, and
+            //     upstream publishes no unstripped Android build.
+            //   * libonnxruntime.so: stripped and has NO build-id, so Play
+            //     could not match symbols to it even if some existed.
+            //   * ML Kit / CameraX / androidx.graphics: stripped (Google).
+            //   * libdatastore_shared_counter.so: the only one that still has
+            //     a .symtab, so it is what AGP actually extracts.
+            // Net: once ndkVersion is pinned (see above), the AAB carries a
+            // debugsymbols entry and the Play warning clears. Sherpa,
+            // onnxruntime and ML Kit frames still symbolicate only to
+            // exported (.dynsym) names. Getting more than that needs
+            // unstripped .so files from upstream, which this repo can't do.
             ndk {
                 debugSymbolLevel = "FULL"
             }
@@ -567,6 +596,52 @@ androidComponents {
                     "candela-v${android.defaultConfig.versionName}$suffix.apk"
                 )
             }
+        }
+    }
+}
+
+/**
+ * #1691 — loud guard: the Play AAB must carry native debug symbols.
+ *
+ * Without a usable NDK, AGP's strip step only logs a warning, and then
+ * extractReleaseNativeDebugMetadata quietly extracts nothing. The AAB still
+ * builds and uploads, and the only symptom is Play Console's "you've not
+ * uploaded debug symbols" warning after the upload. v1.14.1 (274) shipped
+ * that way. This check fails `bundleRelease` on katana, before the upload,
+ * when BUNDLE-METADATA/com.android.tools.build.debugsymbols/ is absent.
+ * Usual fix: install the NDK that `ndkVersion` names
+ * (`sdkmanager "ndk;<ndkVersion>"`). CI never runs bundleRelease, so this
+ * guard never touches CI. Escape hatch for an emergency upload:
+ * `-Pcandela.allowMissingNativeSymbols=true`.
+ */
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+    // Resolved at configuration time into locals, so the doLast lambda
+    // captures no script/Project reference (configuration-cache safe).
+    val aabProvider = layout.buildDirectory.file("outputs/bundle/release/app-release.aab")
+    val allowMissing = providers.gradleProperty("candela.allowMissingNativeSymbols")
+        .map { it.toBoolean() }
+        .getOrElse(false)
+    val pinnedNdk = android.ndkVersion
+    doLast {
+        val aab = aabProvider.get().asFile
+        val symbolEntries = if (aab.isFile) {
+            ZipFile(aab).use { zip ->
+                zip.entries().asSequence().count {
+                    it.name.startsWith("BUNDLE-METADATA/com.android.tools.build.debugsymbols/")
+                }
+            }
+        } else {
+            0
+        }
+        if (symbolEntries == 0) {
+            val msg = "#1691: ${aab.name} has no native debug symbols " +
+                "(BUNDLE-METADATA/com.android.tools.build.debugsymbols/ missing or AAB not found). " +
+                "Play will warn \"you've not uploaded debug symbols\". Most likely NDK " +
+                "$pinnedNdk is not installed, so check the log for \"Unable to strip\". Fix: " +
+                "sdkmanager \"ndk;$pinnedNdk\". Override: -Pcandela.allowMissingNativeSymbols=true"
+            if (allowMissing) logger.warn("WARNING: $msg") else error(msg)
+        } else {
+            logger.lifecycle("#1691: ${aab.name} carries $symbolEntries native debug-symbol file(s).")
         }
     }
 }

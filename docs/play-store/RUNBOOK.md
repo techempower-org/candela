@@ -108,6 +108,10 @@ git push origin main v0.5.69
 #    NOT a CI artifact — build it here on katana, where the release keystore lives:
 #    ./gradlew :app:bundleRelease        # separate invocation from assembleRelease (#952)
 #    → app/build/outputs/bundle/release/app-release.aab
+#    Needs the NDK pinned by `ndkVersion` in app/build.gradle.kts (#1691). Without it,
+#    AGP can't strip the native libs, the AAB ships with no debug symbols, and Play
+#    warns about the missing symbols. bundleRelease now fails with the fix in the
+#    message: sdkmanager "ndk;<ndkVersion>".
 
 # 5. Upload to Play Console Internal Test:
 ./gradlew :app:publishReleaseBundle
