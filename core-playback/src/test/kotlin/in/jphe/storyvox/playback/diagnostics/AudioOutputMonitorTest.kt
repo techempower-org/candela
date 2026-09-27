@@ -14,12 +14,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -123,14 +125,19 @@ class AudioOutputMonitorTest {
     }
 
     @Test
-    fun `diagnose returns FocusLost when focus not held on the TTS path`() {
+    fun `diagnose returns FocusLost when the focus request is refused on the TTS path`() {
         // Precedence #3: the TTS AudioTrack path relies on
-        // AudioFocusController to own focus. A fresh (never-acquired)
-        // controller reports isHeld()==false, so a non-live chapter that
-        // claims to be Playing must surface FocusLost. This pins the
-        // "guard on" side of the #1225 fix — the focus check still fires
-        // for everything that isn't a live-audio chapter.
-        val m = monitor() // default controller, focus never acquired
+        // AudioFocusController to own focus. A refused request (a call
+        // really is active) on a non-live chapter that claims to be
+        // Playing must surface FocusLost. This pins the "guard on" side
+        // of the #1225 fix — the focus check still fires for everything
+        // that isn't a live-audio chapter.
+        val ctx = RuntimeEnvironment.getApplication()
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        shadowOf(am).setNextFocusRequestResponse(AudioManager.AUDIOFOCUS_REQUEST_FAILED)
+        val af = AudioFocusController(ctx)
+        assertFalse("request refused", af.acquire())
+        val m = monitor(af)
         val r = m.diagnose(
             state = PlaybackState(
                 currentChapterId = "c1",
@@ -140,7 +147,36 @@ class AudioOutputMonitorTest {
             engine = EngineState.Playing,
             positionMs = 1000L,
         )
-        assertTrue("TTS path with un-held focus should be FocusLost — got $r", r is WaitReason.FocusLost)
+        assertTrue("TTS path with refused focus should be FocusLost — got $r", r is WaitReason.FocusLost)
+    }
+
+    @Test
+    fun `diagnose shows WarmingVoice not FocusLost before focus is requested (#1769)`() {
+        // Regression for #1769: loadAndPlay publishes isPlaying=true, and
+        // the engine reads Warming, before the pipeline acquires focus.
+        // A never-requested controller is not a loss; pre-fix this
+        // returned FocusLost ("Paused for a call") with no call active.
+        val m = monitor() // default controller, focus never requested
+        val r = m.diagnose(
+            state = PlaybackState(voiceId = "kokoro-en-US-brian", currentChapterId = "c1"),
+            engine = EngineState.Warming("Warming Brian"),
+            positionMs = 0L,
+        )
+        assertTrue("never-requested focus must not read as lost — got $r", r is WaitReason.WarmingVoice)
+    }
+
+    @Test
+    fun `diagnose does not show FocusLost after we abandoned focus (#1769)`() {
+        val af = AudioFocusController(RuntimeEnvironment.getApplication())
+        af.acquire()
+        af.abandon()
+        val m = monitor(af)
+        val r = m.diagnose(
+            state = PlaybackState(currentChapterId = "c1", chapterTitle = "Chapter 1"),
+            engine = EngineState.Playing,
+            positionMs = 1000L,
+        )
+        assertTrue("our own abandon is not a loss — got $r", r !is WaitReason.FocusLost)
     }
 
     @Test
@@ -150,9 +186,14 @@ class AudioOutputMonitorTest {
         // acquires focus and isHeld() stays false even while audio is
         // healthy. The focus-loss branch must be skipped for live-audio
         // chapters, or the diagnostic panel falsely shows "Paused for a
-        // call" over normal playback. Same un-held controller as the test
-        // above — only isLiveAudioChapter differs.
-        val m = monitor()
+        // call" over normal playback. Uses a refused-focus controller (the
+        // FocusLost case above) so only isLiveAudioChapter differs.
+        val ctx = RuntimeEnvironment.getApplication()
+        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        shadowOf(am).setNextFocusRequestResponse(AudioManager.AUDIOFOCUS_REQUEST_FAILED)
+        val af = AudioFocusController(ctx)
+        af.acquire()
+        val m = monitor(af)
         val r = m.diagnose(
             state = PlaybackState(
                 currentChapterId = "c1",
