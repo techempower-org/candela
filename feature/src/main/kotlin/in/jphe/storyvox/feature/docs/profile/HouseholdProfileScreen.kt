@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.BenefitsReadAloudScripts
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
@@ -152,6 +154,18 @@ fun HouseholdProfileScreen(
                     onDelete = { gate { showDeleteConfirm = true } },
                 )
             } else {
+                // #1580 — hear each field and what's in it. Only offered once
+                // unlocked: the locked card never reads saved values aloud.
+                val labels = FIELD_SPECS.map { it.field to stringResource(it.labelRes) }
+                val emptyValue = stringResource(R.string.readaloud_empty_value)
+                ReadAloudControl(
+                    key = "household-profile",
+                    label = stringResource(R.string.readaloud_profile),
+                    script = {
+                        BenefitsReadAloudScripts.householdProfile(state.draft, labels, emptyValue)
+                    },
+                )
+
                 ProfileForm(
                     draft = state.draft,
                     onFieldChange = viewModel::onFieldChange,

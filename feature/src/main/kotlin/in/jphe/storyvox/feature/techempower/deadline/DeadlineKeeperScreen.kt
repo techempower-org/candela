@@ -75,6 +75,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.BenefitsReadAloudScripts
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudScript
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
@@ -184,6 +187,17 @@ fun DeadlineKeeperScreen(
                     InfoCard(stringResource(R.string.deadline_no_dates))
                 }
 
+                // #1580 — hear the scanned letter itself (OCR → TTS, no
+                // interpretation) before picking which date is the deadline.
+                if (state.noticeText.isNotBlank() && !state.isRecognizing) {
+                    val notice = state.noticeText
+                    ReadAloudControl(
+                        key = "deadline-letter",
+                        label = stringResource(R.string.readaloud_deadline_letter),
+                        script = { notice },
+                    )
+                }
+
                 if (state.candidates.isNotEmpty()) {
                     CandidatesSection(
                         candidates = state.candidates,
@@ -248,6 +262,27 @@ private fun DraftEditor(
         stringResource(R.string.deadline_draft_title),
         style = MaterialTheme.typography.titleLarge,
         color = MaterialTheme.colorScheme.primary,
+    )
+
+    // #1580 — hear the reminder back before saving it.
+    val labelLabel = stringResource(R.string.deadline_field_label)
+    val deadlineLabel = stringResource(R.string.deadline_field_deadline)
+    val bodyLabel = stringResource(R.string.deadline_field_body)
+    val emptyValue = stringResource(R.string.readaloud_empty_value)
+    ReadAloudControl(
+        key = "deadline-draft",
+        label = stringResource(R.string.readaloud_deadline_draft),
+        script = {
+            BenefitsReadAloudScripts.deadlineDraft(
+                labelLabel = labelLabel,
+                label = draft.label,
+                deadlineLabel = deadlineLabel,
+                deadline = draft.deadline.formattedFull(),
+                bodyLabel = bodyLabel,
+                body = draft.body,
+                emptyValue = emptyValue,
+            )
+        },
     )
 
     OutlinedTextField(
@@ -535,6 +570,24 @@ private fun CandidatesSection(
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
+    val context = LocalContext.current
+    val intro = stringResource(R.string.readaloud_deadline_dates_intro)
+    val pastNote = stringResource(R.string.readaloud_deadline_candidate_past)
+    ReadAloudControl(
+        key = "deadline-dates",
+        label = stringResource(R.string.readaloud_deadline_dates),
+        script = {
+            BenefitsReadAloudScripts.deadlineCandidates(
+                intro = intro,
+                candidates = candidates,
+                formatDate = { it.date.formattedFull() },
+                candidateLine = { n, date, snippet ->
+                    context.getString(R.string.readaloud_deadline_candidate, n, date, snippet)
+                },
+                pastNote = pastNote,
+            )
+        },
+    )
     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
         candidates.forEach { candidate ->
             val pastSuffix = if (candidate.isPast) " " + stringResource(R.string.deadline_candidate_past) else ""
@@ -618,6 +671,19 @@ private fun RemindersSection(
         )
         return
     }
+    val context = LocalContext.current
+    val remindersTitle = stringResource(R.string.deadline_reminders_title)
+    ReadAloudControl(
+        key = "deadline-reminders",
+        label = stringResource(R.string.readaloud_deadline_reminders),
+        script = {
+            ReadAloudScript.build(
+                listOf(remindersTitle) + reminders.map {
+                    context.getString(R.string.readaloud_deadline_reminder_item, it.label, it.deadline.formattedFull())
+                },
+            )
+        },
+    )
     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
         reminders.forEach { reminder ->
             val itemCd = stringResource(
