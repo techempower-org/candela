@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.feature.reader
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,36 +51,50 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * Why the Media3 playback notification can't be seen, if it can't.
  *
  * Reported from the field: "the playback button is not showing on top of my
- * phone screen." On Android 13+ POST_NOTIFICATIONS is requested once at launch
- * (MainActivity.maybeRequestNotificationPermission); a "Don't allow" there, or
- * a user switching off just the `playback` channel, silently removes the
- * shade + lock-screen controls with no in-app trace.
+ * phone screen." Device matrix (Galaxy Tab A7 Lite, Android 14, One UI,
+ * v1.14.1/274, while PLAYING):
+ *  - A. permission granted, channel importance LOW → controls visible
+ *  - B. POST_NOTIFICATIONS revoked (appops ignore)  → controls STILL visible:
+ *    MediaStyle/media-session notifications are exempt on API 33+
+ *  - C. permission granted, `playback` channel importance NONE → controls GONE
+ *    (no notification record, empty shade) — reproduces the report
+ *  - D. Samsung app-level "Allow notifications" off → same state as B
+ *
+ * So on API 33+ only the channel matters. On API 26–32 there is no media
+ * exemption: the app-level toggle off hides everything, media included.
  */
 enum class PlaybackNotificationBlock {
-    /** Notifications reach the user — no banner. */
+    /** The transport is visible — no banner. */
     None,
 
-    /** All app notifications are off (permission denied / app toggle off). */
+    /** App notifications are off on API < 33, where media isn't exempt. */
     App,
 
-    /** App notifications are on, but the playback channel is set to "none". */
+    /** The `playback` channel is set to "none" (any API level). */
     Channel,
 }
+
+/** First API level where media-session notifications are exempt from the app toggle. */
+private const val MEDIA_NOTIFICATION_EXEMPT_SDK = 33
 
 /**
  * Pure decision for [PlaybackNotificationsBanner]. JVM-tested in
  * `PlaybackNotificationBlockTest`.
  *
+ * @param sdkInt `Build.VERSION.SDK_INT`.
  * @param appNotificationsEnabled `NotificationManagerCompat.areNotificationsEnabled()`.
+ *   Ignored on API 33+ (media-session exemption; device matrix case B/D).
  * @param playbackChannelImportance the playback channel's importance, or `null`
  *   when the channel doesn't exist yet (the service creates it on first start —
  *   nothing to be blocked, so no banner).
  */
 fun playbackNotificationBlock(
+    sdkInt: Int,
     appNotificationsEnabled: Boolean,
     playbackChannelImportance: Int?,
 ): PlaybackNotificationBlock = when {
-    !appNotificationsEnabled -> PlaybackNotificationBlock.App
+    sdkInt < MEDIA_NOTIFICATION_EXEMPT_SDK && !appNotificationsEnabled ->
+        PlaybackNotificationBlock.App
     playbackChannelImportance == NotificationManager.IMPORTANCE_NONE ->
         PlaybackNotificationBlock.Channel
     else -> PlaybackNotificationBlock.None
@@ -89,6 +104,7 @@ fun playbackNotificationBlock(
 internal fun readPlaybackNotificationBlock(context: Context): PlaybackNotificationBlock {
     val nm = NotificationManagerCompat.from(context)
     return playbackNotificationBlock(
+        sdkInt = Build.VERSION.SDK_INT,
         appNotificationsEnabled = nm.areNotificationsEnabled(),
         playbackChannelImportance = nm
             .getNotificationChannel(StoryvoxPlaybackService.CHANNEL_PLAYBACK)

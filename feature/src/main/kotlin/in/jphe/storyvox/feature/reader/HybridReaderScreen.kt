@@ -288,9 +288,9 @@ fun HybridReaderScreen(
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
     // Field report ("the playback button is not showing on top of my
-    // phone screen") — when notifications are off, Media3's shade and
-    // lock-screen controls are silently gone. Self-gated: renders nothing
-    // unless app notifications or the playback channel are blocked.
+    // phone screen") — with the `playback` channel set to "none" (or app
+    // notifications off on API < 33), Media3's shade and lock-screen
+    // controls are silently gone. Self-gated: renders nothing otherwise.
     PlaybackNotificationsBanner()
     HybridReaderShell(
         modifier = Modifier.weight(1f),
