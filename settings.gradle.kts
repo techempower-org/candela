@@ -85,6 +85,8 @@ include(":source-radio")
 include(":source-librivox")
 include(":source-notion")
 include(":source-hackernews")
+// #1465 — Local Help: narrated local-services directory (211 NDP, keyed).
+include(":source-localhelp")
 // #1496 — Google Drive folder-as-library (drive.file scope; Docs export + files).
 include(":source-google-drive")
 // #1238 — Google News headline feed (Top stories + topic sections + search).
