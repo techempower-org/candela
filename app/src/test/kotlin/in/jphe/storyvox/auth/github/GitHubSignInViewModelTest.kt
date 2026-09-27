@@ -247,7 +247,7 @@ class GitHubSignInViewModelTest {
         vm.start()
         advanceUntilIdle()
         // `gist` is appended unconditionally since #202 (Gists in Browse).
-        assertEquals("read:user public_repo gist", flow.lastRequestedScopes)
+        assertEquals("read:user public_repo gist notifications", flow.lastRequestedScopes)
     }
 
     @Test
@@ -267,7 +267,7 @@ class GitHubSignInViewModelTest {
         vm.start()
         advanceUntilIdle()
         // `gist` is appended unconditionally since #202 (Gists in Browse).
-        assertEquals("read:user repo gist", flow.lastRequestedScopes)
+        assertEquals("read:user repo gist notifications", flow.lastRequestedScopes)
     }
 
     // ── Test fakes ──────────────────────────────────────────────────

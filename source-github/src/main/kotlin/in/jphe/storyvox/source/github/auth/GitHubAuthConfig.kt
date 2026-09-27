@@ -31,8 +31,15 @@ object GitHubAuthConfig {
      * toggle (#203). Existing signed-in users with the older scope set
      * see a fresh Device Flow on next sign-in attempt — Sky's auth
      * substrate detects the scope mismatch and re-authorizes.
+     *
+     * `notifications` (#1470) lets the GitHub inbox narrator read
+     * `GET /notifications`; classic OAuth tokens need it (or `repo`) for
+     * that endpoint. It grants read + mark-as-read on notifications only —
+     * no code access. Tokens issued before #1470 lack it: the inbox's
+     * Inbox tab asks the user to sign in again, while the search-backed
+     * Reviews / Mentions views keep working on the old token.
      */
-    const val DEFAULT_SCOPES: String = "read:user public_repo gist"
+    const val DEFAULT_SCOPES: String = "read:user public_repo gist notifications"
 
     /**
      * Scopes requested when the user has opted in to "Enable private
@@ -43,8 +50,11 @@ object GitHubAuthConfig {
      * [DEFAULT_SCOPES]. `gist` parallels [DEFAULT_SCOPES] — without it,
      * enabling private repos would silently drop Gists access in
      * Browse, which is a regression rather than an intent (#234).
+     * `notifications` parallels [DEFAULT_SCOPES] for the same reason (#1470;
+     * `repo` already covers `/notifications`, but listing it keeps the two
+     * scope sets symmetric and the intent explicit).
      */
-    const val PRIVATE_REPO_SCOPES: String = "read:user repo gist"
+    const val PRIVATE_REPO_SCOPES: String = "read:user repo gist notifications"
 
     /**
      * Resolve the scope string for a fresh Device Flow request given the

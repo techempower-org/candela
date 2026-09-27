@@ -1,6 +1,12 @@
 package `in`.jphe.storyvox.feature.browse
 
+import androidx.annotation.StringRes
 import `in`.jphe.storyvox.data.source.SourceIds
+import `in`.jphe.storyvox.feature.R
+
+/** #1470 — the GitHub inbox narrator's `@SourcePlugin` id (the annotation
+ *  is the source of truth; no SourceIds entry). */
+internal const val GITHUB_INBOX_SOURCE_ID = "github-inbox"
 
 /**
  * Plugin-seam Phase 3 (#384) — side-table of per-source UI hints that
@@ -149,7 +155,24 @@ internal object BrowseSourceUi {
         SourceIds.ARXIV -> listOf(BrowseTab.Popular, BrowseTab.Search)
         SourceIds.PLOS -> listOf(BrowseTab.Popular, BrowseTab.Search)
         SourceIds.DISCORD -> listOf(BrowseTab.Popular, BrowseTab.Search)
+        // #1470 — Popular = notifications inbox, NewReleases = review requests.
+        GITHUB_INBOX_SOURCE_ID -> listOf(BrowseTab.Popular, BrowseTab.NewReleases, BrowseTab.Search)
         else -> listOf(BrowseTab.Popular, BrowseTab.Search)
+    }
+
+    /**
+     * #1470 — per-source tab label override, or null to use the tab's
+     * generic label. The GitHub inbox reuses the Popular / NewReleases
+     * slots for "Inbox" / "Reviews", where "Popular" / "New" would mislead.
+     */
+    @StringRes
+    fun tabLabelRes(id: String, tab: BrowseTab): Int? = when (id) {
+        GITHUB_INBOX_SOURCE_ID -> when (tab) {
+            BrowseTab.Popular -> R.string.browse_tab_github_inbox
+            BrowseTab.NewReleases -> R.string.browse_tab_github_reviews
+            else -> null
+        }
+        else -> null
     }
 
     /**

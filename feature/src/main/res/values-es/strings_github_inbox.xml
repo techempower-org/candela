@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1470 — Narrador de la bandeja de GitHub: pestañas de Explorar. -->
+<resources>
+    <string name="browse_tab_github_inbox">Bandeja</string>
+    <string name="browse_tab_github_reviews">Revisiones</string>
+</resources>
