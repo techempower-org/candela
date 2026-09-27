@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Issue #1468 — highlights → Memory Palace write-back (Settings → Memory Palace). -->
+<resources>
+    <string name="settings_palace_highlight_writeback_title">Save highlights to the palace</string>
+    <string name="settings_palace_highlight_writeback_subtitle">Each new highlight is filed as a drawer (passage, book, chapter, position and note). Queued and retried when the palace is offline.</string>
+    <string name="settings_palace_highlight_writeback_needs_host">Set a palace host above to turn this on.</string>
+</resources>

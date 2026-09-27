@@ -32,6 +32,15 @@ data class PalaceConfigState(
     val host: String,
     /** API key as stored. Empty = unauthenticated daemon expected. */
     val apiKey: String,
+    /**
+     * Issue #1468 — opt-in: file each new reader highlight into the palace
+     * as a drawer (POST /memory). Off by default; only honoured when
+     * [isConfigured] is also true.
+     */
+    val highlightWriteBack: Boolean = false,
 ) {
     val isConfigured: Boolean get() = host.isNotBlank()
+
+    /** Issue #1468 — write-back fires only with a host AND the opt-in on. */
+    val isHighlightWriteBackActive: Boolean get() = isConfigured && highlightWriteBack
 }

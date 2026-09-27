@@ -49,6 +49,23 @@ fun MemoryPalaceSettingsScreen(
                     onTest = viewModel::testPalaceConnection,
                 )
             }
+            // Issue #1468 — opt-in highlight write-back. Disabled until a host
+            // is configured (there is nowhere to write to without one).
+            SettingsGroupCard {
+                SettingsSwitchRow(
+                    title = stringResource(R.string.settings_palace_highlight_writeback_title),
+                    subtitle = stringResource(
+                        if (s.palace.isConfigured) {
+                            R.string.settings_palace_highlight_writeback_subtitle
+                        } else {
+                            R.string.settings_palace_highlight_writeback_needs_host
+                        },
+                    ),
+                    checked = s.palace.highlightWriteBack && s.palace.isConfigured,
+                    onCheckedChange = { viewModel.setPalaceHighlightWriteBack(it) },
+                    enabled = s.palace.isConfigured,
+                )
+            }
         }
     }
 }

@@ -1728,6 +1728,8 @@ sealed class UiGitHubAuthState {
 data class UiPalaceConfig(
     val host: String = "",
     val apiKey: String = "",
+    /** Issue #1468 — opt-in highlight → palace write-back (off by default). */
+    val highlightWriteBack: Boolean = false,
 ) {
     val isConfigured: Boolean get() = host.isNotBlank()
 }
@@ -2250,6 +2252,9 @@ interface SettingsRepositoryUi {
     suspend fun setPalaceHost(host: String)
     suspend fun setPalaceApiKey(apiKey: String)
     suspend fun clearPalaceConfig()
+    /** Issue #1468 — opt in/out of filing new highlights into the palace.
+     *  Default no-op so hand-rolled test fakes keep compiling. */
+    suspend fun setPalaceHighlightWriteBack(enabled: Boolean) = Unit
     /**
      * One-shot reachability probe against the configured daemon.
      * Returns the daemon version on success, an error message on failure.

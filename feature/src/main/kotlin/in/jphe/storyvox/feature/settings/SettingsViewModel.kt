@@ -386,6 +386,11 @@ class SettingsViewModel @Inject constructor(
         repo.setBookshareApiKey(key)
     }
 
+    /** Issue #1468 — opt in/out of highlight → palace write-back. */
+    fun setPalaceHighlightWriteBack(enabled: Boolean) = viewModelScope.launch {
+        repo.setPalaceHighlightWriteBack(enabled)
+    }
+
     fun clearPalaceConfig() = viewModelScope.launch {
         repo.clearPalaceConfig()
         palaceProbe.value = null
