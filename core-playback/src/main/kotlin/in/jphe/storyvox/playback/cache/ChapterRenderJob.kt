@@ -305,6 +305,8 @@ class ChapterRenderJob @AssistedInject constructor(
             is EngineType.Kitten -> KittenEngine.getInstance().sampleRate
             // Issue #1114 — Supertonic engine sample rate.
             is EngineType.Supertonic -> SupertonicEngine.getInstance().sampleRate
+            // #1501 — a de-sealed engine reports its own rate.
+            is EngineType.Plugin -> voiceEngines.forType(voice.engineType)?.sampleRate ?: 0
             else -> VoiceEngine.getInstance().sampleRate
         }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE_HZ
 

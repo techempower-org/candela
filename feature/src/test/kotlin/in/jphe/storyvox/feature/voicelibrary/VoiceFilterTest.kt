@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.feature.voicelibrary
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
+import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import `in`.jphe.storyvox.playback.voice.VoiceGender
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -275,10 +276,10 @@ class VoiceFilterTest {
         val filtered = grouped.filterBy(VoiceFilterCriteria(language = "de"))
 
         // de = only Lena (Kokoro). Piper bucket must be gone.
-        assertFalse(VoiceEngine.Piper in filtered)
-        assertFalse(VoiceEngine.Azure in filtered)
-        assertTrue(VoiceEngine.Kokoro in filtered)
-        val kokoroTiers = filtered.getValue(VoiceEngine.Kokoro)
+        assertFalse(VoiceFamilyIds.PIPER in filtered)
+        assertFalse(VoiceFamilyIds.AZURE in filtered)
+        assertTrue(VoiceFamilyIds.KOKORO in filtered)
+        val kokoroTiers = filtered.getValue(VoiceFamilyIds.KOKORO)
         // Lena is High tier; no other Kokoro tier should appear.
         assertEquals(setOf(QualityLevel.High), kokoroTiers.keys)
         assertEquals(setOf("k_lena"), kokoroTiers.getValue(QualityLevel.High).map { it.id }.toSet())

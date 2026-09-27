@@ -28,6 +28,16 @@ sealed interface ModelSpec {
     /** Cloud / framework engines: nothing to load locally. */
     data object None : ModelSpec
 
+    /** #1500 — true when every file this spec names exists (the generic
+     *  "is this voice playable" check for de-sealed engines; the built-ins
+     *  keep their own shared-model checks in `VoiceManager`). */
+    fun isPresentOnDisk(): Boolean = when (this) {
+        is OnnxWithTokens -> onnx.exists() && tokens.exists()
+        is OnnxTokensVoices -> onnx.exists() && tokens.exists() && voices.exists()
+        is SharedDir -> dir.isDirectory && (dir.list()?.isNotEmpty() == true)
+        None -> true
+    }
+
     companion object {
         // On-disk voice-bundle artifact names — a filesystem contract shared
         // with the voice downloader. Moved from AudiobookSynthesizer's private
@@ -41,3 +51,9 @@ sealed interface ModelSpec {
         internal const val ERR_LOAD_NULL = "Error: load returned null"
     }
 }
+
+/** #1500 — one file a de-sealed engine needs fetched before its voice is
+ *  playable. `VoiceManager.download` fetches these generically, in order,
+ *  for a voice whose engine has no built-in download arm. [sizeBytes] is an
+ *  estimate for the progress bar (0 = unknown). */
+data class ModelDownload(val url: String, val target: File, val sizeBytes: Long = 0L)

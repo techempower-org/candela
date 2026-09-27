@@ -91,6 +91,25 @@ interface VoiceEnginePlugin {
      *  VoiceManager). Engines without local models keep [ModelSpec.None]. */
     fun modelSpec(type: EngineType, voiceId: String): ModelSpec = ModelSpec.None
 
+    /**
+     * #1500 — whether the voice [voiceId] of this engine is playable now
+     * (its model is on disk / its backend is reachable). Drives the Voice
+     * Library's Installed-vs-Available split for de-sealed engines. The
+     * default checks [modelSpec]'s files, so an engine with
+     * [ModelSpec.None] reads ready. Built-in families are answered by
+     * `VoiceManager`'s own shared-model checks and never reach this.
+     */
+    fun isVoiceReady(type: EngineType, voiceId: String): Boolean =
+        modelSpec(type, voiceId).isPresentOnDisk()
+
+    /**
+     * #1500 — the files to fetch so [isVoiceReady] turns true, for
+     * `VoiceManager.download`'s generic path. Empty (the default) means
+     * nothing to download: the voice is either ready already or needs
+     * out-of-band setup, and a download attempt reports that honestly.
+     */
+    fun modelDownloads(type: EngineType, voiceId: String): List<ModelDownload> = emptyList()
+
     /** Load the engine's model per [spec]; "Success" or an error string (legacy
      *  contract of the vendor engines). Callers hold `EngineMutex.mutex` across
      *  loadModel + [generateAudioPCM]. Engines with nothing to load locally

@@ -88,7 +88,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.playback.voice.EngineCollapseKey
-import `in`.jphe.storyvox.playback.voice.EngineType
+import `in`.jphe.storyvox.playback.voice.VoiceAccent
+import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
+import `in`.jphe.storyvox.playback.voice.VoiceFamilyPresentation
+import `in`.jphe.storyvox.playback.voice.VoiceIcon
+import `in`.jphe.storyvox.playback.voice.VoicePresentations
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.VoiceGender
@@ -109,6 +113,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.rotate
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 
 // Issue #1195 — MagicTitleBar's signature now carries an (optional,
 // experimental) TopAppBarScrollBehavior, so every call site opts in.
@@ -127,6 +133,10 @@ fun VoiceLibraryScreen(
         viewModel.dismissError()
     }
 
+    // #1500 — descriptor-driven engine presentation for every row/header
+    // below (incl. registered plugin engines), without threading it
+    // through each composable's parameters.
+    CompositionLocalProvider(LocalVoicePresentations provides state.presentations) {
     Scaffold(
         topBar = {
             // #830 — shared title bar across all primary-nav surfaces.
@@ -469,11 +479,11 @@ fun VoiceLibraryScreen(
             } else {
                 installedByEngine.forEach { (engine, tiers) ->
                     val engineCount = tiers.values.sumOf { it.size }
-                    val engineKey = EngineCollapseKey(VoiceLibrarySection.Installed, engine.toCoreId())
+                    val engineKey = collapseKeyFor(VoiceLibrarySection.Installed, engine, state.presentations)
                     val isCollapsed = engineKey in state.collapsedEngines
-                    item(key = "i-engine-${engine.name}") {
+                    item(key = "i-engine-$engine") {
                         EngineSubHeader(
-                            engine = engine,
+                            presentation = state.presentations.forId(engine),
                             count = engineCount,
                             isCollapsed = isCollapsed,
                             onToggle = {
@@ -483,7 +493,7 @@ fun VoiceLibraryScreen(
                     }
                     if (!isCollapsed) {
                         tiers.forEach { (tier, voicesInTier) ->
-                            item(key = "i-${engine.name}-tier-${tier.name}") {
+                            item(key = "i-$engine-tier-${tier.name}") {
                                 TierSubHeader(tier = tier, count = voicesInTier.size)
                             }
                             itemsIndexed(
@@ -559,11 +569,11 @@ fun VoiceLibraryScreen(
                 }
                 availableByEngine.forEach { (engine, tiers) ->
                     val engineCount = tiers.values.sumOf { it.size }
-                    val engineKey = EngineCollapseKey(VoiceLibrarySection.Available, engine.toCoreId())
+                    val engineKey = collapseKeyFor(VoiceLibrarySection.Available, engine, state.presentations)
                     val isCollapsed = engineKey in state.collapsedEngines
-                    item(key = "a-engine-${engine.name}") {
+                    item(key = "a-engine-$engine") {
                         EngineSubHeader(
-                            engine = engine,
+                            presentation = state.presentations.forId(engine),
                             count = engineCount,
                             dim = true,
                             isCollapsed = isCollapsed,
@@ -573,16 +583,18 @@ fun VoiceLibraryScreen(
                         )
                     }
                     if (!isCollapsed) {
+                        // Optional per-family explainer notes; a family without
+                        // one (any plugin engine) simply renders none.
                         when (engine) {
-                            VoiceEngine.SystemTts -> item(key = "a-systemtts-note") { SystemTtsInfoNote() }
-                            VoiceEngine.Piper -> item(key = "a-piper-note") { PiperInfoNote() }
-                            VoiceEngine.Kokoro -> item(key = "a-kokoro-note") { KokoroBundleNote() }
-                            VoiceEngine.Kitten -> item(key = "a-kitten-note") { KittenInfoNote() }
-                            VoiceEngine.Supertonic -> item(key = "a-supertonic-note") { SupertonicInfoNote() }
+                            VoiceFamilyIds.SYSTEM_TTS -> item(key = "a-systemtts-note") { SystemTtsInfoNote() }
+                            VoiceFamilyIds.PIPER -> item(key = "a-piper-note") { PiperInfoNote() }
+                            VoiceFamilyIds.KOKORO -> item(key = "a-kokoro-note") { KokoroBundleNote() }
+                            VoiceFamilyIds.KITTEN -> item(key = "a-kitten-note") { KittenInfoNote() }
+                            VoiceFamilyIds.SUPERTONIC -> item(key = "a-supertonic-note") { SupertonicInfoNote() }
                             else -> {}
                         }
                         tiers.forEach { (tier, voicesInTier) ->
-                            item(key = "a-${engine.name}-tier-${tier.name}") {
+                            item(key = "a-$engine-tier-${tier.name}") {
                                 TierSubHeader(tier = tier, count = voicesInTier.size, dim = true)
                             }
                             val downloading = state.currentDownload
@@ -618,6 +630,7 @@ fun VoiceLibraryScreen(
             }
         }
         }
+    }
     }
 
     val pending = state.pendingDelete
@@ -942,19 +955,23 @@ private fun SectionHeader(label: String, count: Int, dim: Boolean = false) {
     }
 }
 
+/** #1500 — the Voice Library's descriptor-driven engine presentation,
+ *  provided at the screen root from [VoiceLibraryUiState.presentations]. */
+internal val LocalVoicePresentations = staticCompositionLocalOf { VoicePresentations.BUILT_IN }
+
 /** #912 — Engine icon for the sub-header. Each engine gets a distinctive
  *  Material icon so the user can instantly identify the voice backend at
  *  a glance — no need to parse the text label. */
-private fun engineIcon(engine: VoiceEngine): ImageVector = when (engine) {
-    VoiceEngine.SystemTts -> Icons.Outlined.RecordVoiceOver
-    VoiceEngine.Piper -> Icons.Outlined.MusicNote
-    VoiceEngine.Kokoro -> Icons.Outlined.Mic
-    VoiceEngine.Kitten -> Icons.Outlined.Pets
-    // Issue #1114 — Supertonic icon. GraphicEq evokes audio waveforms
-    // and high-fidelity synthesis — a fitting visual for a high-quality
-    // TTS engine.
-    VoiceEngine.Supertonic -> Icons.Outlined.VolumeUp
-    VoiceEngine.Azure -> Icons.Outlined.Cloud
+private fun engineIcon(icon: VoiceIcon): ImageVector = when (icon) {
+    VoiceIcon.SystemVoice -> Icons.Outlined.RecordVoiceOver
+    VoiceIcon.Music -> Icons.Outlined.MusicNote
+    VoiceIcon.Mic -> Icons.Outlined.Mic
+    VoiceIcon.Pets -> Icons.Outlined.Pets
+    // Issue #1114 — Supertonic's icon: evokes audio output / fidelity.
+    VoiceIcon.Waveform -> Icons.Outlined.VolumeUp
+    VoiceIcon.Cloud -> Icons.Outlined.Cloud
+    // #1500 — default for engines that don't pick a token.
+    VoiceIcon.Generic -> Icons.Outlined.RecordVoiceOver
 }
 
 /** Engine label + count rendered under a [SectionHeader] (Piper /
@@ -973,7 +990,7 @@ private fun engineIcon(engine: VoiceEngine): ImageVector = when (engine) {
  *  engine sections read as distinct visual blocks. */
 @Composable
 private fun EngineSubHeader(
-    engine: VoiceEngine,
+    presentation: VoiceFamilyPresentation,
     count: Int,
     isCollapsed: Boolean,
     onToggle: () -> Unit,
@@ -985,27 +1002,8 @@ private fun EngineSubHeader(
         MaterialTheme.colorScheme.primary
     }
     val spacing = LocalSpacing.current
-    val label = when (engine) {
-        // #676 — System TTS sub-header. "System TTS" is the
-        // shortest accurate label — the family card subtitle
-        // elsewhere fills in the "uses your device's voice"
-        // explanation; here we want a glanceable header.
-        VoiceEngine.SystemTts -> "System TTS"
-        VoiceEngine.Piper -> "Piper"
-        VoiceEngine.Kokoro -> "Kokoro"
-        // Issue #119 — third in-process voice family. "Lite" tag set
-        // off the engine name communicates the value proposition (this
-        // is the smallest tier) without making it sound like a beta.
-        VoiceEngine.Kitten -> "Kitten (Lite)"
-        // Issue #1114 — Supertonic 3 sub-header.
-        VoiceEngine.Supertonic -> "Supertonic 3"
-        // Azure HD voices land in their own sub-header so the cloud
-        // round-trip story is one glance away. Catalog labels carry a
-        // ☁️ glyph, but the section header restates "Azure" plainly so
-        // a user scanning the library doesn't need to decode a single
-        // emoji to know what's cloud vs local.
-        VoiceEngine.Azure -> "Azure (Cloud)"
-    }
+    // #1500 — descriptor data ("Kitten (Lite)", "Azure (Cloud)" …).
+    val label = presentation.sectionLabel
     val reducedMotion = LocalReducedMotion.current
     val chevronRotation by animateFloatAsState(
         targetValue = if (isCollapsed) 0f else 180f,
@@ -1029,7 +1027,7 @@ private fun EngineSubHeader(
             .padding(horizontal = spacing.sm, vertical = spacing.xs),
     ) {
         Icon(
-            imageVector = engineIcon(engine),
+            imageVector = engineIcon(presentation.icon),
             contentDescription = null,
             tint = baseColor.copy(alpha = 0.85f),
             modifier = Modifier.size(18.dp),
@@ -1316,7 +1314,7 @@ private fun VoiceRow(
                     // size is more useful in the delete-confirm dialog
                     // (the only place it directly drives a decision).
                     Text(
-                        text = voiceSubtitle(voice),
+                        text = voiceSubtitle(voice, LocalVoicePresentations.current),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1526,7 +1524,7 @@ private fun VoiceAvatar(
     isActive: Boolean,
 ) {
     val brass = MaterialTheme.colorScheme.primary
-    val avatarBg = engineAvatarColor(voice.engineType)
+    val avatarBg = engineAvatarColor(LocalVoicePresentations.current.forVoice(voice).accent)
     // #912 follow-up — the monogram was always Color.White, which fails
     // contrast on the lighter engine chips in light mode (the brass / plum /
     // inversePrimary backgrounds composite to a pale fill over the cream
@@ -1570,15 +1568,16 @@ private fun VoiceAvatar(
  *  tertiary colors so both dark and light themes produce pleasant
  *  contrast. */
 @Composable
-private fun engineAvatarColor(engineType: EngineType): Color = when (engineType) {
-    is EngineType.Piper -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
-    is EngineType.Kokoro -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
-    is EngineType.Kitten -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f)
-    // Issue #1114 — Supertonic avatar uses inversePrimary for a warm,
-    // distinctive hue that doesn't overlap the other four engine colors.
-    is EngineType.Supertonic -> MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.8f)
-    is EngineType.Azure -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
-    is EngineType.SystemTts -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+private fun engineAvatarColor(accent: VoiceAccent): Color = when (accent) {
+    VoiceAccent.Primary -> MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+    VoiceAccent.Tertiary -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f)
+    VoiceAccent.Secondary -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f)
+    // Issue #1114 — Supertonic: a warm hue distinct from the other engines.
+    VoiceAccent.InversePrimary -> MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.8f)
+    VoiceAccent.PrimaryContainer -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+    VoiceAccent.Muted -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    // #1500 — default for engines that don't pick a token.
+    VoiceAccent.Neutral -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f)
 }
 
 /** #912 — polished active chip with a gradient brass fill instead of
@@ -1737,22 +1736,12 @@ private fun formatBytes(bytes: Long): String = when {
  *  showing an empty trailing segment. Pulled out of [VoiceRow] so
  *  the format is unit-testable from a JVM test without spinning up
  *  the screen — see [voicelibrary] tests. */
-internal fun voiceSubtitle(voice: UiVoiceInfo): String {
-    val engineLabel = when (voice.engineType) {
-        is EngineType.Piper -> "Piper"
-        is EngineType.Kokoro -> "Kokoro"
-        // Issue #119 — third in-process voice family. Surfaces in the
-        // Voice Library subtitle as "Kitten · Low · Female" etc.
-        is EngineType.Kitten -> "Kitten"
-        // Issue #1114 — Supertonic subtitle label.
-        is EngineType.Supertonic -> "Supertonic"
-        is EngineType.Azure -> "Azure"
-        // #676 — System TTS subtitle uses the engine package label
-        // when available ("Google", "Samsung") so users can tell two
-        // OS engines apart at a glance. Fallback to "System TTS" when
-        // we don't have a labelled name handy.
-        is EngineType.SystemTts -> "System TTS"
-    }
+internal fun voiceSubtitle(
+    voice: UiVoiceInfo,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
+): String {
+    // #1500 — descriptor data ("Piper", "Kitten", "System TTS" …).
+    val engineLabel = presentations.forVoice(voice).shortLabel
     val tierLabel = when (voice.qualityLevel) {
         QualityLevel.Studio -> "Studio"
         QualityLevel.High -> "High"
@@ -1824,7 +1813,7 @@ internal fun VoiceAdvancedExpander(
 ) {
     val spacing = LocalSpacing.current
     var expanded by remember { mutableStateOf(false) }
-    val isKokoro = voice.engineType is EngineType.Kokoro
+    val isKokoro = voice.engineKey.engineId == VoiceFamilyIds.KOKORO
 
     // SAF picker for the lexicon file. OpenDocument returns a
     // content:// URI — for v1 we store it verbatim and let

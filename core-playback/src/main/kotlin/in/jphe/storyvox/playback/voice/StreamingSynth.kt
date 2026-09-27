@@ -6,14 +6,11 @@ package `in`.jphe.storyvox.playback.voice
  * the per-family `secondary*Engines` paths in `EnginePlayer`: Tier 3 #88
  * Piper/Kokoro, #119 Kitten).
  *
- * Consumption is NOT yet fully generic: `EnginePlayer` builds and adapts
- * pools inside per-family swap arms (hardcoded Piper/Kokoro/Kitten via
- * `byId(VoiceFamilyIds.*)`, plus the pooled-family handle branch), and
- * dispatch still discriminates on the sealed `EngineType`. A NEW pooled
- * engine therefore currently needs those EnginePlayer touchpoints in
- * addition to this interface — the registry `byKey` generic path exists
- * but is not yet the production route; completing that inversion is a
- * tracked plugin-dx follow-up. Pool sizing / governor decisions stay in
+ * #1501 — a de-sealed engine that implements this gets its pool built by
+ * `EnginePlayer.loadPluginEngine` and adapted by the shared pooled-handle
+ * branch with no EnginePlayer edit. (The built-in Piper/Kokoro/Kitten swap
+ * arms still build their pools inline because their primaries load through
+ * vendor singletons with family-specific knobs.) Pool sizing / governor decisions stay in
  * `StreamingDispatch`; this contract owns only the engine-specific
  * CONSTRUCTION, LOADING and DESTRUCTION of secondaries.
  * The sentence-distribution machinery is unchanged — handles are adapted

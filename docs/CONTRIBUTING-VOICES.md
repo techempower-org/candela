@@ -7,15 +7,15 @@ contracts — `VoiceEnginePlugin` (identity, synth, catalog), `ModelSpec`
 secondary instances). The DI side is genuinely zero-edit: `@VoicePlugin`
 generates your Hilt binding — no module, no registry entry.
 
-**Honest limits (current state):** playback dispatch is not yet fully
-inverted. `EnginePlayer` still discriminates on the sealed `EngineType`
-(as do `UiVoiceInfo`/`CatalogEntry`), synth call sites resolve via
-`forType()` over `handles()`, and pooled-secondary wiring lives in
-per-family EnginePlayer arms. A brand-new engine today therefore needs a
-small set of known central touchpoints on top of the plugin class — see
-§7 — and removing them entirely is a tracked plugin-dx follow-up.
-Everything else in this guide (contract, ModelSpec, catalog entries,
-contract test, KSP binding) holds as written.
+**No central edits (#1500/#1501).** Catalog rows (`CatalogEntry`,
+`UiVoiceInfo`) are typed on the de-sealed `EngineKey`; the sealed
+`EngineType` is only a typed *view* of it — the six built-in families
+map to their variants, every other engine id to `EngineType.Plugin(key)`.
+Every dispatch site (EnginePlayer load/pool/synth/sample-rate, recap,
+export, pre-render, the Voice Library) has ONE generic `Plugin` arm that
+drives your engine purely through the contracts below — see §7 for
+exactly what that path does. A new engine is the plugin class and its
+contract test; nothing else.
 
 Reference engine (living documentation): **`KittenEnginePlugin`** — the
 smallest real one, exercising every contract including `StreamingSynth`.
@@ -42,9 +42,10 @@ at graph build if your bound key and `engineId` ever disagree. CI's
 **Build APK** is the proof.
 
 Your engine is **de-sealed**: it has no `EngineType` variant and the
-scaffolded `handles()` returns `false`. Dispatch reaches you via
-`VoiceEngineRegistry.byKey(EngineKey("voice_<id>"))` — the stable
-discriminator — never via the legacy sealed `when`.
+scaffolded `handles()` returns `false`. Every `type` you receive is an
+`EngineType.Plugin`, and `VoiceEngineRegistry.forType` routes it to you
+by key (`byKey(EngineKey("voice_<id>"))`) — `handles()` is only for the
+built-in families.
 
 ## 2. Implement synthesis
 
@@ -66,7 +67,9 @@ history).
 Shared-model engines (one loaded model, N speakers): re-assert your
 active speaker from `type` at the top of every `generateAudioPCM` — the
 #1263-correct pattern; the process-wide singleton may have been left on
-another speaker by a concurrent render.
+another speaker by a concurrent render. Read it (and any per-voice
+params) off the key: `(type as? EngineType.Plugin)?.key?.speakerId` /
+`?.key?.params`.
 
 ## 3. Model loading — `ModelSpec` + `loadModel`
 
@@ -84,14 +87,34 @@ If your engine loads files from disk, override:
 Cloud/framework engines keep the defaults (`ModelSpec.None` /
 `"Success"`).
 
+**Install state + downloads.** `isVoiceReady(type, voiceId)` decides
+whether a voice lists as *Installed* in the Voice Library; the default
+checks that every file your `modelSpec` names exists (so `ModelSpec.None`
+reads ready). If your files come from the network, override
+`modelDownloads(type, voiceId)` with `ModelDownload(url, target, sizeBytes)`
+entries — `VoiceManager.download` fetches them in order (with progress)
+and then re-checks `isVoiceReady`. Empty means "nothing to fetch".
+
 ## 4. Catalog + family card
 
 - `catalogEntries()` — your static voice roster (unique, non-blank ids).
-  Engines with runtime-discovered rosters (like Azure / System TTS)
-  return `emptyList()` and project rows through their roster path.
+  Build each row with `engineKey = EngineKey("voice_<id>", speakerId, params)`
+  (the primary constructor); `VoiceManager` merges de-sealed engines'
+  rows into the library automatically. Engines with runtime-discovered
+  rosters (like Azure / System TTS) return `emptyList()` and project rows
+  through their roster path.
 - `familyDescriptor()` — the Plugin Manager card: id **must equal**
   `engineId`, plus display name, description, source URL, license, size
-  hint. Ship `defaultEnabled = false` until the engine is proven.
+  hint. Ship `defaultEnabled = false` until the engine is proven. It is
+  appended to the Plugin Manager automatically.
+- `familyDescriptor().presentation` (optional) — how the Voice Library
+  renders your section and rows: `shortLabel` (row subtitle),
+  `sectionLabel`, `searchTerm`, `displayOrder`, `tierOrder`, and colour /
+  icon **tokens** (`VoiceAccent`, `VoiceIcon`). The defaults derive from
+  the descriptor (label = `displayName`, local engines sort after the
+  built-in local families and before cloud), so you only set what you
+  want to change. `collapseToken` is an on-disk key — never change it
+  once shipped.
 
 ## 5. Parallel synth (optional) — `StreamingSynth`
 
@@ -107,12 +130,11 @@ pins (read it before implementing):
 - Callers own the handles and drive teardown through
   `StreamingDispatch.swapStepOrder()` — you never destroy your own pool.
 
-**Wiring reality check**: EnginePlayer does not yet consume this
-capability generically — pool build + handle adaptation live in
-per-family swap arms (see §7), so implementing `StreamingSynth` alone
-does not light up parallel synth for a new family. Azure's lookahead
-fan-out is deliberately NOT a `StreamingSynth` (no native lifecycle);
-don't force call-fan-out engines through this interface.
+Implementing `StreamingSynth` is all it takes: the generic load path
+builds your pool with the user's parallel-synth setting and the pipeline
+adapts your handles (see §7). Azure's lookahead fan-out is deliberately
+NOT a `StreamingSynth` (no native lifecycle); don't force call-fan-out
+engines through this interface.
 
 ## 6. Turn the contract test green — and keep it green
 
@@ -122,8 +144,9 @@ don't force call-fan-out engines through this interface.
 
 The kit checks metadata + coherence (JVM-safe by design — native synth
 can't run in unit tests): `voice_*` engineId, sample keys belong to your
-family, catalog ids unique, `handles()` agrees with key round-trips,
-descriptor id == engineId, and `supportsExport=false` ⇒
+family, every sample key **dispatches to your plugin through the
+registry** (the production path), catalog ids unique and keyed to your
+engine, descriptor id == engineId, and `supportsExport=false` ⇒
 `generateAudioPCM` returns the documented `null`.
 
 **`supportsExport` semantics matter**: `false` means the offline
@@ -141,25 +164,26 @@ Point `JAVA_HOME` at a JDK 21 before running
 `:core-playback:testDebugUnitTest`. (CI and the shared runner are
 already configured; this bites local setups.)
 
-## 7. The remaining central touchpoints (until the dispatch inversion lands)
+## 7. How your engine is reached (no central edits)
 
-The plugin contract + KSP binding are genuinely zero-edit, but playback
-dispatch still discriminates on the sealed `EngineType`. Wiring a NEW
-family end-to-end today additionally means:
+What the generic `EngineType.Plugin` path does, so you know what you're
+relying on (all of it in place since #1500/#1501):
 
-1. An `EngineType` variant (`UiVoiceInfo.kt`) + its `EngineKey` mapper
-   arms — `UiVoiceInfo`/`CatalogEntry` are typed on `EngineType`, so
-   your voices can't be represented without it.
-2. A `loadAndPlay` swap arm in `EnginePlayer` (model load +, if pooled,
-   pool build via your plugin + `streamingPoolFamily` bookkeeping).
-3. If pooled: your family in the pooled-family handle branch of
-   `startPlaybackPipeline` and in `StreamingDispatch.NATIVE_POOL_FAMILIES`.
-
-Scaffold + contract test stay green without these — they prove the
-contract, not reachability. Removing this section entirely (production
-`byKey` dispatch, de-sealed catalog types) is the tracked plugin-dx
-follow-up; until it lands, budget the touchpoints above into "an
-afternoon's work".
+1. **Library** — `VoiceManager` merges your `catalogEntries()` and asks
+   `isVoiceReady` for install state; `download` runs your
+   `modelDownloads`. The Voice Library groups, labels, colours, orders
+   and searches your rows from your descriptor's `presentation`; the
+   Plugin Manager shows your family card.
+2. **Playback load** — `EnginePlayer` frees any other family's pool, then
+   `loadModel(modelSpec(type, voiceId))` under `EngineMutex`; if you
+   implement `StreamingSynth` it rebuilds your pool (tagged with your
+   `engineId`, same #1383/#1386 teardown order as the built-ins).
+3. **Synthesis** — the serial producer calls your `generateAudioPCM(type, …)`
+   under `EngineMutex`; pooled secondaries call your `Handle.generatePCM`.
+   `sampleRate` configures the AudioTrack — keep it lock-free.
+4. **Recap, export, pre-render** — recap loads your primary only; offline
+   export and background pre-render gate on `supportsExport` and dispatch
+   through the registry like every other engine.
 
 ## PR checklist
 
@@ -167,8 +191,8 @@ afternoon's work".
 - [ ] CI **Build APK** green — proves the KSP-generated Hilt binding
       resolves in the `:app` graph (the only real proof; module compile
       can't see the whole graph).
-- [ ] No hand DI module, no registry change; central touchpoints limited
-      to the §7 list. (Your literal `"voice_<id>"` is the identity; a
+- [ ] No hand DI module, no registry change, no edit outside your plugin
+      class + its test. (Your literal `"voice_<id>"` is the identity; a
       `VoiceFamilyIds` constant is optional polish for in-tree call
       sites, not a requirement.)
 - [ ] `EngineMutex` discipline documented risks reviewed (§2).

@@ -1,9 +1,9 @@
 package `in`.jphe.storyvox.feature.voicelibrary
 
-import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.VoiceGender
+import `in`.jphe.storyvox.playback.voice.VoicePresentations
 
 /**
  * Issue #264 — pure helpers for the Voice Library search + language
@@ -63,33 +63,28 @@ internal fun UiVoiceInfo.isMultilingual(): Boolean =
 
 /** Case-insensitive substring search across [displayName], [language],
  *  and the engine label. A blank [query] is a no-op pass-through. */
-internal fun UiVoiceInfo.matchesQuery(query: String): Boolean {
+internal fun UiVoiceInfo.matchesQuery(
+    query: String,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
+): Boolean {
     val q = query.trim()
     if (q.isEmpty()) return true
     val needle = q.lowercase()
     if (displayName.contains(needle, ignoreCase = true)) return true
     if (language.contains(needle, ignoreCase = true)) return true
-    val engineLabel = when (engineType) {
-        is EngineType.Piper -> "piper"
-        is EngineType.Kokoro -> "kokoro"
-        // Issue #119 — Kitten search label.
-        is EngineType.Kitten -> "kitten"
-        // Issue #1114 — Supertonic search label.
-        is EngineType.Supertonic -> "supertonic"
-        is EngineType.Azure -> "azure"
-        // #676 — System TTS search label. Users will hunt for "system",
-        // "tts", or the engine vendor name (Google / Samsung) — match
-        // a broad set so the picker filter works even when the user
-        // can't remember the exact label.
-        is EngineType.SystemTts -> "system tts"
-    }
+    // #1500 — the engine search term is descriptor data ("piper", "kitten",
+    // "system tts" …), so a plugin engine is searchable with no edit here.
+    val engineLabel = presentations.forVoice(this).searchTerm
     return engineLabel.contains(needle, ignoreCase = true)
 }
 
 /** AND-semantics filter: a voice passes iff it matches every non-empty
  *  dimension of [criteria]. */
-internal fun UiVoiceInfo.matchesCriteria(criteria: VoiceFilterCriteria): Boolean {
-    if (!matchesQuery(criteria.query)) return false
+internal fun UiVoiceInfo.matchesCriteria(
+    criteria: VoiceFilterCriteria,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
+): Boolean {
+    if (!matchesQuery(criteria.query, presentations)) return false
     val lang = criteria.language
     if (lang != null && primaryLanguageCode() != lang) return false
     if (criteria.genders.isNotEmpty() && gender !in criteria.genders) return false
@@ -100,9 +95,12 @@ internal fun UiVoiceInfo.matchesCriteria(criteria: VoiceFilterCriteria): Boolean
 
 /** Filter a flat voice list by [criteria]. Pass-through when criteria
  *  is the empty default (avoids allocating an identical list). */
-internal fun List<UiVoiceInfo>.filterBy(criteria: VoiceFilterCriteria): List<UiVoiceInfo> {
+internal fun List<UiVoiceInfo>.filterBy(
+    criteria: VoiceFilterCriteria,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
+): List<UiVoiceInfo> {
     if (criteria == VoiceFilterCriteria()) return this
-    return filter { it.matchesCriteria(criteria) }
+    return filter { it.matchesCriteria(criteria, presentations) }
 }
 
 /** Filter the engine × tier nested map by [criteria], dropping empty
@@ -110,10 +108,11 @@ internal fun List<UiVoiceInfo>.filterBy(criteria: VoiceFilterCriteria): List<UiV
  *  section headers. Iteration order is preserved. */
 internal fun Map<VoiceEngine, Map<QualityLevel, List<UiVoiceInfo>>>.filterBy(
     criteria: VoiceFilterCriteria,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
 ): Map<VoiceEngine, Map<QualityLevel, List<UiVoiceInfo>>> {
     if (criteria == VoiceFilterCriteria()) return this
     return mapValues { (_, tiers) ->
-        tiers.mapValues { (_, voices) -> voices.filter { it.matchesCriteria(criteria) } }
+        tiers.mapValues { (_, voices) -> voices.filter { it.matchesCriteria(criteria, presentations) } }
             .filterValues { it.isNotEmpty() }
     }.filterValues { it.isNotEmpty() }
 }
