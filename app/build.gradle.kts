@@ -750,6 +750,9 @@ dependencies {
     implementation(project(":source-librivox"))
     implementation(project(":source-notion"))
     implementation(project(":source-hackernews"))
+    // #1465 — Local Help (211 National Data Platform). Off by default;
+    // needs TWO11_API_KEY in local.properties / the CI secret.
+    implementation(project(":source-localhelp"))
     // #1496 — Google Drive folder-as-library source.
     implementation(project(":source-google-drive"))
     // #1238 — Google News headline feed.
