@@ -4078,7 +4078,7 @@ class EnginePlayer @AssistedInject constructor(
      * inside engineMutex on Dispatchers.IO, exactly where the built-in
      * swap arms run. Returns the plugin's load string ("Success" or error).
      */
-    private fun loadPluginEngine(active: UiVoiceInfo, pooled: Boolean): String {
+    private suspend fun loadPluginEngine(active: UiVoiceInfo, pooled: Boolean): String {
         val type = active.engineType as? EngineType.Plugin
             ?: return "Error: ${active.engineKey.engineId} is not a plugin engine"
         val plugin = voiceEngines.byKey(type.key)
