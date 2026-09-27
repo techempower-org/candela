@@ -9,6 +9,12 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+### Added
+- **Choose Candela's language, whatever the device is set to** (#1585).
+  Settings → Appearance → Language offers System default, English or
+  Español, for a shared phone or one set to the wrong language. On
+  Android 13+ the choice also appears under the system's App languages.
+
 ## [1.14.2] -- 2026-09-27
 
 **Infernal Forge.** A tester's report, a Play Store submission, and the move to GitHub-hosted CI.

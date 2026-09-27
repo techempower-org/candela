@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1585 — languages Candela ships UI strings for. Android 13+ reads this
+     (android:localeConfig) to offer Candela under Settings → System →
+     Languages → App languages; the in-app picker in Settings → Appearance
+     offers the same list (AppLanguage in :feature). Keep the two in sync. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="es" />
+</locale-config>

@@ -296,4 +296,9 @@
     <string name="reader_notifications_off_body">Activa las notificaciones para controlar la reproducción desde la barra de notificaciones y la pantalla de bloqueo.</string>
     <string name="reader_notifications_off_turn_on">Activar</string>
     <string name="reader_notifications_off_dismiss">Descartar el aviso de notificaciones</string>
+    <!-- #1585 — in-app language override -->
+    <string name="settings_hub_appearance_subtitle">Idioma, estilo de portada, animación.</string>
+    <string name="settings_appearance_language_title">Idioma</string>
+    <string name="settings_appearance_language_subtitle">Usa Candela en un idioma distinto al del resto del dispositivo.</string>
+    <string name="settings_appearance_language_system">Predeterminado del sistema</string>
 </resources>

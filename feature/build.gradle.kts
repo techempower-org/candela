@@ -110,6 +110,9 @@ dependencies {
     implementation(libs.androidx.camera.video)
 
     implementation(libs.androidx.core.ktx)
+    // #1585 — per-app language override (AppCompatDelegate.setApplicationLocales).
+    // Already in :app's graph, so this adds no APK weight.
+    implementation(libs.androidx.appcompat)
     implementation(libs.bundles.lifecycle)
     implementation(libs.bundles.coroutines)
     // Issue #216 — tool-call argument shapes round-trip through
