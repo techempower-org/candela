@@ -1642,4 +1642,5 @@
     <string name="form_fill_tool_text">Text</string>
     <string name="library_fill_form">Fill a form (photo → PDF)</string>
     <!-- /#1512 -->
+    <string name="zz_translation_gate_probe">PROBE — must fail Translation parity</string>
 </resources>
