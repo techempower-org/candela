@@ -179,6 +179,47 @@ jobs:
         # so wear breakage is caught as a PR-time compile gate.
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :wear:assembleRelease --no-daemon --stacktrace
 
+      - name: Re-sign sideload APKs with rotated key (#1756)
+        # APK Signature Scheme v3 key rotation. Both APKs (phone + Wear) are
+        # re-signed with the checked-in debug key (v2 block, API 26–27) AND the
+        # private candela-sideload key (v3 block + app/candela.lineage, API 28+),
+        # so existing installs upgrade in place with no data loss and the two
+        # apps keep one signing identity for the Data Layer bridge.
+        #
+        # PRs without the secrets (forks, Dependabot) skip this and keep the
+        # debug-only signature — the gradle build is still the compile gate.
+        # Tag builds REQUIRE the secrets: the lineage grants the old key no
+        # rollback capability, so once users hold a rotated APK an unrotated
+        # release would refuse to install over it.
+        env:
+          KS_B64: ${{ secrets.CANDELA_SIDELOAD_KEYSTORE_B64 }}
+          CANDELA_SIDELOAD_KEYSTORE_PASSWORD: ${{ secrets.CANDELA_SIDELOAD_KEYSTORE_PASSWORD }}
+          CANDELA_SIDELOAD_KEY_ALIAS: ${{ secrets.CANDELA_SIDELOAD_KEY_ALIAS }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          BUILD_TOOLS: 37.0.0
+        run: |
+          set -euo pipefail
+          if [ -z "${KS_B64:-}" ] || [ -z "${CANDELA_SIDELOAD_KEYSTORE_PASSWORD:-}" ]; then
+            if [ "$IS_TAG" = "true" ]; then
+              echo "::error::CANDELA_SIDELOAD_KEYSTORE_B64 / _PASSWORD secrets are missing on a tag build. Refusing to publish unrotated sideload APKs (#1756)."
+              exit 1
+            fi
+            echo "::notice::Sideload signing secrets unavailable (fork or Dependabot PR) — skipping v3 re-sign; APKs keep the checked-in debug signature."
+            exit 0
+          fi
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -x "$SDK/build-tools/$BUILD_TOOLS/apksigner" ]; then
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;$BUILD_TOOLS" < /dev/null > /dev/null
+          fi
+          export APKSIGNER="$SDK/build-tools/$BUILD_TOOLS/apksigner"
+          export CANDELA_SIDELOAD_KEYSTORE="$RUNNER_TEMP/candela-sideload.keystore"
+          trap 'rm -f "$CANDELA_SIDELOAD_KEYSTORE"' EXIT
+          ( umask 077; printf '%s' "$KS_B64" | base64 -d > "$CANDELA_SIDELOAD_KEYSTORE" )
+          shopt -s nullglob
+          APKS=(app/build/outputs/apk/release/*.apk wear/build/outputs/apk/release/*.apk)
+          [ "${#APKS[@]}" -ge 2 ] || { echo "::error::expected phone + wear APKs, found: ${APKS[*]:-none}"; exit 1; }
+          ./scripts/resign-sideload.sh "${APKS[@]}"
+
       - name: Cold-launch perf guard (Issue #618)
         # Reads the StartupBenchmark JSON (if present) and fails the
         # build when the cold-launch median exceeds the threshold
@@ -249,7 +290,7 @@ jobs:
             - `candela-${{ github.ref_name }}.apk` — phone / tablet (sideload)
             - `candela-wear-${{ github.ref_name }}.apk` — Wear OS companion ("Library Nocturne"), sideload to the watch
 
-            > Both APKs are signed with the project's checked-in keystore (stable since v0.4.15) so the watch ↔ phone Data Layer bridge pairs — sideload distribution. There is no AAB here: it is not installable by anyone; it is built and release-signed on katana and submitted straight to Play Console (docs/release-keystore.md, #1456).
+            > Both APKs share one signing identity so the watch ↔ phone Data Layer bridge pairs — sideload distribution. They carry APK Signature Scheme v3 key rotation (#1756): the original checked-in key (v2, Android 8.x) plus a private TechEMPOWER sideload key (v3 + lineage, Android 9+), so existing installs upgrade in place with no data loss. There is no AAB here: it is not installable by anyone; it is built and release-signed on katana and submitted straight to Play Console (docs/release-keystore.md, #1456).
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
