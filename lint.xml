@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- #1582 — shared lint config for :app and :feature (lintConfig in each
+     module's build.gradle.kts). A string added to values/strings.xml without
+     a values-es counterpart is an error; the existing gap (#1583) is
+     grandfathered in each module's lint-baseline.xml. Strings that must not
+     be translated (autonyms, brand names) take translatable="false". -->
+<lint>
+    <issue id="MissingTranslation" severity="error" />
+</lint>

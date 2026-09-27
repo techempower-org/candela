@@ -514,6 +514,21 @@ android {
         // `:app:lintDebug` still runs; the vital escalation is the
         // only piece skipped.
         checkReleaseBuilds = false
+
+        // #1582 — EN↔ES parity gate. lint.xml pins MissingTranslation at
+        // error; lint-baseline.xml holds the known backlog (#1583) so only a
+        // NEW untranslated string fails. CI's "Translation parity" job runs
+        // `lintDebug -Pcandela.lint.translationsOnly` (only this check, so the
+        // rest of lint's backlog can't redden it). As #1583 lands, regenerate
+        // the baseline to shrink it:
+        //   ./gradlew :app:updateLintBaseline :feature:updateLintBaseline -Pcandela.lint.translationsOnly
+        lintConfig = rootProject.file("lint.xml")
+        baseline = file("lint-baseline.xml")
+        if (providers.gradleProperty("candela.lint.translationsOnly").isPresent) {
+            checkOnly += "MissingTranslation"
+            checkDependencies = false
+            checkTestSources = false
+        }
     }
 
     sourceSets {
