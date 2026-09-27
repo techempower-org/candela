@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Issue #1464 — guided digital-literacy learning paths (TechEMPOWER Guides). Spanish twin in values-es/strings_learnpaths.xml. -->
+<resources>
+    <string name="learnpaths_card_title">Learning paths</string>
+    <string name="learnpaths_card_body">Step-by-step lessons, read out loud. See what you have finished and what comes next.</string>
+    <string name="learnpaths_title">Learning paths</string>
+    <string name="learnpaths_back">Back</string>
+    <string name="learnpaths_intro">Pick a path and listen to each lesson in order. A lesson counts as done when you listen to the end.</string>
+    <string name="learnpaths_load_error">Learning paths could not be loaded.</string>
+    <string name="learnpaths_continue_heading">Your next step</string>
+    <string name="learnpaths_start_heading">Start here</string>
+    <string name="learnpaths_all_complete">You finished every path. Nice work!</string>
+    <string name="learnpaths_listen_step">Listen: %1$s</string>
+    <string name="learnpaths_listen_again">Listen again</string>
+    <string name="learnpaths_progress">%1$d of %2$d done</string>
+    <string name="learnpaths_complete">Path complete</string>
+    <string name="learnpaths_next_badge">Next</string>
+    <string name="learnpaths_steps_heading">Lessons</string>
+    <string name="learnpaths_step_done_cd">Lesson %1$d of %2$d, %3$s, done</string>
+    <string name="learnpaths_step_next_cd">Lesson %1$d of %2$d, %3$s, next up</string>
+    <string name="learnpaths_step_todo_cd">Lesson %1$d of %2$d, %3$s, not started</string>
+</resources>

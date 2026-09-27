@@ -309,6 +309,9 @@ object StoryvoxRoutes {
      */
     const val TECHEMPOWER_CALLS = "techempower/calls"
 
+    /** Issue #1464 — guided digital-literacy learning paths over the Guides. */
+    const val TECHEMPOWER_LEARN = "techempower/learn"
+
     /**
      * Issue #1515 — notice deadline keeper. Photograph a benefits letter,
      * extract the deadline on-device, and set local T-7 / T-2 / day-of
@@ -1909,6 +1912,9 @@ private fun StoryvoxNavHostContent(
                     onOpenDeadlineKeeper = {
                         navController.navigate(StoryvoxRoutes.DEADLINE_KEEPER)
                     },
+                    onOpenLearningPaths = {
+                        navController.navigate(StoryvoxRoutes.TECHEMPOWER_LEARN)
+                    },
                     onOpenFiction = { fictionId ->
                         navController.navigate(StoryvoxRoutes.fictionDetail(fictionId))
                     },
@@ -1962,6 +1968,20 @@ private fun StoryvoxNavHostContent(
             ) {
                 CallCardsScreen(
                     onBack = { navController.popBackStack() },
+                )
+            }
+            // Issue #1464 — learning paths drill-down; a lesson tap starts
+            // playback in the VM, then opens the reader.
+            composable(
+                StoryvoxRoutes.TECHEMPOWER_LEARN,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.techempower.learnpaths.LearningPathsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenReader = { f, c -> navController.navigate(StoryvoxRoutes.reader(f, c)) },
                 )
             }
             // Issue #1515 — notice deadline keeper (drill-down depth).

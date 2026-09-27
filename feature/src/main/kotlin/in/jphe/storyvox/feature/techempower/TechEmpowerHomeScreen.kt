@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -112,6 +113,9 @@ fun TechEmpowerHomeScreen(
     // Issue #1515 — notice deadline keeper entry point. Defaulted so any
     // other call sites / previews keep compiling.
     onOpenDeadlineKeeper: () -> Unit = {},
+    // Issue #1464 — guided learning paths entry point. Defaulted so other
+    // call sites / previews keep compiling.
+    onOpenLearningPaths: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     val context = LocalContext.current
@@ -188,6 +192,16 @@ fun TechEmpowerHomeScreen(
                     body = "Free tech guides, EBT support, and digital safety — read or listen.",
                     icon = Icons.Filled.Explore,
                     onClick = onOpenBrowse,
+                )
+            }
+            // Issue #1464 — guided learning paths over the same Guides: ordered
+            // lessons with progress + a "next step". Bilingual via strings_learnpaths.
+            item {
+                TechEmpowerCard(
+                    title = stringResource(FeatureR.string.learnpaths_card_title),
+                    body = stringResource(FeatureR.string.learnpaths_card_body),
+                    icon = Icons.Filled.School,
+                    onClick = onOpenLearningPaths,
                 )
             }
             // Issue #1516 — "Understand a letter" decoder card. Bilingual copy

@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "fictionId": "notion:guides",
+  "note": "Issue #1464 — ordered digital-literacy learning paths over the TechEMPOWER Guides fiction (source-notion NotionDefaults.techempowerFictions 'guides'). Each step names a guide by its compact 32-hex Notion page id; the chapter id is '<fictionId>::<pageId>'. A guide may appear in more than one path — finishing it once counts everywhere. To add a path, append an entry here; no UI code changes.",
+  "paths": [
+    {
+      "id": "getting-started",
+      "title": { "en": "Getting started", "es": "Primeros pasos" },
+      "summary": {
+        "en": "Learn what TechEMPOWER offers and how to find free help near you.",
+        "es": "Conozca lo que ofrece TechEMPOWER y cómo encontrar ayuda gratis cerca de usted."
+      },
+      "steps": [
+        {
+          "pageId": "6c979ba4e43f48d7a4836e0027ea4178",
+          "title": { "en": "How to use TechEMPOWER.org", "es": "Cómo usar TechEMPOWER.org" },
+          "why": {
+            "en": "A tour of the free guides and resources in one place.",
+            "es": "Un recorrido por las guías y recursos gratis en un solo lugar."
+          }
+        },
+        {
+          "pageId": "992742a61e2e472b9b4a149f7aa74539",
+          "title": { "en": "Findhelp", "es": "Findhelp" },
+          "why": {
+            "en": "Search for food, housing, and other local programs by ZIP code.",
+            "es": "Busque comida, vivienda y otros programas locales por código postal."
+          }
+        }
+      ]
+    },
+    {
+      "id": "getting-online",
+      "title": { "en": "Getting online", "es": "Conectarse a internet" },
+      "summary": {
+        "en": "Get free or low-cost internet at home and a free phone plan.",
+        "es": "Obtenga internet gratis o de bajo costo en casa y un plan de teléfono gratis."
+      },
+      "steps": [
+        {
+          "pageId": "bb5e537b083a417eb90ed9e984128c71",
+          "title": { "en": "Free internet", "es": "Internet gratis" },
+          "why": {
+            "en": "Programs that lower or cover your home internet bill.",
+            "es": "Programas que reducen o pagan su factura de internet en casa."
+          }
+        },
+        {
+          "pageId": "7519ef16d7b74519acd9b8262a7beb84",
+          "title": { "en": "Free cell service", "es": "Servicio celular gratis" },
+          "why": {
+            "en": "Free phone service and data if you qualify.",
+            "es": "Servicio de teléfono y datos gratis si califica."
+          }
+        }
+      ]
+    },
+    {
+      "id": "staying-safe",
+      "title": { "en": "Staying safe online", "es": "Seguridad en línea" },
+      "summary": {
+        "en": "Protect your accounts with strong passwords you do not have to remember.",
+        "es": "Proteja sus cuentas con contraseñas seguras que no tiene que recordar."
+      },
+      "steps": [
+        {
+          "pageId": "99b0ab9c7cce428e8c86e3143752aa1c",
+          "title": { "en": "Password manager", "es": "Administrador de contraseñas" },
+          "why": {
+            "en": "Keep every password safe in one locked place.",
+            "es": "Guarde todas sus contraseñas en un solo lugar protegido."
+          }
+        }
+      ]
+    },
+    {
+      "id": "using-benefits",
+      "title": { "en": "Using benefits apps", "es": "Usar apps de beneficios" },
+      "summary": {
+        "en": "Check your EBT balance, find local programs, and save on a clean vehicle.",
+        "es": "Revise su saldo de EBT, encuentre programas locales y ahorre en un vehículo limpio."
+      },
+      "steps": [
+        {
+          "pageId": "272a4ee69520804fa68ad8c110af49f6",
+          "title": { "en": "EBT balance", "es": "Saldo de EBT" },
+          "why": {
+            "en": "Check your food benefits balance from your phone.",
+            "es": "Revise el saldo de sus beneficios de comida desde su teléfono."
+          }
+        },
+        {
+          "pageId": "992742a61e2e472b9b4a149f7aa74539",
+          "title": { "en": "Findhelp", "es": "Findhelp" },
+          "why": {
+            "en": "Find more programs you may qualify for.",
+            "es": "Encuentre más programas para los que podría calificar."
+          }
+        },
+        {
+          "pageId": "758054e1a2ec4c1aa077202ffedec710",
+          "title": { "en": "EV incentives", "es": "Incentivos para vehículos eléctricos" },
+          "why": {
+            "en": "Rebates that make an electric vehicle more affordable.",
+            "es": "Reembolsos que hacen más accesible un vehículo eléctrico."
+          }
+        }
+      ]
+    }
+  ]
+}

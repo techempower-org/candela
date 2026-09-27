@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Issue #1464 — rutas de aprendizaje (guías de TechEMPOWER). Twin of values/strings_learnpaths.xml. -->
+<resources>
+    <string name="learnpaths_card_title">Rutas de aprendizaje</string>
+    <string name="learnpaths_card_body">Lecciones paso a paso, leídas en voz alta. Vea lo que ya terminó y lo que sigue.</string>
+    <string name="learnpaths_title">Rutas de aprendizaje</string>
+    <string name="learnpaths_back">Atrás</string>
+    <string name="learnpaths_intro">Elija una ruta y escuche cada lección en orden. Una lección cuenta como terminada cuando la escucha hasta el final.</string>
+    <string name="learnpaths_load_error">No se pudieron cargar las rutas de aprendizaje.</string>
+    <string name="learnpaths_continue_heading">Su siguiente paso</string>
+    <string name="learnpaths_start_heading">Empiece aquí</string>
+    <string name="learnpaths_all_complete">Terminó todas las rutas. ¡Buen trabajo!</string>
+    <string name="learnpaths_listen_step">Escuchar: %1$s</string>
+    <string name="learnpaths_listen_again">Escuchar de nuevo</string>
+    <string name="learnpaths_progress">%1$d de %2$d listas</string>
+    <string name="learnpaths_complete">Ruta completada</string>
+    <string name="learnpaths_next_badge">Siguiente</string>
+    <string name="learnpaths_steps_heading">Lecciones</string>
+    <string name="learnpaths_step_done_cd">Lección %1$d de %2$d, %3$s, terminada</string>
+    <string name="learnpaths_step_next_cd">Lección %1$d de %2$d, %3$s, la siguiente</string>
+    <string name="learnpaths_step_todo_cd">Lección %1$d de %2$d, %3$s, sin empezar</string>
+</resources>
