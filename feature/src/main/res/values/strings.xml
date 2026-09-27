@@ -323,6 +323,12 @@
     <string name="reader_error_title_server">Server issue</string>
     <string name="reader_error_title_engine">Voice not available</string>
     <string name="reader_error_title_generic">Something went wrong</string>
+
+    <!-- Playing screen — notifications-off banner (Media3 controls hidden) -->
+    <string name="reader_notifications_off_title">Playback controls are hidden</string>
+    <string name="reader_notifications_off_body">Turn on notifications to control playback from your notification bar and lock screen.</string>
+    <string name="reader_notifications_off_turn_on">Turn on</string>
+    <string name="reader_notifications_off_dismiss">Dismiss notifications reminder</string>
     <string name="reader_sleep_step_by_sentence">Step by sentence</string>
     <string name="reader_sleep_timer">Sleep timer</string>
     <string name="reader_sleep_off">Off</string>

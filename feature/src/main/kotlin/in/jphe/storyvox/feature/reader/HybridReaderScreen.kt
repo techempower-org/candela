@@ -286,7 +286,14 @@ fun HybridReaderScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
+    // Field report ("the playback button is not showing on top of my
+    // phone screen") — with the `playback` channel set to "none" (or app
+    // notifications off on API < 33), Media3's shade and lock-screen
+    // controls are silently gone. Self-gated: renders nothing otherwise.
+    PlaybackNotificationsBanner()
     HybridReaderShell(
+        modifier = Modifier.weight(1f),
         current = state.activePane,
         onViewChange = viewModel::setActivePane,
         audiobookContent = {
@@ -451,6 +458,7 @@ fun HybridReaderScreen(
             )
         },
     )
+    }
 
     // Issue #1229 — whole-book search overlay. Floats over whichever reader
     // pane is active; rendered above the shell but below the recap/debug

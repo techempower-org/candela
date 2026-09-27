@@ -492,10 +492,16 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * On Android 13+ (API 33+), POST_NOTIFICATIONS is a runtime permission. Without
-     * it the foreground-service notification still keeps the service alive but is
-     * invisible to the user — which means no lock-screen tile and no transport.
-     * We ask once on first launch; the system handles the "don't ask again" state.
+     * On Android 13+ (API 33+), POST_NOTIFICATIONS is a runtime permission. We ask
+     * once on first launch; the system handles the "don't ask again" state.
+     *
+     * Denial does NOT hide the playback transport: Media3's MediaStyle
+     * notification is tied to a MediaSession, and media-session notifications
+     * are exempt from POST_NOTIFICATIONS (verified on a Galaxy Tab A7 Lite,
+     * Android 14 — controls stay in the shade + lock screen with the permission
+     * revoked). The grant still matters for Candela's other notifications
+     * (new-chapter alerts etc.). What DOES hide the transport is the user
+     * setting the `playback` channel to "none" — see PlaybackNotificationsBanner.
      */
     private fun maybeRequestNotificationPermission(launch: (String) -> Unit) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
