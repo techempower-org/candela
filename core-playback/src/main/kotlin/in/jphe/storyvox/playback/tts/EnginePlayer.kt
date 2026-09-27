@@ -70,6 +70,7 @@ import `in`.jphe.storyvox.playback.voice.StreamingTuning
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import `in`.jphe.storyvox.playback.voice.VoiceManager
+import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.toEngineKey
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
@@ -1907,6 +1908,11 @@ class EnginePlayer @AssistedInject constructor(
                             // construction happens in loadAndPlay's
                             // load path. No-op here.
                         }
+                        is EngineType.Plugin -> {
+                            // #1501 — a de-sealed engine owns its own
+                            // warm-up inside loadModel; nothing central
+                            // to poke here.
+                        }
                         else ->
                             runCatching { VoiceEngine.getInstance().sampleRate }
                     }
@@ -2453,6 +2459,7 @@ class EnginePlayer @AssistedInject constructor(
                             .loadModel(context, sharedDir.absolutePath, nt)
                             ?: "Error: load returned null"
                     }
+                    is EngineType.Plugin -> loadPluginEngine(active, pooled = true)
                     is EngineType.Azure -> {
                         // Tier 3 (#88) — voice swap AWAY from local
                         // engines: free all local secondaries (Piper,
@@ -2728,6 +2735,9 @@ class EnginePlayer @AssistedInject constructor(
             // sentence rate read anyway.
             is EngineType.SystemTts -> systemTtsEngine?.sampleRate
                 ?: SystemTtsEngine.DEFAULT_SAMPLE_RATE
+            // #1501 — a de-sealed engine reports its own (lock-free, per
+            // the VoiceEnginePlugin.sampleRate contract) rate.
+            is EngineType.Plugin -> pluginSampleRate(engineType)
             else -> EngineSampleRateCache.piperRate()
         }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
 
@@ -2860,7 +2870,10 @@ class EnginePlayer @AssistedInject constructor(
             // the plugins; the #801 power-save producer priority stays a
             // caller concern, applied in this adapter exactly as the three
             // per-family wrappers it replaces did.
-            is EngineType.Piper, is EngineType.Kokoro, is EngineType.Kitten ->
+            // #1501 — a de-sealed StreamingSynth engine's pool is adapted by
+            // the very same branch; a non-pooled plugin has no pool for its
+            // family, so the family guard below yields serial.
+            is EngineType.Piper, is EngineType.Kokoro, is EngineType.Kitten, is EngineType.Plugin ->
                 // The pool can lag a cross-family voice swap: the deferred
                 // observeActiveVoice path and ensureVoiceLoaded both update
                 // the active engine without rebuilding [streamingPool], and
@@ -3947,6 +3960,7 @@ class EnginePlayer @AssistedInject constructor(
         when (engineType) {
             is EngineType.Azure -> azureHandle(engineType)
             is EngineType.SystemTts -> systemTtsHandle(engineType)
+            is EngineType.Plugin -> pluginHandle(engineType)
             else -> object : EngineStreamingSource.VoiceEngineHandle {
                 // Issue #582 — same lock-contention guard as
                 // startPlaybackPipeline's sampleRate read; this object
@@ -4022,6 +4036,84 @@ class EnginePlayer @AssistedInject constructor(
                 }
             }
         }
+
+    /**
+     * #1501 — the generic byKey handle: synthesis for a de-sealed engine
+     * goes straight through [VoiceEnginePlugin.generateAudioPCM] with the
+     * active [EngineType.Plugin] (which carries the speaker / params the
+     * plugin needs). The producer holds engineMutex around each call, per
+     * the plugin contract. An unregistered key yields null PCM (the
+     * pipeline's skip-empty branch), never a crash.
+     */
+    private fun pluginHandle(
+        engineType: EngineType.Plugin,
+    ): EngineStreamingSource.VoiceEngineHandle {
+        val plugin = voiceEngines.byKey(engineType.key)
+        return object : EngineStreamingSource.VoiceEngineHandle {
+            override val sampleRate: Int = pluginSampleRate(engineType)
+                .takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
+
+            override fun generateAudioPCM(text: String, speed: Float, pitch: Float): ByteArray? {
+                // Issue #801 — respect power-save mode on the producer thread.
+                AndroidProcess.setThreadPriority(producerPriority())
+                return plugin?.generateAudioPCM(engineType, text, speed, pitch)
+            }
+        }
+    }
+
+    /** #1501 — a de-sealed engine's PCM rate, 0 when unregistered (callers
+     *  fall back to [DEFAULT_SAMPLE_RATE]). */
+    private fun pluginSampleRate(engineType: EngineType.Plugin): Int =
+        voiceEngines.byKey(engineType.key)?.sampleRate ?: 0
+
+    /**
+     * #1501 — the generic byKey LOAD path for a de-sealed engine, driven
+     * only through the plugin contracts: [VoiceEnginePlugin.modelSpec] +
+     * [VoiceEnginePlugin.loadModel] for the primary and, when [pooled] and
+     * the plugin implements [StreamingSynth], a secondary pool via
+     * [StreamingPoolLifecycle.rebuild] tagged with the plugin's engineId —
+     * the same #1383/#1386 swap ordering the built-in pooled families use
+     * (a different family's pool is destroyed first, a same-family stale
+     * pool is destroyed by the rebuild before acquiring). Must be called
+     * inside engineMutex on Dispatchers.IO, exactly where the built-in
+     * swap arms run. Returns the plugin's load string ("Success" or error).
+     */
+    private fun loadPluginEngine(active: UiVoiceInfo, pooled: Boolean): String {
+        val type = active.engineType as? EngineType.Plugin
+            ?: return "Error: ${active.engineKey.engineId} is not a plugin engine"
+        val plugin = voiceEngines.byKey(type.key)
+            ?: return "Error: no voice engine registered for ${type.key.engineId}"
+        val family = plugin.engineId
+        if (!pooled || streamingPoolFamily != family) {
+            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+            streamingPoolFamily = null
+        }
+        // Voice swap AWAY from System TTS frees the framework instance (#676).
+        systemTtsEngine?.shutdown()
+        systemTtsEngine = null
+        loadedSystemTtsEngineName = null
+        loadedSystemTtsVoiceName = null
+        val spec = plugin.modelSpec(type, active.id)
+        val primaryResult = plugin.loadModel(spec)
+        if (!pooled) return primaryResult
+        val synth = plugin as? StreamingSynth
+        if (synth == null || primaryResult != "Success") {
+            streamingPool = StreamingPoolLifecycle.destroyAll(streamingPool)
+            streamingPoolFamily = null
+            return primaryResult
+        }
+        val parallelState = parallelSynthConfig.currentParallelSynthState()
+        streamingPool = StreamingPoolLifecycle.rebuild(
+            old = streamingPool,
+            synth = synth,
+            spec = spec,
+            size = StreamingDispatch.desiredSecondaryCount(parallelState.instances),
+            threadsPerInstance = parallelState.threadsPerInstance,
+            tuning = streamingTuningSnapshot(),
+        )
+        streamingPoolFamily = family
+        return primaryResult
+    }
 
     /**
      * #676 — handle for System TTS voices. Mirrors [azureHandle]
@@ -5869,6 +5961,8 @@ class EnginePlayer @AssistedInject constructor(
                             ?: "Error: load returned null"
                     }
                     is EngineType.Azure -> return@withContext "Error: Azure unsupported in recap"
+                    // #1501 — recap is a one-off short read: primary only, no pool.
+                    is EngineType.Plugin -> loadPluginEngine(active, pooled = false)
                     is EngineType.SystemTts -> {
                         // #676 — recap-aloud path for System TTS.
                         // Mirrors loadAndPlay's branch: reuse the
@@ -5954,6 +6048,7 @@ class EnginePlayer @AssistedInject constructor(
             // engine's cached WAV-header value (defaults to 24 kHz).
             is EngineType.SystemTts -> systemTtsEngine?.sampleRate
                 ?: SystemTtsEngine.DEFAULT_SAMPLE_RATE
+            is EngineType.Plugin -> pluginSampleRate(engineType)
             else -> EngineSampleRateCache.piperRate()
         }.takeIf { it > 0 } ?: DEFAULT_SAMPLE_RATE
         val track = createAudioTrack(sampleRate)

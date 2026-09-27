@@ -6,8 +6,15 @@ package `in`.jphe.storyvox.playback.voice
  * One row per item in [VoiceCatalog]. The same shape covers both
  * Piper (per-voice .onnx + tokens.txt downloaded from huggingface) and
  * Kokoro (a single shared model bundled by the user that exposes 53
- * speaker IDs). The [engineType] discriminator tells the playback layer
+ * speaker IDs). The [engineKey] discriminator tells the playback layer
  * which path to take when the user picks this voice.
+ *
+ * #1500 — the row is typed on the de-sealed [EngineKey], not the sealed
+ * [EngineType], so an `@VoicePlugin`-only engine (no `EngineType`
+ * variant) can surface catalog rows. [engineType] is a derived view:
+ * the built-in families resolve to their typed variant, anything else
+ * to [EngineType.Plugin]. Built-in catalog code keeps constructing rows
+ * with `engineType = EngineType.X` via the secondary constructor.
  *
  * [sizeBytes] is the on-disk install size (catalog estimate for Piper;
  * 0 for Kokoro since the speaker selection is just an integer index into
@@ -27,7 +34,7 @@ data class UiVoiceInfo(
     val sizeBytes: Long,
     val isInstalled: Boolean,
     val qualityLevel: QualityLevel,
-    val engineType: EngineType,
+    val engineKey: EngineKey,
     val gender: VoiceGender = VoiceGender.Unknown,
     /** PR-H (#86) — bytes of PCM cache attributed to this voice, summed
      *  across every chapter / fiction the user has played with this
@@ -40,7 +47,34 @@ data class UiVoiceInfo(
      *  — only the VoiceLibraryViewModel layer threads the real value
      *  in via [CacheStateInspector.bytesUsedByEveryVoice]. */
     val cachedBytes: Long = 0L,
-)
+) {
+    /** Built-in-family shorthand: `engineType = EngineType.Kokoro(3)`.
+     *  Same row as passing `engineKey = EngineType.Kokoro(3).toEngineKey()`. */
+    constructor(
+        id: String,
+        displayName: String,
+        language: String,
+        sizeBytes: Long,
+        isInstalled: Boolean,
+        qualityLevel: QualityLevel,
+        engineType: EngineType,
+        gender: VoiceGender = VoiceGender.Unknown,
+        cachedBytes: Long = 0L,
+    ) : this(
+        id = id,
+        displayName = displayName,
+        language = language,
+        sizeBytes = sizeBytes,
+        isInstalled = isInstalled,
+        qualityLevel = qualityLevel,
+        engineKey = engineType.toEngineKey(),
+        gender = gender,
+        cachedBytes = cachedBytes,
+    )
+
+    /** Typed view of [engineKey] (derived; not part of equals/copy). */
+    val engineType: EngineType = engineKey.toEngineType()
+}
 
 /**
  * Voice gender as surfaced in the Voice Library subtitle. Best-effort
@@ -150,4 +184,29 @@ sealed interface EngineType {
      * default TTS voice; this variant surfaces it.
      */
     data class SystemTts(val engineName: String, val voiceName: String) : EngineType
+
+    /**
+     * #1500/#1501 — a DE-SEALED engine: any `@VoicePlugin` engine whose
+     * [EngineKey.engineId] is not one of the six built-in families above.
+     *
+     * This is the variant that closes the hierarchy against growth: a new
+     * engine never adds a variant here — it is always `Plugin(key)`, and
+     * every dispatch site handles it with ONE generic arm that resolves the
+     * engine through `VoiceEngineRegistry.byKey(key)` and drives it only
+     * through the `VoiceEnginePlugin` / `StreamingSynth` contracts. The
+     * compiler still forces every `when (engineType)` to say what a plugin
+     * engine does, so exhaustiveness is kept rather than traded for string
+     * matching.
+     *
+     * Canonical by construction: a key naming a built-in family must use
+     * that family's typed variant ([EngineKey.toEngineType] does this), so
+     * one engine never has two representations.
+     */
+    data class Plugin(val key: EngineKey) : EngineType {
+        init {
+            require(key.engineId !in BUILT_IN_ENGINE_IDS) {
+                "EngineType.Plugin(${key.engineId}) names a built-in family — use its typed variant"
+            }
+        }
+    }
 }

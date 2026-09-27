@@ -1058,7 +1058,8 @@ data class CatalogEntry(
     val language: String,
     val sizeBytes: Long,
     val qualityLevel: QualityLevel,
-    val engineType: EngineType,
+    /** #1500 — de-sealed discriminator (see [UiVoiceInfo.engineKey]). */
+    val engineKey: EngineKey,
     val piper: PiperPaths?,
     /**
      * Per-voice billing rate for cloud engines. `null` for local
@@ -1076,7 +1077,35 @@ data class CatalogEntry(
      *  [VoiceGender.Unknown] for Piper voices whose filenames don't
      *  encode gender (e.g. "lessac" — a name, not a gender marker). */
     val gender: VoiceGender = VoiceGender.Unknown,
-)
+) {
+    /** Built-in-family shorthand used throughout [VoiceCatalog]:
+     *  `engineType = EngineType.Piper`. A de-sealed plugin engine passes
+     *  `engineKey = EngineKey("voice_<id>", …)` to the primary constructor. */
+    constructor(
+        id: String,
+        displayName: String,
+        language: String,
+        sizeBytes: Long,
+        qualityLevel: QualityLevel,
+        engineType: EngineType,
+        piper: PiperPaths?,
+        cost: VoiceCost? = null,
+        gender: VoiceGender = VoiceGender.Unknown,
+    ) : this(
+        id = id,
+        displayName = displayName,
+        language = language,
+        sizeBytes = sizeBytes,
+        qualityLevel = qualityLevel,
+        engineKey = engineType.toEngineKey(),
+        piper = piper,
+        cost = cost,
+        gender = gender,
+    )
+
+    /** Typed view of [engineKey] (derived; not part of equals/copy). */
+    val engineType: EngineType = engineKey.toEngineType()
+}
 
 data class PiperPaths(val onnxUrl: String, val tokensUrl: String)
 

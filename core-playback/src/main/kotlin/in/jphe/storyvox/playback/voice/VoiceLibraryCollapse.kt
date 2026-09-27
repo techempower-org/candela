@@ -64,17 +64,17 @@ enum class VoiceLibrarySection { Installed, Available }
  *  epic/plugin-dx B1 — renamed from `EngineKey`: that name now belongs
  *  to the de-sealed engine discriminator ([EngineKey], the spec-named
  *  type) in this same package. Pure type rename; [storeKey]'s on-disk
- *  format is untouched, so persisted collapse state survives. */
-data class EngineCollapseKey(val section: VoiceLibrarySection, val engine: VoiceEngineId) {
+ *  format is untouched, so persisted collapse state survives.
+ *
+ *  #1500 — [engine] is the family's [VoiceFamilyPresentation.collapseToken]
+ *  (was the six-value `VoiceEngineId` enum mirroring the feature-local
+ *  engine enum). The built-ins' tokens are the old enum names, so
+ *  [storeKey] is byte-identical for them and persisted state survives; a
+ *  de-sealed engine gets its own token with no edit here. */
+data class EngineCollapseKey(val section: VoiceLibrarySection, val engine: String) {
     /** On-disk key — keep stable across refactors. */
-    fun storeKey(): String = "${section.name.lowercase()}:${engine.name}"
+    fun storeKey(): String = "${section.name.lowercase()}:$engine"
 }
-
-/** Mirror of the feature-module `VoiceEngine` enum, lifted into core
- *  so the collapse store can key on it without a feature dependency.
- *  Keep in lockstep with [VoiceEngine] in
- *  `feature/.../voicelibrary/VoiceLibraryViewModel.kt`. */
-enum class VoiceEngineId { Piper, Kokoro, Kitten, Supertonic, Azure, SystemTts }
 
 @Singleton
 class VoiceLibraryCollapse private constructor(

@@ -76,10 +76,15 @@ import javax.inject.Singleton
  *  - parallel synth (optional): implement
  *    [`in`.jphe.storyvox.playback.voice.StreamingSynth]
  *
+ *  - install state / downloads: override `isVoiceReady` / `modelDownloads`
+ *    if your model comes from the network (defaults: files of [modelSpec])
+ *
  * NOTE [handles] returns false: new engines are DE-SEALED — they have no
- * `EngineType` variant. Dispatch reaches this plugin via
- * `VoiceEngineRegistry.byKey(EngineKey("voice___LOWER__"))`, not via the
- * legacy sealed `when`. That is the point of the epic.
+ * `EngineType` variant. Every `type` you receive is an
+ * `EngineType.Plugin(EngineKey("voice___LOWER__", speakerId, params))`,
+ * and `VoiceEngineRegistry.forType` routes it here by key. The library,
+ * playback, recap and export paths all reach you through that one generic
+ * arm — no central edits (docs/CONTRIBUTING-VOICES.md §7).
  */
 @VoicePlugin("voice___LOWER__")
 @Singleton

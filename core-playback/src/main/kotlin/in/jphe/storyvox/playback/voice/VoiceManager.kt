@@ -101,6 +101,15 @@ class VoiceManager @Inject constructor(
      * completes (~150–500 ms on a stock Samsung tablet).
      */
     private val systemTtsVoiceProvider: SystemTtsVoiceProvider,
+    /**
+     * #1500 — registered voice engines. De-sealed `@VoicePlugin` engines
+     * (no built-in [EngineType] variant) contribute catalog rows, their own
+     * readiness check and their own download list through it, so their
+     * voices surface in the library with no edit here. Lazy: the plugins
+     * inject `dagger.Lazy<VoiceManager>` back. Defaulted to "no plugins"
+     * so JVM tests keep the three-arg constructor.
+     */
+    private val engineRegistry: dagger.Lazy<VoiceEngineRegistry> = NO_ENGINES,
 ) {
 
     private val store: DataStore<Preferences> = context.voicesSettingsStore
@@ -176,7 +185,7 @@ class VoiceManager @Inject constructor(
      *  populates it. Callers that want the live state should use
      *  [availableVoicesFlow] instead. */
     val availableVoices: List<UiVoiceInfo>
-        get() = VoiceCatalog.voices.map { it.toUiVoiceInfo(installed = false) }
+        get() = (VoiceCatalog.voices + pluginEntries()).map { it.toUiVoiceInfo(installed = false) }
 
     /** Hot Flow of [availableVoices] — combines the static catalog
      *  with the live Azure + System TTS rosters (#676). Use this when
@@ -184,7 +193,7 @@ class VoiceManager @Inject constructor(
      *  key change, OS engine install/uninstall, refresh). */
     val availableVoicesFlow: Flow<List<UiVoiceInfo>> =
         azureVoiceProvider.voices.combine(systemTtsVoiceProvider.voices) { azure, system ->
-            VoiceCatalog.voicesWithAzureAndSystemTts(azure, system)
+            (VoiceCatalog.voicesWithAzureAndSystemTts(azure, system) + pluginEntries())
                 .map { it.toUiVoiceInfo(installed = false) }
         }
 
@@ -216,7 +225,7 @@ class VoiceManager @Inject constructor(
         // Issue #1114 — Supertonic mirrors Kokoro/Kitten: shared-bundle
         // presence makes every Supertonic speaker playable.
         val supertonicReady = isSupertonicSharedModelInstalled()
-        VoiceCatalog.voicesWithAzureAndSystemTts(azureRoster, systemTtsRoster)
+        (VoiceCatalog.voicesWithAzureAndSystemTts(azureRoster, systemTtsRoster) + pluginEntries())
             .filter {
                 it.id in installedIds ||
                     (it.engineType is EngineType.Kokoro && kokoroReady) ||
@@ -227,7 +236,9 @@ class VoiceManager @Inject constructor(
                     // they appear in the OS roster. The user didn't
                     // download anything per-voice; the framework
                     // exposes whatever the device's TTS engines list.
-                    it.engineType is EngineType.SystemTts
+                    it.engineType is EngineType.SystemTts ||
+                    // #1500 — a de-sealed engine answers for itself.
+                    isPluginVoiceReady(it)
             }
             .map { it.toUiVoiceInfo(installed = true) }
     }
@@ -260,14 +271,15 @@ class VoiceManager @Inject constructor(
         val installed = prefs[VoiceKeys.INSTALLED_IDS].orEmpty().map(::normalizeId).toSet()
         val entry = VoiceCatalog.byIdWithAzureAndSystemTts(
             activeId, azureRoster, systemTtsRoster,
-        ) ?: return@combine null
+        ) ?: pluginEntryById(activeId) ?: return@combine null
         val isInstalled = activeId in installed ||
             (entry.engineType is EngineType.Kokoro && isKokoroSharedModelInstalled()) ||
             (entry.engineType is EngineType.Kitten && isKittenSharedModelInstalled()) ||
             (entry.engineType is EngineType.Supertonic && isSupertonicSharedModelInstalled()) ||
             entry.engineType is EngineType.Azure ||
             // #676 — SystemTts presence in the roster IS installation.
-            entry.engineType is EngineType.SystemTts
+            entry.engineType is EngineType.SystemTts ||
+            isPluginVoiceReady(entry)
         entry.toUiVoiceInfo(installed = isInstalled)
     }.distinctUntilChanged()
 
@@ -287,14 +299,15 @@ class VoiceManager @Inject constructor(
         val systemTtsRoster = systemTtsVoiceProvider.voices.first()
         val entry = VoiceCatalog.byIdWithAzureAndSystemTts(
             normalized, azureRoster, systemTtsRoster,
-        ) ?: return null
+        ) ?: pluginEntryById(normalized) ?: return null
         val installed = prefs[VoiceKeys.INSTALLED_IDS].orEmpty().map(::normalizeId).toSet()
         val isInstalled = normalized in installed ||
             (entry.engineType is EngineType.Kokoro && isKokoroSharedModelInstalled()) ||
             (entry.engineType is EngineType.Kitten && isKittenSharedModelInstalled()) ||
             (entry.engineType is EngineType.Supertonic && isSupertonicSharedModelInstalled()) ||
             entry.engineType is EngineType.Azure ||
-            entry.engineType is EngineType.SystemTts
+            entry.engineType is EngineType.SystemTts ||
+            isPluginVoiceReady(entry)
         return entry.toUiVoiceInfo(installed = isInstalled)
     }
 
@@ -332,6 +345,28 @@ class VoiceManager @Inject constructor(
      *  it lands. */
     private fun normalizeId(id: String): String =
         if (id.endsWith("_int8")) id.removeSuffix("_int8") else id
+
+    /** #1500 — static catalog rows contributed by DE-SEALED engines (those
+     *  without a built-in [EngineType] variant). The built-in plugins'
+     *  entries are already in [VoiceCatalog.voices], so they're skipped
+     *  here to keep every row single-sourced. */
+    private fun pluginEntries(): List<CatalogEntry> =
+        engineRegistry.get().all()
+            .filter { it.engineId !in BUILT_IN_ENGINE_IDS }
+            .sortedBy { it.engineId }
+            .flatMap { it.catalogEntries() }
+            .filter { it.engineType is EngineType.Plugin }
+
+    private fun pluginEntryById(id: String): CatalogEntry? =
+        pluginEntries().firstOrNull { it.id == id }
+
+    /** #1500 — readiness for a de-sealed engine's row; false for built-ins
+     *  (they're answered by the shared-model checks above) and for rows
+     *  whose engine isn't registered. */
+    private fun isPluginVoiceReady(entry: CatalogEntry): Boolean {
+        val type = entry.engineType as? EngineType.Plugin ?: return false
+        return engineRegistry.get().byKey(type.key)?.isVoiceReady(type, entry.id) == true
+    }
 
     private fun isKokoroSharedModelInstalled(): Boolean {
         val dir = kokoroSharedDir()
@@ -386,6 +421,9 @@ class VoiceManager @Inject constructor(
         is EngineType.Kitten -> isKittenSharedModelInstalled()
         is EngineType.Supertonic -> isSupertonicSharedModelInstalled()
         is EngineType.Azure, is EngineType.SystemTts -> true
+        // #1500 — the engine owns its on-disk contract.
+        is EngineType.Plugin ->
+            engineRegistry.get().byKey(voice.engineKey)?.isVoiceReady(voice.engineType, voice.id) == true
     }
 
     sealed interface DownloadProgress {
@@ -405,7 +443,7 @@ class VoiceManager @Inject constructor(
      */
     fun download(voiceId: String): Flow<DownloadProgress> = flow {
         emit(DownloadProgress.Resolving)
-        val entry = VoiceCatalog.byId(voiceId)
+        val entry = VoiceCatalog.byId(voiceId) ?: pluginEntryById(voiceId)
         if (entry == null) {
             // #676 — System TTS voices live in the live roster, not
             // in the static catalog, so byId returns null. Treat as
@@ -420,7 +458,48 @@ class VoiceManager @Inject constructor(
             return@flow
         }
 
-        when (entry.engineType) {
+        when (val engineType = entry.engineType) {
+            is EngineType.Plugin -> {
+                // #1500 — generic path for de-sealed engines: fetch the
+                // plugin's declared files in order, then trust its own
+                // readiness check. No per-engine arm needed here.
+                val plugin = engineRegistry.get().byKey(engineType.key)
+                if (plugin == null) {
+                    emit(DownloadProgress.Failed("No engine registered for ${engineType.key.engineId}"))
+                    return@flow
+                }
+                val downloads = plugin.modelDownloads(engineType, voiceId)
+                if (downloads.isEmpty() && !plugin.isVoiceReady(engineType, voiceId)) {
+                    emit(DownloadProgress.Failed("${plugin.familyDescriptor().displayName} has nothing to download for $voiceId"))
+                    return@flow
+                }
+                val total = downloads.sumOf { it.sizeBytes }
+                var done = 0L
+                try {
+                    for (d in downloads) {
+                        d.target.parentFile?.mkdirs()
+                        val base = done
+                        downloadFileRaw(
+                            url = d.url,
+                            target = d.target,
+                            knownTotalBytes = d.sizeBytes,
+                        ) { read, _ -> emit(DownloadProgress.Downloading(base + read, total)) }
+                        done += d.sizeBytes
+                    }
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (t: Throwable) {
+                    downloads.forEach { it.target.delete() }
+                    emit(DownloadProgress.Failed(t.message ?: t::class.java.simpleName))
+                    return@flow
+                }
+                if (!plugin.isVoiceReady(engineType, voiceId)) {
+                    emit(DownloadProgress.Failed("${plugin.familyDescriptor().displayName} voice $voiceId still not ready after download"))
+                    return@flow
+                }
+                markInstalled(voiceId)
+                emit(DownloadProgress.Done)
+            }
             is EngineType.Azure -> {
                 // Cloud voice — nothing to download. The "install" step
                 // for an Azure voice is BYOK key entry in Settings, which
@@ -912,7 +991,11 @@ class VoiceManager @Inject constructor(
         sizeBytes = sizeBytes,
         isInstalled = installed,
         qualityLevel = qualityLevel,
-        engineType = engineType,
+        engineKey = engineKey,
         gender = gender,
     )
+
+    private companion object {
+        val NO_ENGINES: dagger.Lazy<VoiceEngineRegistry> = dagger.Lazy { VoiceEngineRegistry(emptyMap()) }
+    }
 }

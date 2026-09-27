@@ -53,7 +53,13 @@ class VoiceEngineRegistry @Inject constructor(
      *  itself is each plugin's contract, exercised by the kit's
      *  handles()/key round-trip checks. */
     fun forType(type: EngineType): VoiceEnginePlugin? =
-        plugins.values.sortedBy { it.engineId }.firstOrNull { it.handles(type) }
+        // #1501 — a de-sealed engine is a map lookup by its key; its plugin
+        // needn't (and the scaffold doesn't) claim anything in handles().
+        if (type is EngineType.Plugin) {
+            byKey(type.key)
+        } else {
+            plugins.values.sortedBy { it.engineId }.firstOrNull { it.handles(type) }
+        }
 
     /** The plugin registered under [engineId] (a [VoiceFamilyIds]
      *  constant), or null. */

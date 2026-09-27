@@ -6,13 +6,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.playback.cache.CacheStateInspector
 import `in`.jphe.storyvox.playback.voice.EngineCollapseKey
-import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
 import `in`.jphe.storyvox.playback.voice.VoiceCatalog
-import `in`.jphe.storyvox.playback.voice.VoiceEngineId
 import `in`.jphe.storyvox.playback.voice.VoiceFamilyRegistry
-import `in`.jphe.storyvox.playback.voice.voiceFamilyId
+import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
+import `in`.jphe.storyvox.playback.voice.VoicePresentations
 import `in`.jphe.storyvox.playback.voice.VoiceFavorites
 import `in`.jphe.storyvox.playback.voice.VoiceLibraryCollapse
 import `in`.jphe.storyvox.playback.voice.VoiceLibrarySection
@@ -106,6 +105,10 @@ data class VoiceLibraryUiState(
      *  from [`in.jphe.storyvox.playback.KOKORO_PHONEMIZER_LANGS`].
      *  Surfaced only on Kokoro voice rows. */
     val voicePhonemizerLangOverrides: Map<String, String> = emptyMap(),
+    /** #1500 — per-family labels / colours / icons / order, descriptor-driven
+     *  (includes registered plugin engines). The screen renders every engine
+     *  section and row through this — no `when (engine)` arms. */
+    val presentations: VoicePresentations = VoicePresentations.BUILT_IN,
 )
 
 @Immutable
@@ -288,7 +291,7 @@ class VoiceLibraryViewModel @Inject constructor(
         // message instead of attempting download() (which would throw).
         val installed = if (locals.azureConfigured) {
             installedFromManager + available
-                .filter { it.engineType is EngineType.Azure }
+                .filter { it.engineKey.engineId == VoiceFamilyIds.AZURE }
                 .map { it.copy(isInstalled = true) }
         } else {
             installedFromManager
@@ -309,8 +312,9 @@ class VoiceLibraryViewModel @Inject constructor(
         val availableFiltered = available.filterNot {
             it.id in installedIds || it.id in favIds
         }
-        val installedGrouped = installedFiltered.groupByEngineThenTier()
-        val availableGrouped = availableFiltered.groupByEngineThenTier()
+        val presentations = voiceFamilyRegistry.presentations
+        val installedGrouped = installedFiltered.groupByEngineThenTier(presentations)
+        val availableGrouped = availableFiltered.groupByEngineThenTier(presentations)
         // Issue #264 — dynamically derive the language-chip strip from
         // the union of every voice the user can see. The chip list shows
         // a chip per language code that has at least one voice, sorted
@@ -343,8 +347,10 @@ class VoiceLibraryViewModel @Inject constructor(
                 installedEngines = installedGrouped.keys,
                 availableEngines = availableGrouped.keys,
                 flipped = locals.flipped,
+                presentations = presentations,
             ),
             availableLanguageCodes = orderedLanguages,
+            presentations = presentations,
         )
     }
 
@@ -379,7 +385,7 @@ class VoiceLibraryViewModel @Inject constructor(
         // default-on family's voices. Only voices whose family
         // resolves to OFF are excluded.
         val familyEnabled: (UiVoiceInfo) -> Boolean = { v ->
-            val familyId = v.engineType.voiceFamilyId()
+            val familyId = v.engineKey.engineId
             val explicit = overrides.voiceFamiliesEnabled[familyId]
             explicit ?: (voiceFamilyRegistry.byId(familyId)?.defaultEnabled ?: true)
         }
@@ -401,9 +407,9 @@ class VoiceLibraryViewModel @Inject constructor(
         if (q.isBlank() && lang == null) return@combine withOverrides
         val crit = VoiceFilterCriteria(query = q, language = lang)
         withOverrides.copy(
-            favorites = withOverrides.favorites.filter { it.matchesCriteria(crit) },
-            installedByEngine = withOverrides.installedByEngine.filterBy(crit),
-            availableByEngine = withOverrides.availableByEngine.filterBy(crit),
+            favorites = withOverrides.favorites.filter { it.matchesCriteria(crit, withOverrides.presentations) },
+            installedByEngine = withOverrides.installedByEngine.filterBy(crit, withOverrides.presentations),
+            availableByEngine = withOverrides.availableByEngine.filterBy(crit, withOverrides.presentations),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VoiceLibraryUiState())
 
@@ -457,7 +463,7 @@ class VoiceLibraryViewModel @Inject constructor(
      *  the [voiceLibraryCollapse.flippedKeys] flow combined into the
      *  main pipeline; the screen re-renders with rows hidden/shown. */
     fun toggleEngineCollapsed(section: VoiceLibrarySection, engine: VoiceEngine) {
-        val key = EngineCollapseKey(section, engine.toCoreId())
+        val key = EngineCollapseKey(section, voiceFamilyRegistry.presentations.forId(engine).collapseToken)
         viewModelScope.launch { voiceLibraryCollapse.toggle(key) }
     }
 
@@ -469,7 +475,7 @@ class VoiceLibraryViewModel @Inject constructor(
         // rejects Azure download attempts so a future regression in
         // this branch can't quietly start hammering Azure for a
         // missing model).
-        if (voice.engineType is EngineType.Azure) {
+        if (voice.engineKey.engineId == VoiceFamilyIds.AZURE) {
             if (voice.isInstalled) {
                 activate(voice.id)
             } else {
@@ -649,55 +655,15 @@ private data class PerVoiceOverrides(
     val voiceFamiliesEnabled: Map<String, Boolean> = emptyMap(),
 )
 
-/** Engine grouping discriminator used by the voice library UI. The
- *  underlying [EngineType] is sealed and Kokoro carries a speakerId we
- *  don't want to key on, so we collapse to a tag-only enum here. Order
- *  matters: this is the outer iteration order in [groupByEngineThenTier]
- *  — Piper section first, then Kokoro, then Azure. Azure goes last
- *  intentionally per Solara's spec — Local engines (no cost, no network)
- *  surface above the cloud section, even though Azure's quality tier is
- *  Studio. The visual cue (engine header) matters more than the tier
- *  sort here: users should reach for a free local voice before
- *  considering a paid cloud voice.
- *
- *  Mirrored as [VoiceEngineId] in core-playback for the collapse store
- *  (which lives in core so it can be Hilt-injected without dragging the
- *  feature module). The two enums are kept in lockstep — see
- *  [toCoreId]. */
-enum class VoiceEngine { SystemTts, Piper, Kokoro, Kitten, Supertonic, Azure }
+/** Engine grouping discriminator used by the voice library UI: the
+ *  engine/family id ([`in`.jphe.storyvox.playback.voice.EngineKey.engineId],
+ *  e.g. `voice_piper`). #1500 retired the feature-local six-value enum
+ *  that shadowed the sealed `EngineType` — a de-sealed plugin engine is
+ *  just another id, and its label / colour / icon / order come from its
+ *  [`in`.jphe.storyvox.playback.voice.VoiceFamilyPresentation]. */
+typealias VoiceEngine = String
 
-internal fun VoiceEngine.toCoreId(): VoiceEngineId = when (this) {
-    VoiceEngine.Piper -> VoiceEngineId.Piper
-    VoiceEngine.Kokoro -> VoiceEngineId.Kokoro
-    // Issue #119 — Kitten section discriminator.
-    VoiceEngine.Kitten -> VoiceEngineId.Kitten
-    // Issue #1114 — Supertonic section discriminator.
-    VoiceEngine.Supertonic -> VoiceEngineId.Supertonic
-    VoiceEngine.Azure -> VoiceEngineId.Azure
-    // #676 — System TTS section discriminator.
-    VoiceEngine.SystemTts -> VoiceEngineId.SystemTts
-}
-
-internal fun VoiceEngineId.toFeatureEngine(): VoiceEngine = when (this) {
-    VoiceEngineId.Piper -> VoiceEngine.Piper
-    VoiceEngineId.Kokoro -> VoiceEngine.Kokoro
-    VoiceEngineId.Kitten -> VoiceEngine.Kitten
-    VoiceEngineId.Supertonic -> VoiceEngine.Supertonic
-    VoiceEngineId.Azure -> VoiceEngine.Azure
-    VoiceEngineId.SystemTts -> VoiceEngine.SystemTts
-}
-
-private fun UiVoiceInfo.voiceEngine(): VoiceEngine = when (engineType) {
-    is EngineType.Piper -> VoiceEngine.Piper
-    is EngineType.Kokoro -> VoiceEngine.Kokoro
-    // Issue #119 — Kitten branch.
-    is EngineType.Kitten -> VoiceEngine.Kitten
-    // Issue #1114 — Supertonic branch.
-    is EngineType.Supertonic -> VoiceEngine.Supertonic
-    is EngineType.Azure -> VoiceEngine.Azure
-    // #676 — System TTS branch.
-    is EngineType.SystemTts -> VoiceEngine.SystemTts
-}
+private fun UiVoiceInfo.voiceEngine(): VoiceEngine = engineKey.engineId
 
 /** Tuple holding the "local + collapse" flow values that get packed
  *  into a single nested combine slot — the outer combine is capped at
@@ -734,142 +700,61 @@ internal fun computeCollapsedEngines(
     installedEngines: Set<VoiceEngine>,
     availableEngines: Set<VoiceEngine>,
     flipped: Set<String>,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
 ): Set<EngineCollapseKey> {
     val out = mutableSetOf<EngineCollapseKey>()
     for (engine in installedEngines) {
-        val key = EngineCollapseKey(VoiceLibrarySection.Installed, engine.toCoreId())
+        val key = collapseKeyFor(VoiceLibrarySection.Installed, engine, presentations)
         if (VoiceLibraryCollapse.isCollapsed(key, flipped)) out += key
     }
     for (engine in availableEngines) {
-        val key = EngineCollapseKey(VoiceLibrarySection.Available, engine.toCoreId())
+        val key = collapseKeyFor(VoiceLibrarySection.Available, engine, presentations)
         if (VoiceLibraryCollapse.isCollapsed(key, flipped)) out += key
     }
     return out
 }
 
-/** Tier order **within Piper** — ascending (Low → Medium → High). Piper
- *  has no Studio voice today, but if one ever lands it falls below High
- *  (the slot is left out of this list). The ascending sort matches JP's
- *  ask in #94: Piper users tend to start light and scale up, so showing
- *  "Low" first keeps the lighter-weight voices visible without scroll. */
-private val PIPER_TIER_ORDER: List<QualityLevel> = listOf(
-    QualityLevel.Low,
-    QualityLevel.Medium,
-    QualityLevel.High,
-)
+/** #1500 — the collapse-store key for an engine section. The token comes
+ *  from the family's presentation, so the built-ins keep their pre-#1500
+ *  on-disk keys (`installed:Piper`) and a plugin engine gets its own. */
+internal fun collapseKeyFor(
+    section: VoiceLibrarySection,
+    engine: VoiceEngine,
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
+): EngineCollapseKey = EngineCollapseKey(section, presentations.forId(engine).collapseToken)
 
-/** Tier order **within Kokoro** — Studio first (the curated peak,
- *  Kokoro-exclusive), then High, then Medium/Low if upstream ever
- *  introduces them. Kokoro voices all share one bundle so tier here is
- *  about quality grade rather than model size; Studio leading is the
- *  point of the section. */
-private val KOKORO_TIER_ORDER: List<QualityLevel> = listOf(
-    QualityLevel.Studio,
-    QualityLevel.High,
-    QualityLevel.Medium,
-    QualityLevel.Low,
-)
-
-/** Tier order **within Azure** — every Azure HD voice we ship is
- *  Studio tier. Other levels are listed for completeness in case the
- *  curated list ever spans more than one tier (e.g. a "good enough"
- *  cheap Neural alongside Dragon HD). */
-private val AZURE_TIER_ORDER: List<QualityLevel> = listOf(
-    QualityLevel.Studio,
-    QualityLevel.High,
-    QualityLevel.Medium,
-    QualityLevel.Low,
-)
-
-/** Issue #119 — Tier order **within Kitten**. All Kitten voices ship at
- *  [QualityLevel.Low] today (the fp16 nano model trades quality for
- *  size). Listing the higher tiers anyway keeps the sort future-proof
- *  against a possible Kitten-mini (80 MB, better quality) variant
- *  landing in a follow-up. */
-private val KITTEN_TIER_ORDER: List<QualityLevel> = listOf(
-    QualityLevel.High,
-    QualityLevel.Medium,
-    QualityLevel.Low,
-)
-
-/** Issue #1114 — Tier order **within Supertonic 3**. All Supertonic voices
- *  ship at [QualityLevel.High] today. Studio first in case a curated
- *  subset ever earns the grade; Low last as a catch-all. */
-private val SUPERTONIC_TIER_ORDER: List<QualityLevel> = listOf(
-    QualityLevel.Studio,
-    QualityLevel.High,
-    QualityLevel.Medium,
-    QualityLevel.Low,
-)
-
-/** Issue #676 — Tier order **within System TTS**. Every System TTS
- *  voice ships at [QualityLevel.Medium] today (the framework doesn't
- *  expose a quality grade so the catalog projection plants every entry
- *  in the Medium bucket — see [VoiceCatalog.systemTtsEntriesFromRoster]).
- *  Listing the other tiers anyway keeps the sort robust against a
- *  future "Google Wavenet HD" surfacing as High. */
-private val SYSTEM_TTS_TIER_ORDER: List<QualityLevel> = listOf(
-    QualityLevel.High,
-    QualityLevel.Medium,
-    QualityLevel.Low,
-)
-
-private fun tierOrderFor(engine: VoiceEngine): List<QualityLevel> = when (engine) {
-    VoiceEngine.Piper -> PIPER_TIER_ORDER
-    VoiceEngine.Kokoro -> KOKORO_TIER_ORDER
-    // Issue #119 — Kitten tier order.
-    VoiceEngine.Kitten -> KITTEN_TIER_ORDER
-    // Issue #1114 — Supertonic tier order.
-    VoiceEngine.Supertonic -> SUPERTONIC_TIER_ORDER
-    VoiceEngine.Azure -> AZURE_TIER_ORDER
-    // #676 — System TTS tier order.
-    VoiceEngine.SystemTts -> SYSTEM_TTS_TIER_ORDER
-}
-
-/** Engine display order — Piper section first, Kokoro second, Kitten
- *  third (issue #119 — the smallest local tier sits BELOW Kokoro in the
- *  list so users see the higher-quality local options first; Kitten
- *  surfaces last among the local engines as a "lite alternative for slow
- *  devices" section), Azure last. Drives outer iteration order of
- *  [groupByEngineThenTier]. */
-private val ENGINE_DISPLAY_ORDER: List<VoiceEngine> = listOf(
-    // #676 — System TTS first: zero-download tier, the natural
-    // first-launch + accessibility-default surface. Sight-impaired
-    // users + 5-year-olds + casual newcomers see the OS's already-
-    // configured voice at the top of the picker before the neural
-    // download story even appears.
-    VoiceEngine.SystemTts,
-    VoiceEngine.Piper,
-    VoiceEngine.Kokoro,
-    VoiceEngine.Kitten,
-    // Issue #1114 — Supertonic slotted after Kitten (the smallest
-    // local tier) and before Azure (cloud). Supertonic is high-quality
-    // local so it sits alongside Piper/Kokoro in the neural family
-    // block.
-    VoiceEngine.Supertonic,
-    VoiceEngine.Azure,
-)
-
-/** Group a list of voices first by [VoiceEngine] then by
- *  [QualityLevel], producing iteration-ordered nested maps the screen
- *  can render straight through. Outer order: Piper → Kokoro. Inner
- *  order: Low→Medium→High for Piper, Studio→High→Medium→Low for
- *  Kokoro (see [PIPER_TIER_ORDER] / [KOKORO_TIER_ORDER] for the why).
+/** Group a list of voices first by engine then by [QualityLevel],
+ *  producing iteration-ordered nested maps the screen can render straight
+ *  through.
+ *
+ *  #1500 — both orders are descriptor data
+ *  ([`in`.jphe.storyvox.playback.voice.VoiceFamilyPresentation.displayOrder]
+ *  / `tierOrder`), not a hardcoded engine list: System TTS (zero-download)
+ *  first, then the local neural families, then any plugin engines, cloud
+ *  (Azure) last; Piper ascending Low→High (#94), Kokoro Studio-first, etc.
+ *  Ties in display order break on engine id so the order is deterministic.
  *
  *  Empty engine buckets and empty tier buckets are dropped so the
  *  screen doesn't render hollow headers — a user with only Piper
  *  voices installed never sees a "Kokoro" sub-header, and vice versa.
+ *  A voice whose tier isn't in its family's tierOrder is dropped too
+ *  (unchanged from the per-family lists this replaces).
  *  Within a tier the source list's order is preserved (the catalog
  *  curates a sensible default; re-sorting here would lose that). */
-internal fun List<UiVoiceInfo>.groupByEngineThenTier(): Map<VoiceEngine, Map<QualityLevel, List<UiVoiceInfo>>> {
+internal fun List<UiVoiceInfo>.groupByEngineThenTier(
+    presentations: VoicePresentations = VoicePresentations.BUILT_IN,
+): Map<VoiceEngine, Map<QualityLevel, List<UiVoiceInfo>>> {
     if (isEmpty()) return emptyMap()
     val byEngine = groupBy { it.voiceEngine() }
     val out = linkedMapOf<VoiceEngine, Map<QualityLevel, List<UiVoiceInfo>>>()
-    for (engine in ENGINE_DISPLAY_ORDER) {
+    val engineOrder = byEngine.keys.sortedWith(
+        compareBy<VoiceEngine> { presentations.forId(it).displayOrder }.thenBy { it },
+    )
+    for (engine in engineOrder) {
         val voicesInEngine = byEngine[engine]?.takeIf { it.isNotEmpty() } ?: continue
         val byTier = voicesInEngine.groupBy { it.qualityLevel }
         val tierMap = linkedMapOf<QualityLevel, List<UiVoiceInfo>>()
-        for (tier in tierOrderFor(engine)) {
+        for (tier in presentations.forId(engine).tierOrder) {
             byTier[tier]?.takeIf { it.isNotEmpty() }?.let { tierMap[tier] = it }
         }
         if (tierMap.isNotEmpty()) out[engine] = tierMap

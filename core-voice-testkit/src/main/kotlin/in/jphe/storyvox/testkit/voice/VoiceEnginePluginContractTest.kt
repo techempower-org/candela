@@ -1,10 +1,14 @@
 package `in`.jphe.storyvox.testkit.voice
 
 import `in`.jphe.storyvox.playback.voice.EngineKey
+import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.ModelSpec
+import `in`.jphe.storyvox.playback.voice.VoiceEngineRegistry
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
+import `in`.jphe.storyvox.playback.voice.toEngineType
 import `in`.jphe.storyvox.playback.voice.toEngineTypeOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -82,6 +86,24 @@ abstract class VoiceEnginePluginContractTest {
         }
     }
 
+    @Test fun `every sample key is reachable through the registry`() {
+        // #1501 — the production dispatch path: EnginePlayer / export /
+        // prerender resolve an engine with VoiceEngineRegistry.forType, which
+        // routes a de-sealed EngineType.Plugin by key (no handles() needed)
+        // and a built-in type by handles(). Either way it must land here.
+        val p = plugin()
+        val registry = VoiceEngineRegistry(mapOf(p.engineId to p))
+        for (k in sampleKeys()) {
+            assertSame("key $k must dispatch to this plugin", p, registry.forType(k.toEngineType()))
+        }
+    }
+
+    @Test fun `catalog entries are keyed to this engine`() {
+        for (e in plugin().catalogEntries()) {
+            assertEquals("catalog entry ${e.id} names another engine", plugin().engineId, e.engineKey.engineId)
+        }
+    }
+
     @Test fun `family descriptor id matches engineId`() =
         assertEquals(plugin().engineId, plugin().familyDescriptor().id)
 
@@ -91,7 +113,7 @@ abstract class VoiceEnginePluginContractTest {
         // they never reach native code). Export-capable engines are NOT
         // synth-probed here: their synth is JNI and belongs to on-device QA.
         if (!plugin().supportsExport) {
-            val t = sampleKeys().firstNotNullOfOrNull { it.toEngineTypeOrNull() } ?: return
+            val t: EngineType = sampleKeys().firstOrNull()?.toEngineType() ?: return
             assertEquals(
                 "supportsExport=false plugins must return null from generateAudioPCM",
                 null,
@@ -108,7 +130,7 @@ abstract class VoiceEnginePluginContractTest {
         // are still the stub values would otherwise pass the whole kit and
         // export silent, empty audiobooks.
         if (plugin().supportsExport) {
-            val t = sampleKeys().firstNotNullOfOrNull { it.toEngineTypeOrNull() } ?: return
+            val t: EngineType = sampleKeys().firstOrNull()?.toEngineType() ?: return
             val spec = plugin().modelSpec(t, sampleKeys().first().engineId)
             assertTrue(
                 "supportsExport=true requires a local ModelSpec, got ModelSpec.None",

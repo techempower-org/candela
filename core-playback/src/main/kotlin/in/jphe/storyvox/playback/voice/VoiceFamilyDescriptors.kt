@@ -32,6 +32,18 @@ object VoiceFamilyDescriptors {
         // chips per-voice — keep this Local for now so the family
         // card reads honestly about the common case.
         engineFamily = VoiceEngineFamily.Local,
+        presentation = VoiceFamilyPresentation(
+            shortLabel = "System TTS",
+            // Users hunt for "system", "tts", or the vendor name — the
+            // broad term keeps the filter forgiving (#676).
+            searchTerm = "system tts",
+            // Zero-download tier first: the natural first-launch surface.
+            displayOrder = 0,
+            tierOrder = listOf(QualityLevel.High, QualityLevel.Medium, QualityLevel.Low),
+            accent = VoiceAccent.Muted,
+            icon = VoiceIcon.SystemVoice,
+            collapseToken = "SystemTts",
+        ),
     )
 
     val PIPER = VoiceFamilyDescriptor(
@@ -43,6 +55,15 @@ object VoiceFamilyDescriptors {
         sizeHint = "~14–30 MB per voice (low / medium tier), ~120 MB high tier",
         defaultEnabled = true,
         engineFamily = VoiceEngineFamily.Local,
+        presentation = VoiceFamilyPresentation(
+            shortLabel = "Piper",
+            displayOrder = 10,
+            // Ascending (#94): Piper users start light and scale up.
+            tierOrder = listOf(QualityLevel.Low, QualityLevel.Medium, QualityLevel.High),
+            accent = VoiceAccent.Primary,
+            icon = VoiceIcon.Music,
+            collapseToken = "Piper",
+        ),
     )
 
     val KOKORO = VoiceFamilyDescriptor(
@@ -54,6 +75,15 @@ object VoiceFamilyDescriptors {
         sizeHint = "~330 MB single download, 53 speakers share the model",
         defaultEnabled = true,
         engineFamily = VoiceEngineFamily.Local,
+        presentation = VoiceFamilyPresentation(
+            shortLabel = "Kokoro",
+            displayOrder = 20,
+            // Studio leads — the Kokoro-exclusive curated peak.
+            tierOrder = VoiceFamilyPresentation.TIERS_BEST_FIRST,
+            accent = VoiceAccent.Tertiary,
+            icon = VoiceIcon.Mic,
+            collapseToken = "Kokoro",
+        ),
     )
 
     val KITTEN = VoiceFamilyDescriptor(
@@ -65,6 +95,16 @@ object VoiceFamilyDescriptors {
         sizeHint = "~25 MB shared model, 8 en_US speakers (Bella, Luna, Rosie, Kiki / Jasper, Bruno, Hugo, Leo)",
         defaultEnabled = true,
         engineFamily = VoiceEngineFamily.Local,
+        presentation = VoiceFamilyPresentation(
+            shortLabel = "Kitten",
+            // #119 — "Lite" communicates the smallest tier without "beta".
+            sectionLabel = "Kitten (Lite)",
+            displayOrder = 30,
+            tierOrder = listOf(QualityLevel.High, QualityLevel.Medium, QualityLevel.Low),
+            accent = VoiceAccent.Secondary,
+            icon = VoiceIcon.Pets,
+            collapseToken = "Kitten",
+        ),
     )
 
     /** Issue #1114 / #1236 — Supertonic 3. Gated on [VoiceCatalog.SUPERTONIC_ENABLED]
@@ -79,6 +119,15 @@ object VoiceFamilyDescriptors {
         sizeHint = "~TBD MB shared model, 10 en_US speakers (F1–F5 / M1–M5)",
         defaultEnabled = true,
         engineFamily = VoiceEngineFamily.Local,
+        presentation = VoiceFamilyPresentation(
+            shortLabel = "Supertonic",
+            sectionLabel = "Supertonic 3",
+            displayOrder = 40,
+            tierOrder = VoiceFamilyPresentation.TIERS_BEST_FIRST,
+            accent = VoiceAccent.InversePrimary,
+            icon = VoiceIcon.Waveform,
+            collapseToken = "Supertonic",
+        ),
     )
 
     val AZURE = VoiceFamilyDescriptor(
@@ -93,6 +142,17 @@ object VoiceFamilyDescriptors {
         // voices ready; the user opts in by configuring credentials.
         defaultEnabled = false,
         engineFamily = VoiceEngineFamily.Cloud,
+        presentation = VoiceFamilyPresentation(
+            shortLabel = "Azure",
+            // The header restates "Cloud" so nobody has to decode a glyph.
+            sectionLabel = "Azure (Cloud)",
+            // Cloud last: a free local voice should be reached for first.
+            displayOrder = 1000,
+            tierOrder = VoiceFamilyPresentation.TIERS_BEST_FIRST,
+            accent = VoiceAccent.PrimaryContainer,
+            icon = VoiceIcon.Cloud,
+            collapseToken = "Azure",
+        ),
     )
 
     /** Not an engine — the muted "next thing that lands here" card.

@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.feature.voicelibrary
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.QualityLevel
 import `in`.jphe.storyvox.playback.voice.UiVoiceInfo
+import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -52,7 +53,7 @@ class VoiceGroupingTest {
         // Outer iteration order matters — Piper must be first regardless
         // of input order so the screen renders Piper section first.
         assertEquals(
-            listOf(VoiceEngine.Piper, VoiceEngine.Kokoro),
+            listOf(VoiceFamilyIds.PIPER, VoiceFamilyIds.KOKORO),
             grouped.keys.toList(),
         )
     }
@@ -65,7 +66,7 @@ class VoiceGroupingTest {
             piper("p-med", QualityLevel.Medium),
         ).groupByEngineThenTier()
 
-        val piperTiers = grouped[VoiceEngine.Piper]?.keys?.toList()
+        val piperTiers = grouped[VoiceFamilyIds.PIPER]?.keys?.toList()
         assertEquals(
             listOf(QualityLevel.Low, QualityLevel.Medium, QualityLevel.High),
             piperTiers,
@@ -79,7 +80,7 @@ class VoiceGroupingTest {
             kokoro("k-studio", QualityLevel.Studio),
         ).groupByEngineThenTier()
 
-        val kokoroTiers = grouped[VoiceEngine.Kokoro]?.keys?.toList()
+        val kokoroTiers = grouped[VoiceFamilyIds.KOKORO]?.keys?.toList()
         assertEquals(
             listOf(QualityLevel.Studio, QualityLevel.High),
             kokoroTiers,
@@ -93,10 +94,10 @@ class VoiceGroupingTest {
             piper("p2", QualityLevel.Medium),
         ).groupByEngineThenTier()
 
-        assertTrue(grouped.containsKey(VoiceEngine.Piper))
+        assertTrue(grouped.containsKey(VoiceFamilyIds.PIPER))
         assertFalse(
             "Kokoro key must not appear when no Kokoro voices in input",
-            grouped.containsKey(VoiceEngine.Kokoro),
+            grouped.containsKey(VoiceFamilyIds.KOKORO),
         )
     }
 
@@ -107,10 +108,10 @@ class VoiceGroupingTest {
             kokoro("k2", QualityLevel.High, speakerId = 1),
         ).groupByEngineThenTier()
 
-        assertTrue(grouped.containsKey(VoiceEngine.Kokoro))
+        assertTrue(grouped.containsKey(VoiceFamilyIds.KOKORO))
         assertFalse(
             "Piper key must not appear when no Piper voices in input",
-            grouped.containsKey(VoiceEngine.Piper),
+            grouped.containsKey(VoiceFamilyIds.PIPER),
         )
     }
 
@@ -124,7 +125,7 @@ class VoiceGroupingTest {
             piper("p-med-2", QualityLevel.Medium),
         ).groupByEngineThenTier()
 
-        val piperTiers = grouped[VoiceEngine.Piper]?.keys ?: emptySet()
+        val piperTiers = grouped[VoiceFamilyIds.PIPER]?.keys ?: emptySet()
         assertEquals(setOf(QualityLevel.Medium), piperTiers)
     }
 
@@ -139,7 +140,7 @@ class VoiceGroupingTest {
 
         assertEquals(
             listOf(c, a, b),
-            grouped[VoiceEngine.Piper]?.get(QualityLevel.Medium),
+            grouped[VoiceFamilyIds.PIPER]?.get(QualityLevel.Medium),
         )
     }
 
@@ -162,11 +163,11 @@ class VoiceGroupingTest {
             .groupByEngineThenTier()
 
         assertEquals(
-            listOf(VoiceEngine.Piper, VoiceEngine.Kokoro),
+            listOf(VoiceFamilyIds.PIPER, VoiceFamilyIds.KOKORO),
             grouped.keys.toList(),
         )
 
-        val piper = grouped.getValue(VoiceEngine.Piper)
+        val piper = grouped.getValue(VoiceFamilyIds.PIPER)
         assertEquals(
             listOf(QualityLevel.Low, QualityLevel.Medium, QualityLevel.High),
             piper.keys.toList(),
@@ -175,7 +176,7 @@ class VoiceGroupingTest {
         assertEquals(listOf(pMed1, pMed2), piper[QualityLevel.Medium])
         assertEquals(listOf(pHigh), piper[QualityLevel.High])
 
-        val kokoro = grouped.getValue(VoiceEngine.Kokoro)
+        val kokoro = grouped.getValue(VoiceFamilyIds.KOKORO)
         assertEquals(
             listOf(QualityLevel.Studio, QualityLevel.High),
             kokoro.keys.toList(),

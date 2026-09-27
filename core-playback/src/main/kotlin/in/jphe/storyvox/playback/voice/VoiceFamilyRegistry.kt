@@ -47,10 +47,113 @@ data class VoiceFamilyDescriptor(
     val isPlaceholder: Boolean = false,
     val defaultEnabled: Boolean = true,
     val engineFamily: VoiceEngineFamily = VoiceEngineFamily.Local,
+    /** #1500 — how the Voice Library renders this family's section header
+     *  and rows. Defaulted from the fields above, so a new engine's
+     *  descriptor gets a sensible presentation without touching any UI
+     *  `when`; the built-ins override it with their historical copy. */
+    val presentation: VoiceFamilyPresentation =
+        VoiceFamilyPresentation.defaultFor(id, displayName, engineFamily),
 )
 
 /** Coarse engine classification for the family card's capability chip. */
 enum class VoiceEngineFamily { Local, Cloud }
+
+/**
+ * #1500 — descriptor-driven Voice Library presentation. Replaces the
+ * six-arm `when (engineType)` label / colour / icon / order / filter maps
+ * that lived in `feature/voicelibrary`, so a de-sealed engine's rows
+ * render with zero UI edits.
+ *
+ * Colour and icon are TOKENS, not Compose values: `:core-playback` has no
+ * Compose dependency, and the feature layer owns the theme mapping. A new
+ * engine picks an existing token (or keeps the neutral defaults).
+ *
+ * @property shortLabel Row subtitle engine segment ("Kitten · Low · Female").
+ * @property sectionLabel Engine sub-header label ("Kitten (Lite)").
+ * @property searchTerm Lower-case term the library search matches against.
+ * @property displayOrder Outer iteration order of engine sections (ascending).
+ * @property tierOrder Quality-tier order within the engine section.
+ * @property accent Avatar colour token.
+ * @property icon Sub-header icon token.
+ * @property collapseToken Persisted collapse-store segment — `"installed:<token>"`.
+ *  The built-ins keep their pre-#1500 enum names so saved collapse state
+ *  survives; new engines default to their family id. NEVER change an
+ *  existing value (it is an on-disk key).
+ */
+data class VoiceFamilyPresentation(
+    val shortLabel: String,
+    val sectionLabel: String = shortLabel,
+    val searchTerm: String = shortLabel.lowercase(),
+    val displayOrder: Int = ORDER_DEFAULT_LOCAL,
+    val tierOrder: List<QualityLevel> = TIERS_BEST_FIRST,
+    val accent: VoiceAccent = VoiceAccent.Neutral,
+    val icon: VoiceIcon = VoiceIcon.Generic,
+    val collapseToken: String,
+) {
+    companion object {
+        /** New local engines sort after the built-in local families and
+         *  before cloud (users should reach for a free local voice first). */
+        const val ORDER_DEFAULT_LOCAL = 500
+        const val ORDER_DEFAULT_CLOUD = 900
+
+        val TIERS_BEST_FIRST: List<QualityLevel> = listOf(
+            QualityLevel.Studio,
+            QualityLevel.High,
+            QualityLevel.Medium,
+            QualityLevel.Low,
+        )
+
+        fun defaultFor(id: String, displayName: String, family: VoiceEngineFamily) =
+            VoiceFamilyPresentation(
+                shortLabel = displayName,
+                displayOrder = if (family == VoiceEngineFamily.Cloud) ORDER_DEFAULT_CLOUD else ORDER_DEFAULT_LOCAL,
+                icon = if (family == VoiceEngineFamily.Cloud) VoiceIcon.Cloud else VoiceIcon.Generic,
+                collapseToken = id,
+            )
+    }
+}
+
+/** Avatar colour tokens — mapped onto the Material colour scheme by the
+ *  feature layer. [Neutral] is the default for engines that don't pick one. */
+enum class VoiceAccent { Primary, Secondary, Tertiary, InversePrimary, PrimaryContainer, Muted, Neutral }
+
+/** Engine sub-header icon tokens — mapped onto Material icons by the feature
+ *  layer. [Generic] is the default for engines that don't pick one. */
+enum class VoiceIcon { SystemVoice, Music, Mic, Pets, Waveform, Cloud, Generic }
+
+/**
+ * #1500 — presentation lookup by engine/family id. Built from a descriptor
+ * list (the Voice Library passes [VoiceFamilyRegistry.presentations], which
+ * includes registered plugin engines); an id it doesn't know renders with
+ * [VoiceFamilyPresentation.defaultFor] rather than failing, so a row whose
+ * family card hasn't loaded still shows.
+ */
+class VoicePresentations(descriptors: Collection<VoiceFamilyDescriptor>) {
+    private val byId: Map<String, VoiceFamilyPresentation> =
+        descriptors.associate { it.id to it.presentation }
+
+    fun forId(engineId: String): VoiceFamilyPresentation =
+        byId[engineId] ?: VoiceFamilyPresentation.defaultFor(engineId, engineId, VoiceEngineFamily.Local)
+
+    fun forVoice(voice: UiVoiceInfo): VoiceFamilyPresentation = forId(voice.engineKey.engineId)
+
+    override fun equals(other: Any?): Boolean = other is VoicePresentations && other.byId == byId
+    override fun hashCode(): Int = byId.hashCode()
+
+    companion object {
+        /** The in-tree families only — the default for pure helpers and tests. */
+        val BUILT_IN: VoicePresentations = VoicePresentations(
+            listOf(
+                VoiceFamilyDescriptors.SYSTEM_TTS,
+                VoiceFamilyDescriptors.PIPER,
+                VoiceFamilyDescriptors.KOKORO,
+                VoiceFamilyDescriptors.KITTEN,
+                VoiceFamilyDescriptors.SUPERTONIC,
+                VoiceFamilyDescriptors.AZURE,
+            ),
+        )
+    }
+}
 
 /**
  * Canonical voice-family ids — also the keys in
@@ -98,7 +201,13 @@ object VoiceFamilyIds {
  * without touching the registry itself.
  */
 @Singleton
-class VoiceFamilyRegistry @Inject constructor() {
+class VoiceFamilyRegistry @Inject constructor(
+    /** #1500 — registered engines, so a de-sealed `@VoicePlugin` engine's
+     *  family card appears without editing the curated list below. Lazy:
+     *  resolving the plugin map is deferred to first [descriptors] read.
+     *  Defaulted to "no plugins" so JVM tests keep `VoiceFamilyRegistry()`. */
+    private val engineRegistry: dagger.Lazy<VoiceEngineRegistry> = NO_ENGINES,
+) {
 
     /** All known voice families, in display order. System TTS comes
      *  first as the zero-download first-launch tier (#676); then the
@@ -117,15 +226,28 @@ class VoiceFamilyRegistry @Inject constructor() {
     // [VoiceCatalog.SUPERTONIC_ENABLED] gate, so the rendered output is
     // unchanged. listOfNotNull drops Supertonic if the flag is ever
     // flipped back, re-gating the card and the voices together.
-    val descriptors: List<VoiceFamilyDescriptor> = listOfNotNull(
-        VoiceFamilyDescriptors.SYSTEM_TTS,
-        VoiceFamilyDescriptors.PIPER,
-        VoiceFamilyDescriptors.KOKORO,
-        VoiceFamilyDescriptors.KITTEN,
-        if (VoiceCatalog.SUPERTONIC_ENABLED) VoiceFamilyDescriptors.SUPERTONIC else null,
-        VoiceFamilyDescriptors.AZURE,
-        VoiceFamilyDescriptors.VOXSHERPA_PLACEHOLDER,
-    )
+    //
+    // #1500 — registered engines that are NOT one of the curated built-ins
+    // (i.e. de-sealed `@VoicePlugin` engines) are appended after the
+    // curated engines, in engineId order, ahead of the placeholder.
+    val descriptors: List<VoiceFamilyDescriptor> by lazy {
+        val curated = listOfNotNull(
+            VoiceFamilyDescriptors.SYSTEM_TTS,
+            VoiceFamilyDescriptors.PIPER,
+            VoiceFamilyDescriptors.KOKORO,
+            VoiceFamilyDescriptors.KITTEN,
+            if (VoiceCatalog.SUPERTONIC_ENABLED) VoiceFamilyDescriptors.SUPERTONIC else null,
+            VoiceFamilyDescriptors.AZURE,
+        )
+        val plugins = engineRegistry.get().all()
+            .filter { it.engineId !in BUILT_IN_ENGINE_IDS }
+            .sortedBy { it.engineId }
+            .map { it.familyDescriptor() }
+        curated + plugins + VoiceFamilyDescriptors.VOXSHERPA_PLACEHOLDER
+    }
+
+    /** #1500 — Voice Library presentation lookup over every family here. */
+    val presentations: VoicePresentations by lazy { VoicePresentations(descriptors) }
 
     /** Lookup by stable family id. */
     fun byId(id: String): VoiceFamilyDescriptor? = descriptors.firstOrNull { it.id == id }
@@ -133,7 +255,11 @@ class VoiceFamilyRegistry @Inject constructor() {
     /** All non-placeholder family ids — the set that participates in
      *  Voice Library filtering. The placeholder has no voices and is
      *  never toggled. */
-    val toggleableIds: List<String> = descriptors.filterNot { it.isPlaceholder }.map { it.id }
+    val toggleableIds: List<String> by lazy { descriptors.filterNot { it.isPlaceholder }.map { it.id } }
+
+    private companion object {
+        val NO_ENGINES: dagger.Lazy<VoiceEngineRegistry> = dagger.Lazy { VoiceEngineRegistry(emptyMap()) }
+    }
 }
 
 /**
@@ -153,4 +279,6 @@ fun EngineType.voiceFamilyId(): String = when (this) {
     is EngineType.Supertonic -> VoiceFamilyIds.SUPERTONIC
     is EngineType.Azure -> VoiceFamilyIds.AZURE
     is EngineType.SystemTts -> VoiceFamilyIds.SYSTEM_TTS
+    // #1500 — a de-sealed engine's family id IS its engine id.
+    is EngineType.Plugin -> key.engineId
 }
