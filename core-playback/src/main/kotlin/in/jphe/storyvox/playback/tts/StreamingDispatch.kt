@@ -6,49 +6,43 @@ import `in`.jphe.storyvox.playback.voice.VoiceFamilyIds
 
 /**
  * epic/plugin-dx B2 prep — the parallel-synth streaming DECISIONS from
- * [EnginePlayer], extracted verbatim as pure functions so they are unit-
- * testable (EnginePlayer itself can't be JVM-instantiated: Hilt + the
- * VoxSherpa JNI singletons). Behavior is pinned by `StreamingDispatchTest`.
- * Wiring status is MIXED and matters when editing either side:
- * [desiredSecondaryCount], [azureLookaheadCount], [thermalForcesSerial],
- * [autoLangForcesSerial] and [queueDepth] ARE the production path —
- * EnginePlayer calls them. [buildsNativePool], [preambleTeardownFamilies],
- * [achievedSecondaries] and [swapStepOrder] are SPECIFICATION-ONLY:
- * EnginePlayer still inlines their equivalents per swap arm (the
- * `streamingPoolFamily != VoiceFamilyIds.X` preambles and per-family pool
- * builds), so their tests pin the intended invariants, not the running
- * code. Keep the inline sites and these functions in step until the
- * dispatch inversion (plugin-dx follow-up) makes them the single path.
+ * [EnginePlayer], extracted as pure functions so they are unit-testable
+ * (EnginePlayer itself can't be JVM-instantiated: Hilt + the VoxSherpa JNI
+ * singletons). Behavior is pinned by `StreamingDispatchTest`.
+ *
+ * #1501 — every function here IS the production path. The former
+ * specification-only helpers were wired or retired: which engines pool is
+ * now the `StreamingSynth` capability itself (was a hardcoded
+ * Piper/Kokoro/Kitten set); the swap preamble + teardown order execute in
+ * `StreamingPoolLifecycle.swapTo` (was `preambleTeardownFamilies` /
+ * `swapStepOrder` data); cap-on-failure is `buildCapOnFailurePool` (was the
+ * duplicate `achievedSecondaries`).
  *
  * The decisions (not the I/O):
- *  - which engine families run a native secondary pool (Tier 3 #88, Kitten
- *    #119; Supertonic stays serial — 4-graph sessions are memory-heavy;
- *    System TTS is serialized by the framework),
  *  - pool sizing off the user's parallel-synth slider (primary + N-1
  *    secondaries; the knob is [ParallelSynthConfig], NOT core count),
+ *  - whether the resident pool may serve the active voice ([poolServes] —
+ *    the family guard),
  *  - Azure's synthetic lookahead fan-out reusing the same knob,
  *  - the per-pipeline serial governors: #803 thermal (MODERATE+ drops the
  *    secondaries for this pipeline while the warm instances stay alive;
  *    #1126 applies it at construction, never mid-play) and #1233
  *    auto-language routing (Kokoro must run serial when per-sentence
  *    routing mutates the shared engine's speaker),
- *  - #803 SEVERE queue-depth halving,
- *  - which families' pools are torn down in a voice-swap arm's preamble
- *    (all pooled families except the target's own — the target's stale
- *    pool is destroyed just before its rebuild).
+ *  - #803 SEVERE queue-depth halving.
  */
 internal object StreamingDispatch {
 
-    /** Engine families that build a pool of native secondary instances
-     *  (Tier 3 #88 Piper/Kokoro; #119 Kitten). */
-    val NATIVE_POOL_FAMILIES: Set<String> = setOf(
-        VoiceFamilyIds.PIPER,
-        VoiceFamilyIds.KOKORO,
-        VoiceFamilyIds.KITTEN,
-    )
-
-    /** True when [key]'s family builds native secondary instances. */
-    fun buildsNativePool(key: EngineKey): Boolean = key.engineId in NATIVE_POOL_FAMILIES
+    /** #1501 — the family guard: the resident pool (tagged [poolFamily] by
+     *  `StreamingPoolLifecycle.swapTo`) may serve [active] only when it was
+     *  built for the same engine. The pool can lag a cross-family voice
+     *  swap (the deferred observeActiveVoice path and ensureVoiceLoaded
+     *  update the active engine without rebuilding it, and the #569 fast
+     *  path skips the swap entirely); handles from another family would
+     *  voice routed sentences in the OLD voice, so a mismatch — or no
+     *  active engine — runs serial. */
+    fun poolServes(poolFamily: String?, active: EngineKey?): Boolean =
+        poolFamily != null && active != null && poolFamily == active.engineId
 
     /** Secondary-pool size for the user's configured [instances] count:
      *  primary singleton + N-1 secondaries (loop `1 until instances`). */
@@ -84,43 +78,4 @@ internal object StreamingDispatch {
         } else {
             base
         }
-
-    /** Families whose pools a voice-swap arm destroys in its PREAMBLE
-     *  when loading [target]: every pooled family except the target's
-     *  own (a pooled target destroys its own STALE pool just before the
-     *  rebuild; non-pooled targets — Supertonic/Azure/SystemTts — free
-     *  all three). */
-    fun preambleTeardownFamilies(target: EngineKey): Set<String> =
-        NATIVE_POOL_FAMILIES - setOfNotNull(target.engineId.takeIf { it in NATIVE_POOL_FAMILIES })
-
-    /** Cap-on-failure policy for secondary construction: the pool is the
-     *  prefix of successful loads — the first failed secondary is
-     *  destroyed and construction STOPS ("capping at k+1 instances"),
-     *  it does not skip-and-continue. */
-    fun achievedSecondaries(loadResults: List<Boolean>): Int =
-        loadResults.takeWhile { it }.count()
-
-    /** The voice-swap teardown/rebuild ordering, pinned as data — this is
-     *  the #1383/#1386 regression minefield. Invariants it encodes:
-     *  [SwapStep.STOP_PIPELINE] comes FIRST (#89 — EngineStreamingSource.
-     *  close's awaitTermination blocks until in-flight JNI generate()
-     *  calls return, so every later destroy() runs on an idle instance);
-     *  [SwapStep.DESTROY_OWN_STALE_POOL] strictly precedes
-     *  [SwapStep.BUILD_SECONDARIES] (never double-resident). */
-    enum class SwapStep {
-        STOP_PIPELINE,
-        DESTROY_OTHER_FAMILY_POOLS,
-        CONFIGURE_AND_LOAD_PRIMARY,
-        DESTROY_OWN_STALE_POOL,
-        BUILD_SECONDARIES,
-    }
-
-    /** See [SwapStep]. */
-    fun swapStepOrder(): List<SwapStep> = listOf(
-        SwapStep.STOP_PIPELINE,
-        SwapStep.DESTROY_OTHER_FAMILY_POOLS,
-        SwapStep.CONFIGURE_AND_LOAD_PRIMARY,
-        SwapStep.DESTROY_OWN_STALE_POOL,
-        SwapStep.BUILD_SECONDARIES,
-    )
 }

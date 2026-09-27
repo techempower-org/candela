@@ -128,7 +128,7 @@ pins (read it before implementing):
 - **Speaker bakes at construction** — `Handle.generatePCM` has no
   per-call key, deliberately.
 - Callers own the handles and drive teardown through
-  `StreamingDispatch.swapStepOrder()` — you never destroy your own pool.
+  the `SwapStep` order `StreamingPoolLifecycle.swapTo` runs — you never destroy your own pool.
 
 Implementing `StreamingSynth` is all it takes: the generic load path
 builds your pool with the user's parallel-synth setting and the pipeline
@@ -149,11 +149,12 @@ registry** (the production path), catalog ids unique and keyed to your
 engine, descriptor id == engineId, and `supportsExport=false` ⇒
 `generateAudioPCM` returns the documented `null`.
 
-**`supportsExport` semantics matter**: `false` means the offline
-audiobook-export path rejects your engine with friendly copy, and the
-background pre-render worker treats a slip-through as load-failure
-(retry with backoff — see the gate in `ChapterRenderJob`). Only claim
-`true` when you synchronously render real PCM.
+**Two capability flags**: `supportsExport = false` means the offline
+audiobook-export path rejects your engine with friendly copy. The
+background pre-render worker asks `supportsBackgroundRender` instead
+(defaults to `supportsExport`; override it when the answers differ) and
+cleanly skips an engine that says `false` — no retry loop. Only claim
+`true` for either when you synchronously render real PCM.
 
 ### Contributor gotcha: unit tests need Java 21
 

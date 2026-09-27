@@ -154,6 +154,20 @@ class ChapterRenderJob @AssistedInject constructor(
         // (Piper/Kokoro/Kitten); no skip guard. It's an in-process VoxSherpa
         // engine, so the loadModel + generateAudioPCM bridge below handles it.
 
+        // #1501 — capability gate, data-driven: an engine that can't render
+        // in this worker (supportsBackgroundRender=false — any future
+        // live-render-only engine, de-sealed plugins included) is a clean
+        // skip, NOT the old supportsExport load-failure retry loop.
+        val plugin = voiceEngines.forType(voice.engineType)
+        if (plugin != null && !plugin.supportsBackgroundRender) {
+            Log.i(
+                LOG_TAG,
+                "pcm-cache PRERENDER-SKIP-NOBGRENDER chapterId=$chapterId " +
+                    "engine=${plugin.engineId} voiceId=${voice.id}",
+            )
+            return Result.success()
+        }
+
         // 4. Build the cache key. Render at the 1.0×/1.0× empty-dict
         // identity — see kdoc on speed/pitch quantization.
         val cacheKey = PcmCacheKey(
@@ -185,24 +199,15 @@ class ChapterRenderJob @AssistedInject constructor(
         // 8. Load the model (idempotent if EnginePlayer already loaded
         // the same voice). Holds engineMutex. epic/plugin-dx B1 — the
         // load is plugin-owned (ModelSpec + loadModel); the per-engine
-        // `when` that lived here is gone. The supportsExport gate keeps
-        // the old defensive-arm semantics: a non-local voice that slips
-        // past the SystemTts pre-filter still reads as a load failure
-        // (retry) instead of silently completing an empty cache entry.
-        // CAUTION: supportsExport conflates "offline export allowed" with
-        // "can pre-render in this worker" — a future live-render-only
-        // engine (supportsExport=false, real PCM) would retry here
-        // forever. Splitting a supportsBackgroundRender capability is a
-        // plugin-dx follow-up; new-engine authors see the same warning in
-        // docs/CONTRIBUTING-VOICES.md §6.
-        val plugin = voiceEngines.forType(voice.engineType)
+        // `when` that lived here is gone. The capability question was
+        // answered above (#1501); an unregistered engine still reads as a
+        // load failure (retry — it may register after an app update).
         val loadResult = engineMutex.mutex.withLock {
             if (isStopped) return Result.failure()
-            when {
-                plugin == null -> "Error: no engine plugin handles ${voice.engineType}"
-                !plugin.supportsExport ->
-                    "Error: ${plugin.engineId} not supported in background pre-render"
-                else -> plugin.loadModel(plugin.modelSpec(voice.engineType, voice.id))
+            if (plugin == null) {
+                "Error: no engine plugin handles ${voice.engineType}"
+            } else {
+                plugin.loadModel(plugin.modelSpec(voice.engineType, voice.id))
             }
         }
         if (loadResult != "Success") {
