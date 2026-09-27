@@ -78,4 +78,47 @@ class HybridReaderShellSemanticsTest {
             hybridReaderShellExposesPaneSwitchAction,
         )
     }
+
+    // ── Issue #1787 — off-screen pane must not reach past the shell ──────
+
+    @Test
+    fun `on the Reader pane the Audiobook pane sits entirely outside the shell on the start side`() {
+        // This is WHY the shell must clip: at rest on Reader the Audiobook
+        // pane spans x in [-width, 0) — exactly where the tablet SideNavRail
+        // lives. Unclipped, its verticalScroll column hit-tested first and
+        // ate rail taps (issue #1787).
+        val width = 1180f
+        val (audiobookX, readerX) = paneOffsetsX(animatedOffset = -width, width = width)
+        assertEquals(-1180, audiobookX)
+        assertEquals(0, readerX)
+        assertTrue("Audiobook pane must end at or before the shell start", audiobookX + width.toInt() <= 0)
+    }
+
+    @Test
+    fun `on the Audiobook pane the Reader pane sits entirely past the shell end`() {
+        val width = 1180f
+        val (audiobookX, readerX) = paneOffsetsX(animatedOffset = 0f, width = width)
+        assertEquals(0, audiobookX)
+        assertEquals(1180, readerX)
+    }
+
+    @Test
+    fun `panes stay exactly one width apart mid-drag`() {
+        val width = 800f
+        listOf(0f, -1f, -250.4f, -400f, -799.6f, -800f).forEach { offset ->
+            val (a, r) = paneOffsetsX(offset, width)
+            assertEquals("pane gap at offset $offset", 800, r - a)
+        }
+    }
+
+    @Test
+    fun `HybridReaderShell clips to its bounds per issue #1787`() {
+        // Structural canary: the off-screen pane is always composed and
+        // translated a full width outside the shell. Without clipToBounds
+        // it draws over and steals taps from the tablet nav rail.
+        assertTrue(
+            "HybridReaderShell must clipToBounds so the off-screen pane can't intercept rail taps (issue #1787)",
+            hybridReaderShellClipsToBounds,
+        )
+    }
 }
