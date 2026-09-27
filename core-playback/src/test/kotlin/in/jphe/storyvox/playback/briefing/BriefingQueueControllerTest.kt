@@ -104,6 +104,29 @@ class BriefingQueueControllerTest {
         assertNull(queue.session.value)
     }
 
+    @Test fun `startWith plays a prebuilt queue from the requested index`() = runTest {
+        val controller = RecordingController()
+        val queue = BriefingQueueController(controller, FakeBuilder(emptyList()), backgroundScope)
+
+        assertTrue(queue.startWith((1..3).map(::item), startIndex = 1))
+        runCurrent()
+        assertEquals(listOf("f2" to "c2"), controller.plays)
+
+        controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        runCurrent()
+        assertEquals(listOf("f2" to "c2", "f3" to "c3"), controller.plays)
+    }
+
+    @Test fun `startWith clamps an out-of-range index and rejects an empty queue`() = runTest {
+        val controller = RecordingController()
+        val queue = BriefingQueueController(controller, FakeBuilder(emptyList()), backgroundScope)
+
+        assertFalse(queue.startWith(emptyList()))
+        assertTrue(queue.startWith((1..2).map(::item), startIndex = 99))
+        runCurrent()
+        assertEquals(listOf("f2" to "c2"), controller.plays)
+    }
+
     // ─── test doubles ─────────────────────────────────────────────────────────
 
     private class FakeBuilder(private val items: List<BriefingItem>) : BriefingBuilder {

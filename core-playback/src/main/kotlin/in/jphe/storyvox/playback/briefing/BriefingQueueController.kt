@@ -65,9 +65,19 @@ class BriefingQueueController(
      */
     suspend fun start(config: BriefingConfig): Boolean {
         stop()
-        val items = builder.build(config)
+        return startWith(builder.build(config))
+    }
+
+    /**
+     * Play an already-assembled queue (a prebuilt morning briefing, or any
+     * other caller's cross-fiction playlist — e.g. the #1675 "For you" feed)
+     * as one continuous episode, beginning at [startIndex] (coerced into
+     * range). Returns false and starts nothing when [items] is empty.
+     */
+    suspend fun startWith(items: List<BriefingItem>, startIndex: Int = 0): Boolean {
+        stop()
         if (items.isEmpty()) return false
-        _session.value = BriefingSession(items = items, index = 0)
+        _session.value = BriefingSession(items = items, index = startIndex.coerceIn(0, items.lastIndex))
         listenerJob = scope.launch {
             controller.events.collect { ev ->
                 if (ev is PlaybackUiEvent.BookFinished) onCurrentItemFinished()
