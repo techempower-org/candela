@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Podcasts
+import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Search
@@ -185,6 +186,8 @@ fun SettingsHubScreen(
      * wiring lives in [`in.jphe.storyvox.navigation.StoryvoxNavHost`].
      */
     onOpenBriefing: () -> Unit = {},
+    /** Issue #1675 — the listening feed ("For you"). Default no-op like the rows above. */
+    onOpenFeed: () -> Unit = {},
     /**
      * Issue #1369 — teleprompter script manager. Default no-op so existing
      * callers / smoke tests compile without wiring it; production wiring lives
@@ -473,6 +476,14 @@ fun SettingsHubScreen(
                         onClick = onOpenBriefing,
                         keywords = HubKeywords.briefing,
                     )
+                    // #1675 — HyperTexting-style listening feed.
+                    SettingsHubRow(
+                        icon = Icons.Outlined.DynamicFeed,
+                        title = stringResource(R.string.settings_hub_feed_title),
+                        subtitle = stringResource(R.string.settings_hub_feed_subtitle),
+                        onClick = onOpenFeed,
+                        keywords = HubKeywords.feed,
+                    )
                     SettingsHubRow(
                         icon = Icons.Outlined.Description,
                         title = stringResource(R.string.settings_hub_scripts_title),
@@ -694,6 +705,7 @@ internal object HubKeywords {
     )
     val stats = listOf("stats", "streak", "history", "finished", "time listened", "progress")
     val briefing = listOf("briefing", "podcast", "digest", "morning", "episode", "queue")
+    val feed = listOf("feed", "for you", "timeline", "new posts", "rss", "follow", "scroll", "autoplay")
     val scripts = listOf("teleprompter", "script", "prompter", "rehearsal", "wpm", "words per minute")
     val benefits = listOf(
         "benefits", "qualify", "screener", "decoder", "calfresh", "medi-cal",
@@ -803,6 +815,7 @@ internal val aiSections = listOf(
 internal val toolsSections = listOf(
     SettingsHubSection("Listening stats", "Time listened, streaks, books finished.", HubKeywords.stats),
     SettingsHubSection("Morning Briefing", "One episode from your sources — HN, arXiv, RSS, GitHub.", HubKeywords.briefing),
+    SettingsHubSection("For you feed", "New posts from everything you follow, read aloud in a row.", HubKeywords.feed),
     SettingsHubSection("Scripts", "Save, edit, and organize teleprompter scripts.", HubKeywords.scripts),
     // #1634 — Benefits re-discovery. Subtitle matches R.string.settings_hub_benefits_subtitle.
     SettingsHubSection("Benefits", "Do-I-qualify screener & letter decoder.", HubKeywords.benefits),

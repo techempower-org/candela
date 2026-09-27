@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1675 — listening feed ("For you"), HyperTexting-style. -->
+<resources>
+    <string name="feed_title">For you</string>
+    <string name="feed_subtitle">Everything new from what you follow, newest first. Tap to listen — it keeps playing down the feed.</string>
+    <string name="feed_back">Back</string>
+    <string name="feed_refresh">Refresh feed</string>
+    <string name="feed_empty">Nothing new yet. Follow a website, feed, or series and its new posts will show up here.</string>
+    <string name="feed_stop_autoplay">Stop auto-play</string>
+    <string name="feed_now_playing">Now playing</string>
+    <string name="feed_play_item">Play %1$s</string>
+    <string name="settings_hub_feed_title">For you feed</string>
+    <string name="settings_hub_feed_subtitle">New posts from everything you follow, read aloud in a row.</string>
+</resources>
