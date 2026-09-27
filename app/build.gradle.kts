@@ -530,6 +530,17 @@ android {
         }
     }
 
+    // #1585 — the in-app language picker (Settings → Appearance) can switch
+    // to a language the device isn't set to. Play's per-language config
+    // splits would strip values-es from an English-device install, so the
+    // picker would "switch" to English strings. Ship every language in the
+    // base APK instead (a few hundred KB of strings).
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     // Issue #529 follow-up — rename the local-build APK so the file on
     // disk matches the GitHub release asset naming (storyvox-vX.Y.Z.apk).
     // Without this `./gradlew :app:assembleRelease` writes

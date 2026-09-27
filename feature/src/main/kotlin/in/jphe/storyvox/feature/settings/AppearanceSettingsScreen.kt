@@ -25,9 +25,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -101,6 +105,15 @@ fun AppearanceSettingsScreen(
             return@SettingsSubscreenScaffold
         }
         SettingsSubscreenBody(padding) {
+            // Issue #1585 — in-app language override. Independent of the
+            // device locale so a shared or mislabeled-locale device can
+            // still run Candela in the reader's language. The choice lives
+            // with the platform (API 33+) or AppLanguageController's own
+            // store (26–32), not SettingsRepository — see AppLanguage.kt.
+            SettingsGroupCard {
+                AppLanguageBlock()
+            }
+
             SettingsGroupCard {
                 // Book cover style — three radio-style options + live
                 // preview chip-row. The picker writes through the
@@ -253,6 +266,33 @@ fun AppearanceSettingsScreen(
             }
         }
     }
+}
+
+/**
+ * Language picker (#1585): System default / English / Español. The two
+ * language names are autonyms (untranslatable) so a user stuck in the
+ * wrong language can still find their own.
+ */
+@Composable
+private fun AppLanguageBlock() {
+    val context = LocalContext.current
+    var selected by remember { mutableStateOf(AppLanguageController.current(context)) }
+    val options = listOf(
+        AppLanguage.System to stringResource(R.string.settings_appearance_language_system),
+        AppLanguage.English to stringResource(R.string.settings_appearance_language_english),
+        AppLanguage.Spanish to stringResource(R.string.settings_appearance_language_spanish),
+    )
+    SettingsSegmentedBlock(
+        title = stringResource(R.string.settings_appearance_language_title),
+        subtitle = stringResource(R.string.settings_appearance_language_subtitle),
+        options = options.map { it.second },
+        selectedIndex = options.indexOfFirst { it.first == selected }.coerceAtLeast(0),
+        onSelected = { idx ->
+            val choice = options[idx].first
+            selected = choice
+            AppLanguageController.set(context, choice)
+        },
+    )
 }
 
 internal data class CoverStyleOption(

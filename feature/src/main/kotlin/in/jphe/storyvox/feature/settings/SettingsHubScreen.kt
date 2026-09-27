@@ -702,6 +702,9 @@ internal object HubKeywords {
     val appearance = listOf(
         "cover", "monogram", "animation", "motion", "particle", "confetti",
         "skeleton", "shimmer", "brass pulse", "theme",
+        // #1585 — language override; "idioma"/"español" so a user stuck in
+        // the wrong UI language can still search their way to it.
+        "language", "idioma", "english", "español", "espanol", "spanish", "locale",
     )
     val performance = listOf(
         "buffer", "cache", "prerender", "pre-render", "network", "patience",
@@ -764,7 +767,7 @@ internal val voiceAudioSections = listOf(
 )
 internal val readingDisplaySections = listOf(
     SettingsHubSection("Reading", "Theme, fonts, colours, highlight, focus.", HubKeywords.reading),
-    SettingsHubSection("Appearance", "Book cover style, animation, particles.", HubKeywords.appearance),
+    SettingsHubSection("Appearance", "Language, book cover style, animation.", HubKeywords.appearance),
     SettingsHubSection("Accessibility", "TalkBack, contrast, motion, font scale.", HubKeywords.accessibility),
 )
 internal val contentSourcesSections = listOf(

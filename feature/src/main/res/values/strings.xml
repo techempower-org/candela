@@ -678,7 +678,7 @@
     <string name="settings_hub_reading_title">Reading</string>
     <string name="settings_hub_reading_subtitle">Theme, fonts, colours, highlight, focus.</string>
     <string name="settings_hub_appearance_title">Appearance</string>
-    <string name="settings_hub_appearance_subtitle">Book cover style, animation, particles.</string>
+    <string name="settings_hub_appearance_subtitle">Language, book cover style, animation.</string>
     <string name="settings_hub_performance_title">Performance</string>
     <string name="settings_hub_performance_subtitle">Buffer, parallel synth, decoder choice.</string>
     <string name="settings_hub_ai_title">AI</string>
@@ -1044,6 +1044,13 @@
 
     <!-- Settings · Appearance subscreen -->
     <string name="settings_appearance_title">Appearance</string>
+    <!-- #1585 — in-app language override. English / Español are autonyms: they
+         stay in their own language whatever the UI locale, so never translate. -->
+    <string name="settings_appearance_language_title">Language</string>
+    <string name="settings_appearance_language_subtitle">Use Candela in a different language from the rest of this device.</string>
+    <string name="settings_appearance_language_system">System default</string>
+    <string name="settings_appearance_language_english" translatable="false">English</string>
+    <string name="settings_appearance_language_spanish" translatable="false">Español</string>
     <string name="settings_appearance_cover_style_title">Book cover style</string>
     <string name="settings_appearance_cover_style_subtitle">What to show when a fiction has no cover image.</string>
     <string name="settings_appearance_cover_monogram_label">Monogram</string>

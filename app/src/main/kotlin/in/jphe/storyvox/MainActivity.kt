@@ -1,6 +1,7 @@
 package `in`.jphe.storyvox
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -50,6 +51,7 @@ import `in`.jphe.storyvox.ui.theme.LocalSkeletonStyle
 import `in`.jphe.storyvox.ui.theme.ParticleIntensity
 import `in`.jphe.storyvox.ui.theme.SkeletonStyle
 import `in`.jphe.storyvox.feature.settings.AccessibilityState
+import `in`.jphe.storyvox.feature.settings.AppLanguageController
 import `in`.jphe.storyvox.feature.settings.AccessibilityStateBridge
 import `in`.jphe.storyvox.ui.a11y.A11ySpeakChapterMode
 import `in`.jphe.storyvox.ui.a11y.LocalA11ySpeakChapterMode
@@ -161,6 +163,16 @@ class MainActivity : ComponentActivity() {
     // testTagsAsResourceId is experimental Compose UI API. We opt in at
     // the function holding setContent {} because that's where the flag is
     // applied to the content root.
+    /**
+     * #1585 — in-app language override on API 26–32. AppCompat's backport
+     * can't reach a ComponentActivity, so [AppLanguageController.wrap]
+     * overlays the stored locale here; on 33+ it returns [newBase]
+     * unchanged and the platform LocaleManager does the work.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguageController.wrap(newBase))
+    }
+
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
