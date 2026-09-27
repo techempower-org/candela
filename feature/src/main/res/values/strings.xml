@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Shared utility -->
-    <string name="empty_string"></string>
+    <string name="empty_string" translatable="false"></string>
     <!-- Issue #786 — offline banner shown on network surfaces when connectivity is lost. -->
     <string name="offline_banner_message">You\'re offline — showing cached content</string>
     <string name="offline_banner_retry">Retry</string>
@@ -362,8 +362,8 @@
          "Inbox, 3 unread". %1$s = tab label, %2$d = unread count. -->
     <string name="library_inbox_tab_unread_cd">%1$s, %2$d unread</string>
     <string name="library_shelf_all">All</string>
-    <string name="library_add_by_url_label">URL</string>
-    <string name="library_add_by_url_placeholder">https://…</string>
+    <string name="library_add_by_url_label" translatable="false">URL</string>
+    <string name="library_add_by_url_placeholder" translatable="false">https://…</string>
     <!-- Issue #785 — Library search bar. -->
     <string name="library_search_placeholder">Search by title or author</string>
     <string name="library_search_clear_cd">Clear search</string>
@@ -441,7 +441,7 @@
     <string name="fiction_highlights_export_ready">Your highlights are ready</string>
     <string name="fiction_highlights_export_empty">No highlights yet — the file is a placeholder.</string>
     <string name="fiction_chapter_count">%1$d ch</string>
-    <string name="fiction_separator">·</string>
+    <string name="fiction_separator" translatable="false">·</string>
     <string name="fiction_name_label">Name</string>
     <string name="fiction_one_line_description">One-line description</string>
     <string name="fiction_listen_summary">Listen to summary</string>
@@ -570,7 +570,7 @@
     <string name="rss_manage_title">Manage RSS feeds</string>
     <string name="rss_manage_description">Subscribe to any feed that publishes RSS or Atom. Candela treats each feed as one fiction; each item is a chapter.</string>
     <string name="rss_feed_url_label">Feed URL</string>
-    <string name="rss_feed_url_placeholder">https://example.com/feed.xml</string>
+    <string name="rss_feed_url_placeholder" translatable="false">https://example.com/feed.xml</string>
     <string name="rss_add">Add</string>
     <string name="rss_remove">Remove</string>
     <string name="rss_no_subscriptions">No subscriptions yet</string>
@@ -1254,7 +1254,7 @@
     <string name="stats_back">Back</string>
     <string name="stats_share">Share stats</string>
     <string name="stats_share_chooser">Share your listening stats</string>
-    <string name="stats_app_name">Candela</string>
+    <string name="stats_app_name" translatable="false">Candela</string>
     <!-- #1265 — share-summary lines: resolved in the UI (plurals for the
          book/streak counts) and assembled by StatsFormatting.shareSummary. -->
     <string name="stats_share_header">My listening on %1$s:</string>
