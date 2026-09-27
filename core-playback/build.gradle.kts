@@ -114,7 +114,12 @@ dependencies {
     // parallelism, XNNPACK→CPU fallback). Storyvox dispatches via
     // EngineType.Kitten in this PR.
     // v2.10.0 (storyvox #1236) fixes Supertonic XNNPACK SIGSEGV — CPU only.
-    implementation("com.github.techempower-org:VoxSherpa-TTS:v2.10.0")
+    // v2.11.0 (storyvox #1713) ports upstream v4.0's nativeLock use-after-free
+    // guard into KokoroEngine + VoiceEngine: JNI generate() and release() now
+    // serialize per instance, so a destroy()/loadModel()/setSilenceScale()/
+    // setNoiseScale() during synthesis can no longer free the native model
+    // mid-generate. Release stays synchronous; API unchanged.
+    implementation("com.github.techempower-org:VoxSherpa-TTS:v2.11.0")
     implementation("com.github.k2-fsa:sherpa-onnx:1.13.4")
 
     // Media3 — session, player base classes
