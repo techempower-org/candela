@@ -5,7 +5,14 @@
     "verifiedDate": "2026-07-04",
     "freshnessMaxAgeDays": 365,
     "source": "SEED SAMPLE — authored for surface development (issue #1516). NOT the production corpus.",
-    "note": "Placeholder Notice-of-Action explainers used to build and test the letter decoder. Form NUMBERS and the fact that these are template CA county notices come from epic #1520; the explainer TEXT here is provisional placeholder guidance, NOT verified content. The production corpus is TechEmpower-supplied from their adversarial fact-check pipeline (v1 = top ~10 CA notice types by volume, EN/ES, each explainer carrying verifiedAt + source). It replaces this file wholesale; set provenance to \"techempower-verified\" and the seed banner disappears. We never paraphrase or summarize the user's actual letter — unknown forms get an honest fallback, never a guess."
+    "note": "Placeholder Notice-of-Action explainers used to build and test the letter decoder. Form NUMBERS and the fact that these are template CA county notices come from epic #1520; the explainer TEXT here is provisional placeholder guidance, NOT verified content. The production corpus is TechEmpower-supplied from their adversarial fact-check pipeline (v1 = top ~10 CA notice types by volume, EN/ES, each explainer carrying verifiedAt + source). It replaces this file wholesale; set provenance to \"techempower-verified\" and the seed banner disappears. We never paraphrase or summarize the user's actual letter — unknown forms get an honest fallback, never a guess.",
+    "esReview": {
+      "status": "needs-native-speaker-review",
+      "draftedDate": "2026-09-27",
+      "draftedBy": "AI terminology pass (issue #1586) — NOT a native speaker, NOT the TechEMPOWER fact-check pipeline",
+      "reviewSheet": "docs/i18n/es-benefits-review.md",
+      "note": "Spanish program and form terms were aligned to official CA/federal Spanish sources (CDSS translated forms, DHCS, CSD, SSA, 211 California, and the fact-checked ES program names on techempower.org/qualify); every term and the source it came from is listed in the review sheet. Until a native speaker signs off AND provenance becomes techempower-verified, this Spanish is provisional. scripts/check-benefits-es-review.py (workflow \"Benefits corpus ES gate\") fails CI if provenance is flipped to techempower-verified while this status is not native-speaker-reviewed."
+    }
   },
   "explainers": [
     {
@@ -25,7 +32,7 @@
       },
       "whatToDo": {
         "en": "Read the date and the amount. If something looks wrong, you usually have a limited number of days to ask for a hearing. Call your county worker or 211 to confirm the deadline before it passes.",
-        "es": "Lea la fecha y el monto. Si algo parece incorrecto, normalmente tiene un número limitado de días para pedir una audiencia. Llame a su trabajador del condado o al 211 para confirmar la fecha límite antes de que pase."
+        "es": "Lea la fecha y el monto. Si algo parece incorrecto, normalmente tiene un número limitado de días para solicitar una audiencia estatal. Llame a su trabajador del condado o al 211 para confirmar la fecha límite antes de que pase."
       },
       "phone": "211",
       "verifiedAt": "2026-07-04",
@@ -39,11 +46,11 @@
       "aliases": ["SAR7", "SAR-7"],
       "title": {
         "en": "Semi-Annual Report reminder (SAR 7)",
-        "es": "Recordatorio de Informe Semestral (SAR 7)"
+        "es": "Aviso de recordatorio del Reporte del estado de elegibilidad (SAR 7)"
       },
       "whatItMeans": {
         "en": "The SAR 7 is a form you fill out twice a year to keep your benefits. This reminder means one is due soon.",
-        "es": "El SAR 7 es un formulario que completa dos veces al año para mantener sus beneficios. Este recordatorio significa que uno vence pronto."
+        "es": "El SAR 7 (Reporte del estado de elegibilidad) es un formulario que completa dos veces al año para mantener sus beneficios. Este recordatorio significa que uno vence pronto."
       },
       "whyYouGotIt": {
         "en": "Your county sends it on a schedule. Missing it is one of the most common reasons benefits stop.",
@@ -69,7 +76,7 @@
       },
       "whatItMeans": {
         "en": "This is a Medi-Cal notice about your health coverage — often about renewing or a change in your case.",
-        "es": "Este es un aviso de Medi-Cal sobre su cobertura de salud, a menudo sobre una renovación o un cambio en su caso."
+        "es": "Este es un aviso de Medi-Cal sobre su cobertura de salud, a menudo sobre la renovación de sus beneficios o un cambio en su caso."
       },
       "whyYouGotIt": {
         "en": "Medi-Cal sends notices when coverage is renewed, changed, or needs information from you.",
