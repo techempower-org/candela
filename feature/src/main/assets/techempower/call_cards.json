@@ -4,7 +4,14 @@
     "provenance": "seed-sample",
     "verifiedDate": "2026-07-04",
     "source": "SEED SAMPLE — authored for surface development (issue #1518). NOT the production corpus.",
-    "note": "Placeholder call cards used to build and test the make-the-call surface. Program NAMES and org mappings come from epic #1520; the scripts, checklists, and best-time-to-call notes are GENERIC call-coaching placeholders, NOT verified content. NO phone number is asserted here beyond the public 211 line — the direct program lines come from the TechEmpower-supplied corpus + SEASON-OPS phone book, each carrying verifiedAt. Cards without a verified number route the user through 211. The production corpus replaces this file wholesale; set provenance to \"techempower-verified\" and the seed banner disappears."
+    "note": "Placeholder call cards used to build and test the make-the-call surface. Program NAMES and org mappings come from epic #1520; the scripts, checklists, and best-time-to-call notes are GENERIC call-coaching placeholders, NOT verified content. NO phone number is asserted here beyond the public 211 line — the direct program lines come from the TechEmpower-supplied corpus + SEASON-OPS phone book, each carrying verifiedAt. Cards without a verified number route the user through 211. The production corpus replaces this file wholesale; set provenance to \"techempower-verified\" and the seed banner disappears.",
+    "esReview": {
+      "status": "needs-native-speaker-review",
+      "draftedDate": "2026-09-27",
+      "draftedBy": "AI terminology pass (issue #1586) — NOT a native speaker, NOT the TechEMPOWER fact-check pipeline",
+      "reviewSheet": "docs/i18n/es-benefits-review.md",
+      "note": "Spanish program and form terms were aligned to official CA/federal Spanish sources (CDSS translated forms, DHCS, CSD, SSA, 211 California, and the fact-checked ES program names on techempower.org/qualify); every term and the source it came from is listed in the review sheet. Until a native speaker signs off AND provenance becomes techempower-verified, this Spanish is provisional. scripts/check-benefits-es-review.py (workflow \"Benefits corpus ES gate\") fails CI if provenance is flipped to techempower-verified while this status is not native-speaker-reviewed."
+    }
   },
   "cards": [
     {
@@ -30,7 +37,7 @@
       "captureFields": [
         { "id": "funds_available", "label": { "en": "Funds available?", "es": "¿Fondos disponibles?" } },
         { "id": "appointment", "label": { "en": "Appointment date / time", "es": "Fecha / hora de la cita" } },
-        { "id": "reference", "label": { "en": "Reference or case number", "es": "Número de referencia o de caso" } },
+        { "id": "reference", "label": { "en": "Reference or case number", "es": "Número de referencia o número del caso" } },
         { "id": "notes", "label": { "en": "Other notes", "es": "Otras notas" } }
       ],
       "verifiedDate": null,

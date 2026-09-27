@@ -1,0 +1,35 @@
+name: Benefits corpus ES gate
+
+# Verified-or-silent, Spanish half (#1586, epic #1520 invariant 3).
+#
+# The TechEMPOWER benefits corpora (screener / letter decoder / call cards) ship
+# EN + ES. Their Spanish was aligned to official CA/federal Spanish terminology
+# but has NOT been reviewed by a native speaker. This job fails if:
+#   - any bilingual field lacks Spanish, or
+#   - a corpus is promoted to provenance "techempower-verified" while its
+#     metadata.esReview.status is still "needs-native-speaker-review".
+# Reviewer checklist: docs/i18n/es-benefits-review.md.
+#
+# Pure Python, no gradle, no network — seconds. Not a required check (only
+# "Build APK" gates merges); a red here means "a human still has to sign off".
+
+on:
+  pull_request:
+    paths:
+      - 'feature/src/main/assets/techempower/**'
+      - 'docs/i18n/es-benefits-review.md'
+      - 'scripts/check-benefits-es-review.py'
+      - '.github/workflows/benefits-es-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  es-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check benefits corpora ES review status
+        run: python3 scripts/check-benefits-es-review.py
