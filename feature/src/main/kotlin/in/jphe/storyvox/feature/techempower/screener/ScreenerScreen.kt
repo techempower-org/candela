@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 /**
@@ -111,8 +112,6 @@ fun ScreenerScreen(
                 onAnswerChoice = viewModel::answerChoice,
                 onShowResults = viewModel::showResults,
                 onReset = viewModel::reset,
-                onReadAloud = viewModel::readAloud,
-                onStopReadAloud = viewModel::stopReadAloud,
                 modifier = Modifier.padding(scaffoldPadding),
             )
         }
@@ -151,8 +150,6 @@ private fun ScreenerContent(
     onAnswerChoice: (String, String) -> Unit,
     onShowResults: () -> Unit,
     onReset: () -> Unit,
-    onReadAloud: (String) -> Unit,
-    onStopReadAloud: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val corpus = state.corpus ?: return
@@ -222,8 +219,6 @@ private fun ScreenerContent(
                 ResultsHeader(
                     results = state.results,
                     spanish = spanish,
-                    onReadAll = onReadAloud,
-                    onStop = onStopReadAloud,
                 )
             }
             if (state.results.isEmpty()) {
@@ -239,7 +234,6 @@ private fun ScreenerContent(
                     ResultCard(
                         result = result,
                         spanish = spanish,
-                        onReadAloud = onReadAloud,
                     )
                 }
             }
@@ -346,8 +340,6 @@ private fun ChoicePill(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun ResultsHeader(
     results: List<ScreenerResult>,
     spanish: Boolean,
-    onReadAll: (String) -> Unit,
-    onStop: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
@@ -359,16 +351,12 @@ private fun ResultsHeader(
             modifier = Modifier.semantics { heading() },
         )
         if (results.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                OutlinedButton(onClick = { onReadAll(resultsAsSpeech(results, spanish)) }) {
-                    Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(stringResource(R.string.screener_read_all))
-                }
-                TextButton(onClick = onStop) {
-                    Text(stringResource(R.string.screener_stop))
-                }
-            }
+            // #1580 — the shared benefits read-aloud control (big toggle).
+            ReadAloudControl(
+                key = "screener-all",
+                label = stringResource(R.string.screener_read_all),
+                script = { resultsAsSpeech(results, spanish) },
+            )
         }
     }
 }
@@ -377,7 +365,6 @@ private fun ResultsHeader(
 private fun ResultCard(
     result: ScreenerResult,
     spanish: Boolean,
-    onReadAloud: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val brass = MaterialTheme.colorScheme.primary
@@ -415,10 +402,14 @@ private fun ResultCard(
         )
 
         Spacer(Modifier.height(spacing.xs))
+        ReadAloudControl(
+            key = "screener-${program.id}",
+            label = stringResource(R.string.screener_read_aloud),
+            script = { programAsSpeech(result, spanish) },
+        )
         FlowRowActions(
             program = program,
             spanish = spanish,
-            onReadAloud = { onReadAloud(programAsSpeech(result, spanish)) },
         )
     }
 }
@@ -428,19 +419,12 @@ private fun ResultCard(
 private fun FlowRowActions(
     program: ScreenerProgram,
     spanish: Boolean,
-    onReadAloud: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val context = LocalContext.current
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        // Read-aloud — this IS an audiobook app.
-        TextButton(onClick = onReadAloud) {
-            Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(spacing.xs))
-            Text(stringResource(R.string.screener_read_aloud))
-        }
         // Call — only when a number is verified (never invented). Otherwise
         // route to 211, the public help line.
         val number = program.phone ?: "211"

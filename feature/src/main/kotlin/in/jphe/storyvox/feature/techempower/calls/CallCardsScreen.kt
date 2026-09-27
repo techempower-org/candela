@@ -61,6 +61,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import `in`.jphe.storyvox.data.TechEmpowerLinks
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 /**
@@ -125,8 +126,6 @@ fun CallCardsScreen(
                 spanish = spanish,
                 onDialInitiated = viewModel::onDialInitiated,
                 onOpenCapture = viewModel::openCapture,
-                onReadAloud = viewModel::readAloud,
-                onStop = viewModel::stopReadAloud,
                 modifier = Modifier.padding(pad),
             )
             else -> CardList(
@@ -219,8 +218,6 @@ private fun CardDetail(
     spanish: Boolean,
     onDialInitiated: () -> Unit,
     onOpenCapture: () -> Unit,
-    onReadAloud: (String) -> Unit,
-    onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -277,13 +274,13 @@ private fun CardDetail(
                 },
             )
         }
+        // #1580 — the shared benefits read-aloud control (big toggle).
+        ReadAloudControl(
+            key = "call-card-${card.id}",
+            label = stringResource(R.string.calls_read_aloud),
+            script = { cardAsSpeech(card, spanish) },
+        )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            OutlinedButton(onClick = { onReadAloud(cardAsSpeech(card, spanish)) }) {
-                Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text(stringResource(R.string.calls_read_aloud))
-            }
-            TextButton(onClick = onStop) { Text(stringResource(R.string.calls_stop)) }
             TextButton(onClick = onOpenCapture) { Text(stringResource(R.string.calls_add_notes)) }
         }
 

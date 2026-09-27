@@ -126,6 +126,20 @@ class DeadlineKeeperViewModelTest {
     }
 
     @Test
+    fun `scanning a letter keeps its text for read-aloud`() = runTest {
+        vm.onImageCaptured(ByteArray(0))
+        assertEquals("Please respond by August 31, 2026.", vm.state.value.noticeText)
+    }
+
+    @Test
+    fun `a failed rescan clears the previous letter text`() = runTest {
+        vm.onImageCaptured(ByteArray(0))
+        recognizer.result = OcrResult.Failure("model unavailable")
+        vm.onImageCaptured(ByteArray(0))
+        assertEquals("", vm.state.value.noticeText)
+    }
+
+    @Test
     fun `ocr failure surfaces an error, no candidates`() = runTest {
         recognizer.result = OcrResult.Failure("model unavailable")
         vm.onImageCaptured(ByteArray(0))

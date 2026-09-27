@@ -75,6 +75,8 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import `in`.jphe.storyvox.data.docs.NormPoint
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.BenefitsReadAloudScripts
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
@@ -259,6 +261,32 @@ fun FormFillScreen(
                         )
                     }
                 } else {
+                    // #1580 — hear every placed field and what was typed in it,
+                    // so a paper form can be checked by ear before exporting.
+                    item {
+                        val header = stringResource(R.string.form_fill_fields_header, state.fields.size)
+                        val sigDrawn = stringResource(R.string.form_fill_signature_drawn)
+                        val sigEmpty = stringResource(R.string.form_fill_signature_empty)
+                        val emptyValue = stringResource(R.string.readaloud_empty_value)
+                        val titleLabel = stringResource(R.string.readaloud_form_title)
+                        ReadAloudControl(
+                            key = "form-fields",
+                            label = stringResource(R.string.readaloud_form_fields),
+                            script = {
+                                BenefitsReadAloudScripts.formFields(
+                                    header = header,
+                                    fields = state.fields,
+                                    textFieldLabel = { n -> context.getString(R.string.readaloud_form_text_field, n) },
+                                    checkField = { n -> context.getString(R.string.readaloud_form_check_field, n) },
+                                    signatureDrawn = sigDrawn,
+                                    signatureEmpty = sigEmpty,
+                                    emptyValue = emptyValue,
+                                    titleLabel = titleLabel,
+                                    title = state.title,
+                                )
+                            },
+                        )
+                    }
                     items(state.fields, key = { it.id }) { field ->
                         FieldRow(
                             field = field,

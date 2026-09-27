@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Issue #1580 — shared read-aloud control on the TechEMPOWER benefits surfaces. -->
+    <string name="readaloud_action">Read aloud</string>
+    <string name="readaloud_stop">Stop reading</string>
+    <string name="readaloud_state_speaking">Reading aloud</string>
+    <string name="readaloud_failed">Read-aloud didn\'t start. Check that a voice is set up in Voices, then try again.</string>
+    <string name="readaloud_empty_value">not filled in</string>
+
+    <!-- Deadline keeper (#1515) -->
+    <string name="readaloud_deadline_letter">Read my letter aloud</string>
+    <string name="readaloud_deadline_dates">Read the dates found</string>
+    <string name="readaloud_deadline_dates_intro">Dates found in your letter. Pick the one that is your deadline.</string>
+    <string name="readaloud_deadline_candidate">Date %1$d: %2$s. The letter says: %3$s</string>
+    <string name="readaloud_deadline_candidate_past">This date has already passed.</string>
+    <string name="readaloud_deadline_draft">Read this reminder</string>
+    <string name="readaloud_deadline_reminders">Read my reminders</string>
+    <string name="readaloud_deadline_reminder_item">%1$s, due %2$s.</string>
+
+    <!-- Fillable PDF (#1512) -->
+    <string name="readaloud_form_fields">Read my fields aloud</string>
+    <string name="readaloud_form_text_field">Text box %1$d</string>
+    <string name="readaloud_form_check_field">Checkmark %1$d.</string>
+    <string name="readaloud_form_title">File name</string>
+
+    <!-- Doc wallet (#1514) -->
+    <string name="readaloud_wallet_doc">Read this document\'s details</string>
+    <string name="readaloud_wallet_note">Note</string>
+    <string name="readaloud_wallet_pages">Pages: %1$d.</string>
+
+    <!-- Household profile (#1519) -->
+    <string name="readaloud_profile">Read my profile aloud</string>
+</resources>

@@ -61,6 +61,8 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import `in`.jphe.storyvox.data.wallet.WalletDoc
 import `in`.jphe.storyvox.data.wallet.WalletDocType
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudScript
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
@@ -410,6 +412,31 @@ private fun WalletDocRow(
                     )
                 }
             }
+            // #1580 — hear this document's details (the page itself is an
+            // image; its title, type, age, pages and note are what we can read).
+            val typeLabel = stringResource(walletTypeLabel(doc.type))
+            val captured = stringResource(R.string.wallet_captured_days_ago, doc.ageDays(nowMs).toInt())
+            val pages = stringResource(R.string.readaloud_wallet_pages, doc.pageCount)
+            val noteLabel = stringResource(R.string.readaloud_wallet_note)
+            val stale = if (doc.isStale(nowMs)) {
+                stringResource(R.string.wallet_staleness_hint, doc.type.stalenessDays ?: 0)
+            } else {
+                null
+            }
+            ReadAloudControl(
+                key = "wallet-doc-${doc.id}",
+                label = stringResource(R.string.readaloud_wallet_doc),
+                script = {
+                    ReadAloudScript.build(
+                        doc.title,
+                        typeLabel,
+                        captured,
+                        pages,
+                        ReadAloudScript.labeled(noteLabel, doc.note),
+                        stale,
+                    )
+                },
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                 BrassButton(
                     label = stringResource(R.string.wallet_reexport),
@@ -492,24 +519,39 @@ private fun WhatDoesThisProveDialog(
     onDismiss: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val title = stringResource(R.string.wallet_what_proves_title)
+    val none = stringResource(R.string.wallet_what_proves_none)
+    val intro = stringResource(R.string.wallet_what_proves_intro, stringResource(walletTypeLabel(doc.type)))
+    val seedNote = stringResource(R.string.wallet_what_proves_seed_note)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.wallet_what_proves_title)) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
                 if (programs.isEmpty()) {
-                    Text(stringResource(R.string.wallet_what_proves_none))
+                    Text(none)
                 } else {
-                    Text(stringResource(R.string.wallet_what_proves_intro, stringResource(walletTypeLabel(doc.type))))
+                    Text(intro)
                     programs.forEach { p ->
                         Text("• ${p.displayName}", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        stringResource(R.string.wallet_what_proves_seed_note),
+                        seedNote,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                // #1580 — same read-aloud affordance as the rest of the wallet.
+                ReadAloudControl(
+                    key = "wallet-proves-${doc.id}",
+                    script = {
+                        if (programs.isEmpty()) {
+                            ReadAloudScript.build(title, none)
+                        } else {
+                            ReadAloudScript.build(listOf(title, intro) + programs.map { it.displayName } + seedNote)
+                        }
+                    },
+                )
             }
         },
         confirmButton = {

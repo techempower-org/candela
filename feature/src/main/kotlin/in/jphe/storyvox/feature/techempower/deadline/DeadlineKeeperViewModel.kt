@@ -60,7 +60,7 @@ class DeadlineKeeperViewModel @Inject constructor(
     /** Recognize text in a captured / picked notice and extract candidate dates. */
     fun onImageCaptured(bytes: ByteArray, rotationDegrees: Int = 0) {
         if (_state.value.isRecognizing) return
-        _state.update { it.copy(isRecognizing = true, error = null, noDatesFound = false) }
+        _state.update { it.copy(isRecognizing = true, error = null, noDatesFound = false, noticeText = "") }
         viewModelScope.launch {
             when (val result = recognizer.recognize(OcrImage(bytes, rotationDegrees))) {
                 is OcrResult.Failure -> _state.update {
@@ -77,6 +77,7 @@ class DeadlineKeeperViewModel @Inject constructor(
                             isRecognizing = false,
                             candidates = candidates,
                             noDatesFound = candidates.isEmpty(),
+                            noticeText = result.recognition.text,
                         )
                     }
                 }
@@ -194,6 +195,12 @@ data class DeadlineKeeperUiState(
     val isRecognizing: Boolean = false,
     val candidates: List<DateCandidate> = emptyList(),
     val noDatesFound: Boolean = false,
+    /**
+     * Issue #1580 — the OCR'd text of the last scanned notice, kept (in memory
+     * only, never persisted) so the user can hear the letter read aloud before
+     * picking a date. Empty until a scan succeeds.
+     */
+    val noticeText: String = "",
     val draft: ReminderDraft? = null,
     val reminders: List<DeadlineReminder> = emptyList(),
     val error: String? = null,

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Issue #1580 — control compartido de lectura en voz alta en las pantallas de beneficios TechEMPOWER. -->
+    <string name="readaloud_action">Leer en voz alta</string>
+    <string name="readaloud_stop">Dejar de leer</string>
+    <string name="readaloud_state_speaking">Leyendo en voz alta</string>
+    <string name="readaloud_failed">La lectura en voz alta no comenzó. Revisa que haya una voz configurada en Voces y vuelve a intentarlo.</string>
+    <string name="readaloud_empty_value">sin completar</string>
+
+    <!-- Recordatorio de plazos (#1515) -->
+    <string name="readaloud_deadline_letter">Leer mi carta en voz alta</string>
+    <string name="readaloud_deadline_dates">Leer las fechas encontradas</string>
+    <string name="readaloud_deadline_dates_intro">Fechas encontradas en tu carta. Elige la que es tu fecha límite.</string>
+    <string name="readaloud_deadline_candidate">Fecha %1$d: %2$s. La carta dice: %3$s</string>
+    <string name="readaloud_deadline_candidate_past">Esta fecha ya pasó.</string>
+    <string name="readaloud_deadline_draft">Leer este recordatorio</string>
+    <string name="readaloud_deadline_reminders">Leer mis recordatorios</string>
+    <string name="readaloud_deadline_reminder_item">%1$s, vence el %2$s.</string>
+
+    <!-- PDF rellenable (#1512) -->
+    <string name="readaloud_form_fields">Leer mis campos en voz alta</string>
+    <string name="readaloud_form_text_field">Cuadro de texto %1$d</string>
+    <string name="readaloud_form_check_field">Marca de verificación %1$d.</string>
+    <string name="readaloud_form_title">Nombre del archivo</string>
+
+    <!-- Cartera de documentos (#1514) -->
+    <string name="readaloud_wallet_doc">Leer los datos de este documento</string>
+    <string name="readaloud_wallet_note">Nota</string>
+    <string name="readaloud_wallet_pages">Páginas: %1$d.</string>
+
+    <!-- Perfil del hogar (#1519) -->
+    <string name="readaloud_profile">Leer mi perfil en voz alta</string>
+</resources>

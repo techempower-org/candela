@@ -109,11 +109,8 @@ class DecoderViewModel @Inject constructor(
         }
     }
 
-    fun readAloud(text: String) {
-        if (text.isBlank()) return
-        viewModelScope.launch { playback.speakText(text) }
-    }
-
+    /** Speech itself is started by the shared ReadAloudControl (#1580); the
+     *  VM only stops it on reset / leaving the screen. */
     fun stopReadAloud() {
         playback.stopSpeaking()
     }
