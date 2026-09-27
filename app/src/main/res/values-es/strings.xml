@@ -9,4 +9,17 @@
     <string name="deadline_channel_name">Plazos de beneficios</string>
     <string name="deadline_channel_desc">Recordatorios antes de sus plazos de beneficios</string>
     <string name="deadline_notif_title_fallback">Fecha límite de beneficios</string>
+    <!-- Home-screen widget + share sheet — Spanish translations (#1583/#1584) -->
+    <string name="open_with_label">Escuchar con Candela</string>
+    <string name="widget_now_playing_label">Candela — Reproduciendo</string>
+    <string name="widget_now_playing_description">El capítulo que se está reproduciendo, con controles. Agranda el widget para ver la portada, el título, el capítulo y el temporizador para dormir.</string>
+    <string name="widget_idle_title">No se está reproduciendo nada</string>
+    <string name="widget_idle_body">Abre Candela para empezar un audiolibro</string>
+    <string name="widget_action_play">Reproducir</string>
+    <string name="widget_action_pause">Pausar</string>
+    <string name="widget_action_next">Capítulo siguiente</string>
+    <string name="widget_action_sleep_start">Iniciar temporizador para dormir</string>
+    <string name="widget_action_sleep_stop">Cancelar temporizador para dormir</string>
+    <string name="widget_sleep_remaining">Se apaga en %1$s</string>
+    <!-- /Home-screen widget + share sheet — Spanish translations -->
 </resources>

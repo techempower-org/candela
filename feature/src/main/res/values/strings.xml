@@ -203,7 +203,7 @@
     <string name="reader_search_prev">Previous match</string>
     <string name="reader_search_next">Next match</string>
     <!-- e.g. "3 / 12" — current match out of total -->
-    <string name="reader_search_count">%1$d / %2$d</string>
+    <string name="reader_search_count" translatable="false">%1$d / %2$d</string>
     <string name="reader_search_no_matches">No matches</string>
     <!-- TalkBack summary of the result counter -->
     <string name="reader_search_count_description">Match %1$d of %2$d</string>
@@ -218,7 +218,7 @@
     <string name="reader_book_search_searching">Searching…</string>
     <string name="reader_book_search_no_matches">No matches in this book</string>
     <!-- Stepper position, e.g. "2 / 7" -->
-    <string name="reader_book_search_position">%1$d / %2$d</string>
+    <string name="reader_book_search_position" translatable="false">%1$d / %2$d</string>
     <!-- TalkBack summary of the stepper position -->
     <string name="reader_book_search_position_description">Result %1$d of %2$d</string>
     <!-- Footer shown when the chapter cap was hit before scanning the whole book -->
