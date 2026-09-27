@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1467 Morning Briefing screen. Spanish twin: values-es/strings_briefing.xml -->
+<resources>
+    <string name="briefing_title">Morning Briefing</string>
+    <string name="briefing_back">Back</string>
+    <string name="briefing_intro">One continuous episode from the sources you pick. Play it hands-free on your walk.</string>
+    <string name="briefing_play">Build &amp; play my briefing</string>
+    <string name="briefing_play_ready">Play today\'s briefing</string>
+    <string name="briefing_building">Building your briefing…</string>
+    <string name="briefing_empty">No items yet. Turn on a source below that has recent posts, then try again.</string>
+    <string name="briefing_playing">Playing %1$d of %2$d</string>
+    <string name="briefing_complete">Briefing complete · %1$d items</string>
+    <string name="briefing_ready_today">Prepared this morning at %1$s · %2$d items</string>
+    <string name="briefing_stop">Stop briefing</string>
+
+    <string name="briefing_sources_header">Sources</string>
+    <string name="briefing_sources_hint">Plays top to bottom. Each source adds its latest items.</string>
+    <string name="briefing_count_label">%1$d items</string>
+    <string name="briefing_count_decrease">Fewer items from %1$s</string>
+    <string name="briefing_count_increase">More items from %1$s</string>
+
+    <string name="briefing_source_googlenews">Google News headlines</string>
+    <string name="briefing_source_hackernews">Hacker News</string>
+    <string name="briefing_source_arxiv">arXiv papers</string>
+    <string name="briefing_source_rss">Your RSS feeds</string>
+    <string name="briefing_source_github">GitHub activity</string>
+    <string name="briefing_source_inbox">New chapters from your Inbox</string>
+    <string name="briefing_source_calendar">Today\'s calendar and deadlines</string>
+
+    <string name="briefing_schedule_header">Every morning</string>
+    <string name="briefing_schedule_toggle">Prepare my briefing daily</string>
+    <string name="briefing_schedule_hint">Fetches and pre-renders the episode in the background so it is ready when you wake up.</string>
+    <string name="briefing_schedule_time">Ready by %1$s</string>
+    <string name="briefing_schedule_pick_time">Choose time</string>
+    <string name="briefing_ok">OK</string>
+    <string name="briefing_cancel">Cancel</string>
+</resources>

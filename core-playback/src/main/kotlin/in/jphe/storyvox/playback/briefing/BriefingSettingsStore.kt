@@ -1,7 +1,6 @@
 package `in`.jphe.storyvox.playback.briefing
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -29,7 +28,7 @@ import javax.inject.Singleton
  * defaults instead of crashing the screen.
  */
 @Singleton
-class BriefingSettingsStore(
+class BriefingSettingsStore internal constructor(
     private val store: DataStore<Preferences>,
 ) {
     /** Hilt entry point; the primary constructor is the JVM-test seam (cf. PcmCacheConfig). */
@@ -65,10 +64,9 @@ class BriefingSettingsStore(
     }
 
     private fun decodeSettings(raw: String?): BriefingSettings {
+        // Unreadable blob → defaults (no Log here: keeps this path JVM-testable).
         val decoded = raw?.let {
-            runCatching { json.decodeFromString(BriefingSettings.serializer(), it) }
-                .onFailure { e -> Log.w(TAG, "briefing settings unreadable; using defaults", e) }
-                .getOrNull()
+            runCatching { json.decodeFromString(BriefingSettings.serializer(), it) }.getOrNull()
         } ?: BriefingSettings()
         return decoded.copy(config = BriefingPlanner.normalize(decoded.config))
     }
@@ -77,7 +75,6 @@ class BriefingSettingsStore(
         raw?.let { runCatching { json.decodeFromString(PrebuiltBriefing.serializer(), it) }.getOrNull() }
 
     private companion object {
-        const val TAG = "BriefingSettingsStore"
         val SETTINGS_KEY = stringPreferencesKey("briefing_settings_json")
         val PREBUILT_KEY = stringPreferencesKey("briefing_prebuilt_json")
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
