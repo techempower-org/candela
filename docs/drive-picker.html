@@ -1,0 +1,238 @@
+<!doctype html>
+<!--
+  Issue #1677 — Candela's Google Picker page.
+
+  Under the non-sensitive drive.file scope Candela can only read Drive files the
+  user picks. Google's Picker is a JavaScript API that has to run on an HTTPS
+  origin registered with the API key, so the app opens THIS static page (GitHub
+  Pages, https://candela.techempower.org/drive-picker.html) in a Chrome Custom
+  Tab. Everything it needs arrives in the URL fragment, which browsers never
+  send to a server:
+
+    #token=<drive.file access token>&key=<Picker API key>&app=<project number>
+     &return=candela://oauth/googledrive/picked&mimes=<comma list>&hl=<lang>
+
+  The fragment is wiped from the address bar and history on load. Picking a
+  file here is what grants Candela access to it; the page then links back to
+  the app. No front matter on purpose: Jekyll copies this file verbatim.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Candela Drive Picker</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3c3 5 5 8 5 12a5 5 0 0 1-10 0c0-4 2-7 5-12z' fill='%23d9a441'/%3E%3Crect x='12' y='20' width='8' height='9' rx='2' fill='%23b07a2a'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f1e6;
+    --surface: #fffaf1;
+    --text: #2b2118;
+    --muted: #6b5a48;
+    --brass: #9a6a1f;
+    --brass-text: #fffaf1;
+    --border: #e2d4bd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17120d;
+      --surface: #221a13;
+      --text: #f1e6d4;
+      --muted: #b8a68d;
+      --brass: #d9a441;
+      --brass-text: #1a130c;
+      --border: #3a2d20;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  main {
+    width: 100%;
+    max-width: 440px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+  h1 { font-size: 1.25rem; margin: 8px 0 8px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  .btn {
+    display: inline-block;
+    min-height: 48px;
+    padding: 12px 24px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--brass);
+    color: var(--brass-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn[hidden] { display: none; }
+  .btn:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+  svg.flame { width: 40px; height: 40px; }
+</style>
+</head>
+<body>
+<main>
+  <svg class="flame" viewBox="0 0 32 32" aria-hidden="true">
+    <path d="M16 3c3 5 5 8 5 12a5 5 0 0 1-10 0c0-4 2-7 5-12z" fill="#d9a441"/>
+    <rect x="12" y="20" width="8" height="9" rx="2" fill="#b07a2a"/>
+  </svg>
+  <h1 id="title">Opening Google Drive…</h1>
+  <p id="body" role="status" aria-live="polite">One moment.</p>
+  <button id="open" class="btn" type="button" hidden>Choose files</button>
+  <a id="back" class="btn" href="#" hidden>Back to Candela</a>
+</main>
+<script>
+(function () {
+  "use strict";
+
+  var COPY = {
+    en: {
+      loading: "Opening Google Drive…",
+      loadingBody: "One moment.",
+      choose: "Choose files",
+      chooseTitle: "Choose what Candela can read",
+      chooseBody: "Pick Google Docs, PDFs, EPUBs or text files. Candela only sees what you pick.",
+      doneTitle: "All set",
+      doneBody: function (n) { return n === 1 ? "1 item added. Head back to Candela to listen." : n + " items added. Head back to Candela to listen."; },
+      cancelTitle: "Nothing picked",
+      cancelBody: "You can choose files any time from the Google Drive chip in Browse.",
+      back: "Back to Candela",
+      errorTitle: "Couldn't open Google Drive",
+      errorBody: "Go back to Candela and try again. If it keeps happening, disconnect and reconnect Google Drive."
+    },
+    es: {
+      loading: "Abriendo Google Drive…",
+      loadingBody: "Un momento.",
+      choose: "Elegir archivos",
+      chooseTitle: "Elija lo que Candela puede leer",
+      chooseBody: "Elija documentos de Google, PDF, EPUB o archivos de texto. Candela solo ve lo que usted elija.",
+      doneTitle: "Listo",
+      doneBody: function (n) { return n === 1 ? "Se agregó 1 elemento. Vuelva a Candela para escucharlo." : "Se agregaron " + n + " elementos. Vuelva a Candela para escucharlos."; },
+      cancelTitle: "No eligió nada",
+      cancelBody: "Puede elegir archivos cuando quiera desde Google Drive en Explorar.",
+      back: "Volver a Candela",
+      errorTitle: "No se pudo abrir Google Drive",
+      errorBody: "Vuelva a Candela e inténtelo de nuevo. Si sigue ocurriendo, desconecte y vuelva a conectar Google Drive."
+    }
+  };
+
+  var params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  // Drop the token from the address bar and session history immediately.
+  try { history.replaceState(null, "", window.location.pathname); } catch (e) {}
+
+  var token = params.get("token") || "";
+  var key = params.get("key") || "";
+  var app = params.get("app") || "";
+  var hl = params.get("hl") || navigator.language || "en";
+  var mimes = (params.get("mimes") || "").split(",").filter(Boolean);
+  var ret = params.get("return") || "";
+  // Only ever hand the user back to Candela's own scheme.
+  if (ret.indexOf("candela://") !== 0) ret = "candela://oauth/googledrive/picked";
+
+  var lang = hl.toLowerCase().indexOf("es") === 0 ? "es" : "en";
+  var t = COPY[lang];
+  document.documentElement.lang = lang;
+
+  var el = {
+    title: document.getElementById("title"),
+    body: document.getElementById("body"),
+    open: document.getElementById("open"),
+    back: document.getElementById("back")
+  };
+  el.open.textContent = t.choose;
+  el.back.textContent = t.back;
+
+  function show(title, body, opts) {
+    el.title.textContent = title;
+    el.body.textContent = body;
+    el.open.hidden = !(opts && opts.open);
+    el.back.hidden = !(opts && opts.back);
+  }
+
+  function goBack(query) {
+    var url = ret + (query ? "?" + query : "");
+    el.back.href = url;
+    // Chrome may block a script-initiated jump to an app scheme without a
+    // fresh user gesture, so the visible button is the reliable path.
+    try { window.location.href = url; } catch (e) {}
+  }
+
+  if (!token || !key || !app) {
+    show(t.errorTitle, t.errorBody, { back: true });
+    el.back.href = ret + "?error=missing_params";
+    return;
+  }
+
+  var picker = null;
+
+  function onPicked(data) {
+    var action = data[google.picker.Response.ACTION];
+    if (action === google.picker.Action.PICKED) {
+      var docs = data[google.picker.Response.DOCUMENTS] || [];
+      show(t.doneTitle, t.doneBody(docs.length), { back: true });
+      goBack("count=" + docs.length);
+    } else if (action === google.picker.Action.CANCEL) {
+      show(t.cancelTitle, t.cancelBody, { back: true, open: true });
+      goBack("cancelled=1");
+    }
+  }
+
+  function buildPicker() {
+    var view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+      .setIncludeFolders(true)
+      .setSelectFolderEnabled(true)
+      .setMode(google.picker.DocsViewMode.LIST);
+    if (mimes.length) {
+      // Folders must be listed explicitly once a MIME filter is set.
+      view.setMimeTypes(mimes.concat(["application/vnd.google-apps.folder"]).join(","));
+    }
+    picker = new google.picker.PickerBuilder()
+      .addView(view)
+      .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+      .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
+      .setOAuthToken(token)
+      .setDeveloperKey(key)
+      .setAppId(app)
+      .setLocale(lang)
+      .setOrigin(window.location.protocol + "//" + window.location.host)
+      .setTitle(t.chooseTitle)
+      .setCallback(onPicked)
+      .build();
+    show(t.chooseTitle, t.chooseBody, { open: true });
+    picker.setVisible(true);
+  }
+
+  el.open.addEventListener("click", function () {
+    if (picker) picker.setVisible(true);
+  });
+
+  var script = document.createElement("script");
+  script.src = "https://apis.google.com/js/api.js";
+  script.async = true;
+  script.onload = function () {
+    gapi.load("picker", { callback: buildPicker, onerror: function () { show(t.errorTitle, t.errorBody, { back: true }); el.back.href = ret + "?error=load"; } });
+  };
+  script.onerror = function () {
+    show(t.errorTitle, t.errorBody, { back: true });
+    el.back.href = ret + "?error=load";
+  };
+  document.head.appendChild(script);
+})();
+</script>
+</body>
+</html>

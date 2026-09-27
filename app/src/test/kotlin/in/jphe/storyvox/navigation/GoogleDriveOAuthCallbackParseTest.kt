@@ -1,7 +1,9 @@
 package `in`.jphe.storyvox.navigation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -55,5 +57,34 @@ class GoogleDriveOAuthCallbackParseTest {
             DeepLinkResolver.GoogleDriveOAuthCallback(code = null, state = null, error = null),
             parse("candela://oauth/googledrive"),
         )
+    }
+
+    // #1677 — reversed-client-id redirect + the Picker return link.
+
+    @Test
+    fun reversedClientIdRedirect_isParsedWhenPrefixGiven() {
+        val prefix = "com.googleusercontent.apps.1234-abc:/oauth2redirect"
+        val result = DeepLinkResolver.parseGoogleDriveOAuthCallback(
+            "$prefix?state=s1&code=4/xyz",
+            reversedRedirectPrefix = prefix,
+        )
+        assertEquals(
+            DeepLinkResolver.GoogleDriveOAuthCallback(code = "4/xyz", state = "s1", error = null),
+            result,
+        )
+    }
+
+    @Test
+    fun reversedClientIdRedirect_isIgnoredWithoutPrefix() {
+        assertNull(parse("com.googleusercontent.apps.1234-abc:/oauth2redirect?code=x&state=y"))
+    }
+
+    @Test
+    fun pickerReturn_isNotAnOAuthCallback() {
+        assertNull(parse("candela://oauth/googledrive/picked?count=2"))
+        assertTrue(DeepLinkResolver.isGoogleDrivePickerReturn("candela://oauth/googledrive/picked?count=2"))
+        assertTrue(DeepLinkResolver.isGoogleDrivePickerReturn("candela://oauth/googledrive/picked"))
+        assertFalse(DeepLinkResolver.isGoogleDrivePickerReturn("candela://oauth/googledrive?code=x"))
+        assertFalse(DeepLinkResolver.isGoogleDrivePickerReturn(null as String?))
     }
 }

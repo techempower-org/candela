@@ -4,6 +4,8 @@ import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.source.googledrive.config.GoogleDriveConfig
 import `in`.jphe.storyvox.source.googledrive.config.GoogleDriveConfigState
 import `in`.jphe.storyvox.source.googledrive.net.GoogleDriveApi
+import `in`.jphe.storyvox.source.googledrive.parse.DriveBook
+import `in`.jphe.storyvox.source.googledrive.parse.DriveBookReader
 import `in`.jphe.storyvox.testkit.source.FictionSourceContractTest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -33,6 +35,7 @@ class GoogleDriveContractTest : FictionSourceContractTest() {
                 override val baseUrl: String get() = host
             },
             FakeConfig(token = "test-access-token"),
+            NoBooksReader,
         )
     }
 
@@ -59,4 +62,10 @@ class GoogleDriveContractTest : FictionSourceContractTest() {
 
     /** `popular()` / `search()` both hit `GET /drive/v3/files?...`. */
     override fun listPathFragment(): String = "files"
+}
+
+/** The contract kit never reaches the EPUB/PDF parse path; fail loudly if it does. */
+private object NoBooksReader : DriveBookReader {
+    override suspend fun readEpub(bytes: ByteArray): DriveBook = error("not used by the contract kit")
+    override suspend fun readPdf(fileId: String, bytes: ByteArray): DriveBook = error("not used by the contract kit")
 }
