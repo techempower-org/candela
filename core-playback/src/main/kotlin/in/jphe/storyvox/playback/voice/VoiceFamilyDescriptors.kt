@@ -38,7 +38,7 @@ object VoiceFamilyDescriptors {
         id = VoiceFamilyIds.PIPER,
         displayName = "Piper",
         description = "Local neural voices · per-voice ONNX download",
-        sourceUrl = "https://github.com/rhasspy/piper-voices",
+        sourceUrl = "https://huggingface.co/rhasspy/piper-voices",
         license = "MIT (sherpa-onnx) · CC-BY / CC0 voice datasets",
         sizeHint = "~14–30 MB per voice (low / medium tier), ~120 MB high tier",
         defaultEnabled = true,

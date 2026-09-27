@@ -462,17 +462,19 @@ class VoiceManager @Inject constructor(
                 if (!onnxFile.exists() || !voicesFile.exists() || !tokensFile.exists()) {
                     sharedDir.mkdirs()
                     try {
-                        // kitten-nano-en-v0_8-fp16 sizes (sherpa-onnx
+                        // kitten-nano-en-v0_8-fp32 sizes (sherpa-onnx
                         // tts-models release, repackaged onto the
                         // jphein/VoxSherpa-TTS voices-v2 release for
                         // flat per-file URLs the OkHttp loop can
                         // stream — the upstream tar.bz2 would require
                         // in-app extraction we don't want to add).
-                        // Total ~25 MB on first install, dominated by
-                        // the ONNX. voices.bin is tiny (8 KB — just
-                        // the per-speaker embedding table).
-                        val modelBytes = 25_165_824L
-                        val voicesBytes = 8_192L
+                        // Total ~60 MB on first install, dominated by
+                        // the ONNX. v0.8's voices.bin is 3.2 MB (8
+                        // speakers x 400x256 fp32 style rows; v0.1's was
+                        // 8 KB). Progress hints only: the server's
+                        // Content-Length wins when present.
+                        val modelBytes = 56_768_002L
+                        val voicesBytes = 3_276_800L
                         val totalBytes = modelBytes + voicesBytes  // tokens is ~1 KB, negligible
                         downloadFile(
                             url = "https://github.com/jphein/VoxSherpa-TTS/releases/download/voices-v2/kitten-nano-en-v0_8-model.onnx",

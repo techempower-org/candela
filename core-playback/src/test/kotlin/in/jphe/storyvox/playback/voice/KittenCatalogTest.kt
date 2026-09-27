@@ -112,7 +112,24 @@ class KittenCatalogTest {
             "engineType should be Kitten",
             entry!!.engineType is EngineType.Kitten,
         )
-        assertEquals(0, (entry.engineType as EngineType.Kitten).speakerId)
+        // Bella = expr-voice-2-f = sherpa-onnx voices.bin row 1 (rows
+        // alternate m/f). The id's trailing _0 is historical.
+        assertEquals(1, (entry.engineType as EngineType.Kitten).speakerId)
+    }
+
+    @Test
+    fun `speaker ids follow sherpa-onnx v0_8 voices_bin row order`() {
+        // sherpa-onnx scripts/kitten-tts/v0_8/generate_voices_bin.py writes
+        // rows expr-voice-{2..5}-{m,f} alternating m/f; KittenML's v0.8
+        // config.json voice_aliases name them. A regression here plays the
+        // wrong speaker (and wrong gender) under every Kitten name.
+        val expected = mapOf(
+            "Jasper" to 0, "Bella" to 1, "Bruno" to 2, "Luna" to 3,
+            "Hugo" to 4, "Rosie" to 5, "Leo" to 6, "Kiki" to 7,
+        )
+        val actual = kittenEntries
+            .associate { it.displayName to (it.engineType as EngineType.Kitten).speakerId }
+        assertEquals(expected, actual)
     }
 
     @Test
