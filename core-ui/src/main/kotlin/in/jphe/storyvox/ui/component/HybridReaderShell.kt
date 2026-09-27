@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
@@ -55,6 +56,34 @@ internal fun ReaderView.opposite(): ReaderView = when (this) {
  * Pinned by `HybridReaderShellSemanticsTest`.
  */
 internal const val hybridReaderShellExposesPaneSwitchAction: Boolean = true
+
+/**
+ * Structural canary for issue #1787 — the shell MUST clip to its bounds.
+ *
+ * Both panes are always composed and simply translated: on the Reader pane
+ * the Audiobook pane sits at x = -width, i.e. entirely *outside* the shell
+ * on the start side (see [paneOffsetsX]). Compose does not clip drawing or
+ * hit-testing to a parent's bounds unless asked, and NavHost / Scaffold
+ * don't clip at rest. On a tablet the shell's start edge touches the
+ * [SideNavRail] (a Row sibling placed *before* the NavHost, so hit-tested
+ * *after* it) — the off-screen AudiobookView's `verticalScroll` column then
+ * claimed every tap over the rail and rail navigation silently died while
+ * the Reader pane was showing. `clipToBounds()` makes the off-pane
+ * invisible to both draw and pointer input outside the shell.
+ *
+ * Pinned by `HybridReaderShellSemanticsTest`. Flip to false only if the
+ * panes stop being translated outside the shell (e.g. a pager that
+ * doesn't compose the off-screen pane).
+ */
+internal const val hybridReaderShellClipsToBounds: Boolean = true
+
+/**
+ * Pixel x-offsets of the (Audiobook, Reader) panes relative to the shell for
+ * a given animated shell offset (0 = Audiobook, -width = Reader). Anything
+ * outside `0 until width` lies beyond the shell and must be clipped (#1787).
+ */
+internal fun paneOffsetsX(animatedOffset: Float, width: Float): Pair<Int, Int> =
+    animatedOffset.roundToInt() to (animatedOffset + width).roundToInt()
 
 /**
  * Two-pane horizontal swipe shell.
@@ -129,6 +158,11 @@ fun HybridReaderShell(
     Box(
         modifier = modifier
             .fillMaxSize()
+            // #1787 — the off-screen pane is translated a full width
+            // outside this Box; without the clip it swallows taps on the
+            // tablet SideNavRail next to the shell. See
+            // [hybridReaderShellClipsToBounds].
+            .clipToBounds()
             .semantics {
                 stateDescription = paneStateDescription
                 customActions = listOf(
@@ -160,13 +194,13 @@ fun HybridReaderShell(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offsetXBy { animatedOffset.roundToInt() },
+                .offsetXBy { paneOffsetsX(animatedOffset, width).first },
         ) { audiobookContent() }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offsetXBy { (animatedOffset + width).roundToInt() },
+                .offsetXBy { paneOffsetsX(animatedOffset, width).second },
         ) { readerContent() }
     }
 }
