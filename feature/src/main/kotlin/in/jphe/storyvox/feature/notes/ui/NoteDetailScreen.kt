@@ -113,6 +113,14 @@ fun NoteDetailScreen(
         onExport = viewModel::export,
         onSummarize = viewModel::summarize,
         modifier = modifier,
+        transcriptAction = {
+            TranscriptionModelPrompt(
+                noteId = state.id,
+                hasAudio = state.audioPath != null,
+                hasTranscript = state.transcript != null,
+                status = state.transcriptionStatus,
+            )
+        },
     )
 }
 
@@ -130,6 +138,8 @@ internal fun NoteDetailContent(
     onExport: () -> Unit,
     onSummarize: () -> Unit,
     modifier: Modifier = Modifier,
+    // #1657 — model-download / retry prompt under the transcript (slot keeps previews Hilt-free).
+    transcriptAction: @Composable () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     var menuOpen by remember { mutableStateOf(false) }
@@ -200,6 +210,7 @@ internal fun NoteDetailContent(
                 transcript = state.transcript,
                 status = state.transcriptionStatus,
             )
+            transcriptAction()
 
             SummarySection(
                 summary = state.summary,
