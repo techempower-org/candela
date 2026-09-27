@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import `in`.jphe.storyvox.feature.api.PlaybackControllerUi
 import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
+import `in`.jphe.storyvox.feature.api.UiSpeakOutcome
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,15 +42,21 @@ class ReadAloudViewModel @Inject constructor(
     private val activeKey = MutableStateFlow<String?>(null)
     /** True from the tap until the voice has warmed and speech has begun. */
     private val warming = MutableStateFlow(false)
-    private val failedKey = MutableStateFlow<String?>(null)
+    /** Key of the control whose last attempt failed, and why (#1776). */
+    private val failed = MutableStateFlow<Pair<String, ReadAloudFailure>?>(null)
 
     private val speaking: StateFlow<Boolean> = playback.recapPlayback
         .map { it == UiRecapPlaybackState.Speaking }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val state: StateFlow<ReadAloudUiState> =
-        combine(activeKey, warming, speaking, failedKey) { key, warm, speak, failed ->
-            ReadAloudUiState(activeKey = key, busy = warm || speak, failedKey = failed)
+        combine(activeKey, warming, speaking, failed) { key, warm, speak, fail ->
+            ReadAloudUiState(
+                activeKey = key,
+                busy = warm || speak,
+                failedKey = fail?.first,
+                failure = fail?.second,
+            )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, ReadAloudUiState())
 
     private var speakJob: Job? = null
@@ -66,7 +73,7 @@ class ReadAloudViewModel @Inject constructor(
 
     private fun speak(key: String, text: String) {
         speakJob?.cancel()
-        failedKey.value = null
+        failed.value = null
         activeKey.value = key
         warming.value = true
         speakJob = viewModelScope.launch {
@@ -75,13 +82,20 @@ class ReadAloudViewModel @Inject constructor(
                 // first so the two don't talk over each other (same contract as
                 // ReaderViewModel.toggleRecapAloud).
                 if (playback.state.first().isPlaying) playback.pause()
-                playback.speakText(text)
-                // speakText returns once the utterance is queued; the Speaking
-                // mirror lags a beat. If it never arrives the voice couldn't be
-                // activated (e.g. no voice set up yet) — tell the user rather
-                // than failing silently.
-                val started = withTimeoutOrNull(START_GRACE_MS) { speaking.first { it } }
-                if (started == null) failedKey.value = key
+                // #1776 — starts the playback service on a cold launch, waits
+                // for the engine to bind, and reports how it went, so a
+                // failure is a real reason rather than a timeout guess.
+                val outcome = playback.speakTextForOutcome(text)
+                val failure = ReadAloudSession.failureFor(outcome)
+                if (failure != null) {
+                    failed.value = key to failure
+                } else if (outcome == UiSpeakOutcome.Started) {
+                    // The Speaking mirror lags the engine by a beat; hold the
+                    // busy state across that gap so the button doesn't flicker
+                    // back to "Read aloud". A very short utterance may already
+                    // have finished — that's not a failure.
+                    withTimeoutOrNull(MIRROR_LAG_MS) { speaking.first { it } }
+                }
             } finally {
                 warming.value = false
             }
@@ -102,7 +116,7 @@ class ReadAloudViewModel @Inject constructor(
     }
 
     private companion object {
-        const val START_GRACE_MS = 2_000L
+        const val MIRROR_LAG_MS = 1_000L
     }
 }
 
@@ -112,6 +126,8 @@ data class ReadAloudUiState(
     val busy: Boolean = false,
     /** Key of the control whose last read-aloud attempt never started. */
     val failedKey: String? = null,
+    /** Why [failedKey]'s attempt failed (#1776). */
+    val failure: ReadAloudFailure? = null,
 ) {
     fun isActive(key: String): Boolean = ReadAloudSession.isActive(key, activeKey, busy)
 }

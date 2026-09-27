@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.feature.techempower.readaloud
 
+import `in`.jphe.storyvox.feature.api.UiSpeakOutcome
+
 /**
  * Issue #1580 — pure text assembly for the benefits read-aloud control.
  *
@@ -84,4 +86,25 @@ object ReadAloudSession {
         text.isBlank() -> ReadAloudAction.None
         else -> ReadAloudAction.Speak(text)
     }
+
+    /**
+     * Issue #1776 — which failure (if any) to show for a finished speak
+     * request. Started and Cancelled (superseded / stopped / blank) show
+     * nothing; the two real failures get their own message so the user knows
+     * whether to go pick a voice or just try again.
+     */
+    fun failureFor(outcome: UiSpeakOutcome): ReadAloudFailure? = when (outcome) {
+        UiSpeakOutcome.Started, UiSpeakOutcome.Cancelled -> null
+        UiSpeakOutcome.NoVoice -> ReadAloudFailure.NoVoice
+        UiSpeakOutcome.Unavailable -> ReadAloudFailure.EngineUnavailable
+    }
+}
+
+/** Issue #1776 — why a read-aloud tap produced no speech. */
+enum class ReadAloudFailure {
+    /** No voice is installed / picked — point the user at Voices. */
+    NoVoice,
+
+    /** The playback engine couldn't start in time — a retry usually works. */
+    EngineUnavailable,
 }

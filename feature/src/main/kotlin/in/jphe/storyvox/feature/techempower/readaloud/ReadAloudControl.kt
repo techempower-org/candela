@@ -63,7 +63,7 @@ fun ReadAloudControl(
     val state by viewModel.state.collectAsStateWithLifecycle()
     ReadAloudButton(
         active = state.isActive(key),
-        failed = state.failedKey == key,
+        failure = state.failure.takeIf { state.failedKey == key },
         label = label,
         onClick = { viewModel.toggle(key, script()) },
         modifier = modifier,
@@ -74,7 +74,7 @@ fun ReadAloudControl(
 @Composable
 fun ReadAloudButton(
     active: Boolean,
-    failed: Boolean,
+    failure: ReadAloudFailure?,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -106,9 +106,14 @@ fun ReadAloudButton(
                 Text(label, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
             }
         }
-        if (failed && !active) {
+        if (failure != null && !active) {
             Text(
-                stringResource(R.string.readaloud_failed),
+                stringResource(
+                    when (failure) {
+                        ReadAloudFailure.NoVoice -> R.string.readaloud_failed
+                        ReadAloudFailure.EngineUnavailable -> R.string.readaloud_engine_unavailable
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },

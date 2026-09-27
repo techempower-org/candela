@@ -5762,18 +5762,20 @@ class EnginePlayer @AssistedInject constructor(
      * starting while a chapter generator's JNI call is in flight will
      * wait for it to complete (or for the caller's pause to tear it down).
      *
-     * No-op if a voice can't be activated (returns silently; the UI will
-     * see [recapPlayback] never leaves Idle and can choose its own
-     * fallback). Existing recap playback is stopped before a new one
-     * starts.
+     * Returns false (and plays nothing) if a voice can't be activated or
+     * the text chunks to nothing; true once the recap pipeline is running
+     * (#1776 — the caller surfaces "no voice set up" instead of guessing
+     * from [recapPlayback] never leaving Idle). Existing recap playback is
+     * stopped before a new one starts.
      */
-    suspend fun speak(text: String) {
-        if (text.isBlank()) return
+    suspend fun speak(text: String): Boolean {
+        if (text.isBlank()) return false
         stopRecapPipeline()
-        if (!ensureVoiceLoaded()) return
+        if (!ensureVoiceLoaded()) return false
         val recapSentences = chunker.chunk(text, detectLocale(text))
-        if (recapSentences.isEmpty()) return
+        if (recapSentences.isEmpty()) return false
         startRecapPipeline(recapSentences)
+        return true
     }
 
     /** Issue #189 — stop an in-flight recap utterance. Idempotent. */
