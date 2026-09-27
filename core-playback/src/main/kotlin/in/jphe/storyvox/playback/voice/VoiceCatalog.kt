@@ -793,7 +793,7 @@ object VoiceCatalog {
         )
     }
 
-    /** KittenTTS entries — 8 speakers all sharing one ~25 MB fp16 model.
+    /** KittenTTS entries — 8 speakers all sharing one ~57 MB fp32 model.
      *  Issue #119 — the smallest in-process tier, slotted below Piper-low
      *  as the friendliest "try a neural voice" first-launch onboarding
      *  path for slow devices (Raspberry Pi, old phones, wearables).
@@ -802,8 +802,10 @@ object VoiceCatalog {
      *  dir handled by VoiceManager), 8 speaker indices baked into the
      *  voice ID. Picking any Kitten voice triggers the shared-model
      *  download exactly once; subsequent picks just flip the active
-     *  speaker. The `kitten-nano-en-v0_8-fp16` upstream model ships 4
-     *  female + 4 male English voices. Display names are human-friendly
+     *  speaker. The `kitten-nano-en-v0_8-fp32` upstream model ships 4
+     *  female + 4 male English voices (sherpa-onnx publishes v0.8 nano only
+     *  as fp32 / int8; there is no fp16 build. fp32 was chosen over int8 to
+     *  stay off the int8+XNNPACK path that SIGSEGV'd Supertonic, #1236). Display names are human-friendly
      *  names (Bella, Luna, etc.) matching upstream's v0.8 speaker roster.
      *
      *  Tier is [QualityLevel.Low] because Kitten produces audibly
@@ -820,7 +822,7 @@ object VoiceCatalog {
                 displayName = displayName,
                 language = "en_US",
                 // sizeBytes mirrors Kokoro's 0L sentinel — Kitten voices
-                // share one ~25 MB download, so per-voice byte counts
+                // share one ~60 MB download, so per-voice byte counts
                 // are misleading. The Voice Library suppresses the size
                 // chip when sizeBytes == 0L (same code path as Kokoro).
                 sizeBytes = 0L,
@@ -831,19 +833,23 @@ object VoiceCatalog {
             )
         val F = VoiceGender.Female
         val M = VoiceGender.Male
-        // Speaker order matches sherpa-onnx's voices.bin layout for
-        // `kitten-nano-en-v0_8-fp16`: 4 female embeddings (indices 0..3)
-        // followed by 4 male embeddings (indices 4..7). Names match
-        // upstream's v0.8 speaker roster.
+        // Speaker ids follow sherpa-onnx's voices.bin row order, which
+        // ALTERNATES male/female (scripts/kitten-tts/v0_8/
+        // generate_voices_bin.py): 0 expr-voice-2-m, 1 2-f, 2 3-m, 3 3-f,
+        // 4 4-m, 5 4-f, 6 5-m, 7 5-f. Names come from KittenML's v0.8
+        // config.json voice_aliases (Bella = expr-voice-2-f, Jasper =
+        // expr-voice-2-m, ...). The voice ids are persisted (active voice,
+        // installed set), so they stay as-is; their trailing digit is
+        // historical, NOT the speaker id.
         return listOf(
-            kitten("kitten_f1_en_US_0", "Bella", 0, F),
-            kitten("kitten_f2_en_US_1", "Luna", 1, F),
-            kitten("kitten_f3_en_US_2", "Rosie", 2, F),
-            kitten("kitten_f4_en_US_3", "Kiki", 3, F),
-            kitten("kitten_m1_en_US_4", "Jasper", 4, M),
-            kitten("kitten_m2_en_US_5", "Bruno", 5, M),
-            kitten("kitten_m3_en_US_6", "Hugo", 6, M),
-            kitten("kitten_m4_en_US_7", "Leo", 7, M),
+            kitten("kitten_f1_en_US_0", "Bella", 1, F),
+            kitten("kitten_f2_en_US_1", "Luna", 3, F),
+            kitten("kitten_f3_en_US_2", "Rosie", 5, F),
+            kitten("kitten_f4_en_US_3", "Kiki", 7, F),
+            kitten("kitten_m1_en_US_4", "Jasper", 0, M),
+            kitten("kitten_m2_en_US_5", "Bruno", 2, M),
+            kitten("kitten_m3_en_US_6", "Hugo", 4, M),
+            kitten("kitten_m4_en_US_7", "Leo", 6, M),
         )
     }
 

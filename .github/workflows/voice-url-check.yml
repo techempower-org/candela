@@ -1,0 +1,90 @@
+name: Voice URL check
+
+# Installed APKs download voice models from hard-coded release / Hugging Face
+# URLs (VoiceCatalog, VoiceManager, VoiceFamilyDescriptors). A missing or
+# renamed asset never fails the build — users just get a download error.
+# That shipped once: the Kitten v0.8 assets were never uploaded to the
+# voices-v2 release, so every Kitten download 404'd in production.
+#
+# This job HEAD-checks every catalog URL (plus the runtime-built Supertonic
+# bundle URLs) via scripts/check-voice-urls.sh:
+#   - on PRs that touch the voice package, the VoxSherpa pin, or this check
+#   - weekly, because assets can disappear without any code change
+# A scheduled failure files (or refreshes) one `voice-urls` issue so the rot
+# is visible, not just a red run nobody opens.
+
+on:
+  pull_request:
+    paths:
+      - 'core-playback/src/main/kotlin/in/jphe/storyvox/playback/voice/**'
+      - 'core-playback/build.gradle.kts'
+      - 'scripts/check-voice-urls.sh'
+      - '.github/workflows/voice-url-check.yml'
+  schedule:
+    # Mondays 06:41 UTC — off the hour, clear of voxsherpa-watch (06:17).
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: voice-url-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check voice download URLs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: HEAD-check every voice URL
+        id: check
+        shell: bash
+        run: |
+          set -o pipefail
+          scripts/check-voice-urls.sh | tee voice-url-report.txt
+
+      - name: File or refresh an issue on scheduled failure
+        if: failure() && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MARKER: '<!-- voice-url-check -->'
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          REPORT="$(sed -n '/^FAILED:/,$p' voice-url-report.txt 2>/dev/null || true)"
+          [ -n "$REPORT" ] || REPORT="(no report — see the run log)"
+          EXISTING="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+                        --search "in:body ${MARKER}" --json number --jq '.[0].number' 2>/dev/null || true)"
+          if [ -n "${EXISTING:-}" ] && [ "$EXISTING" != "null" ]; then
+            printf 'Still failing on %s (%s):\n\n```\n%s\n```\n' \
+              "$(date -u '+%Y-%m-%d %H:%M UTC')" "$RUN_URL" "$REPORT" \
+              | gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body-file -
+            exit 0
+          fi
+          gh label create voice-urls --repo "$GITHUB_REPOSITORY" --color d93f0b \
+            --description "Voice model download URLs broken" 2>/dev/null || true
+          {
+            echo "$MARKER"
+            echo
+            echo "One or more voice download URLs no longer resolve. Installed APKs"
+            echo "will fail to download these voices until the asset is restored"
+            echo "(preferred: re-upload to the release, no app update needed) or the"
+            echo "catalog is fixed."
+            echo
+            echo '```'
+            echo "$REPORT"
+            echo '```'
+            echo
+            echo "Run: $RUN_URL"
+            echo
+            echo "_Filed automatically by \`.github/workflows/voice-url-check.yml\`._"
+          } > body.md
+          gh issue create --repo "$GITHUB_REPOSITORY" --label voice-urls \
+            --title "Voice download URLs broken" --body-file body.md
