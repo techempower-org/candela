@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Issue #1468 — resaltados → Memory Palace (Ajustes → Memory Palace). -->
+<resources>
+    <string name="settings_palace_highlight_writeback_title">Guardar resaltados en el palacio</string>
+    <string name="settings_palace_highlight_writeback_subtitle">Cada resaltado nuevo se archiva como un cajón (pasaje, libro, capítulo, posición y nota). Se pone en cola y se reintenta si el palacio no está disponible.</string>
+    <string name="settings_palace_highlight_writeback_needs_host">Configura un host del palacio arriba para activarlo.</string>
+</resources>

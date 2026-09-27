@@ -1433,7 +1433,11 @@ class SettingsRepositoryUiImpl(
             cacheQuotaBytes = configs.cacheStats.quotaBytes,
             voiceSteady = prefs[Keys.VOICE_STEADY] ?: true,
             autoLanguageDetectionEnabled = prefs[Keys.AUTO_LANGUAGE_DETECTION] ?: false,
-            palace = UiPalaceConfig(host = palace.host, apiKey = palace.apiKey),
+            palace = UiPalaceConfig(
+                host = palace.host,
+                apiKey = palace.apiKey,
+                highlightWriteBack = palace.highlightWriteBack,
+            ),
             github = githubSession.toUi(),
             githubPrivateReposEnabled = prefs[Keys.GITHUB_PRIVATE_REPOS_ENABLED] ?: false,
             // Issue #294 — Royal Road is the de-facto primary source
@@ -2177,6 +2181,10 @@ class SettingsRepositoryUiImpl(
 
     override suspend fun clearPalaceConfig() {
         palaceConfig.clear()
+    }
+
+    override suspend fun setPalaceHighlightWriteBack(enabled: Boolean) {
+        palaceConfig.setHighlightWriteBack(enabled)
     }
 
     /** Issue #1471 — persist/clear the Bookshare partner API key. Bumps

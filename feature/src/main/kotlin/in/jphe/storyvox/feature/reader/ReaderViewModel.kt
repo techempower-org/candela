@@ -5,6 +5,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import `in`.jphe.storyvox.data.annotation.HighlightCapture
+import `in`.jphe.storyvox.data.annotation.HighlightWriteBack
 import `in`.jphe.storyvox.data.db.entity.Annotation
 import `in`.jphe.storyvox.data.dictionary.DictionaryRepository
 import `in`.jphe.storyvox.data.dictionary.DictionaryResult
@@ -316,6 +318,13 @@ class ReaderViewModel @Inject constructor(
      * [resetTeleprompter]/[setTeleprompterEnabled] which clear it.
      */
     private val teleprompterScriptStore: TeleprompterScriptStore,
+    /**
+     * Issue #1468 — opt-in highlight → Memory Palace write-back. Offered
+     * each *new* highlight after it is persisted; the implementation gates
+     * on its own setting (off by default) and queues the network write on
+     * WorkManager, so this call never blocks or throws into the reader.
+     */
+    private val highlightWriteBack: HighlightWriteBack,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -974,19 +983,36 @@ class ReaderViewModel @Inject constructor(
         val chapterId = state.chapterId ?: return
         if (endOffset <= startOffset) return
         val now = System.currentTimeMillis()
+        val fictionTitle = state.fictionTitle
+        val chapterTitle = state.chapterTitle
         viewModelScope.launch {
-            annotationRepo.upsert(
-                Annotation(
-                    id = java.util.UUID.randomUUID().toString(),
+            val annotation = Annotation(
+                id = java.util.UUID.randomUUID().toString(),
+                fictionId = fictionId,
+                chapterId = chapterId,
+                startOffset = startOffset,
+                endOffset = endOffset,
+                color = colorName,
+                note = note?.takeIf { it.isNotBlank() },
+                quotedText = quotedText,
+                createdAt = now,
+                updatedAt = now,
+            )
+            annotationRepo.upsert(annotation)
+            // Issue #1468 — only after the local write lands, so the palace
+            // never holds a highlight the device doesn't. Non-blocking.
+            highlightWriteBack.onHighlightCreated(
+                HighlightCapture(
+                    annotationId = annotation.id,
                     fictionId = fictionId,
                     chapterId = chapterId,
+                    fictionTitle = fictionTitle,
+                    chapterTitle = chapterTitle,
+                    quotedText = quotedText,
+                    note = annotation.note,
                     startOffset = startOffset,
                     endOffset = endOffset,
-                    color = colorName,
-                    note = note?.takeIf { it.isNotBlank() },
-                    quotedText = quotedText,
                     createdAt = now,
-                    updatedAt = now,
                 ),
             )
         }

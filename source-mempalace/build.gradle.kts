@@ -38,8 +38,14 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
 
+    // Issue #1468 — highlight → palace write-back rides WorkManager for
+    // offline retry (HighlightWriteBackWorker is a @HiltWorker).
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
 
     // Plugin-seam Phase 2 (#384) — emits the @SourcePlugin → @IntoSet
     // SourcePluginDescriptor Hilt module for MemPalaceSource. Legacy

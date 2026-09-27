@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -25,6 +26,8 @@ private object PalaceKeys {
     /** LAN host or hostname:port. Plaintext — it's a network address, not a secret.
      *  Empty value disables the source entirely. */
     val HOST = stringPreferencesKey("pref_palace_host")
+    /** Issue #1468 — opt-in highlight → palace write-back. Absent = off. */
+    val HIGHLIGHT_WRITE_BACK = booleanPreferencesKey("pref_palace_highlight_write_back")
 }
 
 /** EncryptedSharedPreferences key for the daemon API token. Lives next
@@ -49,24 +52,31 @@ class PalaceConfigImpl(
     ) : this(context.palaceDataStore, secrets)
 
     override val state: Flow<PalaceConfigState> = combine(
-        store.data.map { it[PalaceKeys.HOST].orEmpty() }.distinctUntilChanged(),
+        store.data.map {
+            it[PalaceKeys.HOST].orEmpty() to (it[PalaceKeys.HIGHLIGHT_WRITE_BACK] ?: false)
+        }.distinctUntilChanged(),
         // SharedPreferences doesn't expose a native Flow. The api key is
         // edited via Settings on the main thread; rather than wire up a
         // listener, we re-read it on every host change. The api key
         // alone changing without the host changing is rare (user types
         // both at once, then taps Save) so this is good enough.
         flowOf(Unit),
-    ) { host, _ ->
+    ) { (host, writeBack), _ ->
         PalaceConfigState(
             host = host,
             apiKey = secrets.getString(PALACE_API_KEY_PREF, "") ?: "",
+            highlightWriteBack = writeBack,
         )
     }.distinctUntilChanged()
 
-    override suspend fun current(): PalaceConfigState = PalaceConfigState(
-        host = store.data.first()[PalaceKeys.HOST].orEmpty(),
-        apiKey = secrets.getString(PALACE_API_KEY_PREF, "") ?: "",
-    )
+    override suspend fun current(): PalaceConfigState {
+        val prefs = store.data.first()
+        return PalaceConfigState(
+            host = prefs[PalaceKeys.HOST].orEmpty(),
+            apiKey = secrets.getString(PALACE_API_KEY_PREF, "") ?: "",
+            highlightWriteBack = prefs[PalaceKeys.HIGHLIGHT_WRITE_BACK] ?: false,
+        )
+    }
 
     /**
      * Mutator hooks for Settings UI to persist the user's input. Kept
@@ -81,8 +91,16 @@ class PalaceConfigImpl(
         secrets.edit().putString(PALACE_API_KEY_PREF, apiKey).apply()
     }
 
+    /** Issue #1468 — opt in/out of highlight → palace write-back. */
+    suspend fun setHighlightWriteBack(enabled: Boolean) {
+        store.edit { prefs -> prefs[PalaceKeys.HIGHLIGHT_WRITE_BACK] = enabled }
+    }
+
     suspend fun clear() {
-        store.edit { prefs -> prefs.remove(PalaceKeys.HOST) }
+        store.edit { prefs ->
+            prefs.remove(PalaceKeys.HOST)
+            prefs.remove(PalaceKeys.HIGHLIGHT_WRITE_BACK)
+        }
         secrets.edit().remove(PALACE_API_KEY_PREF).apply()
     }
 }

@@ -138,6 +138,43 @@ open class PalaceDaemonApi @Inject constructor(
             }
         }
 
+    /**
+     * Issue #1468 — file one drawer via the daemon's primary write surface,
+     * `POST /memory` with `{"content","wing","room"}`. [body] is the JSON
+     * request body, pre-built by `HighlightDrawerPayload.requestBody` (kept
+     * pure so it is unit-testable without a network). Returns
+     * `Success(Unit)` on any 2xx; the response body (toast / novelty
+     * metadata) is informational and deliberately not parsed, so a daemon
+     * response-shape change can never turn a completed write into a retry
+     * that would duplicate the drawer.
+     */
+    open suspend fun storeMemory(body: String): PalaceDaemonResult<Unit> =
+        withContext(Dispatchers.IO) {
+            val cfg = config.current()
+            if (!cfg.isConfigured) {
+                return@withContext PalaceDaemonResult.NotReachable(
+                    IOException("Palace host not configured"),
+                )
+            }
+            val baseUrl = baseUrlOrNull(cfg)
+                ?: return@withContext PalaceDaemonResult.HostRejected(cfg.host)
+
+            val req = Request.Builder()
+                .url("$baseUrl/memory")
+                .post(body.toRequestBody(JSON_MEDIA_TYPE))
+                .applyAuth(cfg.apiKey)
+                .build()
+
+            val response = try {
+                httpClient.newCall(req).await()
+            } catch (e: IOException) {
+                return@withContext PalaceDaemonResult.NotReachable(e)
+            }
+            response.use { r ->
+                if (r.isSuccessful) PalaceDaemonResult.Success(Unit) else mapHttpFailure(r)
+            }
+        }
+
     private suspend inline fun <reified T> get(path: String): PalaceDaemonResult<T> =
         withContext(Dispatchers.IO) {
             val cfg = config.current()
