@@ -6,10 +6,12 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import `in`.jphe.storyvox.data.network.UserAgentHeader
+import `in`.jphe.storyvox.data.repository.GoogleNewsFeedStore
 import `in`.jphe.storyvox.source.googlenews.GoogleNewsSource
 import `in`.jphe.storyvox.source.googlenews.article.ArticleResolver
 import `in`.jphe.storyvox.source.googlenews.article.GoogleNewsArticleResolver
 import `in`.jphe.storyvox.source.googlenews.net.GoogleNewsApi
+import `in`.jphe.storyvox.source.googlenews.prefs.SharedPrefsGoogleNewsFeedStore
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -69,4 +71,10 @@ internal abstract class GoogleNewsBindings {
     @Binds
     @Singleton
     abstract fun bindArticleResolver(impl: GoogleNewsArticleResolver): ArticleResolver
+
+    /** #1678 — the personalized-feed store (edition, topics, places,
+     *  searches). Also injected by the Settings → Google News screen. */
+    @Binds
+    @Singleton
+    abstract fun bindFeedStore(impl: SharedPrefsGoogleNewsFeedStore): GoogleNewsFeedStore
 }

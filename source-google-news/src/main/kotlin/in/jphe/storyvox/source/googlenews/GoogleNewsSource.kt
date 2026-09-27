@@ -1,5 +1,8 @@
 package `in`.jphe.storyvox.source.googlenews
 
+import `in`.jphe.storyvox.data.repository.GoogleNewsEdition
+import `in`.jphe.storyvox.data.repository.GoogleNewsFeedStore
+import `in`.jphe.storyvox.data.repository.GoogleNewsPersonalFeed
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.RouteMatch
 import `in`.jphe.storyvox.data.source.SourceIds
@@ -19,6 +22,9 @@ import `in`.jphe.storyvox.source.googlenews.net.GoogleNewsApi
 import `in`.jphe.storyvox.source.googlenews.parse.GoogleNewsFeed
 import `in`.jphe.storyvox.source.googlenews.parse.GoogleNewsItem
 import `in`.jphe.storyvox.source.googlenews.parse.GoogleNewsParser
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +48,13 @@ import javax.inject.Singleton
  * whose chapters are the search-feed results — "play me a briefing on
  * <q>".
  *
+ * **Personalized feed (#1678).** Google offers no API for the signed-in,
+ * account-ranked "For you" feed (Chrome new-tab / Discover), so the user
+ * builds theirs from explicit signals held in [GoogleNewsFeedStore]:
+ * edition (language + region, incl. Spanish editions), followed topics,
+ * followed locations and saved searches. Each becomes a section card on
+ * [popular], plus a merged "For you" section that interleaves them.
+ *
  * **Full article text** is out of scope for v1: it would require
  * decoding the redirect via a fragile internal RPC. The [articleResolver]
  * seam (a no-op today) is where that lands as a follow-up; until then the
@@ -56,7 +69,7 @@ import javax.inject.Singleton
     category = SourceCategory.Text,
     supportsFollow = false,
     supportsSearch = true,
-    description = "Top stories, topic sections & search · headlines and related coverage as listenable briefings",
+    description = "Top stories, topics, locations & search — build your own feed · headlines and related coverage as listenable briefings",
     sourceUrl = "https://news.google.com",
     // #1482 — chipLabel omitted: "Google News" chip == displayName.
     searchHint = "Search Google News — top stories, topics & more",
@@ -65,6 +78,7 @@ import javax.inject.Singleton
 internal class GoogleNewsSource @Inject constructor(
     private val api: GoogleNewsApi,
     private val articleResolver: ArticleResolver,
+    private val feedStore: GoogleNewsFeedStore,
 ) : FictionSource, UrlMatcher {
 
     override val id: String = SourceIds.GOOGLE_NEWS
@@ -72,15 +86,20 @@ internal class GoogleNewsSource @Inject constructor(
 
     // ─── browse ──────────────────────────────────────────────────────────
 
-    /** Browse landing: Top stories + the 8 topic sections as cards. */
-    override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> =
-        FictionResult.Success(
+    /** Browse landing: Top stories + the 8 topic sections as cards; with a
+     *  personalized feed (#1678), "For you" + the followed sections first. */
+    override suspend fun popular(page: Int): FictionResult<ListPage<FictionSummary>> {
+        val feed = feedStore.current()
+        return FictionResult.Success(
             ListPage(
-                items = GoogleNewsSections.catalog().map { sectionSummary(it.fictionId, it.title) },
+                items = GoogleNewsSections.landing(feed).map {
+                    sectionSummary(it.fictionId, it.title, feed.edition)
+                },
                 page = 1,
                 hasNext = false,
             ),
         )
+    }
 
     /** No distinct "latest" surface — the section cards already are the
      *  live feed. Empty keeps the tab inert if a caller mounts it. */
@@ -116,16 +135,15 @@ internal class GoogleNewsSource @Inject constructor(
     // ─── detail ──────────────────────────────────────────────────────────
 
     override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> {
-        val feedUrl = GoogleNewsSections.feedUrlFor(fictionId)
-            ?: return FictionResult.NotFound("Not a Google News section: $fictionId")
-
-        val feed = when (val r = fetchAndParse(feedUrl)) {
+        val prefs = feedStore.current()
+        val feed = when (val r = resolveFeed(fictionId, prefs)) {
             is FictionResult.Success -> r.value
             is FictionResult.Failure -> return r
         }
 
         val chapters = feed.items.mapIndexed { idx, item -> item.toChapterInfo(idx, fictionId) }
-        val title = GoogleNewsSections.titleFor(fictionId).ifBlank { feed.title.ifBlank { "Google News" } }
+        val title = GoogleNewsSections.titleFor(fictionId, prefs.edition)
+            .ifBlank { feed.title.ifBlank { "Google News" } }
         val summary = FictionSummary(
             id = fictionId,
             sourceId = SourceIds.GOOGLE_NEWS,
@@ -145,10 +163,7 @@ internal class GoogleNewsSource @Inject constructor(
         fictionId: String,
         chapterId: String,
     ): FictionResult<ChapterContent> {
-        val feedUrl = GoogleNewsSections.feedUrlFor(fictionId)
-            ?: return FictionResult.NotFound("Not a Google News section: $fictionId")
-
-        val feed = when (val r = fetchAndParse(feedUrl)) {
+        val feed = when (val r = resolveFeed(fictionId, feedStore.current())) {
             is FictionResult.Success -> r.value
             is FictionResult.Failure -> return r
         }
@@ -214,6 +229,46 @@ internal class GoogleNewsSource @Inject constructor(
 
     // ─── helpers ──────────────────────────────────────────────────────────
 
+    /** Resolve any section id — single feed or the merged "For you" — in
+     *  the user's current edition. */
+    private suspend fun resolveFeed(
+        fictionId: String,
+        prefs: GoogleNewsPersonalFeed,
+    ): FictionResult<GoogleNewsFeed> {
+        if (fictionId == GoogleNewsSections.FOR_YOU_ID) return forYouFeed(prefs)
+        val feedUrl = GoogleNewsSections.feedUrlFor(fictionId, prefs.edition)
+            ?: return FictionResult.NotFound("Not a Google News section: $fictionId")
+        return fetchAndParse(feedUrl)
+    }
+
+    /**
+     * #1678 — "For you": fetch every followed section concurrently and
+     * round-robin interleave their stories (so each followed topic, place
+     * and search is represented near the top rather than the busiest feed
+     * drowning the rest), de-duplicated by guid and headline. A section
+     * that fails is skipped; only when EVERY section fails does the first
+     * failure surface.
+     */
+    private suspend fun forYouFeed(prefs: GoogleNewsPersonalFeed): FictionResult<GoogleNewsFeed> {
+        val sections = GoogleNewsSections.personalSections(prefs).take(FOR_YOU_MAX_FEEDS)
+        if (sections.isEmpty()) {
+            return FictionResult.NotFound("Your Google News feed is empty — follow topics, places or searches in Settings")
+        }
+        val results = coroutineScope {
+            sections.map { s -> async { fetchAndParse(s.feedUrl) } }.awaitAll()
+        }
+        val feeds = results.mapNotNull { (it as? FictionResult.Success<GoogleNewsFeed>)?.value }
+        if (feeds.isEmpty()) {
+            return results.filterIsInstance<FictionResult.Failure>().first()
+        }
+        return FictionResult.Success(
+            GoogleNewsFeed(
+                title = GoogleNewsSections.titleFor(GoogleNewsSections.FOR_YOU_ID, prefs.edition),
+                items = interleave(feeds.map { it.items }, FOR_YOU_MAX_STORIES),
+            ),
+        )
+    }
+
     private suspend fun fetchAndParse(feedUrl: String): FictionResult<GoogleNewsFeed> =
         when (val r = api.fetchFeed(feedUrl)) {
             is FictionResult.Success -> {
@@ -227,13 +282,24 @@ internal class GoogleNewsSource @Inject constructor(
             is FictionResult.Failure -> r
         }
 
-    private fun sectionSummary(fictionId: String, title: String): FictionSummary =
+    private fun sectionSummary(
+        fictionId: String,
+        title: String,
+        edition: GoogleNewsEdition,
+    ): FictionSummary =
         FictionSummary(
             id = fictionId,
             sourceId = SourceIds.GOOGLE_NEWS,
             title = title,
             author = GOOGLE_NEWS,
-            description = "Google News · updated continuously",
+            description = when {
+                fictionId == GoogleNewsSections.FOR_YOU_ID && edition.language == "es" ->
+                    "Google News · tus temas, lugares y búsquedas"
+                fictionId == GoogleNewsSections.FOR_YOU_ID ->
+                    "Google News · your topics, places & searches"
+                edition.language == "es" -> "Google News · actualizado continuamente"
+                else -> "Google News · updated continuously"
+            },
             status = FictionStatus.ONGOING,
         )
 
@@ -263,6 +329,12 @@ internal class GoogleNewsSource @Inject constructor(
 
     private companion object {
         const val GOOGLE_NEWS = "Google News"
+
+        /** Fan-out cap for "For you" — one HTTP request per followed section. */
+        const val FOR_YOU_MAX_FEEDS = 16
+
+        /** Stories kept in the merged "For you" section. */
+        const val FOR_YOU_MAX_STORIES = 60
         val TOPIC_PATH = Regex("/topic/([A-Za-z]+)", RegexOption.IGNORE_CASE)
     }
 }
@@ -282,6 +354,30 @@ internal fun GoogleNewsItem.toChapterInfo(index: Int, fictionId: String): Chapte
         title = title.ifBlank { "Story ${index + 1}" },
         publishedAt = publishedAtEpochMs,
     )
+
+/**
+ * #1678 — round-robin merge: story 0 of every feed, then story 1 of every
+ * feed, … skipping duplicates (same guid, or same headline — Google often
+ * surfaces one story under several topics with different guids).
+ */
+internal fun interleave(feeds: List<List<GoogleNewsItem>>, limit: Int): List<GoogleNewsItem> {
+    val out = mutableListOf<GoogleNewsItem>()
+    val seenGuids = HashSet<String>()
+    val seenTitles = HashSet<String>()
+    val depth = feeds.maxOfOrNull { it.size } ?: 0
+    for (round in 0 until depth) {
+        for (feed in feeds) {
+            if (out.size >= limit) return out
+            val item = feed.getOrNull(round) ?: continue
+            val titleKey = item.title.trim().lowercase()
+            if (item.guid in seenGuids || (titleKey.isNotEmpty() && titleKey in seenTitles)) continue
+            seenGuids += item.guid
+            if (titleKey.isNotEmpty()) seenTitles += titleKey
+            out += item
+        }
+    }
+    return out
+}
 
 /** Minimal HTML escape for the htmlBody round-trip (reader view). */
 private fun escapeHtml(s: String): String =

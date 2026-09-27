@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.googlenews
 
+import `in`.jphe.storyvox.data.repository.InMemoryGoogleNewsFeedStore
 import `in`.jphe.storyvox.data.source.FictionSource
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.data.source.model.FictionSummary
@@ -33,7 +34,7 @@ class GoogleNewsContractTest : FictionSourceContractTest() {
         val api = object : GoogleNewsApi(client) {
             override val baseUrl: String get() = host
         }
-        val real = GoogleNewsSource(api, NoOpArticleResolver)
+        val real = GoogleNewsSource(api, NoOpArticleResolver, InMemoryGoogleNewsFeedStore())
         // Route the kit's list-exercise through the real HTTP path (fictionDetail).
         // Everything else delegates to the real source unchanged.
         return object : FictionSource by real {

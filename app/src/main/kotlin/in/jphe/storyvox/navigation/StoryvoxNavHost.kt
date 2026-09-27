@@ -223,6 +223,7 @@ object StoryvoxRoutes {
      *  generic SourceConfigContributor seam, un-buried from the legacy
      *  [SETTINGS] monolith into a dedicated route under Content & Sources. */
     const val SETTINGS_CONTENT_SOURCES = "settings/content-sources"
+    const val SETTINGS_GOOGLE_NEWS_FEED = "settings/google-news-feed" // #1678
 
     /** Issue #1632 — Downloads & Storage subscreen (hub group 4). */
     const val SETTINGS_DOWNLOADS = "settings/downloads"
@@ -1639,6 +1640,19 @@ private fun StoryvoxNavHostContent(
                 popExitTransition = popExit,
             ) {
                 ContentSourcesSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenGoogleNewsFeed = { navController.navigate(StoryvoxRoutes.SETTINGS_GOOGLE_NEWS_FEED) },
+                )
+            }
+            // #1678 — Your Google News feed (topics / places / searches / edition).
+            composable(
+                StoryvoxRoutes.SETTINGS_GOOGLE_NEWS_FEED,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.settings.GoogleNewsFeedSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
