@@ -209,6 +209,26 @@ class VoicePickerGateViewModel @Inject constructor(
             },
         )
 
+    /** Issue #1466 — the Spanish-first onboarding's starter voices:
+     *  Spanish voices already on the phone (System TTS, zero download)
+     *  first, then Kokoro's Spanish speakers. See
+     *  [`in`.jphe.storyvox.feature.onboarding.spanishVoiceSuggestions]. */
+    val spanishRecommended: StateFlow<List<UiVoiceInfo>> = voices.installedVoices
+        .map { installed ->
+            `in`.jphe.storyvox.feature.onboarding.spanishVoiceSuggestions(
+                installed = installed,
+                available = voices.availableVoices,
+            )
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            `in`.jphe.storyvox.feature.onboarding.spanishVoiceSuggestions(
+                installed = emptyList(),
+                available = voices.availableVoices,
+            ),
+        )
+
     val activeVoice: StateFlow<UiVoiceInfo?> = voices.activeVoice
         .let { flow ->
             val s = MutableStateFlow<UiVoiceInfo?>(null)
@@ -242,7 +262,8 @@ class VoicePickerGateViewModel @Inject constructor(
         // after the previously-active voice was deleted but other voices
         // are still on disk) should activate immediately — no need to
         // re-download a model that already lives in filesDir.
-        val installed = recommended.value.firstOrNull { it.id == voiceId }?.isInstalled == true
+        val installed = (recommended.value + spanishRecommended.value)
+            .firstOrNull { it.id == voiceId }?.isInstalled == true
         if (installed) {
             viewModelScope.launch { voices.setActive(voiceId) }
             return

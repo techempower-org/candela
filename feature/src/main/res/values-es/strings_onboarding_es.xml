@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Issue #1466 — Spanish onboarding. Holds BOTH the new #1466 strings and
+  the Spanish translations of the pre-existing onboarding_* / voice_desc_*
+  keys (whose English lives in values/strings.xml). Don't add those keys
+  to values-es/strings.xml too, or the build fails on duplicate resources.
+  Plain, friendly Spanish; "tú" form, neutral Latin American wording.
+-->
+<resources>
+    <!-- New in #1466 -->
+    <string name="onboarding_language_hint">Puedes cambiarlo después en Configuración.</string>
+    <string name="onboarding_voice_spanish_subtitle">Estas voces leen en español. Puedes cambiarla cuando quieras.</string>
+    <string name="onboarding_voice_install_tts_banner_spanish">Instala Google TTS para tener una voz en español gratis y sin una descarga grande, o elige una voz aquí abajo.</string>
+    <string name="onboarding_voice_on_device">Gratis · ya está en tu teléfono</string>
+    <string name="onboarding_voice_kokoro_size">Gratis · una sola descarga de %1$d MB para todas estas voces</string>
+    <string name="voice_desc_system_es">Una voz en español que ya viene en tu teléfono. No hay que descargar nada.</string>
+    <string name="voice_desc_dora">Narradora de España — cálida y clara.</string>
+    <string name="voice_desc_alex">Narrador de España — tranquilo y constante.</string>
+
+    <!-- Onboarding · step indicator (#787) -->
+    <string name="onboarding_step_n_of_m">Paso %1$d de %2$d</string>
+
+    <!-- Onboarding · WelcomeScreen -->
+    <string name="onboarding_welcome_headline">Historias, leídas en voz alta.</string>
+    <string name="onboarding_welcome_body">Candela te lee libros, guías y artículos con voces tranquilas. Gratis, para siempre y sin anuncios.</string>
+    <string name="onboarding_get_started">Empezar</string>
+    <string name="onboarding_skip_welcome">Ya he usado Candela antes</string>
+
+    <!-- Onboarding · FirstFictionPicker -->
+    <string name="onboarding_first_fiction_headline">¿Qué te gustaría escuchar?</string>
+    <string name="onboarding_first_fiction_subtitle">Elige por dónde empezar. Siempre puedes agregar más después.</string>
+    <string name="onboarding_pick_te_title">Ver las guías gratis de TechEMPOWER</string>
+    <string name="onboarding_pick_te_body">Guías fáciles sobre computadoras, internet y cómo empezar.</string>
+    <string name="onboarding_pick_add_title">Agregar un libro de un sitio web</string>
+    <string name="onboarding_pick_add_body_clipboard">Vimos un enlace en tu portapapeles. Tócalo para usarlo.</string>
+    <string name="onboarding_pick_add_body_default">Pega el enlace de una historia, un artículo o un libro.</string>
+    <string name="onboarding_pick_skip_title">Saltar — muéstrame todo</string>
+    <string name="onboarding_pick_skip_body">Ir directo a tu biblioteca.</string>
+
+    <!-- Onboarding · VoicePickerOnboarding -->
+    <string name="onboarding_voice_headline">Elige una voz</string>
+    <string name="onboarding_voice_subtitle">Cada voz es una descarga pequeña y gratis. Puedes cambiarla cuando quieras.</string>
+    <string name="onboarding_voice_more_voices">Más voces →</string>
+    <string name="onboarding_voice_skip">Saltar — elijo después</string>
+    <string name="onboarding_voice_install_tts_banner">Instala Google TTS para tener voces incluidas, o descarga una voz de Piper (unos 14 MB) aquí abajo.</string>
+    <string name="onboarding_voice_install_tts_cta">Instalar Google TTS</string>
+    <string name="onboarding_voice_free_size">Gratis · %1$d MB</string>
+    <string name="onboarding_voice_pick_cta">Elegir esta voz</string>
+    <string name="onboarding_voice_download_resolving">Preparando la voz %1$s…</string>
+    <string name="onboarding_voice_downloading">Descargando la voz %1$s… %2$d MB / %3$d MB</string>
+    <string name="onboarding_voice_download_done">La voz %1$s está lista.</string>
+    <string name="onboarding_voice_download_failed">No se pudo descargar la voz %1$s. %2$s</string>
+    <string name="onboarding_voice_try_again">Intentar de nuevo</string>
+
+    <!-- Onboarding · SourcePickerOnboarding (#1370) -->
+    <string name="onboarding_sources_headline">¿Qué quieres leer?</string>
+    <string name="onboarding_sources_subtitle">Siempre puedes cambiar esto después en Configuración.</string>
+    <string name="onboarding_sources_group_books">Libros y literatura</string>
+    <string name="onboarding_sources_group_webfiction">Ficción en la web</string>
+    <string name="onboarding_sources_group_news">Noticias e investigación</string>
+    <string name="onboarding_sources_group_yourcontent">Tu contenido</string>
+    <string name="onboarding_sources_group_audio">Audio</string>
+    <string name="onboarding_sources_continue">Continuar</string>
+    <string name="onboarding_sources_skip">Saltar por ahora</string>
+
+    <!-- Onboarding · Friendly voice descriptions -->
+    <string name="voice_desc_lessac">Narradora estadounidense (lee en inglés) — cálida y clara.</string>
+    <string name="voice_desc_cori">Británica (lee en inglés) — suave y pareja, buena para escuchar mucho rato.</string>
+    <string name="voice_desc_amy">Narradora estadounidense (lee en inglés) — fácil de seguir.</string>
+    <string name="voice_desc_ryan">Narrador estadounidense (lee en inglés) — tranquilo y pausado.</string>
+    <string name="voice_desc_alan">Narrador británico (lee en inglés) — cálido y firme.</string>
+    <string name="voice_desc_alba">Británica (lee en inglés) — voz suave, para la noche y la hora de dormir.</string>
+    <string name="voice_desc_fallback">%1$s — descarga pequeña y gratis.</string>
+</resources>

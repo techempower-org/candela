@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.settings.AppLanguage
 import `in`.jphe.storyvox.ui.component.BrassButton
 import `in`.jphe.storyvox.ui.component.BrassButtonVariant
 import `in`.jphe.storyvox.ui.component.MagicSkeletonTile
@@ -50,11 +51,17 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  * Why a single "Get started" button (not "Continue"): "Continue"
  * implies they're mid-flow. "Get started" is the verb a 5-year-old
  * understands as "begin doing the thing". Per the issue spec.
+ *
+ * Issue #1466 — an "English / Español" picker sits ABOVE the sigil, so
+ * the language choice is the first thing on the first screen. When
+ * [onPickLanguage] is null (previews, tests) the picker is hidden.
  */
 @Composable
 fun WelcomeScreen(
     onGetStarted: () -> Unit,
     onSkip: () -> Unit,
+    language: AppLanguage = AppLanguage.English,
+    onPickLanguage: ((AppLanguage) -> Unit)? = null,
 ) {
     val spacing = LocalSpacing.current
     Box(
@@ -69,7 +76,14 @@ fun WelcomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Spacer(Modifier.height(spacing.xl))
+            Spacer(Modifier.height(spacing.md))
+            if (onPickLanguage != null) {
+                OnboardingLanguagePicker(
+                    selected = language,
+                    onPick = onPickLanguage,
+                )
+                Spacer(Modifier.height(spacing.lg))
+            }
             MagicSkeletonTile(
                 modifier = Modifier.size(width = 160.dp, height = 220.dp),
                 shape = MaterialTheme.shapes.medium,

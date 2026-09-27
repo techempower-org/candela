@@ -5028,478 +5028,48 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_step_n_of_m&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_step_n_of_m&quot;>Step %1$d of %2$d&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="602"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_welcome_headline&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_welcome_headline&quot;>Stories, read aloud.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="605"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_welcome_body&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_welcome_body&quot;>Candela reads books, guides, and articles to you with calming voices. Free, forever, no ads.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="606"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_get_started&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_get_started&quot;>Get started&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="607"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_skip_welcome&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_skip_welcome&quot;>I\&apos;ve used Candela before&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="608"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_first_fiction_headline&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_first_fiction_headline&quot;>What would you like to hear?&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="611"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_first_fiction_subtitle&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_first_fiction_subtitle&quot;>Pick a starting point. You can always add more later.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="612"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_te_title&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_te_title&quot;>Browse TechEMPOWER\&apos;s free guides&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="613"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_te_body&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_te_body&quot;>Plain-English guides about computers, the internet, and getting set up.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="614"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_add_title&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_add_title&quot;>Add a book from a website&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="615"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_add_body_clipboard&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_add_body_clipboard&quot;>We noticed a link on your clipboard — tap to use it.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="616"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_add_body_default&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_add_body_default&quot;>Paste a link to a story, article, or book.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="617"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_skip_title&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_skip_title&quot;>Skip — show me everything&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="618"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_pick_skip_body&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_pick_skip_body&quot;>Go straight to your library.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="619"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_headline&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_headline&quot;>Pick a voice&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="622"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_subtitle&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_subtitle&quot;>Each voice is a small free download. You can change it any time.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="623"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_more_voices&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_more_voices&quot;>More voices →&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="624"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_skip&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_skip&quot;>Skip — I\&apos;ll choose later&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="625"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_install_tts_banner&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_install_tts_banner&quot;>Install Google TTS for built-in voices, or download a Piper voice (~14 MB) below.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="626"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_install_tts_cta&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_install_tts_cta&quot;>Install Google TTS&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="627"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_free_size&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_free_size&quot;>Free · %1$d MB&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="628"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_pick_cta&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_pick_cta&quot;>Pick this voice&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="629"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_download_resolving&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_download_resolving&quot;>Getting %1$s ready…&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="630"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_downloading&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_downloading&quot;>Downloading %1$s… %2$d MB / %3$d MB&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="631"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_download_done&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_download_done&quot;>%1$s is ready.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="632"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_download_failed&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_download_failed&quot;>Couldn\&apos;t download %1$s. %2$s&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="633"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_voice_try_again&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_voice_try_again&quot;>Try again&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="634"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_headline&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_headline&quot;>What do you want to read?&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="637"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_subtitle&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_subtitle&quot;>You can always change these later in Settings.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="638"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_group_books&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_group_books&quot;>Books &amp;amp; Literature&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="639"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_group_webfiction&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_group_webfiction&quot;>Web Fiction&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="640"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_group_news&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_group_news&quot;>News &amp;amp; Research&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="641"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_group_yourcontent&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_group_yourcontent&quot;>Your Content&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="642"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_group_audio&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_group_audio&quot;>Audio&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="643"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_continue&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_continue&quot;>Continue&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="644"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;onboarding_sources_skip&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;onboarding_sources_skip&quot;>Skip for now&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="645"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_lessac&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_lessac&quot;>Warm American narrator — clear and steady.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="648"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_cori&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_cori&quot;>British, gentle and even — good for long sessions.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="649"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_amy&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_amy&quot;>Friendly American narrator — easy to follow.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="650"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_ryan&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_ryan&quot;>American narrator — calm and slow.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="651"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_alan&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_alan&quot;>British narrator — warm and grounded.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="652"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_alba&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_alba&quot;>British, soft-spoken — quiet hours and bedtime.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="653"
-            column="13"/>
-    </issue>
 
-    <issue
-        id="MissingTranslation"
-        message="&quot;voice_desc_fallback&quot; is not translated in &quot;es&quot; (Spanish)"
-        errorLine1="    &lt;string name=&quot;voice_desc_fallback&quot;>%1$s — small free download.&lt;/string>"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="654"
-            column="13"/>
-    </issue>
 
     <issue
         id="MissingTranslation"
