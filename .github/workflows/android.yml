@@ -49,7 +49,6 @@ jobs:
       - name: Compile test sources
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew compileDebugUnitTestKotlin --no-daemon --stacktrace
 
-  # translation-parity-begin
   # #1582 — EN↔ES parity gate. Fails a PR that adds a string to
   # values/strings.xml (in :app or :feature) without a values-es counterpart.
   # The existing gap (#1583) is grandfathered in each module's
@@ -81,16 +80,16 @@ jobs:
         run: |
           set -euo pipefail
           printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
-      - name: Generate MissingTranslation baselines (bootstrap)
-        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:updateLintBaseline :feature:updateLintBaseline -Pcandela.lint.translationsOnly=true --no-daemon --stacktrace
-      - name: Upload baselines
+      - name: Lint — MissingTranslation only, against the baseline
+        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:lintDebug :feature:lintDebug -Pcandela.lint.translationsOnly=true --no-daemon --stacktrace
+      - name: Upload lint reports
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: lint-baselines
+          name: translation-lint-reports
           path: |
-            app/lint-baseline.xml
-            feature/lint-baseline.xml
-  # translation-parity-end
+            app/build/reports/lint-results-debug.*
+            feature/build/reports/lint-results-debug.*
 
   build:
     # Job key + name kept verbatim ("build" / "Build APK") so the
