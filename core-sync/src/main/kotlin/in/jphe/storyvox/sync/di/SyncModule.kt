@@ -25,6 +25,9 @@ import `in`.jphe.storyvox.sync.coordinator.TombstoneStore
 import `in`.jphe.storyvox.sync.domain.AnnotationsSyncer
 import `in`.jphe.storyvox.sync.domain.BookmarksSyncer
 import `in`.jphe.storyvox.sync.domain.FollowsSyncer
+import `in`.jphe.storyvox.sync.domain.InboxSink
+import `in`.jphe.storyvox.sync.domain.InboxSyncer
+import `in`.jphe.storyvox.sync.domain.PrefsInboxSeenStore
 import `in`.jphe.storyvox.sync.domain.LibrarySyncer
 
 import `in`.jphe.storyvox.sync.domain.PlaybackPositionSyncer
@@ -154,6 +157,20 @@ object SyncModule {
      *  are in scope. */
     @Provides @IntoSet
     fun provideSettingsSyncer(impl: SettingsSyncer): Syncer = impl
+
+    /** Issue #1469 — push-to-Candela inbox (desktop → phone). Read-only on
+     *  the phone; the [InboxSink] that does the actual Library import is
+     *  bound in `:app` (it needs the source graph). */
+    @Provides @IntoSet
+    fun provideInboxSyncer(
+        backend: InstantBackend,
+        sink: InboxSink,
+        prefs: SharedPreferences,
+    ): Syncer = InboxSyncer(
+        backend = backend,
+        sink = sink,
+        seenStore = PrefsInboxSeenStore(prefs),
+    )
 
 }
 

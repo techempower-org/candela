@@ -51,6 +51,11 @@ Candela uses for sync. Your email is the lookup key for your record. The
 content of fictions themselves is **not** synced — only the references
 (URLs / IDs) and the metadata (position, voice choice).
 
+If you use the optional desktop "push to Candela" tool
+([push-to-candela.md](push-to-candela.md)), the URLs and text you push are
+held in the same InstantDB record until the phone has had 30 days to pick
+them up, you clear them, or you sign out of sync.
+
 You can disable sync at any time and your record is deleted from InstantDB
 on next sync-off. Uninstalling the app also deletes the local cache; the
 InstantDB record remains until you sign out from another device or contact

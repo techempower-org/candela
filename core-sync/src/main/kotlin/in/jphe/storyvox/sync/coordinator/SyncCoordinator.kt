@@ -101,6 +101,22 @@ class SyncCoordinator @Inject constructor(
         }
     }
 
+    /**
+     * Request a pull for one domain — the pull-side twin of [requestPush].
+     * Issue #1469: the app calls this for the `inbox` domain on every
+     * foreground (throttled by the caller) so an item pushed from the
+     * desktop shows up without a cold start or a manual "Sync now".
+     * No-op when signed out or when [domainName] isn't registered.
+     */
+    fun requestPull(domainName: String) {
+        val user = session.current() ?: return
+        val syncer = syncers.firstOrNull { it.name == domainName } ?: return
+        val mutex = locks[domainName] ?: return
+        scope.launch {
+            mutex.withLock { runWithStatus(syncer) { it.pull(user) } }
+        }
+    }
+
     /** Manual sync trigger from Settings → Account. Pull then push. */
     fun syncNow() {
         val user = session.current() ?: run {

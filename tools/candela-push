@@ -1,0 +1,486 @@
+#!/usr/bin/env python3
+"""candela-push — throw a URL or some text from the desktop to Candela.
+
+Issue #1469. Appends an item to your Candela inbox (an InstantDB row the
+phone app reads). Next time Candela comes to the foreground, the item lands
+in your Library, ready to listen to offline.
+
+    candela-push login you@example.com      # once: emails you a magic code
+    candela-push https://example.com/post   # push a URL
+    candela-push --title "Notes" --text "Read this aloud to me."
+    pbpaste | candela-push -                # push stdin as text
+    candela-push --file article.txt         # push a text file
+    candela-push list                       # what is waiting in the inbox
+    candela-push remove <id> | clear        # take items back out
+    candela-push logout
+
+Requires Python 3.8+, standard library only. Docs: docs/push-to-candela.md.
+
+Wire contract (must match core-sync InboxSyncer / InboxLogic):
+  entity "blobs", id = Java UUID.nameUUIDFromBytes("inbox:<userId>")
+  row attrs {payload: <JSON string>, updatedAt: <epoch ms>}
+  payload  {"v":1,"items":[{id,kind,url?,text?,title?,createdAt,from?}],"updatedAt":ms}
+"""
+
+from __future__ import annotations
+
+import argparse
+import getpass
+import hashlib
+import json
+import os
+import socket
+import stat
+import sys
+import time
+import urllib.error
+import urllib.request
+import uuid
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+API = os.environ.get("CANDELA_INSTANT_API", "https://api.instantdb.com")
+ENTITY = "blobs"
+DOMAIN = "inbox"
+PAYLOAD_VERSION = 1
+
+# Shared with core-sync InboxLimits — keep in lock-step.
+MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+MAX_TEXT_CHARS = 200_000
+MAX_URL_CHARS = 4_096
+MAX_TITLE_CHARS = 300
+# Pusher-only bound on the whole row, so the phone's single fetch stays small.
+MAX_ROW_BYTES = 1_000_000
+WRITE_ATTEMPTS = 3
+
+
+class PushError(Exception):
+    """User-facing failure; message is printed without a traceback."""
+
+
+# ─── pure helpers (unit-tested in tools/test_candela_push.py) ─────────────
+
+
+def java_name_uuid(name: str) -> str:
+    """Port of java.util.UUID.nameUUIDFromBytes (MD5, version 3, no namespace).
+
+    Python's uuid.uuid3 prepends a namespace, so it can NOT be used here.
+    """
+    b = bytearray(hashlib.md5(name.encode("utf-8")).digest())
+    b[6] = (b[6] & 0x0F) | 0x30
+    b[8] = (b[8] & 0x3F) | 0x80
+    return str(uuid.UUID(bytes=bytes(b)))
+
+
+def inbox_row_id(user_id: str) -> str:
+    return java_name_uuid(f"{DOMAIN}:{user_id}")
+
+
+def is_http_url(s: str) -> bool:
+    t = s.strip()
+    low = t.lower()
+    if low.startswith("https://"):
+        rest = t[8:]
+    elif low.startswith("http://"):
+        rest = t[7:]
+    else:
+        return False
+    return bool(rest) and not rest.startswith("/") and not any(c.isspace() for c in t)
+
+
+def make_item(
+    *,
+    url: Optional[str] = None,
+    text: Optional[str] = None,
+    title: Optional[str] = None,
+    now_ms: int,
+    source: Optional[str] = None,
+    item_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Build and validate one inbox item. Raises PushError when invalid."""
+    if (url is None) == (text is None):
+        raise PushError("give exactly one of a URL or text")
+    if title is not None:
+        title = title.strip() or None
+        if title and len(title) > MAX_TITLE_CHARS:
+            raise PushError(f"title is longer than {MAX_TITLE_CHARS} characters")
+    item: Dict[str, Any] = {"id": item_id or str(uuid.uuid4()), "createdAt": now_ms}
+    if url is not None:
+        url = url.strip()
+        if not is_http_url(url):
+            raise PushError(f"not an http(s) URL: {url!r}")
+        if len(url) > MAX_URL_CHARS:
+            raise PushError(f"URL is longer than {MAX_URL_CHARS} characters")
+        item.update(kind="url", url=url)
+    else:
+        assert text is not None
+        if not text.strip():
+            raise PushError("text is empty")
+        if len(text) > MAX_TEXT_CHARS:
+            raise PushError(
+                f"text is {len(text):,} characters; the limit is {MAX_TEXT_CHARS:,}. "
+                "Push a URL instead, or split it."
+            )
+        item.update(kind="text", text=text)
+    if title:
+        item["title"] = title
+    if source:
+        item["from"] = source
+    return item
+
+
+def classify_positional(args: List[str]) -> Tuple[Optional[str], Optional[str]]:
+    """A single URL-looking argument is a URL push; anything else is text."""
+    joined = " ".join(args).strip()
+    if len(args) == 1 and is_http_url(args[0]):
+        return args[0].strip(), None
+    return None, joined
+
+
+def decode_payload(raw: Optional[str]) -> Dict[str, Any]:
+    """Tolerant decode of the row payload. Garbage becomes an empty inbox
+    rather than an error, mirroring the phone (a bad write must not wedge
+    every later push)."""
+    empty = {"v": PAYLOAD_VERSION, "items": [], "updatedAt": 0}
+    if not raw:
+        return empty
+    try:
+        p = json.loads(raw)
+    except (ValueError, TypeError):
+        return empty
+    if not isinstance(p, dict) or not isinstance(p.get("items", []), list):
+        return empty
+    items = [i for i in p.get("items", []) if isinstance(i, dict) and i.get("id")]
+    out = dict(p)
+    out["items"] = items
+    return out
+
+
+def encode_payload(payload: Dict[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+def prune(items: List[Dict[str, Any]], now_ms: int, max_bytes: int = MAX_ROW_BYTES) -> List[Dict[str, Any]]:
+    """Drop items older than MAX_AGE_MS, then oldest-first until the encoded
+    payload fits max_bytes. The newest item always survives (the caller has
+    already bounded a single item's size)."""
+    kept = [i for i in items if now_ms - int(i.get("createdAt") or 0) <= MAX_AGE_MS]
+    kept.sort(key=lambda i: int(i.get("createdAt") or 0))
+
+    def size(xs: List[Dict[str, Any]]) -> int:
+        return len(encode_payload({"v": PAYLOAD_VERSION, "items": xs, "updatedAt": now_ms}).encode("utf-8"))
+
+    while len(kept) > 1 and size(kept) > max_bytes:
+        kept.pop(0)
+    return kept
+
+
+def append_item(payload: Dict[str, Any], item: Dict[str, Any], now_ms: int) -> Dict[str, Any]:
+    items = [i for i in payload.get("items", []) if i.get("id") != item["id"]]
+    items.append(item)
+    out = dict(payload)
+    out["v"] = max(int(payload.get("v") or PAYLOAD_VERSION), PAYLOAD_VERSION)
+    out["items"] = prune(items, now_ms)
+    out["updatedAt"] = now_ms
+    return out
+
+
+def describe(item: Dict[str, Any], now_ms: int) -> str:
+    age_min = max(0, (now_ms - int(item.get("createdAt") or 0)) // 60_000)
+    age = f"{age_min}m" if age_min < 120 else f"{age_min // 60}h" if age_min < 2880 else f"{age_min // 1440}d"
+    if item.get("kind") == "url":
+        what = item.get("url", "")
+    else:
+        body = (item.get("text") or "").strip().splitlines()
+        what = f"text: {item.get('title') or (body[0] if body else '')}"[:90]
+    return f"{str(item.get('id'))[:8]}  {age:>4}  {what}"
+
+
+# ─── config ──────────────────────────────────────────────────────────────
+
+
+def config_path() -> Path:
+    override = os.environ.get("CANDELA_PUSH_CONFIG")
+    if override:
+        return Path(override)
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base) / "candela" / "push.json"
+
+
+def load_config() -> Dict[str, Any]:
+    p = config_path()
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except ValueError:
+        raise PushError(f"{p} is not valid JSON — run `candela-push logout` and log in again")
+
+
+def save_config(cfg: Dict[str, Any]) -> None:
+    p = config_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    # Holds a refresh token: create 0600 from the start, never world-readable.
+    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
+    with os.fdopen(fd, "w") as f:
+        json.dump(cfg, f, indent=2)
+    os.replace(tmp, p)
+
+
+def app_id_from_local_properties() -> Optional[str]:
+    """Convenience for a Candela checkout: reuse INSTANTDB_APP_ID from the
+    repo's (gitignored) local.properties."""
+    props = Path(__file__).resolve().parent.parent / "local.properties"
+    if not props.exists():
+        return None
+    for line in props.read_text().splitlines():
+        k, sep, v = line.partition("=")
+        if sep and k.strip() == "INSTANTDB_APP_ID" and v.strip() and v.strip() != "PLACEHOLDER":
+            return v.strip()
+    return None
+
+
+def resolve_app_id(flag: Optional[str], cfg: Dict[str, Any]) -> str:
+    app_id = (
+        flag
+        or os.environ.get("CANDELA_APP_ID")
+        or os.environ.get("INSTANTDB_APP_ID")
+        or cfg.get("appId")
+        or app_id_from_local_properties()
+    )
+    if not app_id:
+        raise PushError(
+            "no InstantDB app id. Pass --app-id, or set CANDELA_APP_ID. It is the same "
+            "INSTANTDB_APP_ID the Candela build uses (see docs/push-to-candela.md)."
+        )
+    return app_id
+
+
+# ─── HTTP ────────────────────────────────────────────────────────────────
+
+
+def post(path: str, body: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(API + path, data=data, method="POST")
+    req.add_header("content-type", "application/json")
+    for k, v in (headers or {}).items():
+        req.add_header(k, v)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as res:
+            raw = res.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")
+        try:
+            detail = json.loads(detail).get("message") or detail
+        except ValueError:
+            pass
+        if e.code in (401, 403):
+            raise PushError(f"InstantDB refused the request ({e.code}: {detail}). Run `candela-push login` again.")
+        raise PushError(f"InstantDB {path} failed ({e.code}): {str(detail)[:300]}")
+    except urllib.error.URLError as e:
+        raise PushError(f"could not reach {API}: {e.reason}")
+    return json.loads(raw) if raw.strip() else {}
+
+
+def admin_headers(app_id: str, token: str) -> Dict[str, str]:
+    # as-token impersonation: acts as the signed-in user, no admin secret.
+    return {"app-id": app_id, "as-token": token}
+
+
+def fetch_payload(app_id: str, token: str, row_id: str) -> Dict[str, Any]:
+    res = post(
+        f"/admin/query?app_id={app_id}",
+        {"query": {ENTITY: {"$": {"where": {"id": row_id}}}}, "inference?": False},
+        admin_headers(app_id, token),
+    )
+    rows = res.get(ENTITY) or []
+    raw = rows[0].get("payload") if rows and isinstance(rows[0], dict) else None
+    return decode_payload(raw if isinstance(raw, str) else None)
+
+
+def write_payload(app_id: str, token: str, row_id: str, payload: Dict[str, Any]) -> None:
+    post(
+        f"/admin/transact?app_id={app_id}",
+        {
+            "steps": [["update", ENTITY, row_id, {"payload": encode_payload(payload), "updatedAt": payload["updatedAt"]}]],
+            "throw-on-missing-attrs?": False,
+        },
+        admin_headers(app_id, token),
+    )
+
+
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def signed_in(cfg: Dict[str, Any]) -> Tuple[str, str, str]:
+    token, user_id = cfg.get("refreshToken"), cfg.get("userId")
+    if not token or not user_id:
+        raise PushError("not signed in — run `candela-push login <email>` first")
+    return resolve_app_id(None, cfg), token, user_id
+
+
+# ─── commands ────────────────────────────────────────────────────────────
+
+
+def cmd_login(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    app_id = resolve_app_id(args.app_id, cfg)
+    email = args.email or input("Email (the one you sync Candela with): ").strip()
+    if not email:
+        raise PushError("an email is required")
+    res = post("/runtime/auth/send_magic_code", {"app-id": app_id, "email": email})
+    if not res.get("sent"):
+        raise PushError("InstantDB did not confirm sending the code")
+    print(f"A sign-in code was emailed to {email}.")
+    code = (args.code or getpass.getpass("Code: ")).strip()
+    res = post("/runtime/auth/verify_magic_code", {"app-id": app_id, "email": email, "code": code})
+    user = res.get("user") or {}
+    if not user.get("id") or not user.get("refresh_token"):
+        raise PushError("unexpected verify response from InstantDB")
+    save_config({"appId": app_id, "email": email, "userId": user["id"], "refreshToken": user["refresh_token"]})
+    print(f"Signed in. Credentials saved to {config_path()} (mode 600).")
+    return 0
+
+
+def cmd_logout(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    if cfg.get("refreshToken") and cfg.get("appId"):
+        try:
+            post("/runtime/signout", {"app_id": cfg["appId"], "refresh_token": cfg["refreshToken"]})
+        except PushError as e:  # best-effort, like the app
+            print(f"warning: server sign-out failed: {e}", file=sys.stderr)
+    p = config_path()
+    if p.exists():
+        p.unlink()
+    print("Signed out.")
+    return 0
+
+
+def cmd_push(args: argparse.Namespace) -> int:
+    url, text = None, None
+    if args.file:
+        text = Path(args.file).read_text(encoding="utf-8")
+    elif args.text is not None:
+        text = args.text
+    elif args.content == ["-"] or (not args.content and not sys.stdin.isatty()):
+        text = sys.stdin.read()
+    elif args.content:
+        url, text = classify_positional(args.content)
+    else:
+        raise PushError("nothing to push — give a URL, --text, --file, or pipe text on stdin")
+
+    item = make_item(url=url, text=text, title=args.title, now_ms=now_ms(), source=args.source)
+    if args.dry_run:
+        print(json.dumps(item, indent=2, ensure_ascii=False))
+        return 0
+
+    app_id, token, user_id = signed_in(load_config())
+    row = inbox_row_id(user_id)
+    # Read-modify-write, then read back to catch a concurrent pusher that
+    # overwrote our append; retry a few times if we lost the race.
+    for _ in range(WRITE_ATTEMPTS):
+        payload = append_item(fetch_payload(app_id, token, row), item, now_ms())
+        write_payload(app_id, token, row, payload)
+        if any(i.get("id") == item["id"] for i in fetch_payload(app_id, token, row)["items"]):
+            what = item.get("url") or f"text ({len(item['text']):,} chars)"
+            print(f"Pushed to Candela: {what}")
+            print("It appears in your Library next time Candela opens (signed in to sync).")
+            return 0
+        time.sleep(0.5)
+    raise PushError("another push kept overwriting the inbox; try again")
+
+
+def cmd_list(args: argparse.Namespace) -> int:
+    app_id, token, user_id = signed_in(load_config())
+    items = fetch_payload(app_id, token, inbox_row_id(user_id))["items"]
+    if not items:
+        print("Inbox is empty.")
+        return 0
+    now = now_ms()
+    for i in sorted(items, key=lambda x: int(x.get("createdAt") or 0)):
+        print(describe(i, now))
+    print(f"\n{len(items)} item(s). Items stay listed for 30 days; the phone imports each once.")
+    return 0
+
+
+def _rewrite(keep) -> int:
+    app_id, token, user_id = signed_in(load_config())
+    row = inbox_row_id(user_id)
+    payload = fetch_payload(app_id, token, row)
+    before = len(payload["items"])
+    payload["items"] = [i for i in payload["items"] if keep(i)]
+    payload["updatedAt"] = now_ms()
+    payload["v"] = max(int(payload.get("v") or PAYLOAD_VERSION), PAYLOAD_VERSION)
+    write_payload(app_id, token, row, payload)
+    return before - len(payload["items"])
+
+
+def cmd_remove(args: argparse.Namespace) -> int:
+    n = _rewrite(lambda i: not str(i.get("id", "")).startswith(args.id))
+    print(f"Removed {n} item(s).")
+    return 0 if n else 1
+
+
+def cmd_clear(args: argparse.Namespace) -> int:
+    n = _rewrite(lambda i: False)
+    print(f"Cleared {n} item(s).")
+    return 0
+
+
+# ─── entry point ─────────────────────────────────────────────────────────
+
+SUBCOMMANDS = {"login", "logout", "list", "remove", "clear", "push"}
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="candela-push", description="Push a URL or text to Candela.")
+    sub = p.add_subparsers(dest="cmd")
+
+    lg = sub.add_parser("login", help="sign in with an emailed magic code")
+    lg.add_argument("email", nargs="?")
+    lg.add_argument("--app-id", help="InstantDB app id (same as the app build's INSTANTDB_APP_ID)")
+    lg.add_argument("--code", help=argparse.SUPPRESS)
+    lg.set_defaults(fn=cmd_login)
+
+    sub.add_parser("logout", help="sign out and forget credentials").set_defaults(fn=cmd_logout)
+    sub.add_parser("list", help="show items waiting in the inbox").set_defaults(fn=cmd_list)
+    sub.add_parser("clear", help="remove every item from the inbox").set_defaults(fn=cmd_clear)
+    rm = sub.add_parser("remove", help="remove one item by id (prefix ok)")
+    rm.add_argument("id")
+    rm.set_defaults(fn=cmd_remove)
+
+    ps = sub.add_parser("push", help="push a URL or text (the default command)")
+    ps.add_argument("content", nargs="*", help="a URL, or words to push as text; '-' reads stdin")
+    ps.add_argument("--text", help="push this string as text")
+    ps.add_argument("--file", help="push a UTF-8 text file")
+    ps.add_argument("--title", help="title for a text push")
+    ps.add_argument("--from", dest="source", default=socket.gethostname(), help="label for this sender")
+    ps.add_argument("--dry-run", action="store_true", help="print the item instead of pushing")
+    ps.set_defaults(fn=cmd_push)
+    return p
+
+
+def normalize_argv(argv: List[str]) -> List[str]:
+    """`candela-push <url>` is shorthand for `candela-push push <url>`."""
+    if argv and argv[0] in ("-h", "--help"):
+        return argv
+    if not argv or argv[0] not in SUBCOMMANDS:
+        return ["push", *argv]
+    return argv
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    args = build_parser().parse_args(normalize_argv(list(sys.argv[1:] if argv is None else argv)))
+    try:
+        return args.fn(args)
+    except PushError as e:
+        print(f"candela-push: {e}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

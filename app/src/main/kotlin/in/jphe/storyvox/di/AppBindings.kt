@@ -324,6 +324,11 @@ object AppBindings {
     @Provides @Singleton
     fun provideOcrDocumentStore(impl: `in`.jphe.storyvox.data.OcrConfigImpl): `in`.jphe.storyvox.source.ocr.config.OcrDocumentStore = impl
 
+    /** Issue #1469 — the Library-import side of the push-to-Candela inbox;
+     *  consumed by `:core-sync`'s InboxSyncer. */
+    @Provides @Singleton
+    fun provideInboxSink(impl: `in`.jphe.storyvox.data.InboxSinkImpl): `in`.jphe.storyvox.sync.domain.InboxSink = impl
+
     /** Issue #995 — bridges the :core-data [OcrTextRecognizer] seam to
      *  the bundled, offline ML Kit Latin recognizer. Shared by the
      *  camera/gallery capture flow (#995) and #996's scanned-PDF import. */
