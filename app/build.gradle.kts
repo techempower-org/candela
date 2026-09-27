@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -613,7 +614,7 @@ tasks.matching { it.name == "bundleRelease" }.configureEach {
     doLast {
         val aab = aabProvider.get().asFile
         val symbolEntries = if (aab.isFile) {
-            java.util.zip.ZipFile(aab).use { zip ->
+            ZipFile(aab).use { zip ->
                 zip.entries().asSequence().count {
                     it.name.startsWith("BUNDLE-METADATA/com.android.tools.build.debugsymbols/")
                 }
