@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1467 Resumen matutino. English source: values/strings_briefing.xml -->
+<resources>
+    <string name="briefing_title">Resumen matutino</string>
+    <string name="briefing_back">Atrás</string>
+    <string name="briefing_intro">Un episodio continuo con las fuentes que elijas. Escúchalo sin usar las manos mientras caminas.</string>
+    <string name="briefing_play">Preparar y reproducir mi resumen</string>
+    <string name="briefing_play_ready">Reproducir el resumen de hoy</string>
+    <string name="briefing_building">Preparando tu resumen…</string>
+    <string name="briefing_empty">Todavía no hay nada. Activa abajo una fuente con publicaciones recientes y vuelve a intentarlo.</string>
+    <string name="briefing_playing">Reproduciendo %1$d de %2$d</string>
+    <string name="briefing_complete">Resumen terminado · %1$d elementos</string>
+    <string name="briefing_ready_today">Preparado esta mañana a las %1$s · %2$d elementos</string>
+    <string name="briefing_stop">Detener el resumen</string>
+
+    <string name="briefing_sources_header">Fuentes</string>
+    <string name="briefing_sources_hint">Se reproduce de arriba abajo. Cada fuente añade sus elementos más recientes.</string>
+    <string name="briefing_count_label">%1$d elementos</string>
+    <string name="briefing_count_decrease">Menos elementos de %1$s</string>
+    <string name="briefing_count_increase">Más elementos de %1$s</string>
+
+    <string name="briefing_source_googlenews">Titulares de Google News</string>
+    <string name="briefing_source_hackernews">Hacker News</string>
+    <string name="briefing_source_arxiv">Artículos de arXiv</string>
+    <string name="briefing_source_rss">Tus fuentes RSS</string>
+    <string name="briefing_source_github">Actividad de GitHub</string>
+    <string name="briefing_source_inbox">Capítulos nuevos de tu bandeja de entrada</string>
+    <string name="briefing_source_calendar">Calendario y fechas límite de hoy</string>
+
+    <string name="briefing_schedule_header">Cada mañana</string>
+    <string name="briefing_schedule_toggle">Preparar mi resumen a diario</string>
+    <string name="briefing_schedule_hint">Descarga y prepara el audio en segundo plano para que esté listo cuando despiertes.</string>
+    <string name="briefing_schedule_time">Listo a las %1$s</string>
+    <string name="briefing_schedule_pick_time">Elegir hora</string>
+    <string name="briefing_ok">Aceptar</string>
+    <string name="briefing_cancel">Cancelar</string>
+</resources>

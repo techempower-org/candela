@@ -69,7 +69,7 @@ class BriefingQueueControllerTest {
 
     // ─── end-to-end play-through ──────────────────────────────────────────────
 
-    @Test fun `start plays the first item and BookFinished walks the queue`() = runTest {
+    @Test fun `start plays the first item and ChapterDone walks the queue per item`() = runTest {
         val controller = RecordingController()
         val builder = FakeBuilder((1..3).map(::item))
         val queue = BriefingQueueController(controller, builder, backgroundScope)
@@ -79,19 +79,46 @@ class BriefingQueueControllerTest {
         assertEquals(listOf("f1" to "c1"), controller.plays)
         assertEquals(0, queue.session.value?.index)
 
+        // A ChapterDone for some other chapter (the engine's own in-fiction
+        // advance) and a BookFinished are both ignored in per-item mode.
+        controller.emittableEvents.emit(PlaybackUiEvent.ChapterDone("other"))
         controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        runCurrent()
+        assertEquals(1, controller.plays.size)
+
+        controller.emittableEvents.emit(PlaybackUiEvent.ChapterDone("c1"))
         runCurrent()
         assertEquals(listOf("f1" to "c1", "f2" to "c2"), controller.plays)
 
-        controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        controller.emittableEvents.emit(PlaybackUiEvent.ChapterDone("c2"))
         runCurrent()
         assertEquals(listOf("f1" to "c1", "f2" to "c2", "f3" to "c3"), controller.plays)
 
         // Past the last item: finishes, plays nothing more.
-        controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        controller.emittableEvents.emit(PlaybackUiEvent.ChapterDone("c3"))
         runCurrent()
         assertEquals(3, controller.plays.size)
         assertTrue(queue.session.value?.finished == true)
+    }
+
+    @Test fun `startWith in BookFinished mode advances per fiction`() = runTest {
+        val controller = RecordingController()
+        val queue = BriefingQueueController(controller, FakeBuilder(emptyList()), backgroundScope)
+
+        assertTrue(queue.startWith((1..2).map(::item)))
+        runCurrent()
+        controller.emittableEvents.emit(PlaybackUiEvent.ChapterDone("c1"))
+        runCurrent()
+        assertEquals(listOf("f1" to "c1"), controller.plays)
+        controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        runCurrent()
+        assertEquals(listOf("f1" to "c1", "f2" to "c2"), controller.plays)
+    }
+
+    @Test fun `shouldAdvance ignores events once finished`() {
+        val done = session(count = 1).copy(index = 1, finished = true)
+        assertFalse(BriefingQueueController.shouldAdvance(PlaybackUiEvent.ChapterDone("c1"), done, true))
+        assertFalse(BriefingQueueController.shouldAdvance(PlaybackUiEvent.BookFinished, null, false))
     }
 
     @Test fun `start returns false and plays nothing when the build is empty`() = runTest {
@@ -102,6 +129,29 @@ class BriefingQueueControllerTest {
         runCurrent()
         assertTrue(controller.plays.isEmpty())
         assertNull(queue.session.value)
+    }
+
+    @Test fun `startWith plays a prebuilt queue from the requested index`() = runTest {
+        val controller = RecordingController()
+        val queue = BriefingQueueController(controller, FakeBuilder(emptyList()), backgroundScope)
+
+        assertTrue(queue.startWith((1..3).map(::item), startIndex = 1))
+        runCurrent()
+        assertEquals(listOf("f2" to "c2"), controller.plays)
+
+        controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        runCurrent()
+        assertEquals(listOf("f2" to "c2", "f3" to "c3"), controller.plays)
+    }
+
+    @Test fun `startWith clamps an out-of-range index and rejects an empty queue`() = runTest {
+        val controller = RecordingController()
+        val queue = BriefingQueueController(controller, FakeBuilder(emptyList()), backgroundScope)
+
+        assertFalse(queue.startWith(emptyList()))
+        assertTrue(queue.startWith((1..2).map(::item), startIndex = 99))
+        runCurrent()
+        assertEquals(listOf("f2" to "c2"), controller.plays)
     }
 
     // ─── test doubles ─────────────────────────────────────────────────────────
