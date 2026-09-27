@@ -290,4 +290,10 @@
          bilingüe porque ya era una fila visible para el usuario). -->
     <string name="settings_hub_briefing_title">Resumen matutino</string>
     <string name="settings_hub_briefing_subtitle">Un episodio de tus fuentes — HN, arXiv, RSS, GitHub.</string>
+
+    <!-- Pantalla Reproduciendo — aviso de notificaciones desactivadas -->
+    <string name="reader_notifications_off_title">Los controles de reproducción están ocultos</string>
+    <string name="reader_notifications_off_body">Activa las notificaciones para controlar la reproducción desde la barra de notificaciones y la pantalla de bloqueo.</string>
+    <string name="reader_notifications_off_turn_on">Activar</string>
+    <string name="reader_notifications_off_dismiss">Descartar el aviso de notificaciones</string>
 </resources>
