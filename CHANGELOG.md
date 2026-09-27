@@ -9,6 +9,28 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.14.2] -- 2026-09-27
+
+**Infernal Forge.** A tester's report, a Play Store submission, and the move to GitHub-hosted CI.
+
+### Fixed
+- **Candela now tells you when your playback controls are hidden.** If the
+  "Playback" notification channel is turned off (or, on Android 12 and older,
+  all of Candela's notifications are), the notification-bar and lock-screen
+  controls disappear with no explanation. The Playing screen now shows a
+  "Playback controls are hidden" banner with a one-tap **Turn on** that opens
+  the right settings page, and it clears itself once you fix it. Verified on
+  Android 14: denying the notification permission does *not* hide media
+  controls (they are exempt); turning off the Playback channel does. (#1757)
+- **The Play Store listing uses the Candela icon and feature graphic**, not the
+  pre-rebrand storyvox art. (#1755)
+
+### Under the hood
+- CI builds on GitHub-hosted runners; tags attach only the two sideload APKs.
+  The Play AAB is built locally with the release key and uploaded in Play
+  Console. (#1744)
+- Dependency bumps: AGP 9.4.0, Gradle 9.7.1, and an 8-library batch. (#1741 #1742 #1743)
+
 ## [1.14.1] -- 2026-09-06
 
 **Kindled Dominion.** Same-night fast-follow to 1.14.0, from the release check itself.
