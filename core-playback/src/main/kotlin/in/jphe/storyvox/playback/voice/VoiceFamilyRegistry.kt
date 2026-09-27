@@ -204,10 +204,14 @@ object VoiceFamilyIds {
 class VoiceFamilyRegistry @Inject constructor(
     /** #1500 — registered engines, so a de-sealed `@VoicePlugin` engine's
      *  family card appears without editing the curated list below. Lazy:
-     *  resolving the plugin map is deferred to first [descriptors] read.
-     *  Defaulted to "no plugins" so JVM tests keep `VoiceFamilyRegistry()`. */
-    private val engineRegistry: dagger.Lazy<VoiceEngineRegistry> = NO_ENGINES,
+     *  resolving the plugin map is deferred to first [descriptors] read. */
+    private val engineRegistry: dagger.Lazy<VoiceEngineRegistry>,
 ) {
+    /** No plugins — JVM tests keep `VoiceFamilyRegistry()`. Deliberately a
+     *  plain secondary constructor, NOT a default argument: an all-defaulted
+     *  Kotlin constructor emits a no-arg overload that inherits `@Inject`,
+     *  and Dagger rejects a class with two injected constructors. */
+    constructor() : this(NO_ENGINES)
 
     /** All known voice families, in display order. System TTS comes
      *  first as the zero-download first-launch tier (#676); then the
