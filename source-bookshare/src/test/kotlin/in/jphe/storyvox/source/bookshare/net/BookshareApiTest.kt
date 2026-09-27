@@ -94,7 +94,7 @@ class BookshareApiTest {
         assertEquals(2, listPage.page)
         assertTrue(listPage.hasNext)
         val summary = listPage.items.single()
-        assertEquals("42", summary.id)
+        assertEquals("bookshare:42", summary.id)
         assertEquals(SourceIds.BOOKSHARE, summary.sourceId)
         assertEquals("Moby Dick", summary.title)
         assertEquals("Herman Melville", summary.author)

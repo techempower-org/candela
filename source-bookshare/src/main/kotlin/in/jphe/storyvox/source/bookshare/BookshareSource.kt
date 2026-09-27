@@ -5,6 +5,7 @@ import `in`.jphe.storyvox.data.source.SourceIds
 import `in`.jphe.storyvox.data.source.model.ChapterContent
 import `in`.jphe.storyvox.data.source.model.FictionDetail
 import `in`.jphe.storyvox.data.source.model.FictionResult
+import `in`.jphe.storyvox.data.source.model.FictionStatus
 import `in`.jphe.storyvox.data.source.model.FictionSummary
 import `in`.jphe.storyvox.data.source.model.ListPage
 import `in`.jphe.storyvox.data.source.model.SearchQuery
@@ -32,7 +33,10 @@ import javax.inject.Singleton
  * none) these calls return [FictionResult.AuthRequired] — the interface's
  * graceful "no session" path.
  *
- * **Content (`fictionDetail` / `chapter`)** stays gated regardless of the key:
+ * **Title metadata (`fictionDetail`)** also works on the key alone (guest
+ * scope): synopsis, authors, cover — with an empty chapter list.
+ *
+ * **Content (`chapter`)** stays gated regardless of the key:
  * Bookshare copyrighted downloads are Protected DAISY (PDTB) — encrypted
  * per-user, fingerprinted, watermarked — and decryptable only under the
  * partnership (see the #1002 research comment). When that lands, `chapter`
@@ -85,8 +89,21 @@ internal class BookshareSource @Inject constructor(
             .map { page -> page.categories.mapNotNull { it.name.takeIf(String::isNotBlank) } }
     }
 
+    /**
+     * Title metadata (synopsis, authors, cover) via `GET /v2/titles/{id}` —
+     * guest scope, so it works with the partner key alone and a Browse tap
+     * opens a real detail page instead of dead-ending on the gate (#1462).
+     * The chapter list stays empty: reading needs a downloaded DAISY file,
+     * which is the gated [chapter] path below.
+     */
+    override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> {
+        val key = config.apiKey() ?: return gate()
+        val bookshareId = bookshareIdOf(fictionId)
+            ?: return FictionResult.NotFound("Not a Bookshare id: $fictionId")
+        return api.title(key, config.accessToken(), bookshareId).map { it.toDetail() }
+    }
+
     // ── Content download stays gated (Protected DAISY / PDTB — see #1002). ──
-    override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> = gate()
 
     override suspend fun chapter(fictionId: String, chapterId: String): FictionResult<ChapterContent> = gate()
 
@@ -102,14 +119,29 @@ internal class BookshareSource @Inject constructor(
         page: Int = 1,
     ): FictionResult<ListPage<FictionSummary>> {
         val key = config.apiKey() ?: return gate()
+        // Bookshare pages by an opaque `start` cursor (the previous page's
+        // `next`), not by page number. Page 1 needs none; page N>1 replays
+        // the cursor page N-1 returned. An unknown cursor (process restart
+        // mid-scroll) ends the list instead of re-serving page 1 forever.
+        val query = BookshareCursors.queryKey(title, author, category)
+        val start = if (page <= 1) null else cursors.startFor(query, page) ?: return endOfList(page)
         return api.searchTitles(
             apiKey = key,
             accessToken = config.accessToken(),
             title = title,
             author = author,
             category = category,
-        ).map { it.toListPage(page) }
+            start = start,
+        ).map { result ->
+            cursors.record(query, page, result.next)
+            result.toListPage(page)
+        }
     }
+
+    private val cursors = BookshareCursors()
+
+    private fun endOfList(page: Int): FictionResult<ListPage<FictionSummary>> =
+        FictionResult.Success(ListPage(items = emptyList(), page = page, hasNext = false))
 
     private fun gate(): FictionResult.AuthRequired = FictionResult.AuthRequired(GATE_MESSAGE)
 
@@ -127,9 +159,63 @@ internal fun BookshareTitlesPage.toListPage(page: Int): ListPage<FictionSummary>
 /** Maps one Bookshare title → [FictionSummary]. `internal` for unit tests. */
 internal fun BookshareTitle.toSummary(): FictionSummary =
     FictionSummary(
-        id = bookshareId.toString(),
+        id = fictionIdOf(bookshareId),
         sourceId = SourceIds.BOOKSHARE,
         title = title,
         author = authorDisplay(),
+        coverUrl = coverUrl(),
+        description = synopsis?.takeIf { it.isNotBlank() },
         tags = categories.mapNotNull { it.name.takeIf(String::isNotBlank) },
+        // Bookshare titles are complete, published books.
+        status = FictionStatus.COMPLETED,
     )
+
+/** Maps title metadata → [FictionDetail]. No chapters until downloads unlock. `internal` for tests. */
+internal fun BookshareTitle.toDetail(): FictionDetail {
+    val summary = toSummary()
+    return FictionDetail(
+        summary = summary,
+        chapters = emptyList(),
+        genres = summary.tags,
+    )
+}
+
+/**
+ * Fiction ids are `"bookshare:<bookshareId>"`. The `sourceId:` prefix is
+ * load-bearing: `FictionSourceIdResolver` routes colon-less ids to Royal Road
+ * (#981/#1564), so a bare numeric Bookshare id would silently open the wrong
+ * source. `internal` for unit tests.
+ */
+internal fun fictionIdOf(bookshareId: Long): String = "${SourceIds.BOOKSHARE}:$bookshareId"
+
+/** Inverse of [fictionIdOf]; tolerates a bare numeric id. Null when not a Bookshare id. */
+internal fun bookshareIdOf(fictionId: String): Long? =
+    fictionId.removePrefix("${SourceIds.BOOKSHARE}:").toLongOrNull()?.takeIf { it > 0 }
+
+/**
+ * Remembers Bookshare's opaque `next` cursors so page-numbered callers can
+ * page through a cursor-paged API. Keyed by query + page; bounded so a long
+ * session of distinct searches can't grow it without limit. `internal` for tests.
+ */
+internal class BookshareCursors(private val maxEntries: Int = 256) {
+    private val map = object : LinkedHashMap<String, String>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean =
+            size > maxEntries
+    }
+
+    /** Cursor to fetch [page] of [query], i.e. the `next` that page-1 returned. */
+    @Synchronized
+    fun startFor(query: String, page: Int): String? = map["$query#$page"]
+
+    /** Record that [page] of [query] returned [next] (the cursor for page+1). */
+    @Synchronized
+    fun record(query: String, page: Int, next: String?) {
+        val slot = "$query#${page + 1}"
+        if (next.isNullOrBlank()) map.remove(slot) else map[slot] = next
+    }
+
+    companion object {
+        fun queryKey(title: String?, author: String?, category: String?): String =
+            listOf(title.orEmpty(), author.orEmpty(), category.orEmpty()).joinToString("|")
+    }
+}

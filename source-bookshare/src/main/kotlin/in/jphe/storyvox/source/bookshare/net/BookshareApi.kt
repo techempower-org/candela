@@ -42,6 +42,20 @@ internal class BookshareApi(
             json.decodeFromString<BookshareTitlesPage>(it)
         }
 
+    /**
+     * `GET /v2/titles/{bookshareId}` — metadata for one title (synopsis,
+     * authors, categories). Works with the partner `api_key` alone (guest
+     * scope), so the detail screen opens as soon as Stage 1 lands (#1462).
+     */
+    suspend fun title(
+        apiKey: String,
+        accessToken: String?,
+        bookshareId: Long,
+    ): FictionResult<BookshareTitle> =
+        request(titlePath(bookshareId, apiKey), accessToken) {
+            json.decodeFromString<BookshareTitle>(it)
+        }
+
     /** `GET /v2/categories` — subject list for the genre picker. */
     suspend fun categories(
         apiKey: String,
@@ -121,6 +135,13 @@ internal class BookshareApi(
         }
 
         /**
+         * Build `/v2/titles/{bookshareId}?api_key=…` (title metadata).
+         * Exposed package-internal for unit-test pinning.
+         */
+        internal fun titlePath(bookshareId: Long, apiKey: String): String =
+            "/v2/titles/$bookshareId?api_key=${enc(apiKey)}"
+
+        /**
          * Build `/v2/categories?api_key=…` — the v2 subject list. (v1's
          * `/reference/category/list` maps to v2 `/v2/categories`, **not**
          * `/v2/titles/categories`, per the official V1→V2 migration guide.)
@@ -145,10 +166,19 @@ internal data class BookshareTitlesPage(
 internal data class BookshareTitle(
     val bookshareId: Long = 0L,
     val title: String = "",
+    val subtitle: String? = null,
     val authors: List<BookshareAuthor> = emptyList(),
     val isbn13: String? = null,
+    val synopsis: String? = null,
     val categories: List<BookshareCategory> = emptyList(),
+    /** HATEOAS links; `rel = "coverimage"` / `"thumbnail"` carry the cover. */
+    val links: List<BookshareLink> = emptyList(),
 ) {
+    /** Cover URL from [links] (full cover preferred over thumbnail), or null. */
+    fun coverUrl(): String? =
+        (links.firstOrNull { it.rel == "coverimage" } ?: links.firstOrNull { it.rel == "thumbnail" })
+            ?.href?.takeIf { it.isNotBlank() }
+
     /** Comma-joined author display ("First Last"), or a fallback. */
     fun authorDisplay(): String =
         authors.mapNotNull { it.display().takeIf(String::isNotBlank) }
@@ -165,6 +195,12 @@ internal data class BookshareAuthor(
         listOfNotNull(firstName?.takeIf { it.isNotBlank() }, lastName?.takeIf { it.isNotBlank() })
             .joinToString(" ")
 }
+
+@Serializable
+internal data class BookshareLink(
+    val rel: String = "",
+    val href: String = "",
+)
 
 @Serializable
 internal data class BookshareCategoriesPage(
