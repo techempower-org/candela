@@ -47,6 +47,11 @@ interface OfflineTranscriber {
  * bounded-memory chunking is unit-testable without sherpa or MediaCodec (the
  * device-validated pieces). Splits [totalSamples] of 16 kHz mono PCM into
  * consecutive windows of [windowSec] seconds; the last window is the remainder.
+ *
+ * Since #1669 the live path streams windows through [PcmWindowAccumulator]
+ * (never materialising the whole file); this function remains the reference
+ * definition of the window boundaries, and `StreamingPcmTest` pins the
+ * accumulator to it.
  */
 object TranscriptionChunker {
 

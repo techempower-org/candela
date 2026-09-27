@@ -21,10 +21,11 @@ import kotlinx.coroutines.flow.flowOn
  * the resolved 1.13.3 AAR — no dependency bump). Filesystem-path model loading,
  * exactly like `MicCaptureProcessor`'s streaming `OnlineRecognizer(config = …)`.
  *
- * Decodes the file to 16 kHz mono float ([AudioFileDecoder]), then transcribes
- * it in [TranscriptionChunker] windows — one ~30 s window decoded at a time,
- * emitting a punctuated [TranscriptionSegment] per window so a long recording
- * streams progress within a bounded sherpa memory budget. The recognizer +
+ * Streams the file through [AudioFileDecoder.streamMono16kWindows] (#1669):
+ * each ~30 s window of 16 kHz mono float is recognised as soon as the codec
+ * produces it, emitting a punctuated [TranscriptionSegment] per window — so a
+ * multi-hour recording streams progress with memory bounded to one window
+ * (never the whole file's PCM). The recognizer +
  * model are released when the flow completes or is cancelled.
  *
  * Device-validated wiring (per `MicCaptureProcessor`'s posture): the config is
@@ -42,18 +43,19 @@ class SherpaOfflineTranscriber @Inject constructor(
     override fun transcribe(audioPath: String, languageHint: String?): Flow<TranscriptionSegment> = flow {
         val model = modelProvider.readyModel()
             ?: error("offline transcription model not downloaded")
-        val pcm = AudioFileDecoder.decodeToMono16k(audioPath)
-            ?: error("could not decode audio: $audioPath")
-
         val recognizer = buildRecognizer(model, languageHint)
             ?: error("OfflineRecognizer init failed")
         try {
-            for (window in TranscriptionChunker.windows(pcm.size, SAMPLE_RATE)) {
+            // #1669 — streaming decode: each ~30 s window is recognised as soon
+            // as the codec produces it; the whole-file PCM is never resident.
+            AudioFileDecoder.streamMono16kWindows(
+                path = audioPath,
+                windowSamples = SAMPLE_RATE * TranscriptionChunker.DEFAULT_WINDOW_SEC,
+            ) { window ->
                 currentCoroutineContext().ensureActive() // honor cancellation between windows
-                val samples = pcm.copyOfRange(window.startSample, window.endSample)
                 val stream = recognizer.createStream()
                 val text = try {
-                    stream.acceptWaveform(samples, SAMPLE_RATE)
+                    stream.acceptWaveform(window.samples, SAMPLE_RATE)
                     recognizer.decode(stream)
                     recognizer.getResult(stream).text.trim()
                 } finally {

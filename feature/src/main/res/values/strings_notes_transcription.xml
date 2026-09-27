@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1657 Voice Notes — on-device transcription model download + retry prompt. -->
+<resources>
+    <string name="notes_transcription_model_needed">On-device transcription needs a one-time model download. Your audio never leaves this device.</string>
+    <string name="notes_transcription_model_download">Download transcription model (~%1$d MB)</string>
+    <string name="notes_transcription_model_downloading">Downloading transcription model…</string>
+    <string name="notes_transcription_model_failed">Model download failed. Check your connection and try again.</string>
+    <string name="notes_transcription_model_retry_download">Retry download</string>
+    <string name="notes_transcription_transcribe_now">Transcribe now</string>
+    <string name="notes_transcription_retry">Retry transcription</string>
+</resources>

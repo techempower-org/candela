@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1657 Notas de voz — descarga del modelo de transcripción en el dispositivo + reintento. -->
+<resources>
+    <string name="notes_transcription_model_needed">La transcripción en el dispositivo necesita descargar un modelo una sola vez. Tu audio nunca sale de este dispositivo.</string>
+    <string name="notes_transcription_model_download">Descargar modelo de transcripción (~%1$d MB)</string>
+    <string name="notes_transcription_model_downloading">Descargando modelo de transcripción…</string>
+    <string name="notes_transcription_model_failed">No se pudo descargar el modelo. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="notes_transcription_model_retry_download">Reintentar descarga</string>
+    <string name="notes_transcription_transcribe_now">Transcribir ahora</string>
+    <string name="notes_transcription_retry">Reintentar transcripción</string>
+</resources>
