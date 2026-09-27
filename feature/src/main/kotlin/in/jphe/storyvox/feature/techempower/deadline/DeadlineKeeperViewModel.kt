@@ -60,7 +60,7 @@ class DeadlineKeeperViewModel @Inject constructor(
     /** Recognize text in a captured / picked notice and extract candidate dates. */
     fun onImageCaptured(bytes: ByteArray, rotationDegrees: Int = 0) {
         if (_state.value.isRecognizing) return
-        _state.update { it.copy(isRecognizing = true, error = null, noDatesFound = false) }
+        _state.update { it.copy(isRecognizing = true, error = null, noDatesFound = false, noticeText = "") }
         viewModelScope.launch {
             when (val result = recognizer.recognize(OcrImage(bytes, rotationDegrees))) {
                 is OcrResult.Failure -> _state.update {

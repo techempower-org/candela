@@ -91,11 +91,6 @@ class ScreenerViewModel @Inject constructor(
         _state.update { it.copy(answers = emptyMap(), results = emptyList(), showResults = false) }
     }
 
-    /** Speak [text] via the active voice (app-level seam; not core-playback). */
-    fun readAloud(text: String) {
-        viewModelScope.launch { playback.speakText(text) }
-    }
-
     /** Cancel any in-flight read-aloud utterance. Idempotent. */
     fun stopReadAloud() {
         playback.stopSpeaking()

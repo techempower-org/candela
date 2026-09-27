@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import `in`.jphe.storyvox.data.TechEmpowerLinks
 import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.feature.techempower.readaloud.ReadAloudControl
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
 /**
@@ -115,8 +116,6 @@ fun DecoderScreen(
                 onInputChange = viewModel::onInputChange,
                 onDecode = viewModel::decode,
                 onUseLastScan = viewModel::useMostRecentScan,
-                onReadAloud = viewModel::readAloud,
-                onStop = viewModel::stopReadAloud,
                 onReset = viewModel::reset,
                 modifier = Modifier.padding(scaffoldPadding),
             )
@@ -138,8 +137,6 @@ private fun DecoderContent(
     onInputChange: (String) -> Unit,
     onDecode: () -> Unit,
     onUseLastScan: () -> Unit,
-    onReadAloud: (String) -> Unit,
-    onStop: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -209,13 +206,9 @@ private fun DecoderContent(
             is DecodeResult.Known -> KnownExplainerCard(
                 explainer = result.explainer,
                 spanish = spanish,
-                onReadAloud = onReadAloud,
-                onStop = onStop,
             )
             is DecodeResult.Unknown -> UnknownFallbackCard(
                 scannedText = result.scannedText,
-                onReadAloud = onReadAloud,
-                onStop = onStop,
             )
             null -> Unit
         }
@@ -259,8 +252,6 @@ private fun SampleDataBanner() {
 private fun KnownExplainerCard(
     explainer: NoticeExplainer,
     spanish: Boolean,
-    onReadAloud: (String) -> Unit,
-    onStop: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val context = LocalContext.current
@@ -286,13 +277,13 @@ private fun KnownExplainerCard(
         ExplainerSection(stringResource(R.string.decoder_section_why), explainer.whyYouGotIt.get(spanish))
         ExplainerSection(stringResource(R.string.decoder_section_todo), explainer.whatToDo.get(spanish))
 
+        // #1580 — the shared benefits read-aloud control (big toggle).
+        ReadAloudControl(
+            key = "decoder-explainer-${explainer.formNumber}",
+            label = stringResource(R.string.decoder_read_aloud),
+            script = { explainerAsSpeech(explainer, spanish) },
+        )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            OutlinedButton(onClick = { onReadAloud(explainerAsSpeech(explainer, spanish)) }) {
-                Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(spacing.xs))
-                Text(stringResource(R.string.decoder_read_aloud))
-            }
-            TextButton(onClick = onStop) { Text(stringResource(R.string.decoder_stop)) }
             val number = explainer.phone ?: TechEmpowerLinks.PRIMARY_HELP_NUMBER
             TextButton(onClick = { dial(context, number) }) {
                 Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -333,8 +324,6 @@ private fun ExplainerSection(label: String, body: String) {
 @Composable
 private fun UnknownFallbackCard(
     scannedText: String,
-    onReadAloud: (String) -> Unit,
-    onStop: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val context = LocalContext.current
@@ -361,17 +350,16 @@ private fun UnknownFallbackCard(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // Read-aloud the scanned text (OCR → TTS) — no interpretation, just
+        // the user's own letter read back to them.
+        if (scannedText.isNotBlank()) {
+            ReadAloudControl(
+                key = "decoder-scanned",
+                label = stringResource(R.string.decoder_read_scanned),
+                script = { scannedText },
+            )
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            // Read-aloud the scanned text (OCR → TTS) — no interpretation, just
-            // the user's own letter read back to them.
-            if (scannedText.isNotBlank()) {
-                OutlinedButton(onClick = { onReadAloud(scannedText) }) {
-                    Icon(Icons.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(stringResource(R.string.decoder_read_scanned))
-                }
-                TextButton(onClick = onStop) { Text(stringResource(R.string.decoder_stop)) }
-            }
             TextButton(onClick = { dial(context, TechEmpowerLinks.PRIMARY_HELP_NUMBER) }) {
                 Icon(Icons.Filled.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(spacing.xs))
