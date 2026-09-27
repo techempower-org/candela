@@ -1,5 +1,6 @@
 package `in`.jphe.storyvox.source.googlenews
 
+import `in`.jphe.storyvox.data.repository.InMemoryGoogleNewsFeedStore
 import `in`.jphe.storyvox.data.source.model.FictionResult
 import `in`.jphe.storyvox.source.googlenews.article.ArticleResolver
 import `in`.jphe.storyvox.source.googlenews.net.GoogleNewsApi
@@ -33,7 +34,7 @@ class GoogleNewsApiMappingTest {
         val api = object : GoogleNewsApi(OkHttpClient()) {
             override val baseUrl: String get() = host
         }
-        return GoogleNewsSource(api, NoOpResolver)
+        return GoogleNewsSource(api, NoOpResolver, InMemoryGoogleNewsFeedStore())
     }
 
     @Test
