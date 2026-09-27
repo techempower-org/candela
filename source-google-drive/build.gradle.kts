@@ -27,6 +27,10 @@ kotlin {
 
 dependencies {
     implementation(project(":core-data"))
+    // #1677 — reuse the local-import parsers so Drive EPUBs/PDFs read exactly
+    // like imported ones (precedent: :source-standard-ebooks → :source-epub).
+    implementation(project(":source-epub"))
+    implementation(project(":source-pdf"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
