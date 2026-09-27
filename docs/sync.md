@@ -215,6 +215,10 @@ InstantDB schema is dynamic. We use three entities:
 - `positions` — single row per user, containing every per-fiction
   position. Row id is `positions:<userId>`. Payload is a JSON map of
   `fictionId → { chapterId, charOffset, ... }`.
+- `blobs` / `inbox` — the push-to-Candela inbox (#1469): desktop
+  pushers append URL / text items, the phone only reads (per-device
+  seen-set) and imports them into the Library. Pulled on cold start and on
+  each app foreground (throttled). Full design: [push-to-candela.md](push-to-candela.md).
 
 The actual transact step format mirrors the InstantDB JS SDK:
 ```
