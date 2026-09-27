@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1678 — Ajustes → Tu feed de Google News. -->
+<resources>
+    <string name="gnews_feed_entry_title">Tu feed de Google News</string>
+    <string name="gnews_feed_entry_subtitle">Elige temas, lugares y búsquedas, además del idioma y la región</string>
+    <string name="gnews_feed_title">Tu feed de Google News</string>
+    <string name="gnews_feed_intro">Google no comparte con otras apps el feed \"Para ti\" de tu cuenta, así que crea el tuyo aquí. Todo lo que sigas aparece en Explorar → Google News como su propia sección, además de un resumen combinado \"Para ti\".</string>
+
+    <string name="gnews_feed_edition_header">Idioma y región</string>
+    <string name="gnews_feed_topics_header">Temas</string>
+    <string name="gnews_feed_topics_hint">Los temas que sigas se muestran primero en Google News dentro de Explorar.</string>
+    <string name="gnews_feed_places_header">Lugares</string>
+    <string name="gnews_feed_places_hint">Una ciudad, región o país; por ejemplo, Oakland, Texas o México.</string>
+    <string name="gnews_feed_place_label">Añadir un lugar</string>
+    <string name="gnews_feed_searches_header">Búsquedas guardadas</string>
+    <string name="gnews_feed_searches_hint">Cualquier palabra o nombre. Funciona la sintaxis de búsqueda de Google News, como \"frase exacta\" o when:7d.</string>
+    <string name="gnews_feed_search_label">Añadir una búsqueda</string>
+    <string name="gnews_feed_add">Añadir</string>
+    <string name="gnews_feed_remove">Quitar %1$s</string>
+    <string name="gnews_feed_empty_list">Aún no has añadido nada</string>
+    <string name="gnews_feed_limit_reached">Límite alcanzado (%1$d)</string>
+
+    <string name="gnews_topic_world">Mundo</string>
+    <string name="gnews_topic_nation">Mi país</string>
+    <string name="gnews_topic_business">Negocios</string>
+    <string name="gnews_topic_technology">Tecnología</string>
+    <string name="gnews_topic_entertainment">Entretenimiento</string>
+    <string name="gnews_topic_sports">Deportes</string>
+    <string name="gnews_topic_science">Ciencia</string>
+    <string name="gnews_topic_health">Salud</string>
+
+    <string name="gnews_edition_us_en">Estados Unidos · inglés</string>
+    <string name="gnews_edition_us_es">Estados Unidos · español</string>
+    <string name="gnews_edition_mx_es">México · español</string>
+    <string name="gnews_edition_es_es">España · español</string>
+    <string name="gnews_edition_ar_es">Argentina · español</string>
+    <string name="gnews_edition_co_es">Colombia · español</string>
+    <string name="gnews_edition_gb_en">Reino Unido · inglés</string>
+    <string name="gnews_edition_ca_en">Canadá · inglés</string>
+    <string name="gnews_edition_in_en">India · inglés</string>
+    <string name="gnews_edition_au_en">Australia · inglés</string>
+</resources>

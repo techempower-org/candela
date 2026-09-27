@@ -43,6 +43,7 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
 @Composable
 fun ContentSourcesSettingsScreen(
     onBack: () -> Unit,
+    onOpenGoogleNewsFeed: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -102,6 +103,13 @@ fun ContentSourcesSettingsScreen(
                     subtitle = stringResource(R.string.settings_google_news_full_text_subtitle),
                     checked = s.googleNewsFullArticleText,
                     onCheckedChange = viewModel::setGoogleNewsFullArticleText,
+                )
+                // #1678 — build a personalized Google News feed (topics,
+                // places, searches, language & region). Own subscreen + store.
+                SettingsLinkRow(
+                    title = stringResource(R.string.gnews_feed_entry_title),
+                    subtitle = stringResource(R.string.gnews_feed_entry_subtitle),
+                    onClick = onOpenGoogleNewsFeed,
                 )
             }
             // Local folder reader-sources — SAF OpenDocumentTree pickers for
