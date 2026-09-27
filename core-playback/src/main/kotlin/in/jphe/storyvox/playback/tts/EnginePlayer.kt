@@ -352,9 +352,90 @@ internal fun crossedThermalModerateBoundary(prev: Int, status: Int): Boolean =
  * unit test (EnginePlayerSilentChapterTest) without standing up the full
  * EnginePlayer + Hilt + sherpa-onnx graph — same constraint that gates
  * [shouldAutoPlayAfterAdvance] / [shouldCheckpointPosition].
+ *
+ * #1786: the consumer now calls [classifyConsumerExit], whose
+ * [ConsumerExit.SilentChapter] arm is this rule plus "no teardown".
  */
 internal fun isSilentNaturalEnd(naturalEnd: Boolean, chunksEmitted: Int): Boolean =
     naturalEnd && chunksEmitted == 0
+
+/**
+ * Issue #1786 — how did the audio consumer thread's run end?
+ *
+ * The consumer used to treat any end of the chunk stream as a natural end
+ * whenever the source reported `producedAllSentences`. That flag only means
+ * the PRODUCER has synthesised every sentence, and the producer runs up to a
+ * queue's worth (8 chunks) ahead of the speaker. On a short chapter (every
+ * TechEMPOWER Guide) the flag goes true seconds into playback, and a teardown
+ * (`stopPlaybackPipeline`: Next, seek, voice swap, speed change, the next
+ * chapter's `loadAndPlay`) clears the queue and pushes END_PILL, so the
+ * consumer saw "stream ended + producedAll" and fired `handleChapterDone`
+ * for a chapter the listener never finished. That spurious chapter-done
+ * marked the chapter completed and called `advanceChapter(+1)`. On the last
+ * chapter of a book it hit the end-of-book branch, flipped `isPlaying=false`
+ * and emitted `BookFinished`. That's the "natural end landed PAUSED on the
+ * next (last) chapter" symptom.
+ *
+ * Classification:
+ *  - [ConsumerExit.Stopped]: the producer never finished, OR a teardown ended
+ *    the run before the chapter's last sentence was fully handed to the
+ *    AudioTrack.
+ *  - [ConsumerExit.SilentChapter]: the #1311 case. The producer finished
+ *    with zero chunks and nobody tore the pipeline down.
+ *  - [ConsumerExit.NaturalEnd]: the producer finished AND either the last
+ *    sentence reached the AudioTrack (this still covers #573's race where a
+ *    teardown lands during the final drain) or the stream ended on its own,
+ *    with no teardown.
+ *
+ * [stoppedByTeardown] is `!pipelineRunning` sampled when the consumer saw
+ * the end. `stopPlaybackPipeline` flips it BEFORE closing the source, and a
+ * replacement pipeline can't flip it back until this thread has been joined.
+ * [lastFullyWrittenSentenceIndex] is the index of the last chunk whose PCM
+ * was written in full (-1 if none). [lastSentenceIndex] is the chapter's
+ * final sentence index, snapshotted when the pipeline started.
+ */
+internal enum class ConsumerExit { NaturalEnd, SilentChapter, Stopped }
+
+internal fun classifyConsumerExit(
+    producedAllSentences: Boolean,
+    stoppedByTeardown: Boolean,
+    chunksWritten: Int,
+    lastFullyWrittenSentenceIndex: Int,
+    lastSentenceIndex: Int,
+): ConsumerExit {
+    if (!producedAllSentences) return ConsumerExit.Stopped
+    if (chunksWritten == 0) {
+        return if (stoppedByTeardown) ConsumerExit.Stopped else ConsumerExit.SilentChapter
+    }
+    val reachedLastSentence = lastSentenceIndex >= 0 &&
+        lastFullyWrittenSentenceIndex >= lastSentenceIndex
+    return if (reachedLastSentence || !stoppedByTeardown) ConsumerExit.NaturalEnd else ConsumerExit.Stopped
+}
+
+/**
+ * Issue #1786 — belt-and-braces for [classifyConsumerExit]. A chapter-done
+ * is only valid for the chapter the finishing pipeline was playing. If the
+ * engine has already moved to another chapter (a user Next, a watchdog
+ * advance, a briefing `play()`), finishing "the current chapter" would mark
+ * the NEW chapter completed and advance past it (or, on a book's last
+ * chapter, end the book and pause).
+ */
+internal fun shouldHandleChapterDone(finishedChapterId: String?, currentChapterId: String?): Boolean =
+    finishedChapterId != null && finishedChapterId == currentChapterId
+
+/**
+ * Issue #1786 — when [EnginePlayer.advanceChapter] finds no next chapter,
+ * should it finish the book (`isPlaying=false` + `BookFinished`)?
+ *
+ * Only when the chapter really ran out: a natural chapter end
+ * ([fromNaturalEnd]), or an engine parked in a chapter-transition buffering
+ * state that the stall watchdog is recovering ([isBuffering]). A user Next /
+ * media-NEXT key on the last chapter is a no-op. Before this, it flipped
+ * `isPlaying=false` WITHOUT stopping the audio and raised the "book finished"
+ * overlay mid-chapter.
+ */
+internal fun shouldFinishBookWhenNoNextChapter(fromNaturalEnd: Boolean, isBuffering: Boolean): Boolean =
+    fromNaturalEnd || isBuffering
 
 /**
  * Issue #1383 — should an [VoiceManager.activeVoice] emission tear down and
@@ -3165,9 +3246,18 @@ class EnginePlayer @AssistedInject constructor(
         // pause time, seek time, or model load time.
         chunkGapLogger.resetForNewPipeline()
 
+        // Issue #1786 — snapshot, on the calling (Main) thread, which chapter
+        // this pipeline plays and its final sentence index. Both engine fields
+        // are overwritten by the NEXT chapter's loadAndPlay BEFORE it tears
+        // this pipeline down, so the consumer must never read them live.
+        val pipelineChapterId = _observableState.value.currentChapterId
+        val pipelineLastSentenceIndex = sentences.lastIndex
         consumerThread = Thread({
             AndroidProcess.setThreadPriority(AndroidProcess.THREAD_PRIORITY_URGENT_AUDIO)
             var naturalEnd = false
+            // Issue #1786 — see [classifyConsumerExit].
+            var stoppedByTeardown = false
+            var lastFullyWrittenSentenceIndex = -1
             // Issue #1311 — count non-null chunks dequeued this chapter.
             // A natural end (producedAllSentences) reached with zero chunks
             // means every sentence's synth returned null and the chapter is
@@ -3283,6 +3373,11 @@ class EnginePlayer @AssistedInject constructor(
                         // window — once true, always true for the
                         // source's lifetime.
                         naturalEnd = source.producedAllSentences
+                        // #1786 — a close() from stopPlaybackPipeline also
+                        // returns null here, and producedAll may already be
+                        // true (the producer runs ahead). Record whether a
+                        // teardown caused this so the finally can tell.
+                        stoppedByTeardown = !pipelineRunning.get()
                         // #867 — was always-on Log.i; string formatting
                         // on URGENT_AUDIO is unnecessary in release.
                         DebugLog.i("EnginePlayer") {
@@ -3561,6 +3656,12 @@ class EnginePlayer @AssistedInject constructor(
                         // 16-bit mono PCM = 2 bytes per frame.
                         if (n > 0) totalFramesWritten += n / 2
                     }
+                    // #1786 — only a chunk whose PCM fully reached the
+                    // AudioTrack counts toward "the chapter's last sentence
+                    // was played". A teardown mid-write leaves it short.
+                    if (written >= chunk.pcm.size) {
+                        lastFullyWrittenSentenceIndex = chunk.sentenceIndex
+                    }
                     // Issue #540 — if we broke out of the loop above because
                     // the user paused mid-write, chunk.pcm[0..written] is
                     // already in the AudioTrack ring buffer. The fast-pause
@@ -3666,6 +3767,10 @@ class EnginePlayer @AssistedInject constructor(
                         source.producerQueueDepth() <= 1
                     ) {
                         naturalEnd = true
+                        // #1786 — close() leaves depth == 1 (its own
+                        // END_PILL), so this fast path also trips on a
+                        // teardown. Record that; the finally classifies.
+                        stoppedByTeardown = !pipelineRunning.get()
                         // #867 — was always-on Log.i on the URGENT_AUDIO
                         // thread; gated behind DebugLog for release builds.
                         DebugLog.i("EnginePlayer") {
@@ -3692,7 +3797,28 @@ class EnginePlayer @AssistedInject constructor(
                 // never silently lost. Mirror of the #442 empty-sentence guard
                 // (which fires before the pipeline starts); this catches the
                 // empty-PCM case after it.
-                if (isSilentNaturalEnd(naturalEnd, chunksProduced)) {
+                // Issue #1786 — classify the exit before either fanout. A
+                // teardown after the producer ran ahead used to read as a
+                // natural end here (see [classifyConsumerExit]).
+                val exit = classifyConsumerExit(
+                    producedAllSentences = naturalEnd,
+                    stoppedByTeardown = stoppedByTeardown,
+                    chunksWritten = chunksProduced,
+                    lastFullyWrittenSentenceIndex = lastFullyWrittenSentenceIndex,
+                    lastSentenceIndex = pipelineLastSentenceIndex,
+                )
+                if (naturalEnd && exit == ConsumerExit.Stopped) {
+                    android.util.Log.w(
+                        "EnginePlayer",
+                        "#1786 consumer exit: producer had finished but the pipeline was " +
+                            "torn down before the last sentence played " +
+                            "(lastWritten=$lastFullyWrittenSentenceIndex/" +
+                            "$pipelineLastSentenceIndex, chapter=$pipelineChapterId) — " +
+                            "NOT treating as a natural end",
+                    )
+                    naturalEnd = false
+                }
+                if (exit == ConsumerExit.SilentChapter) {
                     android.util.Log.w(
                         "EnginePlayer",
                         "#1311 silent chapter: producedAllSentences=true but 0 audio " +
@@ -3788,6 +3914,16 @@ class EnginePlayer @AssistedInject constructor(
                     // doesn't even START until the next Choreographer
                     // tick, adding ~16-60 ms to the perceived gap.
                     scope.launch(Dispatchers.Main.immediate) {
+                        // #1786 — drop a chapter-done that arrives after the
+                        // engine already moved to another chapter.
+                        if (!shouldHandleChapterDone(pipelineChapterId, _observableState.value.currentChapterId)) {
+                            android.util.Log.w(
+                                "EnginePlayer",
+                                "#1786 stale chapter-done for $pipelineChapterId; engine is on " +
+                                    "${_observableState.value.currentChapterId} — ignoring",
+                            )
+                            return@launch
+                        }
                         sleepTimer.signalChapterEnd()
                         handleChapterDone()
                     }
@@ -4668,7 +4804,14 @@ class EnginePlayer @AssistedInject constructor(
         invalidateState()
     }
 
-    suspend fun advanceChapter(direction: Int) {
+    /**
+     * Move to the neighbouring chapter. [fromNaturalEnd] is true only from
+     * [handleChapterDone] (the chapter really finished); a user Next /
+     * media-NEXT, the MediaSession pill and the stall watchdog pass false.
+     * It only changes the no-next-chapter outcome
+     * ([shouldFinishBookWhenNoNextChapter], #1786).
+     */
+    suspend fun advanceChapter(direction: Int, fromNaturalEnd: Boolean = false) {
         // Issue #944 / #956 — snapshot the chapter the caller was on
         // BEFORE we queue behind the mutex. If a prior `advanceChapter`
         // moves us past this chapter while we wait, we bail when our
@@ -4759,6 +4902,24 @@ class EnginePlayer @AssistedInject constructor(
                 "EnginePlayer",
                 "advanceChapter: no $direction-neighbor of $current — end of book",
             )
+            if (direction >= 0 &&
+                !shouldFinishBookWhenNoNextChapter(
+                    fromNaturalEnd = fromNaturalEnd,
+                    isBuffering = _observableState.value.isBuffering,
+                )
+            ) {
+                // Issue #1786 — a user Next on the last chapter is a no-op:
+                // keep playing (or stay paused) where we are. Pre-fix this
+                // fell into the book-finished branch below, which flipped
+                // isPlaying=false WITHOUT stopping the audio pipeline and
+                // raised the "book finished" overlay mid-chapter.
+                android.util.Log.w(
+                    "EnginePlayer",
+                    "#1786 advanceChapter: Next on the last chapter of $fiction — " +
+                        "no-op (not a natural end, so the book isn't finished)",
+                )
+                return@withLock
+            }
             if (direction >= 0) {
                 // Issue #524 — book finished. Flip isPlaying off so the
                 // sibling UI's engineState rolls to Completed instead of
@@ -5105,7 +5266,7 @@ class EnginePlayer @AssistedInject constructor(
         // strand us in Buffering. On failure we surface a typed error
         // and clear the latches so the user can recover via the
         // controller-level watchdog or by tapping skip-next manually.
-        runCatching { advanceChapter(direction = 1) }
+        runCatching { advanceChapter(direction = 1, fromNaturalEnd = true) }
             .onFailure { t ->
                 android.util.Log.e(
                     "EnginePlayer",
