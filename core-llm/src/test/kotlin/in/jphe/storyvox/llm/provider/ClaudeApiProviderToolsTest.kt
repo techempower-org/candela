@@ -101,9 +101,22 @@ class ClaudeApiProviderToolsTest {
         val body = json.parseToJsonElement(req.body.readUtf8()).jsonObject
         val toolsArr = body["tools"]?.jsonArray
         assertNotNull("Request must include `tools` array", toolsArr)
-        // Every spec in the catalog is serialised (5 → 7 when search_sources +
-        // get_book_details landed; pinning a literal drifted silently).
-        assertEquals(StoryvoxToolSpecs.ALL.size, toolsArr!!.size)
+        // Every catalog tool is serialised exactly once, by name. Compared by
+        // name rather than count, so an empty or duplicated catalog can't pass.
+        val sentNames = toolsArr!!.map { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull }
+        assertEquals(StoryvoxToolSpecs.ALL.map { it.name }, sentNames)
+        assertEquals("tool names must be unique", sentNames.size, sentNames.toSet().size)
+        assertTrue("catalog must not be empty", sentNames.isNotEmpty())
+        // Pinned on purpose: a new tool must be added here too, so a catalog
+        // change is a visible, reviewed test edit (5 → 7 with search_sources
+        // and get_book_details, #1797).
+        assertEquals(
+            listOf(
+                "add_to_shelf", "queue_chapter", "mark_chapter_read", "set_speed",
+                "open_voice_library", "search_sources", "get_book_details",
+            ),
+            sentNames,
+        )
         val firstTool = toolsArr[0].jsonObject
         assertEquals(
             "add_to_shelf",

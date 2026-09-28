@@ -96,9 +96,12 @@ class OpenAiApiProviderToolsTest {
         val body = json.parseToJsonElement(req.body.readUtf8()).jsonObject
         val toolsArr = body["tools"]?.jsonArray
         assertNotNull(toolsArr)
-        // Every spec in the catalog is serialised (5 → 7 when search_sources +
-        // get_book_details landed; pinning a literal drifted silently).
-        assertEquals(StoryvoxToolSpecs.ALL.size, toolsArr!!.size)
+        // Every catalog tool is serialised exactly once, by name. Compared by
+        // name rather than count, so an empty or duplicated catalog can't pass.
+        val sentNames = toolsArr!!.map { it.jsonObject["function"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull }
+        assertEquals(StoryvoxToolSpecs.ALL.map { it.name }, sentNames)
+        assertEquals("tool names must be unique", sentNames.size, sentNames.toSet().size)
+        assertTrue("catalog must not be empty", sentNames.isNotEmpty())
         val firstTool = toolsArr[0].jsonObject
         assertEquals(
             "function",
