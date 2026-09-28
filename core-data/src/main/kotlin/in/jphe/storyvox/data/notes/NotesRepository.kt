@@ -82,8 +82,18 @@ class NotesRepository @Inject constructor(
      * by file name, since audio is always `recordingsDir/<id>.m4a`). Returns the
      * number of files reclaimed. Safe to call on startup; a no-audio install is
      * a no-op (empty/absent dir → 0).
+     *
+     * [minAgeMs] is a grace window: a file modified less than [minAgeMs] before
+     * [nowMs] is kept even when unreferenced. The recorder writes the `.m4a`
+     * BEFORE the row exists (the row lands on stop), so a sweep that overlaps a
+     * take in progress must not unlink the file being written. The startup hook
+     * ([NotesStartup]) passes a non-zero window; the default 0 keeps the
+     * original "reclaim every orphan" behaviour.
      */
-    suspend fun sweepOrphanAudio(): Int {
+    suspend fun sweepOrphanAudio(
+        minAgeMs: Long = 0L,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Int {
         val referenced = dao.all()
             .mapNotNull { it.audioPath }
             .map { File(it).name }
@@ -91,7 +101,9 @@ class NotesRepository @Inject constructor(
         val files = recordingsDir.listFiles()?.filter { it.isFile } ?: return 0
         var reclaimed = 0
         for (file in files) {
-            if (file.name !in referenced && runCatching { file.delete() }.getOrDefault(false)) {
+            if (file.name in referenced) continue
+            if (minAgeMs > 0L && nowMs - file.lastModified() < minAgeMs) continue
+            if (runCatching { file.delete() }.getOrDefault(false)) {
                 reclaimed++
             }
         }

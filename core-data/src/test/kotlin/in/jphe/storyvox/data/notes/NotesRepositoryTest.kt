@@ -74,6 +74,28 @@ class NotesRepositoryTest {
     }
 
     @Test
+    fun sweepOrphanAudio_graceWindow_keepsAFreshOrphan_sweepsAStaleOne() = runTest {
+        val dir = tmp.newFolder("recordings")
+        val now = 10_000_000L
+        // A take in progress: written seconds ago, row not inserted yet.
+        val fresh = File(dir, "fresh.m4a").apply {
+            writeBytes(byteArrayOf(1))
+            setLastModified(now - 5_000L)
+        }
+        // A crash leftover from an earlier session.
+        val stale = File(dir, "stale.m4a").apply {
+            writeBytes(byteArrayOf(2))
+            setLastModified(now - 10 * 60_000L)
+        }
+
+        val reclaimed = repo(FakeNoteDao(), dir).sweepOrphanAudio(minAgeMs = 60_000L, nowMs = now)
+
+        assertEquals(1, reclaimed)
+        assertTrue("file inside the grace window kept", fresh.exists())
+        assertFalse("file older than the grace window swept", stale.exists())
+    }
+
+    @Test
     fun sweepOrphanAudio_emptyDir_isZero() = runTest {
         val dir = tmp.newFolder("recordings")
         assertEquals(0, repo(FakeNoteDao(), dir).sweepOrphanAudio())
