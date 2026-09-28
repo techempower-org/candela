@@ -145,6 +145,12 @@ class DeadlineDateExtractorTest {
         assertNull(march.cue)
     }
 
+    @Test
+    fun `a cue wrapped onto the next line still attaches to its date`() {
+        val text = "To keep your benefits, please respond by\nAugust 31, 2026 or call us."
+        assertEquals("respond by", DeadlineDateExtractor.extract(text, today).first().cue)
+    }
+
     // #1793 — day-first numeric dates on Spanish notices.
 
     @Test

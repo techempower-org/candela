@@ -117,6 +117,9 @@ object DeadlineDateExtractor {
         "favor", "por", "aviso", "solicitud",
     )
     private const val SPANISH_MIN_MARKERS = 3
+
+    /** A sentence end: `.`, `!` or `?` followed by whitespace or the end of the text. */
+    private val SENTENCE_END = Regex("""[.!?](?=\s|$)""")
     private val WORD = Regex("""\p{L}+""")
 
     // ISO: "2026-08-31".
@@ -262,10 +265,21 @@ object DeadlineDateExtractor {
         return if (line.length > 100) line.take(99).trimEnd() + "…" else line
     }
 
-    /** Closest cue phrase within the look-behind / look-ahead window, or null. */
+    /**
+     * Closest cue phrase within the look-behind / look-ahead window, or null.
+     *
+     * The window stops at sentence ends, so in "Printed 07/10/2026. You must
+     * respond by August 31, 2026" the next sentence's cue doesn't attach to
+     * the print date. It does NOT stop at line breaks: OCR often wraps a
+     * cue away from its date ("respond by⏎August 31").
+     */
     private fun nearestCue(accentFree: String, start: Int, end: Int): String? {
-        val windowStart = (start - CUE_LOOKBEHIND).coerceAtLeast(0)
-        val windowEnd = (end + CUE_LOOKAHEAD).coerceAtMost(accentFree.length)
+        var windowStart = (start - CUE_LOOKBEHIND).coerceAtLeast(0)
+        var windowEnd = (end + CUE_LOOKAHEAD).coerceAtMost(accentFree.length)
+        SENTENCE_END.findAll(accentFree.substring(windowStart, start)).lastOrNull()
+            ?.let { windowStart += it.range.last + 1 }
+        SENTENCE_END.find(accentFree.substring(end, windowEnd))
+            ?.let { windowEnd = end + it.range.first }
         val window = accentFree.substring(windowStart, windowEnd).lowercase()
         // Position of the date within the window, to measure distance.
         val datePos = start - windowStart
