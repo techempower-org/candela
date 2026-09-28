@@ -146,8 +146,12 @@ The kit checks metadata + coherence (JVM-safe by design — native synth
 can't run in unit tests): `voice_*` engineId, sample keys belong to your
 family, every sample key **dispatches to your plugin through the
 registry** (the production path), catalog ids unique and keyed to your
-engine, descriptor id == engineId, and `supportsExport=false` ⇒
-`generateAudioPCM` returns the documented `null`.
+engine, descriptor id == engineId, `supportsExport=false` ⇒
+`generateAudioPCM` returns the documented `null`, and `supportsExport=true`
+⇒ `modelSpec()` is a real local model, not `ModelSpec.None`. If your plugin
+injects dependencies (`dagger.Lazy<VoiceManager>`…), hand the test inert ones
+that `throw InertDependencyException()`. The kit reads that as "resolves a
+local model" and fails on any other exception.
 
 **Two capability flags**: `supportsExport = false` means the offline
 audiobook-export path rejects your engine with friendly copy. The

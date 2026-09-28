@@ -4,6 +4,7 @@ import `in`.jphe.storyvox.playback.voice.EngineKey
 import `in`.jphe.storyvox.playback.voice.EngineType
 import `in`.jphe.storyvox.playback.voice.VoiceEnginePlugin
 import `in`.jphe.storyvox.playback.voice.toEngineKey
+import `in`.jphe.storyvox.testkit.voice.InertDependencyException
 import `in`.jphe.storyvox.testkit.voice.VoiceEnginePluginContractTest
 
 /**
@@ -13,7 +14,7 @@ import `in`.jphe.storyvox.testkit.voice.VoiceEnginePluginContractTest
  * `dagger.Lazy` deps: the kit never builds specs, loads models or
  * acquires pools.
  */
-private fun <T> unused(): dagger.Lazy<T> = dagger.Lazy<T> { error("not used by the contract kit") }
+private fun <T> unused(): dagger.Lazy<T> = dagger.Lazy<T> { throw InertDependencyException() }
 
 class PiperEnginePluginContractTest : VoiceEnginePluginContractTest() {
     override fun plugin(): VoiceEnginePlugin = PiperEnginePlugin(unused(), unused())

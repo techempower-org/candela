@@ -127,12 +127,16 @@ abstract class VoiceEnginePluginContractTest {
         if (plugin().supportsExport) {
             val t: EngineType = sampleKeys().firstOrNull()?.toEngineType() ?: return
             // Real local-model plugins resolve their model dir through an
-            // injected dependency (VoiceManager), which the kit supplies inert
-            // and which throws when touched. Reaching for local storage is
+            // injected dependency (VoiceManager), which subclasses supply inert
+            // and which throws [InertDependencyException] when touched. Any
+            // other exception is a real failure and propagates. Reaching for local storage is
             // exactly what the stub doesn't do, so that counts as a local model;
             // only a stub that returns ModelSpec.None without looking fails.
-            val spec = runCatching { plugin().modelSpec(t, sampleKeys().first().engineId) }
-                .getOrElse { return }
+            val spec = try {
+                plugin().modelSpec(t, sampleKeys().first().engineId)
+            } catch (_: InertDependencyException) {
+                return // resolved local storage through an inert dep: not the stub
+            }
             assertTrue(
                 "supportsExport=true requires a local ModelSpec, got ModelSpec.None",
                 spec != ModelSpec.None,
@@ -140,3 +144,13 @@ abstract class VoiceEnginePluginContractTest {
         }
     }
 }
+
+/**
+ * Throw this from the inert dependencies you hand a plugin under test
+ * (`dagger.Lazy { throw InertDependencyException() }`). The export check
+ * treats it as "this plugin resolves a local model through its deps" and
+ * lets any other exception fail the test.
+ */
+class InertDependencyException(
+    message: String = "inert dependency: not used by the contract kit",
+) : IllegalStateException(message)
