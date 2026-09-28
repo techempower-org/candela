@@ -154,7 +154,77 @@ class BriefingQueueControllerTest {
         assertEquals(listOf("f2" to "c2"), controller.plays)
     }
 
+    // ─── process death (#1467) ────────────────────────────────────────────────
+
+    @Test fun `a briefing survives process death and resumes advancing`() = runTest {
+        val store = FakeSessionStore()
+        val first = RecordingController()
+        val before = BriefingQueueController(first, FakeBuilder((1..3).map(::item)), backgroundScope, store, clock = { 1_000L })
+        assertTrue(before.start(BriefingConfig(emptyList())))
+        runCurrent()
+        first.emittableEvents.emit(PlaybackUiEvent.ChapterDone("c1"))
+        runCurrent()
+        assertEquals(1, before.session.value?.index)
+
+        // The process dies; a fresh controller over the same store takes over.
+        val second = RecordingController()
+        val after = BriefingQueueController(second, FakeBuilder(emptyList()), backgroundScope, store, clock = { 2_000L })
+        assertTrue("the saved session is restored", after.restore())
+        runCurrent()
+        assertEquals(1, after.session.value?.index)
+        assertEquals("c2", after.session.value?.current?.chapterId)
+        assertTrue("restore must never start audio by itself", second.plays.isEmpty())
+
+        // The current item ending still walks the queue, in the saved mode.
+        second.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        runCurrent()
+        assertTrue("per-item mode survives the restore", second.plays.isEmpty())
+        second.emittableEvents.emit(PlaybackUiEvent.ChapterDone("c2"))
+        runCurrent()
+        assertEquals(listOf("f3" to "c3"), second.plays)
+    }
+
+    @Test fun `a stale saved briefing is dropped instead of restored`() = runTest {
+        val store = FakeSessionStore()
+        val before = BriefingQueueController(RecordingController(), FakeBuilder(emptyList()), backgroundScope, store, clock = { 0L })
+        assertTrue(before.startWith((1..2).map(::item)))
+        runCurrent()
+
+        val later = BriefingQueueController.STALE_AFTER_MS + 1
+        val after = BriefingQueueController(RecordingController(), FakeBuilder(emptyList()), backgroundScope, store, clock = { later })
+        assertFalse(after.restore())
+        runCurrent()
+        assertNull(after.session.value)
+        assertNull("a stale session is cleared from the store", store.saved)
+    }
+
+    @Test fun `stopping or finishing a briefing clears the saved session`() = runTest {
+        val store = FakeSessionStore()
+        val controller = RecordingController()
+        val queue = BriefingQueueController(controller, FakeBuilder(emptyList()), backgroundScope, store, clock = { 0L })
+
+        assertTrue(queue.startWith((1..2).map(::item)))
+        runCurrent()
+        assertEquals(0, store.saved?.index)
+        queue.stop()
+        runCurrent()
+        assertNull("stop clears it", store.saved)
+
+        assertTrue(queue.startWith((1..1).map(::item)))
+        runCurrent()
+        controller.emittableEvents.emit(PlaybackUiEvent.BookFinished)
+        runCurrent()
+        assertTrue(queue.session.value?.finished == true)
+        assertNull("finishing clears it", store.saved)
+    }
+
     // ─── test doubles ─────────────────────────────────────────────────────────
+
+    private class FakeSessionStore : BriefingSessionStore {
+        var saved: SavedBriefingSession? = null
+        override suspend fun saveSession(saved: SavedBriefingSession?) { this.saved = saved }
+        override suspend fun loadSession(): SavedBriefingSession? = saved
+    }
 
     private class FakeBuilder(private val items: List<BriefingItem>) : BriefingBuilder {
         override suspend fun build(config: BriefingConfig): List<BriefingItem> = items

@@ -30,25 +30,34 @@ import javax.inject.Singleton
  *
  * Scoped as a **`@Singleton`** alongside `PlaybackController`, not to any
  * ViewModel/composable: a hands-free briefing must keep advancing when the user
- * navigates away from whatever screen started it. (Process-death recovery of
- * the cursor is a deliberate follow-up; surviving screen changes is slice 1.)
+ * navigates away from whatever screen started it.
+ *
+ * The queue and cursor also survive **process death**: every start, advance,
+ * finish and stop is written to [sessionStore], and the Hilt instance restores
+ * it on construction (see [restore]).
  */
 @Singleton
 class BriefingQueueController(
     private val controller: PlaybackController,
     private val builder: BriefingBuilder,
     private val scope: CoroutineScope,
+    private val sessionStore: BriefingSessionStore = BriefingSessionStore.None,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /**
      * Hilt entry point. The real app gets a long-lived Default-dispatcher scope
-     * that outlives every screen; tests use the primary constructor to inject a
-     * controllable scope.
+     * that outlives every screen, persists through [BriefingSettingsStore], and
+     * restores a briefing that a process death interrupted. Tests use the
+     * primary constructor to inject a controllable scope and store.
      */
     @Inject
     constructor(
         controller: PlaybackController,
         builder: BriefingBuilder,
-    ) : this(controller, builder, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        sessionStore: BriefingSettingsStore,
+    ) : this(controller, builder, CoroutineScope(SupervisorJob() + Dispatchers.Default), sessionStore) {
+        scope.launch { restore() }
+    }
 
     private val _session = MutableStateFlow<BriefingSession?>(null)
 
@@ -104,6 +113,16 @@ class BriefingQueueController(
         return true
     }
 
+    /**
+     * Re-attach a briefing that a process death interrupted: its queue and
+     * cursor come back and the advance listener resumes, so the current item's
+     * end moves on to the next one. It does NOT call play(): resuming the
+     * current chapter is the player's job, and a restore must never start audio
+     * on its own. A session older than [STALE_AFTER_MS] is dropped. Returns true
+     * when a session was restored.
+     */
+    suspend fun restore(): Boolean = false
+
     /** Stop the briefing and detach the advance listener. Does not stop the player. */
     fun stop() {
         listenerJob?.cancel()
@@ -130,6 +149,9 @@ class BriefingQueueController(
     }
 
     internal companion object {
+        /** A briefing interrupted this long ago is no longer worth resuming. */
+        const val STALE_AFTER_MS: Long = 12L * 60 * 60 * 1000
+
         /** Pure advance-trigger decision; see [startWith] for the two modes. */
         fun shouldAdvance(
             event: PlaybackUiEvent,

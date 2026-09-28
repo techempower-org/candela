@@ -92,4 +92,22 @@ class BriefingSettingsStoreTest {
         data.edit { it[stringPreferencesKey("briefing_settings_json")] = "{not json" }
         assertEquals(BriefingSettings(), store.current())
     }
+
+    @Test fun `an in-flight session round-trips and clears`() = runTest {
+        val saved = SavedBriefingSession(
+            items = listOf(BriefingItem("rss:1", "rss:1:c", "rss", "Title")),
+            index = 0,
+            advanceOnChapterDone = true,
+            savedAtMillis = 42,
+        )
+        store.saveSession(saved)
+        assertEquals(saved, store.loadSession())
+        store.saveSession(null)
+        assertEquals(null, store.loadSession())
+    }
+
+    @Test fun `a corrupt session blob reads as no session`() = runTest {
+        data.edit { it[stringPreferencesKey("briefing_session_json")] = "{not json" }
+        assertEquals(null, store.loadSession())
+    }
 }
