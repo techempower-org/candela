@@ -48,9 +48,10 @@ class SettingsHubSectionsTest {
         // 23 → 24 in #1634, which added the Benefits row to the Tools group.
         // 24 → 25 in #1631, which added the Notifications group + row (the
         // buried inboxNotify* toggles + a system-permission affordance).
+        // 25 → 26 in #1766, which added the For you feed row (#1675).
         // Adding a new section requires updating both this assertion AND
         // the composable's row list — that drift is the point of pinning.
-        assertEquals(25, SettingsHubSections.size)
+        assertEquals(26, SettingsHubSections.size)
     }
 
     @Test
