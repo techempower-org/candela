@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.playback.R as PlaybackR
 
 /**
@@ -87,8 +88,8 @@ class RecordingService : Service() {
         }
         return NotificationCompat.Builder(this, CHANNEL_RECORDING)
             .setSmallIcon(PlaybackR.drawable.ic_storyvox_notif)
-            .setContentTitle("Recording voice note")
-            .setContentText("Recording in progress")
+            .setContentTitle(getString(R.string.notes_recording_notification_title))
+            .setContentText(getString(R.string.notes_recording_notification_text))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .apply { if (contentIntent != null) setContentIntent(contentIntent) }
@@ -102,7 +103,7 @@ class RecordingService : Service() {
                 nm.createNotificationChannel(
                     NotificationChannel(
                         CHANNEL_RECORDING,
-                        "Voice note recording",
+                        getString(R.string.notes_recording_channel_name),
                         NotificationManager.IMPORTANCE_LOW,
                     ),
                 )

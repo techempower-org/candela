@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.feature.notes.ui
 
 import android.content.res.Configuration
 import android.text.format.DateUtils
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -57,6 +59,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.notes.NoteEntity
 import `in`.jphe.storyvox.data.notes.TranscriptionStatus
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -115,10 +118,10 @@ internal fun NotesListContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Notes", modifier = Modifier.semantics { heading() }) },
+                title = { Text(stringResource(R.string.notes_title), modifier = Modifier.semantics { heading() }) },
                 actions = {
                     IconButton(onClick = onNewNote) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "New note")
+                        Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.notes_new_note))
                     }
                 },
             )
@@ -127,7 +130,7 @@ internal fun NotesListContent(
             ExtendedFloatingActionButton(
                 onClick = onRecord,
                 icon = { Icon(Icons.Filled.Mic, contentDescription = null) },
-                text = { Text("Record") },
+                text = { Text(stringResource(R.string.notes_record)) },
             )
         },
     ) { padding ->
@@ -147,11 +150,11 @@ internal fun NotesListContent(
                 trailingIcon = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { onQueryChange("") }) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Clear search")
+                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.notes_search_clear))
                         }
                     }
                 },
-                placeholder = { Text("Search notes") },
+                placeholder = { Text(stringResource(R.string.notes_search_hint)) },
             )
 
             if (notes.isEmpty()) {
@@ -207,6 +210,8 @@ private fun NoteRow(
     var menuOpen by remember { mutableStateOf(false) }
     val isRecording = note.audioPath != null || note.durationMs != null
     val snippet = remember(note.body, note.transcript) { noteSnippet(note) }
+    val openLabel = stringResource(R.string.notes_open_note)
+    val actionsLabel = stringResource(R.string.notes_note_actions)
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -215,9 +220,9 @@ private fun NoteRow(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onOpen,
-                onClickLabel = "Open note",
+                onClickLabel = openLabel,
                 onLongClick = { menuOpen = true },
-                onLongClickLabel = "Note actions",
+                onLongClickLabel = actionsLabel,
             ),
     ) {
         Box {
@@ -228,7 +233,9 @@ private fun NoteRow(
             ) {
                 Icon(
                     imageVector = if (isRecording) Icons.Outlined.Mic else Icons.Outlined.Description,
-                    contentDescription = if (isRecording) "Recording" else "Typed note",
+                    contentDescription = stringResource(
+                        if (isRecording) R.string.notes_kind_recording else R.string.notes_kind_typed,
+                    ),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .padding(top = spacing.xxs)
@@ -236,7 +243,7 @@ private fun NoteRow(
                 )
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = note.title.ifBlank { "Untitled" },
+                        text = note.title.ifBlank { stringResource(R.string.notes_untitled) },
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -282,7 +289,7 @@ private fun NoteRow(
 
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
-                    text = { Text("Open") },
+                    text = { Text(stringResource(R.string.notes_open)) },
                     leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -290,7 +297,7 @@ private fun NoteRow(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete") },
+                    text = { Text(stringResource(R.string.notes_delete)) },
                     leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -322,18 +329,19 @@ internal fun TranscriptionStatusChip(status: TranscriptionStatus) {
     AssistChip(
         onClick = {},
         enabled = false,
-        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+        label = { Text(stringResource(label), style = MaterialTheme.typography.labelSmall) },
         colors = AssistChipDefaults.assistChipColors(
             disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )
 }
 
-/** Human label for an in-flight/failed transcription, or null when no chip is warranted. */
-internal fun transcriptionStatusLabel(status: TranscriptionStatus): String? = when (status) {
-    TranscriptionStatus.PENDING -> "Pending"
-    TranscriptionStatus.RUNNING -> "Transcribing…"
-    TranscriptionStatus.FAILED -> "Failed"
+/** Label resource for an in-flight/failed transcription, or null when no chip is warranted. */
+@StringRes
+internal fun transcriptionStatusLabel(status: TranscriptionStatus): Int? = when (status) {
+    TranscriptionStatus.PENDING -> R.string.notes_status_pending
+    TranscriptionStatus.RUNNING -> R.string.notes_status_running
+    TranscriptionStatus.FAILED -> R.string.notes_status_failed
     TranscriptionStatus.NONE, TranscriptionStatus.DONE -> null
 }
 
@@ -344,21 +352,22 @@ private fun DeleteNoteDialog(
     onDismiss: () -> Unit,
 ) {
     val hasAudio = note.audioPath != null || note.durationMs != null
+    val title = note.title.ifBlank { stringResource(R.string.notes_untitled) }
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-        title = { Text("Delete note?") },
+        title = { Text(stringResource(R.string.notes_delete_title)) },
         text = {
             Text(
                 if (hasAudio) {
-                    "This permanently deletes \"${note.title.ifBlank { "Untitled" }}\" and its recording. This can't be undone."
+                    stringResource(R.string.notes_delete_named_with_audio, title)
                 } else {
-                    "This permanently deletes \"${note.title.ifBlank { "Untitled" }}\". This can't be undone."
+                    stringResource(R.string.notes_delete_named, title)
                 },
             )
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Delete") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.notes_delete)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.notes_cancel)) } },
     )
 }
 
@@ -372,9 +381,9 @@ private fun NotesEmptyState(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Text(
             text = if (isSearching) {
-                "No notes match \"$query\"."
+                stringResource(R.string.notes_empty_search, query)
             } else {
-                "No notes yet.\nTap Record to capture one, or the pencil for a typed note."
+                stringResource(R.string.notes_empty)
             },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

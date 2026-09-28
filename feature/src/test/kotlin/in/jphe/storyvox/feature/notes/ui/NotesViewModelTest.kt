@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import `in`.jphe.storyvox.data.notes.NoteEntity
 import `in`.jphe.storyvox.data.notes.NotesRepository
 import `in`.jphe.storyvox.data.notes.TranscriptionStatus
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.llm.feature.SummarizeTranscriptUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -259,9 +260,9 @@ class NotesViewModelTest {
 
     @Test
     fun `transcriptionStatusLabel shows only in-flight and failed states`() {
-        assertEquals("Pending", transcriptionStatusLabel(TranscriptionStatus.PENDING))
-        assertEquals("Transcribing…", transcriptionStatusLabel(TranscriptionStatus.RUNNING))
-        assertEquals("Failed", transcriptionStatusLabel(TranscriptionStatus.FAILED))
+        assertEquals(R.string.notes_status_pending, transcriptionStatusLabel(TranscriptionStatus.PENDING))
+        assertEquals(R.string.notes_status_running, transcriptionStatusLabel(TranscriptionStatus.RUNNING))
+        assertEquals(R.string.notes_status_failed, transcriptionStatusLabel(TranscriptionStatus.FAILED))
         assertNull(transcriptionStatusLabel(TranscriptionStatus.NONE))
         assertNull(transcriptionStatusLabel(TranscriptionStatus.DONE))
     }

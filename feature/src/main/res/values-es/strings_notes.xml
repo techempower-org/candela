@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1657 Notas de voz — pantallas de lista, detalle y grabación, y el aviso de grabación. -->
+<resources>
+    <!-- Compartidas -->
+    <string name="notes_title">Notas</string>
+    <string name="notes_new_note">Nota nueva</string>
+    <string name="notes_untitled">Sin título</string>
+    <string name="notes_open">Abrir</string>
+    <string name="notes_delete">Borrar</string>
+    <string name="notes_cancel">Cancelar</string>
+    <string name="notes_delete_title">¿Borrar la nota?</string>
+    <string name="notes_status_pending">En espera</string>
+    <string name="notes_status_running">Transcribiendo…</string>
+    <string name="notes_status_failed">Falló</string>
+
+    <!-- Lista -->
+    <string name="notes_record">Grabar</string>
+    <string name="notes_search_hint">Buscar notas</string>
+    <string name="notes_search_clear">Borrar búsqueda</string>
+    <string name="notes_open_note">Abrir nota</string>
+    <string name="notes_note_actions">Opciones de la nota</string>
+    <string name="notes_kind_recording">Grabación</string>
+    <string name="notes_kind_typed">Nota escrita</string>
+    <string name="notes_delete_named_with_audio">Esto borra \"%1$s\" y su grabación para siempre. No se puede deshacer.</string>
+    <string name="notes_delete_named">Esto borra \"%1$s\" para siempre. No se puede deshacer.</string>
+    <string name="notes_empty_search">No hay notas con \"%1$s\".</string>
+    <string name="notes_empty">Todavía no tienes notas.\nToca Grabar para grabar una, o el lápiz para escribir una.</string>
+
+    <!-- Detalle -->
+    <string name="notes_detail_title">Nota</string>
+    <string name="notes_back">Atrás</string>
+    <string name="notes_save">Guardar</string>
+    <string name="notes_saved">Guardado</string>
+    <string name="notes_more_options">Más opciones</string>
+    <string name="notes_share">Compartir</string>
+    <string name="notes_share_chooser">Compartir nota</string>
+    <string name="notes_summarize_unavailable">No se pudo hacer el resumen. Configura un proveedor de IA en Configuración y vuelve a intentarlo.</string>
+    <string name="notes_field_title">Título</string>
+    <string name="notes_field_body">Notas</string>
+    <string name="notes_field_body_hint">Escribe o cambia tu nota…</string>
+    <string name="notes_field_tags">Etiquetas (separadas por comas)</string>
+    <string name="notes_remove_tag">Quitar la etiqueta %1$s</string>
+    <string name="notes_delete_with_audio">Esto borra la nota y su grabación para siempre. No se puede deshacer.</string>
+    <string name="notes_delete_plain">Esto borra la nota para siempre. No se puede deshacer.</string>
+    <string name="notes_play_recording">Escuchar la grabación</string>
+    <string name="notes_player_unavailable">Grabación %1$s · pronto podrás escucharla</string>
+    <string name="notes_section_transcript">Transcripción</string>
+    <string name="notes_transcript_pending">La transcripción está en espera.</string>
+    <string name="notes_transcript_failed">La transcripción falló.</string>
+    <string name="notes_section_summary">Resumen</string>
+    <string name="notes_summarize">Hacer resumen</string>
+
+    <!-- Grabar -->
+    <string name="notes_record_paused">En pausa</string>
+    <string name="notes_record_recording">Grabando…</string>
+    <string name="notes_record_idle">Toca para grabar</string>
+    <string name="notes_record_start">Empezar a grabar</string>
+    <string name="notes_record_pause">Pausar</string>
+    <string name="notes_record_resume">Seguir grabando</string>
+    <string name="notes_record_stop">Parar y guardar</string>
+
+    <!-- Aviso de grabación -->
+    <string name="notes_recording_notification_title">Grabando nota de voz</string>
+    <string name="notes_recording_notification_text">Grabación en curso</string>
+    <string name="notes_recording_channel_name">Grabación de notas de voz</string>
+</resources>
