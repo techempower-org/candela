@@ -9,6 +9,36 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.15.2] -- 2026-09-28
+
+**Luminous Insignia.** Playback controls on older Android, a Morning Briefing that actually plays, and Voice Notes.
+
+### Fixed
+- **Playback controls show up on Android 12 and older.** On Android 8–12 the
+  notification showed the book and chapter but **no play, pause or skip
+  buttons**, because the media session was never registered with the playback
+  service (tester report on Android 10; reproduced on an Android 10 emulator).
+  Android 13+ was unaffected (#1814).
+- **Media buttons no longer crash Candela on Android 8–12.** Notification
+  buttons and headset/Bluetooth play-pause keys used an Android 13-only call
+  and closed the app (#1814).
+- **Morning Briefing and the For you feed actually play.** "Build & play" built
+  the queue but the first item never started. Items now start the same way the
+  Play buttons do, and moving to the next item no longer crashes (#1810).
+- **A briefing survives the app being closed.** The queue and your place in it
+  come back after Android kills the app, without starting audio on its own
+  (#1467).
+
+### Changed
+- **Voice Notes** is the screen's name now, matching the button that opens it
+  ("Notas de voz" in Spanish), and all its screens are in English and Spanish.
+  Old recordings left behind by an interrupted save are cleaned up at startup
+  (#1657).
+
+### Under the hood
+- CI lists every failing unit test in the run summary, not just the first 10
+  (#1805).
+
 ## [1.15.1] -- 2026-09-27
 
 **Arcane Grimoire.** Two bugs the newly running unit tests caught, Spanish dates on benefits letters, and encrypted reminders.
