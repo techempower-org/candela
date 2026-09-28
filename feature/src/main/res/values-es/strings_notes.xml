@@ -2,7 +2,7 @@
 <!-- #1657 Notas de voz — pantallas de lista, detalle y grabación, y el aviso de grabación. -->
 <resources>
     <!-- Compartidas -->
-    <string name="notes_title">Notas</string>
+    <string name="notes_title">Notas de voz</string>
     <string name="notes_new_note">Nota nueva</string>
     <string name="notes_untitled">Sin título</string>
     <string name="notes_open">Abrir</string>
