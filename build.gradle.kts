@@ -19,3 +19,18 @@ plugins {
     // auto-generates OSS license metadata during :app's Android build.
     alias(libs.plugins.aboutlibraries.android) apply false
 }
+
+// Robolectric 4.17 on JDK 21: its FileDescriptorInterceptor calls
+// jdk.internal.access.SharedSecrets and dies with IllegalAccessException
+// ("Failed to interact with raw FileDescriptor internals") unless that
+// package is exported. That one cause failed ~275 JVM tests the first time
+// CI ran them rather than only compiling them (#1797). Harmless for plain JUnit.
+// Added through a jvmArgumentProvider so it appends to whatever jvmArgs a
+// module or AGP sets, rather than depending on configuration order.
+subprojects {
+    tasks.withType<Test>().configureEach {
+        jvmArgumentProviders.add(
+            CommandLineArgumentProvider { listOf("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") },
+        )
+    }
+}

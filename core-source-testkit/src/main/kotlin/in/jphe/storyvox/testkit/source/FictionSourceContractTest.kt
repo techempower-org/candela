@@ -70,6 +70,12 @@ abstract class FictionSourceContractTest {
      *  then exercise [FictionSource.search] instead of [FictionSource.popular]. */
     protected open val exercisesPopular: Boolean = true
 
+    /** Override to false for sources with no sign-in (HackerNews). A 401 then
+     *  must NOT map to AuthRequired: that result is terminal in
+     *  ChapterDownloadWorker and sends users to a sign-in that doesn't exist,
+     *  so it has to stay a retryable failure instead. */
+    protected open val hasAuth: Boolean = true
+
     @Before fun startServer() {
         requestThreads.clear()
         requestPaths.clear()
@@ -180,7 +186,14 @@ abstract class FictionSourceContractTest {
     @Test fun `401 maps to AuthRequired, not an exception`() {
         server.dispatcher = constant(MockResponse().setResponseCode(401))
         val result = runBlocking { exerciseList(source()) }
-        assertTrue("expected AuthRequired, got $result", result is FictionResult.AuthRequired)
+        if (hasAuth) {
+            assertTrue("expected AuthRequired, got $result", result is FictionResult.AuthRequired)
+        } else {
+            assertTrue(
+                "a source without sign-in must keep a 401 retryable, got $result",
+                result is FictionResult.Failure && result !is FictionResult.AuthRequired,
+            )
+        }
     }
 
     @Test fun `429 maps to RateLimited`() {

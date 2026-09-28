@@ -21,17 +21,24 @@ import org.junit.Test
  */
 class GoogleNewsParserEdgeCasesTest {
 
-    /** A single RSS 2.0 channel wrapping [inner] item markup. */
+    /**
+     * A single RSS 2.0 channel wrapping [inner] item markup.
+     *
+     * [inner] is spliced in AFTER `trimIndent()`: interpolated first, its
+     * zero-indent lines drop the common indent to 0, so `<?xml` no longer
+     * starts the document and the DOM builder rejects it, turning every
+     * case into an empty feed.
+     */
     private fun channel(title: String = "Top stories - Google News", inner: String): String =
         """
         <?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0">
           <channel>
             <title>$title</title>
-            $inner
+        INNER
           </channel>
         </rss>
-        """.trimIndent()
+        """.trimIndent().replace("INNER", inner)
 
     // ── malformed / non-XML input ───────────────────────────────────
 

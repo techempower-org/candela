@@ -101,7 +101,9 @@ class ClaudeApiProviderToolsTest {
         val body = json.parseToJsonElement(req.body.readUtf8()).jsonObject
         val toolsArr = body["tools"]?.jsonArray
         assertNotNull("Request must include `tools` array", toolsArr)
-        assertEquals(5, toolsArr!!.size)
+        // Every spec in the catalog is serialised (5 → 7 when search_sources +
+        // get_book_details landed; pinning a literal drifted silently).
+        assertEquals(StoryvoxToolSpecs.ALL.size, toolsArr!!.size)
         val firstTool = toolsArr[0].jsonObject
         assertEquals(
             "add_to_shelf",

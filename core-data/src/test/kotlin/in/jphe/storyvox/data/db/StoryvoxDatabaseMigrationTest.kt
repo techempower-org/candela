@@ -4,6 +4,7 @@ import android.app.Instrumentation
 import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import `in`.jphe.storyvox.data.db.migration.ALL_MIGRATIONS
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_1_2
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_2_3
 import `in`.jphe.storyvox.data.db.migration.MIGRATION_3_4
@@ -163,12 +164,9 @@ class StoryvoxDatabaseMigrationTest {
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
-            .addMigrations(
-                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
-                MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
-                MIGRATION_15_16,
-            )
+            // The production chain, so the round-trip opens at the CURRENT
+            // schema version (a hand-list stopped at 15→16 and broke at v19).
+            .addMigrations(*ALL_MIGRATIONS)
             .build()
 
         try {
@@ -339,12 +337,9 @@ class StoryvoxDatabaseMigrationTest {
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
-            .addMigrations(
-                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
-                MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
-                MIGRATION_15_16,
-            )
+            // The production chain, so the round-trip opens at the CURRENT
+            // schema version (a hand-list stopped at 15→16 and broke at v19).
+            .addMigrations(*ALL_MIGRATIONS)
             .build()
 
         try {
@@ -1145,12 +1140,9 @@ class StoryvoxDatabaseMigrationTest {
 
         val ctx = org.robolectric.RuntimeEnvironment.getApplication() as android.content.Context
         val db = Room.databaseBuilder(ctx, StoryvoxDatabase::class.java, dbName)
-            .addMigrations(
-                MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
-                MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15,
-                MIGRATION_15_16,
-            )
+            // The production chain, so the round-trip opens at the CURRENT
+            // schema version (a hand-list stopped at 15→16 and broke at v19).
+            .addMigrations(*ALL_MIGRATIONS)
             .build()
 
         try {
