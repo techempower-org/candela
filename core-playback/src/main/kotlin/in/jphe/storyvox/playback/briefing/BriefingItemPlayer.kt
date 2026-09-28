@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.playback.briefing
 
+import `in`.jphe.storyvox.playback.PendingUtteranceGate
+
 /**
  * #1810 — how [BriefingQueueController] starts one queue item.
  *
@@ -35,6 +37,19 @@ class PreparingBriefingItemPlayer(
     private val onProblem: (String) -> Unit = {},
 ) : BriefingItemPlayer {
     override suspend fun playItem(fictionId: String, chapterId: String) {
-        play(fictionId, chapterId) // RED-FIRST STUB (#1810): the bare play() the bug is about
+        if (PendingUtteranceGate.needsServiceStart(isEngineBound())) {
+            runCatching { startService() }
+                .onFailure { onProblem("couldn't start the playback service for $chapterId: ${it.message}") }
+        }
+        queueDownload(fictionId, chapterId)
+        if (!awaitBody(chapterId)) {
+            onProblem("chapter $chapterId wasn't downloaded in time; not playing it")
+            return
+        }
+        if (!awaitEngine()) {
+            onProblem("no playback engine bound for $chapterId; not playing it")
+            return
+        }
+        play(fictionId, chapterId)
     }
 }
