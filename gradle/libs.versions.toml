@@ -36,7 +36,7 @@ hilt-work = "1.4.0"
 
 # Persistence + work
 room = "2.8.5"
-work = "2.11.2"
+work = "2.12.0"
 datastore = "1.2.1"
 
 # Media3 (playback / session / Auto)
