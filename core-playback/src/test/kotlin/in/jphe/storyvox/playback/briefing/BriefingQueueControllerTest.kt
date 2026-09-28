@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -189,6 +190,7 @@ class BriefingQueueControllerTest {
         val before = BriefingQueueController(RecordingController(), FakeBuilder(emptyList()), backgroundScope, store, clock = { 0L })
         assertTrue(before.startWith((1..2).map(::item)))
         runCurrent()
+        assertNotNull("the session was saved, so dropping it is a real decision", store.saved)
 
         val later = BriefingQueueController.STALE_AFTER_MS + 1
         val after = BriefingQueueController(RecordingController(), FakeBuilder(emptyList()), backgroundScope, store, clock = { later })
