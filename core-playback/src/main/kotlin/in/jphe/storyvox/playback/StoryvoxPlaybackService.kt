@@ -161,6 +161,16 @@ class StoryvoxPlaybackService : MediaSessionService() {
             .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader.Builder(this).build()))
             .setSessionActivity(buildSessionActivity(null, null))
             .build()
+        // Register the session with MediaSessionService up front. A session
+        // returned only from onGetSession is added when an external
+        // MediaController binds, and Candela's own UI drives the player
+        // directly, so on a normal launch nothing binds, the session is never
+        // added, and Media3 never posts its notification. What's left is the
+        // action-less placeholder: Android 13+ still draws controls from the
+        // platform session, but Android 12 and older show no play/pause at all
+        // (annabella, Infinix X687 / Android 10; reproduced on an API 29
+        // emulator, 2026-09-28).
+        addSession(session)
         mediaSessionLocator.token = session.token
         // Issue #1232 — publish the legacy MediaSessionCompat.Token so the Auto
         // browser service can setSessionToken() and bind transport controls.
@@ -405,6 +415,24 @@ class StoryvoxPlaybackService : MediaSessionService() {
      * [PendingIntent] for tap-to-reader so the notification is functional even
      * during the seconds before Media3 has a chance to render its UI.
      */
+    /**
+     * Media3 is about to (re)post its MediaStyle notification. Once the player
+     * has a media item, Media3 has real content and owns NOTIFICATION_ID, so the
+     * placeholder updater must stop. Before this, it kept re-posting the
+     * action-less placeholder under the same id on every chapter or book change
+     * and wiped Media3's play/pause buttons. Android 13+ hides that by drawing
+     * controls from the MediaSession; Android 12 and older show the
+     * notification's own actions, so testers there saw a notification with no
+     * controls at all (annabella, Infinix X687 / Android 10, 2026-09-28).
+     */
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        if (session.player.mediaItemCount > 0) {
+            placeholderUpdaterJob?.cancel()
+            placeholderUpdaterJob = null
+        }
+        super.onUpdateNotification(session, startInForegroundRequired)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!placeholderPosted) {
             postPlaceholder("storyvox", "Starting…", null, null)

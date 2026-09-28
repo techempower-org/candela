@@ -2,6 +2,7 @@ package `in`.jphe.storyvox.playback
 
 import android.content.Intent
 import android.view.KeyEvent
+import androidx.core.content.IntentCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
@@ -51,7 +52,11 @@ class StoryvoxSessionCallback(
         controllerInfo: MediaSession.ControllerInfo,
         intent: Intent,
     ): Boolean {
-        val event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+        // IntentCompat, not intent.getParcelableExtra(key, Class): that overload
+        // is API 33+ and threw NoSuchMethodError on Android 8-12 for every
+        // notification button and headset/Bluetooth media key (found once the
+        // notification got real buttons on Android 10, 2026-09-28).
+        val event = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
             ?: return false
         return mediaButtonHandler.handle(event)
     }
