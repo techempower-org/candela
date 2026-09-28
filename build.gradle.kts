@@ -19,3 +19,13 @@ plugins {
     // auto-generates OSS license metadata during :app's Android build.
     alias(libs.plugins.aboutlibraries.android) apply false
 }
+
+// Robolectric 4.17 on JDK 21 reflects into java.io.FileDescriptor (its
+// AndroidInterceptors) and dies with IllegalAccessException unless java.io
+// is opened. That one cause failed 274 JVM tests the first time CI ran
+// them rather than only compiling them (#1797). Harmless for plain JUnit.
+subprojects {
+    tasks.withType<Test>().configureEach {
+        jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED")
+    }
+}
