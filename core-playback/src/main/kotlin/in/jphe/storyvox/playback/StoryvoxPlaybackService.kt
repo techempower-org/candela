@@ -405,6 +405,24 @@ class StoryvoxPlaybackService : MediaSessionService() {
      * [PendingIntent] for tap-to-reader so the notification is functional even
      * during the seconds before Media3 has a chance to render its UI.
      */
+    /**
+     * Media3 is about to (re)post its MediaStyle notification. Once the player
+     * has a media item, Media3 has real content and owns NOTIFICATION_ID, so the
+     * placeholder updater must stop. Before this, it kept re-posting the
+     * action-less placeholder under the same id on every chapter or book change
+     * and wiped Media3's play/pause buttons. Android 13+ hides that by drawing
+     * controls from the MediaSession; Android 12 and older show the
+     * notification's own actions, so testers there saw a notification with no
+     * controls at all (annabella, Infinix X687 / Android 10, 2026-09-28).
+     */
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        if (session.player.mediaItemCount > 0) {
+            placeholderUpdaterJob?.cancel()
+            placeholderUpdaterJob = null
+        }
+        super.onUpdateNotification(session, startInForegroundRequired)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!placeholderPosted) {
             postPlaceholder("storyvox", "Starting…", null, null)
