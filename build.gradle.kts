@@ -20,16 +20,17 @@ plugins {
     alias(libs.plugins.aboutlibraries.android) apply false
 }
 
-// Robolectric 4.17 on JDK 21 reflects into java.io.FileDescriptor (its
-// AndroidInterceptors) and dies with IllegalAccessException unless java.io
-// is opened. That one cause failed 274 JVM tests the first time CI ran
-// them rather than only compiling them (#1797). Harmless for plain JUnit.
+// Robolectric 4.17 on JDK 21: its FileDescriptorInterceptor calls
+// jdk.internal.access.SharedSecrets and dies with IllegalAccessException
+// ("Failed to interact with raw FileDescriptor internals") unless that
+// package is exported. That one cause failed ~275 JVM tests the first time
+// CI ran them rather than only compiling them (#1797). Harmless for plain JUnit.
 // A jvmArgumentProvider rather than jvmArgs(): AGP resets the unit-test
 // task's jvmArgs after this block runs, which silently dropped the flag.
 subprojects {
     tasks.withType<Test>().configureEach {
         jvmArgumentProviders.add(
-            CommandLineArgumentProvider { listOf("--add-opens=java.base/java.io=ALL-UNNAMED") },
+            CommandLineArgumentProvider { listOf("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") },
         )
     }
 }
