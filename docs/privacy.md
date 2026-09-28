@@ -238,7 +238,8 @@ before anything is scheduled — Candela never auto-commits a guess.
 The reminders themselves are **local notifications only**. There is no account,
 no cloud, and no server: the reminder lives on your phone and is delivered by
 Android at the times you chose (by default one week before, two days before, and
-on the day). Your reminders are stored in the app's private storage, are
+on the day). Your reminders are stored in the app's private storage,
+**encrypted on your device** (the same protection as your document wallet), are
 **excluded from cloud backup and device-to-device transfer**, and are never
 uploaded, collected, or shared. The notification text is **yours to edit**;
 by default it shows only a short label plus "deadline" — never dollar amounts or

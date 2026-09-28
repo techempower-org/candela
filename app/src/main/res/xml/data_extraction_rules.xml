@@ -24,6 +24,7 @@
         <exclude domain="file" path="wallet/" />
         <!-- Issue #1515 — deadline reminders are on-device only (privacy.md §2.11). -->
         <exclude domain="file" path="deadline_reminders.json" />
+        <exclude domain="file" path="deadline_reminders.enc" />
         <!-- Issue #1657 (Voice Notes) — notes DB + recordings are on-device
              only (spec §3.7). notes.db is a SEPARATE Room DB so it's file-
              excludable; recordings/ matches NotesRepository.RECORDINGS_SUBDIR
@@ -41,6 +42,7 @@
         <exclude domain="file" path="wallet/" />
         <!-- Issue #1515 — deadline reminders are on-device only (privacy.md §2.11). -->
         <exclude domain="file" path="deadline_reminders.json" />
+        <exclude domain="file" path="deadline_reminders.enc" />
         <!-- Issue #1657 (Voice Notes) — notes DB + recordings are on-device
              only (spec §3.7). notes.db is a SEPARATE Room DB so it's file-
              excludable; recordings/ matches NotesRepository.RECORDINGS_SUBDIR

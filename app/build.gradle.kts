@@ -769,6 +769,7 @@ dependencies {
     // Issue #417 — JSON serialization for RadioConfigImpl's starred-
     // stations DataStore payload.
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.security.crypto) // #1794 encrypted deadline reminders
     // Issue #1015 — :source-librivox. Free public-domain audiobooks
     // read by volunteers; storyvox's first pre-recorded (human-narrated)
     // source. Same audio-stream backend as :source-radio — sections
