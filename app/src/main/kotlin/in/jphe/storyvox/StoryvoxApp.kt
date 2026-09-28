@@ -12,6 +12,7 @@ import `in`.jphe.storyvox.data.VersionUpgradeHandler
 import `in`.jphe.storyvox.data.auth.SessionHydrator
 import `in`.jphe.storyvox.data.db.StoryvoxDatabase
 import `in`.jphe.storyvox.data.log.DebugLog
+import `in`.jphe.storyvox.data.notes.NotesStartup
 import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.repository.FictionRepository
 import `in`.jphe.storyvox.data.repository.PlaybackPositionRepository
@@ -150,6 +151,14 @@ class StoryvoxApp : Application(), Configuration.Provider {
      * like the rest of init (Issue #409 cold-launch posture).
      */
     @Inject lateinit var deadlineReminderReconciler: Lazy<DeadlineReminderReconciler>
+
+    /**
+     * Issue #1657 — Voice Notes orphan-audio sweep. Reclaims recordings with no
+     * note row (a crash between writing the `.m4a` and inserting the row).
+     * [NotesStartup] runs it once per process on IO and swallows failures —
+     * [initScope] has no exception handler, so a throw here would crash launch.
+     */
+    @Inject lateinit var notesStartup: Lazy<NotesStartup>
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -318,6 +327,11 @@ class StoryvoxApp : Application(), Configuration.Provider {
         // launch critical path like the rest of deferred init.
         initScope.launch {
             deadlineReminderReconciler.get().start()
+        }
+        // Issue #1657 — sweep orphaned Voice Notes recordings once per process.
+        // NotesStartup launches onto initScope itself (IO, failures caught).
+        initScope.launch {
+            notesStartup.get().start(initScope)
         }
         // Issue #178 — Royal Road tag-sync. Two coroutines:
         //   1. Schedule the 24h periodic worker (idempotent, KEEP).

@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.jphe.storyvox.data.notes.TranscriptionStatus
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -80,22 +82,23 @@ fun NoteDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val savedMessage = stringResource(R.string.notes_saved)
+    val summarizeUnavailableMessage = stringResource(R.string.notes_summarize_unavailable)
+    val shareChooserTitle = stringResource(R.string.notes_share_chooser)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                NoteDetailEvent.Saved -> snackbarHostState.showSnackbar("Saved")
+                NoteDetailEvent.Saved -> snackbarHostState.showSnackbar(savedMessage)
                 NoteDetailEvent.Deleted -> onExit()
                 NoteDetailEvent.SummarizeUnavailable ->
-                    snackbarHostState.showSnackbar(
-                        "Couldn't summarize — set up an AI provider in Settings, then try again.",
-                    )
+                    snackbarHostState.showSnackbar(summarizeUnavailableMessage)
                 is NoteDetailEvent.Share -> {
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, event.text)
                     }
-                    context.startActivity(Intent.createChooser(send, "Share note"))
+                    context.startActivity(Intent.createChooser(send, shareChooserTitle))
                 }
             }
         }
@@ -150,22 +153,22 @@ internal fun NoteDetailContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isNewDraft) "New note" else "Note") },
+                title = { Text(stringResource(if (state.isNewDraft) R.string.notes_new_note else R.string.notes_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.notes_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onSave, enabled = state.isDirty) {
-                        Icon(Icons.Filled.Check, contentDescription = "Save")
+                        Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.notes_save))
                     }
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = "More options")
+                        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.notes_more_options))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
-                            text = { Text("Share") },
+                            text = { Text(stringResource(R.string.notes_share)) },
                             leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
@@ -173,7 +176,7 @@ internal fun NoteDetailContent(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete") },
+                            text = { Text(stringResource(R.string.notes_delete)) },
                             leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
@@ -199,7 +202,7 @@ internal fun NoteDetailContent(
                 onValueChange = onTitleChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.notes_field_title)) },
             )
 
             if (hasRecording) {
@@ -224,8 +227,8 @@ internal fun NoteDetailContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 160.dp),
-                label = { Text("Notes") },
-                placeholder = { Text("Write or edit your note…") },
+                label = { Text(stringResource(R.string.notes_field_body)) },
+                placeholder = { Text(stringResource(R.string.notes_field_body_hint)) },
             )
 
             OutlinedTextField(
@@ -233,7 +236,7 @@ internal fun NoteDetailContent(
                 onValueChange = onTagsChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Tags (comma-separated)") },
+                label = { Text(stringResource(R.string.notes_field_tags)) },
             )
 
             val tagList = remember(state.tags) {
@@ -253,7 +256,12 @@ internal fun NoteDetailContent(
                                 )
                             },
                             label = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = "Remove tag") },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.notes_remove_tag, tag),
+                                )
+                            },
                         )
                     }
                 }
@@ -265,13 +273,13 @@ internal fun NoteDetailContent(
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmDelete = false },
             icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-            title = { Text("Delete note?") },
+            title = { Text(stringResource(R.string.notes_delete_title)) },
             text = {
                 Text(
                     if (hasRecording) {
-                        "This permanently deletes the note and its recording. This can't be undone."
+                        stringResource(R.string.notes_delete_with_audio)
                     } else {
-                        "This permanently deletes the note. This can't be undone."
+                        stringResource(R.string.notes_delete_plain)
                     },
                 )
             },
@@ -281,10 +289,10 @@ internal fun NoteDetailContent(
                         confirmDelete = false
                         onDelete()
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.notes_delete)) }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.notes_cancel)) }
             },
         )
     }
@@ -314,7 +322,7 @@ private fun AudioPlayerCard(durationMs: Long?, playable: Boolean) {
                 enabled = playable,
                 modifier = Modifier.size(48.dp),
             ) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = "Play recording")
+                Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.notes_play_recording))
             }
             Column(modifier = Modifier.fillMaxWidth()) {
                 LinearProgressIndicator(
@@ -325,7 +333,7 @@ private fun AudioPlayerCard(durationMs: Long?, playable: Boolean) {
                     text = if (playable) {
                         "0:00 / ${durationMs?.let(::formatNoteDuration) ?: "0:00"}"
                     } else {
-                        "Recording ${durationMs?.let(::formatNoteDuration) ?: ""} · playback arrives soon"
+                        stringResource(R.string.notes_player_unavailable, durationMs?.let(::formatNoteDuration) ?: "")
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -341,7 +349,7 @@ private fun TranscriptSection(transcript: String?, status: TranscriptionStatus) 
     val spacing = LocalSpacing.current
     when {
         transcript != null -> {
-            SectionLabel("Transcript")
+            SectionLabel(stringResource(R.string.notes_section_transcript))
             SelectionContainer {
                 Text(
                     text = transcript,
@@ -352,17 +360,23 @@ private fun TranscriptSection(transcript: String?, status: TranscriptionStatus) 
             }
         }
         status == TranscriptionStatus.PENDING || status == TranscriptionStatus.RUNNING -> {
-            SectionLabel("Transcript")
+            SectionLabel(stringResource(R.string.notes_section_transcript))
             Text(
-                text = if (status == TranscriptionStatus.RUNNING) "Transcribing…" else "Transcription pending.",
+                text = stringResource(
+                    if (status == TranscriptionStatus.RUNNING) {
+                        R.string.notes_status_running
+                    } else {
+                        R.string.notes_transcript_pending
+                    },
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         status == TranscriptionStatus.FAILED -> {
-            SectionLabel("Transcript")
+            SectionLabel(stringResource(R.string.notes_section_transcript))
             Text(
-                text = "Transcription failed.",
+                text = stringResource(R.string.notes_transcript_failed),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -376,7 +390,7 @@ private fun SummarySection(summary: String?, hasTranscript: Boolean, onSummarize
     val spacing = LocalSpacing.current
     when {
         summary != null -> {
-            SectionLabel("Summary")
+            SectionLabel(stringResource(R.string.notes_section_summary))
             SelectionContainer {
                 Text(
                     text = summary,
@@ -395,7 +409,7 @@ private fun SummarySection(summary: String?, hasTranscript: Boolean, onSummarize
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
-                    "Summarize",
+                    stringResource(R.string.notes_summarize),
                     modifier = Modifier.padding(start = spacing.xs),
                 )
             }

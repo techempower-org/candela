@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1657 Voice Notes — list, detail and record screens, plus the recording notification. -->
+<resources>
+    <!-- Shared -->
+    <string name="notes_title">Notes</string>
+    <string name="notes_new_note">New note</string>
+    <string name="notes_untitled">Untitled</string>
+    <string name="notes_open">Open</string>
+    <string name="notes_delete">Delete</string>
+    <string name="notes_cancel">Cancel</string>
+    <string name="notes_delete_title">Delete note?</string>
+    <string name="notes_status_pending">Pending</string>
+    <string name="notes_status_running">Transcribing…</string>
+    <string name="notes_status_failed">Failed</string>
+
+    <!-- List -->
+    <string name="notes_record">Record</string>
+    <string name="notes_search_hint">Search notes</string>
+    <string name="notes_search_clear">Clear search</string>
+    <string name="notes_open_note">Open note</string>
+    <string name="notes_note_actions">Note actions</string>
+    <string name="notes_kind_recording">Recording</string>
+    <string name="notes_kind_typed">Typed note</string>
+    <string name="notes_delete_named_with_audio">This permanently deletes \"%1$s\" and its recording. This can\'t be undone.</string>
+    <string name="notes_delete_named">This permanently deletes \"%1$s\". This can\'t be undone.</string>
+    <string name="notes_empty_search">No notes match \"%1$s\".</string>
+    <string name="notes_empty">No notes yet.\nTap Record to capture one, or the pencil for a typed note.</string>
+
+    <!-- Detail -->
+    <string name="notes_detail_title">Note</string>
+    <string name="notes_back">Back</string>
+    <string name="notes_save">Save</string>
+    <string name="notes_saved">Saved</string>
+    <string name="notes_more_options">More options</string>
+    <string name="notes_share">Share</string>
+    <string name="notes_share_chooser">Share note</string>
+    <string name="notes_summarize_unavailable">Couldn\'t summarize — set up an AI provider in Settings, then try again.</string>
+    <string name="notes_field_title">Title</string>
+    <string name="notes_field_body">Notes</string>
+    <string name="notes_field_body_hint">Write or edit your note…</string>
+    <string name="notes_field_tags">Tags (comma-separated)</string>
+    <string name="notes_remove_tag">Remove tag %1$s</string>
+    <string name="notes_delete_with_audio">This permanently deletes the note and its recording. This can\'t be undone.</string>
+    <string name="notes_delete_plain">This permanently deletes the note. This can\'t be undone.</string>
+    <string name="notes_play_recording">Play recording</string>
+    <string name="notes_player_unavailable">Recording %1$s · playback arrives soon</string>
+    <string name="notes_section_transcript">Transcript</string>
+    <string name="notes_transcript_pending">Transcription pending.</string>
+    <string name="notes_transcript_failed">Transcription failed.</string>
+    <string name="notes_section_summary">Summary</string>
+    <string name="notes_summarize">Summarize</string>
+
+    <!-- Record -->
+    <string name="notes_record_paused">Paused</string>
+    <string name="notes_record_recording">Recording…</string>
+    <string name="notes_record_idle">Tap to record</string>
+    <string name="notes_record_start">Start recording</string>
+    <string name="notes_record_pause">Pause</string>
+    <string name="notes_record_resume">Resume</string>
+    <string name="notes_record_stop">Stop and save</string>
+
+    <!-- Recording notification -->
+    <string name="notes_recording_notification_title">Recording voice note</string>
+    <string name="notes_recording_notification_text">Recording in progress</string>
+    <string name="notes_recording_channel_name">Voice note recording</string>
+</resources>

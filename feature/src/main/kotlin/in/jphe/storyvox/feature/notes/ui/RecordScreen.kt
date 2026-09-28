@@ -40,11 +40,13 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.jphe.storyvox.feature.R
 import `in`.jphe.storyvox.ui.theme.LibraryNocturneTheme
 import `in`.jphe.storyvox.ui.theme.LocalSpacing
 
@@ -128,10 +130,10 @@ internal fun RecordContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Record") },
+                title = { Text(stringResource(R.string.notes_record)) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Cancel")
+                        Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.notes_cancel))
                     }
                 },
             )
@@ -152,11 +154,13 @@ internal fun RecordContent(
             )
             Spacer(Modifier.height(spacing.xs))
             Text(
-                text = when {
-                    state.isPaused -> "Paused"
-                    state.isRecording -> "Recording…"
-                    else -> "Tap to record"
-                },
+                text = stringResource(
+                    when {
+                        state.isPaused -> R.string.notes_record_paused
+                        state.isRecording -> R.string.notes_record_recording
+                        else -> R.string.notes_record_idle
+                    },
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -181,7 +185,7 @@ internal fun RecordContent(
                 ) {
                     Icon(
                         Icons.Filled.Mic,
-                        contentDescription = "Start recording",
+                        contentDescription = stringResource(R.string.notes_record_start),
                         modifier = Modifier.size(40.dp),
                     )
                 }
@@ -197,7 +201,9 @@ internal fun RecordContent(
                     ) {
                         Icon(
                             imageVector = if (state.isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                            contentDescription = if (state.isPaused) "Resume" else "Pause",
+                            contentDescription = stringResource(
+                                if (state.isPaused) R.string.notes_record_resume else R.string.notes_record_pause,
+                            ),
                             modifier = Modifier.size(32.dp),
                         )
                     }
@@ -213,7 +219,7 @@ internal fun RecordContent(
                     ) {
                         Icon(
                             Icons.Filled.Stop,
-                            contentDescription = "Stop and save",
+                            contentDescription = stringResource(R.string.notes_record_stop),
                             modifier = Modifier.size(36.dp),
                         )
                     }
