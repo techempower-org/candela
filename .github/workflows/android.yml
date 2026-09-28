@@ -54,15 +54,30 @@ jobs:
           printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
       - name: Run JVM unit tests
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew testDebugUnitTest --continue --no-daemon --stacktrace
+      # GitHub shows at most 10 annotations per step, so the first real run
+      # surfaced 10 of 304 failures. The step summary gets the full list.
       - name: List failing tests
         if: failure()
         run: |
           python3 - <<'EOF'
-          import glob, re
+          import glob, html, os, re
+          rows = []
           for f in sorted(glob.glob("**/build/test-results/testDebugUnitTest/*.xml", recursive=True)):
+              module = f.split("/")[0]
               s = open(f, errors="ignore").read()
-              for name, cls in re.findall(r'<testcase name="([^"]*)" classname="([^"]*)"[^>]*>\s*<(?:failure|error)', s):
+              for m in re.finditer(r'<testcase name="([^"]*)" classname="([^"]*)"[^>]*>\s*<(failure|error)(?: message="([^"]*)")?', s):
+                  name, cls = html.unescape(m[1]), m[2]
+                  lines = html.unescape(m[4] or "").splitlines()
+                  msg = lines[0][:200] if lines else m[3]
+                  rows.append((module, cls.split(".")[-1], name, msg))
                   print(f"::error title=Unit test failed::{cls} > {name}")
+          cell = lambda t: t.replace("|", "\\|").replace("`", "'")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write(f"## {len(rows)} failing unit test(s)\n\n")
+              out.write("| Module | Class | Test | Message |\n|---|---|---|---|\n")
+              for r in rows:
+                  out.write("| " + " | ".join(cell(c) for c in r) + " |\n")
+          print(f"{len(rows)} failing test(s); full list in the step summary")
           EOF
       - name: Upload test reports
         if: failure()
