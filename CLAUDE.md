@@ -37,7 +37,7 @@ CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo
 
 **Navigation**: `StoryvoxNavHost.kt` defines all routes as `StoryvoxRoutes` constants. Bottom bar: Playing, Library, Browse, Voices, Settings.
 
-**Testing**: JUnit 4. Mostly plain JVM tests with hand-rolled fakes (see `PluginManagerLogicTest` for the pattern); `core-playback`/`feature` carry some Robolectric classes — their SDK-36 sandboxes need Java 21 (JDK 17 fails at classMethod with "Android SDK 36 requires Java 21"; CI only compiles tests, so this bites local runs only). Compose UI tests use `createComposeRule()`. New sources/engines subclass the contract kits in `core-source-testkit`.
+**Testing**: JUnit 4. Mostly plain JVM tests with hand-rolled fakes (see `PluginManagerLogicTest` for the pattern); `core-playback`/`feature` carry some Robolectric classes — their SDK-36 sandboxes need Java 21 (JDK 17 fails at classMethod with "Android SDK 36 requires Java 21"; run tests locally on JDK 21). CI's `Unit Tests` job runs every module's `testDebugUnitTest` on JDK 21 on PRs and main. Compose UI tests use `createComposeRule()`. New sources/engines subclass the contract kits in `core-source-testkit`.
 
 ## Large files (read with offset/limit)
 

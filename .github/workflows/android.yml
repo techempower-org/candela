@@ -22,22 +22,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-compile:
-    name: Test Compile
+  # Runs every module's JVM unit tests (plain JUnit + Robolectric). This job
+  # used to only COMPILE them, so a test that failed on main went unnoticed
+  # (DeadlineDateExtractorTest, found 2026-09-27). Running them compiles them,
+  # so this replaces the old compile-only job. JDK 21: the Robolectric SDK-36
+  # sandboxes refuse to start on 17; modules still emit Java 17 bytecode.
+  # --continue reports every failing module in one run, not just the first.
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: github.event_name == 'pull_request'
+    timeout-minutes: 60
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - name: Set up Gradle (dependency + build cache)
         uses: gradle/actions/setup-gradle@v4
 
@@ -46,8 +52,25 @@ jobs:
           set -euo pipefail
           # GitHub-hosted runner: the Android SDK ships preinstalled at $ANDROID_HOME.
           printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
-      - name: Compile test sources
-        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew compileDebugUnitTestKotlin --no-daemon --stacktrace
+      - name: Run JVM unit tests
+        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew testDebugUnitTest --continue --no-daemon --stacktrace
+      - name: List failing tests
+        if: failure()
+        run: |
+          python3 - <<'EOF'
+          import glob, re
+          for f in sorted(glob.glob("**/build/test-results/testDebugUnitTest/*.xml", recursive=True)):
+              s = open(f, errors="ignore").read()
+              for name, cls in re.findall(r'<testcase name="([^"]*)" classname="([^"]*)"[^>]*>\s*<(?:failure|error)', s):
+                  print(f"::error title=Unit test failed::{cls} > {name}")
+          EOF
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: '**/build/reports/tests/testDebugUnitTest/'
+          retention-days: 7
 
   # #1582 — EN↔ES parity gate. Fails a PR that adds a string to
   # values/strings.xml (in :app or :feature) without a values-es counterpart.
