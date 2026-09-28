@@ -9,11 +9,76 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.15.0] -- 2026-09-27
+
+**Infernal Nexus.** Candela in Spanish, a For you feed, Google Drive, and four playback fixes caught on the tablet.
+
 ### Added
-- **Choose Candela's language, whatever the device is set to** (#1585).
-  Settings → Appearance → Language offers System default, English or
-  Español, for a shared phone or one set to the wrong language. On
-  Android 13+ the choice also appears under the system's App languages.
+- **Candela speaks Spanish.** The first screen now asks "Choose your language ·
+  Elige tu idioma" and sets the matching content defaults (#1466). Settings,
+  the reader, playback, the widget, Browse, the Library and chat are all
+  translated into plain-language Latin-American Spanish: about 980 strings
+  (#1763, #1767, #1772). **Settings → Appearance → Language** lets you choose
+  System default, English or Español, whatever the device is set to (#1585).
+  The benefits content's Spanish terminology is aligned to official CA and
+  federal sources and is marked provisional until a native speaker reviews
+  it (#1771).
+- **For you feed.** Every unread item from what you follow, newest first,
+  with no algorithm. Tap a card to hear it, and Candela carries on down the
+  feed (#1675).
+- **Google Drive, finished.** Sign in, choose files with the Google Picker,
+  and listen to Docs, PDFs, EPUBs and text files with real chapters. Tokens
+  refresh on their own, and you can disconnect (#1677). It degrades
+  cleanly until the project's Google credentials are configured (#1792).
+- **Your own Google News.** Build a feed from topics, places and searches,
+  including Spanish editions (#1678).
+- **Local Help (211).** A narrated directory of local services, such as
+  food, housing, rent help and health care, from the 211 National Data
+  Platform (#1465).
+- **Learning paths.** Step-by-step courses built from TechEMPOWER Guides
+  that remember what you've finished (#1464).
+- **Read aloud on every benefits screen.** One big Read aloud / Stop reading
+  control on the deadline keeper, fillable PDF, document wallet, household
+  profile, screener, letter decoder and call cards (#1580).
+- **Morning briefing, your way.** Pick the sources and how many items each
+  gives. It builds itself every morning (#1467).
+- **GitHub inbox narrator.** Your notifications and pull requests, read
+  aloud. It's off by default; turn it on in Settings → Plugins (#1470).
+- **Push to Candela** from a desktop or homelab. A URL or text you send
+  shows up in your Library (#1469).
+- **Highlights → Memory Palace.** Opt-in write-back of reader highlights
+  (#1468).
+
+### Fixed
+- **Read aloud works on a fresh launch.** Before, it did nothing until a
+  chapter had played once (#1776).
+- **Playback keeps going to the next chapter.** A teardown after the last
+  sentence was mistaken for a natural chapter end, so NEXT and chapter ends
+  paused on the new chapter (#1786).
+- **No false "Paused for a call."** The call banner no longer appears before
+  Candela has even asked for audio focus (#1769).
+- **Nav-rail taps from the reader work again.** The hidden audiobook pane
+  was swallowing taps on Voices and the rest of the rail (#1787).
+- **Kitten voices download again.** The v0.8 voice files were never
+  uploaded; they are now, and a weekly check watches every voice URL
+  (#1784).
+- Voice notes transcribe multi-hour recordings without holding the whole
+  file in memory, and ask before downloading the transcription model
+  (#1669, #1657).
+- Bookshare is ready for a partner key: prefixed ids, cursor paging and
+  title metadata (#1462).
+
+### Under the hood
+- **New sideload signing key.** Sideload APKs move from the public debug key
+  to a private `candela-sideload` key using APK Signature Scheme v3
+  rotation, so existing installs upgrade in place (Android 9+) (#1756).
+- Voice engines are plugins end to end. A scaffolded `@VoicePlugin` reaches
+  the Voice Library, download, pooled playback, recap, export and prerender
+  with no central edits (#1500, #1501).
+- VoxSherpa-TTS v2.11.1 fixes a native use-after-free (#1762).
+- A Translation parity CI gate fails on any English string without a Spanish
+  counterpart (#1582). The Play AAB now carries native debug symbols
+  (#1691). Ten library bumps land in one batch (#1758).
 
 ## [1.14.2] -- 2026-09-27
 
