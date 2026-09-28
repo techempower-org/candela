@@ -25,8 +25,8 @@ plugins {
 // ("Failed to interact with raw FileDescriptor internals") unless that
 // package is exported. That one cause failed ~275 JVM tests the first time
 // CI ran them rather than only compiling them (#1797). Harmless for plain JUnit.
-// A jvmArgumentProvider rather than jvmArgs(): AGP resets the unit-test
-// task's jvmArgs after this block runs, which silently dropped the flag.
+// Added through a jvmArgumentProvider so it appends to whatever jvmArgs a
+// module or AGP sets, rather than depending on configuration order.
 subprojects {
     tasks.withType<Test>().configureEach {
         jvmArgumentProviders.add(
