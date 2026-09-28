@@ -25,8 +25,9 @@ import javax.inject.Singleton
  * [PlaybackUiEvent.BookFinished] at the end; it has no concept of a queue that
  * spans *different* fictions/sources. This controller adds exactly that layer,
  * and nothing more: it holds an ordered [BriefingItem] queue, plays the current
- * item through the real load path ([PlaybackController.play] — never bare
- * navigation, cf. the #1455 class of "opened without loading" bugs), listens
+ * item through the real load path ([BriefingItemPlayer]: service, download,
+ * then [PlaybackController.play]; never bare navigation, cf. the #1455 class of
+ * "opened without loading" bugs), listens
  * for `BookFinished`, and advances to the next item. It never reaches into
  * `EnginePlayer`.
  *
@@ -45,6 +46,7 @@ class BriefingQueueController(
     private val scope: CoroutineScope,
     private val sessionStore: BriefingSessionStore = BriefingSessionStore.None,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val itemPlayer: BriefingItemPlayer = BriefingItemPlayer { f, c -> controller.play(f, c) },
 ) {
     /**
      * Hilt entry point. The real app gets a long-lived Default-dispatcher scope
@@ -57,7 +59,14 @@ class BriefingQueueController(
         controller: PlaybackController,
         builder: BriefingBuilder,
         sessionStore: BriefingSettingsStore,
-    ) : this(controller, builder, CoroutineScope(SupervisorJob() + Dispatchers.Default), sessionStore) {
+        itemPlayer: BriefingItemPlayer,
+    ) : this(
+        controller,
+        builder,
+        CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        sessionStore,
+        itemPlayer = itemPlayer,
+    ) {
         scope.launch { restore() }
     }
 
@@ -190,9 +199,10 @@ class BriefingQueueController(
         }
     }
 
+    /** Start the current item through [itemPlayer] (#1810: never a bare play()). */
     private suspend fun playCurrent() {
         val item = _session.value?.current ?: return
-        controller.play(item.fictionId, item.chapterId)
+        itemPlayer.playItem(item.fictionId, item.chapterId)
     }
 
     internal companion object {
