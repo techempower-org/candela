@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.playback.briefing
 import `in`.jphe.storyvox.playback.PendingUtteranceGate
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.withContext
 
 /**
  * #1810 — how [BriefingQueueController] starts one queue item.
@@ -59,6 +60,6 @@ class PreparingBriefingItemPlayer(
             onProblem("no playback engine bound for $chapterId; not playing it")
             return
         }
-        play(fictionId, chapterId) // RED-FIRST STUB: ignores playContext
+        withContext(playContext) { play(fictionId, chapterId) }
     }
 }
