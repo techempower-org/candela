@@ -2,7 +2,7 @@
 <!-- #1657 Voice Notes — list, detail and record screens, plus the recording notification. -->
 <resources>
     <!-- Shared -->
-    <string name="notes_title">Notes</string>
+    <string name="notes_title">Voice Notes</string>
     <string name="notes_new_note">New note</string>
     <string name="notes_untitled">Untitled</string>
     <string name="notes_open">Open</string>
