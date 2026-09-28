@@ -15,9 +15,11 @@ import `in`.jphe.storyvox.playback.StoryvoxPlaybackService
 import `in`.jphe.storyvox.playback.briefing.BriefingItemPlayer
 import `in`.jphe.storyvox.playback.briefing.PreparingBriefingItemPlayer
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -57,7 +59,13 @@ object BriefingPlaybackModule {
                 true
             } == true
         },
-        play = { fictionId, chapterId -> controller.play(fictionId, chapterId) },
+        // Main-thread hop: the queue auto-advances from its listener on
+        // Dispatchers.Default, and Media3's Player is Main-confined, so
+        // play() from there crashed with "Player is accessed on the wrong
+        // thread" when item 1 ended (#1810, on device). Same fix as #1606.
+        play = { fictionId, chapterId ->
+            withContext(Dispatchers.Main.immediate) { controller.play(fictionId, chapterId) }
+        },
         // Log.w, not Log.i: release builds strip i/d (#1276).
         onProblem = { Log.w(TAG, "#1810 $it") },
     )
