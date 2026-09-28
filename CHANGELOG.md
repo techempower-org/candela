@@ -9,6 +9,33 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.15.1] -- 2026-09-27
+
+**Arcane Grimoire.** Two bugs the newly running unit tests caught, Spanish dates on benefits letters, and encrypted reminders.
+
+### Fixed
+- **Reddit no longer reads comments you turned off.** With "Top comments"
+  off, Candela still asked Reddit for one comment and read it aloud (#1797).
+- **GitHub inbox reads the pull request's title again.** The Overview
+  chapter was dropping its first line as if it repeated the chapter title
+  (#1797).
+- **Spanish dates on benefits letters.** A date like `15/09/2026` is no
+  longer dropped. When a Spanish letter's date could go either way
+  (`06/07/2026`), you're offered both readings to confirm. A date in one
+  sentence also no longer picks up a deadline cue from the next (#1793).
+
+### Security
+- **Deadline reminders are encrypted on your device**, with the same
+  protection as the document wallet. Reminders saved by an older version
+  move over on first launch (#1794).
+
+### Under the hood
+- **CI now runs the unit tests** instead of only compiling them. The first
+  run found 304 failing tests: 274 were one Robolectric-on-JDK-21 setting,
+  2 were the real bugs above, and the rest were tests that had drifted from
+  the code. All fixed (#1797), with the drift fixes tightened so they can
+  still fail (#1804).
+
 ## [1.15.0] -- 2026-09-27
 
 **Infernal Nexus.** Candela in Spanish, a For you feed, Google Drive, and four playback fixes caught on the tablet.
