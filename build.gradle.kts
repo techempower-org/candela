@@ -24,8 +24,12 @@ plugins {
 // AndroidInterceptors) and dies with IllegalAccessException unless java.io
 // is opened. That one cause failed 274 JVM tests the first time CI ran
 // them rather than only compiling them (#1797). Harmless for plain JUnit.
+// A jvmArgumentProvider rather than jvmArgs(): AGP resets the unit-test
+// task's jvmArgs after this block runs, which silently dropped the flag.
 subprojects {
     tasks.withType<Test>().configureEach {
-        jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED")
+        jvmArgumentProviders.add(
+            CommandLineArgumentProvider { listOf("--add-opens=java.base/java.io=ALL-UNNAMED") },
+        )
     }
 }
