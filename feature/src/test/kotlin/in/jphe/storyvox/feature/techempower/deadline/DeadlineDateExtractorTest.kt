@@ -144,4 +144,53 @@ class DeadlineDateExtractorTest {
         // "on" is not a cue; "before"/"due"/etc. absent → null.
         assertNull(march.cue)
     }
+
+    @Test
+    fun `a cue wrapped onto the next line still attaches to its date`() {
+        val text = "To keep your benefits, please respond by\nAugust 31, 2026 or call us."
+        assertEquals("respond by", DeadlineDateExtractor.extract(text, today).first().cue)
+    }
+
+    // #1793 — day-first numeric dates on Spanish notices.
+
+    @Test
+    fun `spanish day-first numeric date extracts (15-09-2026)`() {
+        val text = "Debe renovar sus beneficios antes del 15/09/2026."
+        val dates = DeadlineDateExtractor.extract(text, today).map { it.date }
+        assertEquals(listOf(LocalDate.of(2026, 9, 15)), dates)
+    }
+
+    @Test
+    fun `day over 12 reads day-first even on an english notice`() {
+        val dates = DeadlineDateExtractor.extract("Respond by 31/12/2026.", today).map { it.date }
+        assertEquals(listOf(LocalDate.of(2026, 12, 31)), dates)
+    }
+
+    @Test
+    fun `ambiguous numeric date on a spanish notice offers both readings`() {
+        val text = "Su fecha limite para responder es el 06/07/2026."
+        val dates = DeadlineDateExtractor.extract(text, today).map { it.date }.toSet()
+        assertEquals(setOf(LocalDate.of(2026, 6, 7), LocalDate.of(2026, 7, 6)), dates)
+    }
+
+    @Test
+    fun `ambiguous numeric date on an english notice stays US month-first`() {
+        val text = "Your renewal is due by 06/07/2026."
+        val dates = DeadlineDateExtractor.extract(text, today).map { it.date }
+        assertEquals(listOf(LocalDate.of(2026, 6, 7)), dates)
+    }
+
+    @Test
+    fun `one spanish phrase does not make an english notice spanish`() {
+        val text = "Para su information: renewal due by 06/07/2026."
+        val dates = DeadlineDateExtractor.extract(text, today).map { it.date }
+        assertEquals(listOf(LocalDate.of(2026, 6, 7)), dates)
+    }
+
+    @Test
+    fun `same day and month is one candidate on a spanish notice`() {
+        val text = "Debe enviar su solicitud antes del 05/05/2026."
+        val dates = DeadlineDateExtractor.extract(text, LocalDate.of(2026, 1, 1)).map { it.date }
+        assertEquals(listOf(LocalDate.of(2026, 5, 5)), dates)
+    }
 }
