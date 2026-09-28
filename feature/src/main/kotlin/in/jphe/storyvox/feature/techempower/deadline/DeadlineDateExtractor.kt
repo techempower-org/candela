@@ -99,10 +99,25 @@ object DeadlineDateExtractor {
         RegexOption.IGNORE_CASE,
     )
 
-    // US numeric: "08/31/2026", "8-31-26". Month-first (US notices).
-    // Only "/" and "-" separators — "." invites version-number / decimal
-    // false positives and US notices don't use it for dates.
-    private val NUMERIC_US = Regex("""\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})\b""")
+    // Numeric: "08/31/2026", "8-31-26", "15/09/2026". Only "/" and "-"
+    // separators — "." invites version-number / decimal false positives.
+    // Read month-first (US notices) unless the first part can only be a
+    // day; see [matchNumeric] for the day-first rules (#1793).
+    private val NUMERIC = Regex("""\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})\b""")
+
+    /**
+     * Accent-free Spanish function words used to tell a Spanish notice
+     * from an English one (#1793). None of them is a common English word,
+     * and [looksSpanish] needs several distinct hits, so an English notice
+     * quoting one Spanish phrase stays English.
+     */
+    private val SPANISH_MARKERS: Set<String> = setOf(
+        "del", "el", "los", "las", "su", "sus", "usted", "que", "una", "para",
+        "antes", "fecha", "debe", "vence", "limite", "beneficios", "renovar",
+        "favor", "por", "aviso", "solicitud",
+    )
+    private const val SPANISH_MIN_MARKERS = 3
+    private val WORD = Regex("""\p{L}+""")
 
     // ISO: "2026-08-31".
     private val NUMERIC_ISO = Regex("""\b(\d{4})-(\d{1,2})-(\d{1,2})\b""")
@@ -126,7 +141,7 @@ object DeadlineDateExtractor {
             addAll(matchMonthName(text, accentFree, MONTH_DAY_YEAR, monthFirst = true))
             addAll(matchMonthName(text, accentFree, DAY_MONTH_YEAR, monthFirst = false))
             addAll(matchNumericIso(text))
-            addAll(matchNumericUs(text))
+            addAll(matchNumeric(text, spanish = looksSpanish(accentFree)))
         }
 
         // De-dup by date; keep the richest mention (one with a cue wins,
@@ -168,15 +183,46 @@ object DeadlineDateExtractor {
         candidateAt(original, accentFree, m.range.first, m.range.last, date)
     }.toList()
 
-    private fun matchNumericUs(text: String): List<DateCandidate> {
+    /**
+     * Numeric dates, month-first by default (US notices) with two
+     * day-first rules for Spanish notices (#1793):
+     *
+     * - First part > 12 (`15/09/2026`): it can only be a day, so read it
+     *   day-first in any language. The US reading was invalid and used to
+     *   drop the date.
+     * - Both parts ≤ 12 on a Spanish notice (`06/07/2026`): offer BOTH
+     *   readings. A US agency's Spanish notice often still prints
+     *   MM/DD/YYYY, so guessing either order could silently misread it;
+     *   the user already confirms each candidate against its snippet.
+     *
+     * English notices keep the single US reading.
+     */
+    private fun matchNumeric(text: String, spanish: Boolean): List<DateCandidate> {
         val accentFree = text // numeric-only, accents irrelevant
-        return NUMERIC_US.findAll(text).mapNotNull { m ->
-            val month = m.groupValues[1].toInt()
-            val day = m.groupValues[2].toInt()
-            val date = safeDate(expandYear(m.groupValues[3]), month, day) ?: return@mapNotNull null
-            candidateAt(text, accentFree, m.range.first, m.range.last, date)
+        return NUMERIC.findAll(text).flatMap { m ->
+            val first = m.groupValues[1].toInt()
+            val second = m.groupValues[2].toInt()
+            val year = expandYear(m.groupValues[3])
+            val readings = when {
+                first > 12 -> listOf(safeDate(year, second, first))
+                spanish && second <= 12 && first != second ->
+                    listOf(safeDate(year, first, second), safeDate(year, second, first))
+                else -> listOf(safeDate(year, first, second))
+            }
+            readings.filterNotNull().map { date ->
+                candidateAt(text, accentFree, m.range.first, m.range.last, date)
+            }
         }.toList()
     }
+
+    /** True when [accentFree] reads as a Spanish notice; see [SPANISH_MARKERS]. */
+    private fun looksSpanish(accentFree: String): Boolean =
+        WORD.findAll(accentFree.lowercase())
+            .map { it.value }
+            .filter { it in SPANISH_MARKERS }
+            .distinct()
+            .take(SPANISH_MIN_MARKERS)
+            .count() >= SPANISH_MIN_MARKERS
 
     private fun matchNumericIso(text: String): List<DateCandidate> =
         NUMERIC_ISO.findAll(text).mapNotNull { m ->
