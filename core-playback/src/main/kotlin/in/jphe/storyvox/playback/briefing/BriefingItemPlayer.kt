@@ -1,6 +1,8 @@
 package `in`.jphe.storyvox.playback.briefing
 
 import `in`.jphe.storyvox.playback.PendingUtteranceGate
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * #1810 — how [BriefingQueueController] starts one queue item.
@@ -35,6 +37,13 @@ class PreparingBriefingItemPlayer(
     private val awaitEngine: suspend () -> Boolean,
     private val play: suspend (fictionId: String, chapterId: String) -> Unit,
     private val onProblem: (String) -> Unit = {},
+    /**
+     * Where [play] runs. The app passes `Dispatchers.Main.immediate`: the queue
+     * auto-advances from a listener on `Dispatchers.Default`, and Media3's
+     * Player is Main-confined ("Player is accessed on the wrong thread" crash on
+     * the tablet, #1810; same class as #1606).
+     */
+    private val playContext: CoroutineContext = EmptyCoroutineContext,
 ) : BriefingItemPlayer {
     override suspend fun playItem(fictionId: String, chapterId: String) {
         if (PendingUtteranceGate.needsServiceStart(isEngineBound())) {
@@ -50,6 +59,6 @@ class PreparingBriefingItemPlayer(
             onProblem("no playback engine bound for $chapterId; not playing it")
             return
         }
-        play(fictionId, chapterId)
+        play(fictionId, chapterId) // RED-FIRST STUB: ignores playContext
     }
 }

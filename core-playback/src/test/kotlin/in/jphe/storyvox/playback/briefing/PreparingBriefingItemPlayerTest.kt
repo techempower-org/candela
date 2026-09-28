@@ -1,6 +1,10 @@
 package `in`.jphe.storyvox.playback.briefing
 
+import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,6 +65,28 @@ class PreparingBriefingItemPlayerTest {
         h.player.playItem("f", "c")
         assertTrue(h.calls.none { it.startsWith("play") })
         assertEquals(1, h.problems.size)
+    }
+
+    @Test fun `play runs on the play context, not the caller's thread`() = runTest {
+        // The app's playContext is Main; stand in with a named single thread.
+        val main = Executors.newSingleThreadExecutor { r -> Thread(r, "fake-main") }
+        try {
+            var playThread: String? = null
+            val player = PreparingBriefingItemPlayer(
+                isEngineBound = { true },
+                startService = {},
+                queueDownload = { _, _ -> },
+                awaitBody = { true },
+                awaitEngine = { true },
+                play = { _, _ -> playThread = Thread.currentThread().name },
+                playContext = main.asCoroutineDispatcher(),
+            )
+            // The queue's auto-advance calls in from Dispatchers.Default.
+            withContext(Dispatchers.Default) { player.playItem("f", "c") }
+            assertEquals("fake-main", playThread)
+        } finally {
+            main.shutdown()
+        }
     }
 
     @Test fun `a refused service start is reported, not thrown`() = runTest {
