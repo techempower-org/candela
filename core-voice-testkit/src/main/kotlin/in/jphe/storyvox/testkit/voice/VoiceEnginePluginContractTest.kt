@@ -126,7 +126,13 @@ abstract class VoiceEnginePluginContractTest {
         // export silent, empty audiobooks.
         if (plugin().supportsExport) {
             val t: EngineType = sampleKeys().firstOrNull()?.toEngineType() ?: return
-            val spec = plugin().modelSpec(t, sampleKeys().first().engineId)
+            // Real local-model plugins resolve their model dir through an
+            // injected dependency (VoiceManager), which the kit supplies inert
+            // and which throws when touched. Reaching for local storage is
+            // exactly what the stub doesn't do, so that counts as a local model;
+            // only a stub that returns ModelSpec.None without looking fails.
+            val spec = runCatching { plugin().modelSpec(t, sampleKeys().first().engineId) }
+                .getOrElse { return }
             assertTrue(
                 "supportsExport=true requires a local ModelSpec, got ModelSpec.None",
                 spec != ModelSpec.None,

@@ -27,26 +27,26 @@ class EndlessLitrpgApiTest {
     // ─── host normalization ────────────────────────────────────────────
 
     @Test fun `a bare LAN address defaults to http because the daemon has no TLS`() {
-        assertEquals("http://192.0.2.129:8093", base("192.0.2.129:8093"))
+        assertEquals("http://192.168.1.129:8093", base("192.168.1.129:8093"))
     }
 
     @Test fun `an explicit scheme is honoured for a TLS-fronted proxy`() {
-        assertEquals("https://192.0.2.129:8093", base("https://192.0.2.129:8093"))
+        assertEquals("https://192.168.1.129:8093", base("https://192.168.1.129:8093"))
     }
 
     @Test fun `a mixed-case scheme is stripped correctly`() {
         // A case-insensitive test paired with a case-sensitive removal is a
         // bug that has shipped in this codebase before (PalaceDaemonApi).
-        assertEquals("http://192.0.2.129:8093", base("Http://192.0.2.129:8093"))
-        assertEquals("https://192.0.2.129:8093", base("HTTPS://192.0.2.129:8093"))
+        assertEquals("http://192.168.1.129:8093", base("Http://192.168.1.129:8093"))
+        assertEquals("https://192.168.1.129:8093", base("HTTPS://192.168.1.129:8093"))
     }
 
     @Test fun `a trailing slash is tolerated`() {
-        assertEquals("http://192.0.2.129:8093", base("http://192.0.2.129:8093/"))
+        assertEquals("http://192.168.1.129:8093", base("http://192.168.1.129:8093/"))
     }
 
     @Test fun `surrounding whitespace is tolerated`() {
-        assertEquals("http://192.0.2.129:8093", base("  192.0.2.129:8093  "))
+        assertEquals("http://192.168.1.129:8093", base("  192.168.1.129:8093  "))
     }
 
     @Test fun `loopback is accepted so local dev and unit tests work`() {
@@ -72,7 +72,7 @@ class EndlessLitrpgApiTest {
     }
 
     @Test fun `a host carrying a path is rejected because this client owns the path`() {
-        assertNull(base("192.0.2.129:8093/api"))
+        assertNull(base("192.168.1.129:8093/api"))
     }
 
     @Test fun `an unresolvable host fails closed`() {
@@ -89,14 +89,14 @@ class EndlessLitrpgApiTest {
         // allowlist and breaking silently when the daemon moves.
         assertEquals(
             "http://story.local:8093/media/0005.mp3",
-            api("story.local:8093").mediaUrl("http://192.0.2.129:8093/media/0005.mp3"),
+            api("story.local:8093").mediaUrl("http://192.168.1.129:8093/media/0005.mp3"),
         )
     }
 
     @Test fun `re-hosting preserves a query string`() = runBlocking {
         assertEquals(
             "http://story.local:8093/media/0005.mp3?v=2",
-            api("story.local:8093").mediaUrl("http://192.0.2.129:8093/media/0005.mp3?v=2"),
+            api("story.local:8093").mediaUrl("http://192.168.1.129:8093/media/0005.mp3?v=2"),
         )
     }
 
@@ -108,18 +108,18 @@ class EndlessLitrpgApiTest {
     }
 
     @Test fun `a media url is null when the host is not configured`() = runBlocking {
-        assertNull(api("").mediaUrl("http://192.0.2.129:8093/media/0005.mp3"))
+        assertNull(api("").mediaUrl("http://192.168.1.129:8093/media/0005.mp3"))
     }
 
     @Test fun `a media url is null when the host fails the LAN guard`() = runBlocking {
-        assertNull(api("8.8.8.8:8093").mediaUrl("http://192.0.2.129:8093/media/0005.mp3"))
+        assertNull(api("8.8.8.8:8093").mediaUrl("http://192.168.1.129:8093/media/0005.mp3"))
     }
 
     @Test fun `pathOf keeps the path and drops the authority`() {
         assertEquals(
             "/media/0005.mp3",
-            EndlessLitrpgApi.pathOf("http://192.0.2.129:8093/media/0005.mp3"),
+            EndlessLitrpgApi.pathOf("http://192.168.1.129:8093/media/0005.mp3"),
         )
-        assertNull(EndlessLitrpgApi.pathOf("http://192.0.2.129:8093"))
+        assertNull(EndlessLitrpgApi.pathOf("http://192.168.1.129:8093"))
     }
 }
