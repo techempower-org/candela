@@ -128,7 +128,11 @@ internal open class RedditApi @Inject constructor(
         return authedGet("/r/$subreddit/comments/$postId", query) { body ->
             val listings = json.decodeFromString<List<RedditListingEnvelope>>(body)
             val post = listings.getOrNull(0)?.data?.children?.firstOrNull()?.data
+            // Trim to what was asked for. Reddit rejects limit=0, so "comments
+            // off" still requests one, and `limit` is only advisory anyway;
+            // without this, disabled comments were narrated.
             val comments = listings.getOrNull(1)?.data?.children.orEmpty().map { it.data }
+                .take(commentLimit.coerceAtLeast(0))
             RedditPostBundle(post = post, comments = comments)
         }
     }

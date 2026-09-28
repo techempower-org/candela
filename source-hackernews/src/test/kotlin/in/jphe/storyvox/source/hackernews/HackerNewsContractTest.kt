@@ -23,4 +23,7 @@ class HackerNewsContractTest : FictionSourceContractTest() {
     override fun happyListBody(): String = "[111, 222]"
 
     override fun listPathFragment(): String = "topstories"
+
+    /** HN has no sign-in; see the no-auth note in HackerNewsApi. */
+    override val hasAuth: Boolean = false
 }

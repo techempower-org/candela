@@ -660,10 +660,13 @@ class FictionRepositoryImplTest {
             detailResult = FictionResult.Success(detail("99"))
         }
         val (r, fictionDao, _) = repo(sources = mapOf(SourceIds.ROYAL_ROAD to src))
-        // A fully-hydrated row fetched "now" is inside the TTL window.
+        // A fully-hydrated row fetched "now" is inside the TTL window. It must
+        // also be planned under the current CHAPTER_PLAN_VERSION: since #1621 an
+        // older plan version is stale however recent the fetch.
         fictionDao.rows["99"] = Fiction(
             id = "99", sourceId = SourceIds.ROYAL_ROAD, title = "Cached", author = "A",
             firstSeenAt = 0L, metadataFetchedAt = System.currentTimeMillis(),
+            chapterPlanVersion = CHAPTER_PLAN_VERSION,
         )
 
         val result = r.refreshDetail("99")

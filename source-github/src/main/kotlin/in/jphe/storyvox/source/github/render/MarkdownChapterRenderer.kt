@@ -52,8 +52,16 @@ internal class MarkdownChapterRenderer @Inject constructor() {
      * @param markdown raw chapter body. Empty or whitespace-only input
      *   yields an empty-but-valid [ChapterContent] (the reader UI
      *   handles the empty-body case).
+     * @param stripLeadingTitle drop a heading-shaped first line from the
+     *   plain text (see [stripLeadingHeading]). Pass false when that line
+     *   is NOT the chapter title, e.g. an inbox Overview chapter whose first
+     *   line is the pull request's title.
      */
-    fun render(info: ChapterInfo, markdown: String): ChapterContent {
+    fun render(
+        info: ChapterInfo,
+        markdown: String,
+        stripLeadingTitle: Boolean = true,
+    ): ChapterContent {
         val htmlAst: Node = parser.parse(markdown)
         val html = htmlRenderer.render(htmlAst).trim()
         // Re-parse for plaintext so the AST mutation below doesn't
@@ -64,7 +72,7 @@ internal class MarkdownChapterRenderer @Inject constructor() {
         return ChapterContent(
             info = info,
             htmlBody = html,
-            plainBody = stripLeadingHeading(plain),
+            plainBody = if (stripLeadingTitle) stripLeadingHeading(plain) else plain,
         )
     }
 

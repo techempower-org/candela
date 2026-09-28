@@ -214,7 +214,15 @@ internal class GitHubInboxSource @Inject constructor(
             index = 0,
             title = "Overview",
         )
-        FictionResult.Success(renderer.render(info, InboxNarration.overviewMarkdown(ref, issue, pull, checks)))
+        // The chapter is titled "Overview", so its first line is the PR's title,
+        // not a repeat of the chapter title: keep it in the narration.
+        FictionResult.Success(
+            renderer.render(
+                info,
+                InboxNarration.overviewMarkdown(ref, issue, pull, checks),
+                stripLeadingTitle = false,
+            ),
+        )
     }
 
     private suspend fun conversation(ref: ThreadRef, fictionId: String): FictionResult<ChapterContent> = coroutineScope {
