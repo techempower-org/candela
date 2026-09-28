@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,25 +32,34 @@ import javax.inject.Singleton
  *
  * Scoped as a **`@Singleton`** alongside `PlaybackController`, not to any
  * ViewModel/composable: a hands-free briefing must keep advancing when the user
- * navigates away from whatever screen started it. (Process-death recovery of
- * the cursor is a deliberate follow-up; surviving screen changes is slice 1.)
+ * navigates away from whatever screen started it.
+ *
+ * The queue and cursor also survive **process death**: every start, advance,
+ * finish and stop is written to [sessionStore], and the Hilt instance restores
+ * it on construction (see [restore]).
  */
 @Singleton
 class BriefingQueueController(
     private val controller: PlaybackController,
     private val builder: BriefingBuilder,
     private val scope: CoroutineScope,
+    private val sessionStore: BriefingSessionStore = BriefingSessionStore.None,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /**
      * Hilt entry point. The real app gets a long-lived Default-dispatcher scope
-     * that outlives every screen; tests use the primary constructor to inject a
-     * controllable scope.
+     * that outlives every screen, persists through [BriefingSettingsStore], and
+     * restores a briefing that a process death interrupted. Tests use the
+     * primary constructor to inject a controllable scope and store.
      */
     @Inject
     constructor(
         controller: PlaybackController,
         builder: BriefingBuilder,
-    ) : this(controller, builder, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        sessionStore: BriefingSettingsStore,
+    ) : this(controller, builder, CoroutineScope(SupervisorJob() + Dispatchers.Default), sessionStore) {
+        scope.launch { restore() }
+    }
 
     private val _session = MutableStateFlow<BriefingSession?>(null)
 
@@ -57,6 +68,12 @@ class BriefingQueueController(
 
     /** The advance listener for the active briefing; cancelled on stop/finish. */
     private var listenerJob: Job? = null
+
+    /** The advance trigger of the active briefing, kept so it can be saved and restored. */
+    private var advanceOnChapterDone: Boolean = false
+
+    /** Serializes store writes; each write saves the state current when it runs. */
+    private val persistLock = Mutex()
 
     /**
      * Build the queue for [config] and start playing it as one episode.
@@ -95,12 +112,59 @@ class BriefingQueueController(
         stop()
         if (items.isEmpty()) return false
         _session.value = BriefingSession(items = items, index = startIndex.coerceIn(0, items.lastIndex))
+        attach(advanceOnChapterDone)
+        persist()
+        playCurrent()
+        return true
+    }
+
+    private fun attach(advanceOnChapterDone: Boolean) {
+        this.advanceOnChapterDone = advanceOnChapterDone
         listenerJob = scope.launch {
             controller.events.collect { ev ->
                 if (shouldAdvance(ev, _session.value, advanceOnChapterDone)) onCurrentItemFinished()
             }
         }
-        playCurrent()
+    }
+
+    /**
+     * Save the live session (or clear the store when there is none or it has
+     * finished). Launched rather than awaited so [stop] can stay non-suspending;
+     * the lock plus reading state inside it means the last write always matches
+     * the latest state, whatever order the writes were queued in.
+     */
+    private fun persist() {
+        scope.launch {
+            persistLock.withLock {
+                val live = _session.value?.takeUnless { it.finished }
+                sessionStore.saveSession(
+                    live?.let { SavedBriefingSession(it.items, it.index, advanceOnChapterDone, clock()) },
+                )
+            }
+        }
+    }
+
+    /**
+     * Re-attach a briefing that a process death interrupted: its queue and
+     * cursor come back and the advance listener resumes, so the current item's
+     * end moves on to the next one. It does NOT call play(): resuming the
+     * current chapter is the player's job, and a restore must never start audio
+     * on its own. A session older than [STALE_AFTER_MS] is dropped. Returns true
+     * when a session was restored.
+     */
+    suspend fun restore(): Boolean {
+        if (_session.value != null) return false
+        val saved = sessionStore.loadSession() ?: return false
+        val usable = saved.items.isNotEmpty() && saved.index in saved.items.indices &&
+            clock() - saved.savedAtMillis <= STALE_AFTER_MS
+        if (!usable) {
+            sessionStore.saveSession(null)
+            return false
+        }
+        // A briefing the user started while the store was loading wins.
+        if (_session.value != null) return false
+        _session.value = BriefingSession(items = saved.items, index = saved.index)
+        attach(saved.advanceOnChapterDone)
         return true
     }
 
@@ -109,6 +173,7 @@ class BriefingQueueController(
         listenerJob?.cancel()
         listenerJob = null
         _session.value = null
+        persist()
     }
 
     /** End-of-item hook: advance the cursor and either play the next item or finish. */
@@ -116,6 +181,7 @@ class BriefingQueueController(
         val current = _session.value ?: return
         val next = advance(current)
         _session.value = next
+        persist()
         if (next.finished) {
             listenerJob?.cancel()
             listenerJob = null
@@ -130,6 +196,9 @@ class BriefingQueueController(
     }
 
     internal companion object {
+        /** A briefing interrupted this long ago is no longer worth resuming. */
+        const val STALE_AFTER_MS: Long = 12L * 60 * 60 * 1000
+
         /** Pure advance-trigger decision; see [startWith] for the two modes. */
         fun shouldAdvance(
             event: PlaybackUiEvent,

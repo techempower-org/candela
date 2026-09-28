@@ -26,11 +26,14 @@ import javax.inject.Singleton
  * data class tree with defaults on every field, and `ignoreUnknownKeys` lets a
  * downgrade read a newer blob. A blob that fails to decode falls back to the
  * defaults instead of crashing the screen.
+ *
+ * It also holds the in-flight briefing session (queue + cursor) so a process
+ * death doesn't lose it; see [BriefingSessionStore].
  */
 @Singleton
 class BriefingSettingsStore internal constructor(
     private val store: DataStore<Preferences>,
-) {
+) : BriefingSessionStore {
     /** Hilt entry point; the primary constructor is the JVM-test seam (cf. PcmCacheConfig). */
     @Inject constructor(
         @ApplicationContext context: Context,
@@ -63,6 +66,18 @@ class BriefingSettingsStore internal constructor(
         store.edit { it[PREBUILT_KEY] = json.encodeToString(PrebuiltBriefing.serializer(), prebuilt) }
     }
 
+    override suspend fun saveSession(saved: SavedBriefingSession?) {
+        store.edit { prefs ->
+            if (saved == null) prefs.remove(SESSION_KEY)
+            else prefs[SESSION_KEY] = json.encodeToString(SavedBriefingSession.serializer(), saved)
+        }
+    }
+
+    override suspend fun loadSession(): SavedBriefingSession? =
+        store.data.first()[SESSION_KEY]?.let {
+            runCatching { json.decodeFromString(SavedBriefingSession.serializer(), it) }.getOrNull()
+        }
+
     private fun decodeSettings(raw: String?): BriefingSettings {
         // Unreadable blob → defaults (no Log here: keeps this path JVM-testable).
         val decoded = raw?.let {
@@ -77,6 +92,7 @@ class BriefingSettingsStore internal constructor(
     private companion object {
         val SETTINGS_KEY = stringPreferencesKey("briefing_settings_json")
         val PREBUILT_KEY = stringPreferencesKey("briefing_prebuilt_json")
+        val SESSION_KEY = stringPreferencesKey("briefing_session_json")
         val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }
 }
