@@ -161,6 +161,16 @@ class StoryvoxPlaybackService : MediaSessionService() {
             .setBitmapLoader(CacheBitmapLoader(DataSourceBitmapLoader.Builder(this).build()))
             .setSessionActivity(buildSessionActivity(null, null))
             .build()
+        // Register the session with MediaSessionService up front. A session
+        // returned only from onGetSession is added when an external
+        // MediaController binds, and Candela's own UI drives the player
+        // directly, so on a normal launch nothing binds, the session is never
+        // added, and Media3 never posts its notification. What's left is the
+        // action-less placeholder: Android 13+ still draws controls from the
+        // platform session, but Android 12 and older show no play/pause at all
+        // (annabella, Infinix X687 / Android 10; reproduced on an API 29
+        // emulator, 2026-09-28).
+        addSession(session)
         mediaSessionLocator.token = session.token
         // Issue #1232 — publish the legacy MediaSessionCompat.Token so the Auto
         // browser service can setSessionToken() and bind transport controls.
