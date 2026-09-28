@@ -137,6 +137,29 @@ interface PlaybackController {
      *  overlapping audio would muddy the listener experience. */
     suspend fun speakText(text: String)
 
+    /**
+     * Issue #1776 — [speakText] that survives a cold process. If no engine is
+     * bound yet (the playback service is still starting), the utterance is
+     * queued (one slot, newest wins) until a player binds or [bindTimeoutMs]
+     * elapses, then spoken. Returns once the utterance has started or has
+     * definitively failed — see [SpeakOutcome].
+     *
+     * The caller is responsible for starting the service when
+     * [isEngineBound] is false; this method only waits for it.
+     *
+     * Default keeps hand-rolled fakes compiling: delegate + report Started.
+     */
+    suspend fun speakTextAwaitingEngine(
+        text: String,
+        bindTimeoutMs: Long = PendingUtteranceGate.DEFAULT_BIND_TIMEOUT_MS,
+    ): SpeakOutcome {
+        speakText(text)
+        return SpeakOutcome.Started
+    }
+
+    /** Issue #1776 — true while a [StoryvoxPlaybackService] has an engine bound. */
+    val isEngineBound: Boolean get() = true
+
     /** Issue #189 — cancel an in-flight recap-aloud utterance. Idempotent. */
     fun stopSpeaking()
 
@@ -343,8 +366,12 @@ class DefaultPlaybackController @Inject constructor(
         }
     }
 
+    /** #1776 — observable mirror of [player] so a queued utterance can await the bind. */
+    private val _boundPlayer = MutableStateFlow<EnginePlayer?>(null)
+
     fun bindPlayer(p: EnginePlayer) {
         player = p
+        _boundPlayer.value = p
         scope.launch {
             p.observableState.collect { update ->
                 val prev = _state.value
@@ -651,6 +678,7 @@ class DefaultPlaybackController @Inject constructor(
 
     fun unbindPlayer() {
         player = null
+        _boundPlayer.value = null
         _recapPlayback.value = RecapPlaybackState.Idle
         _playbackPositionMs.value = 0L
         _warmingUp.value = false
@@ -932,10 +960,31 @@ class DefaultPlaybackController @Inject constructor(
     }
 
     override suspend fun speakText(text: String) {
-        player?.speak(text)
+        speakTextAwaitingEngine(text)
+    }
+
+    /** #1776 — one-slot queue for an utterance requested before the engine binds. */
+    private val pendingUtterance = PendingUtteranceGate()
+
+    override val isEngineBound: Boolean get() = _boundPlayer.value != null
+
+    override suspend fun speakTextAwaitingEngine(text: String, bindTimeoutMs: Long): SpeakOutcome {
+        val outcome = awaitEngineAndSpeak(text, pendingUtterance, _boundPlayer, bindTimeoutMs) { p, t ->
+            p.speak(t)
+        }
+        if (outcome == SpeakOutcome.EngineUnavailable) {
+            android.util.Log.w(
+                "PlaybackController",
+                "#1776 speakText: no engine bound within ${bindTimeoutMs}ms — dropping utterance",
+            )
+        }
+        return outcome
     }
 
     override fun stopSpeaking() {
+        // #1776 — a Stop tap while the service is still starting must also
+        // drop the queued utterance, not just an in-flight one.
+        pendingUtterance.cancel()
         player?.stopSpeaking()
     }
 

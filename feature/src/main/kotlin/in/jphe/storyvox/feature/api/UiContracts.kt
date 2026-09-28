@@ -542,6 +542,16 @@ sealed class UiSleepTimerMode {
 enum class UiRecapPlaybackState { Idle, Speaking }
 
 /**
+ * Issue #1776 — how a [PlaybackControllerUi.speakTextForOutcome] request ended.
+ *  - [Started]: speech is playing.
+ *  - [NoVoice]: the engine is up but no voice is installed / picked.
+ *  - [Unavailable]: the playback service couldn't start or bind in time.
+ *  - [Cancelled]: superseded by a newer request or a Stop, or nothing to say —
+ *    not a failure, show nothing.
+ */
+enum class UiSpeakOutcome { Started, NoVoice, Unavailable, Cancelled }
+
+/**
  * Issue #1489 — identifies the chapter whose [PlaybackControllerUi.startListening]
  * gave up. Carries the fiction too so the reader's Retry can re-invoke
  * startListening even when nothing is loaded into the controller yet (a cold
@@ -666,6 +676,18 @@ interface PlaybackControllerUi {
      *  responsible for pausing fiction playback before calling — see the
      *  PlaybackController interface for the full contract. */
     suspend fun speakText(text: String)
+
+    /**
+     * Issue #1776 — [speakText] with a result. Starts the playback service if
+     * it isn't running yet (cold launch), waits for the engine to bind, then
+     * speaks. Returns once speech has started or has definitively failed, so
+     * a caller can tell the user *why* nothing is playing. Default (for
+     * hand-rolled fakes): delegate + report Started.
+     */
+    suspend fun speakTextForOutcome(text: String): UiSpeakOutcome {
+        speakText(text)
+        return UiSpeakOutcome.Started
+    }
 
     /** Issue #189 — cancel an in-flight recap-aloud utterance. Idempotent. */
     fun stopSpeaking()

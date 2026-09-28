@@ -45,12 +45,15 @@ import `in`.jphe.storyvox.feature.api.UiFollow
 import `in`.jphe.storyvox.feature.api.UiPlaybackState
 import `in`.jphe.storyvox.feature.api.UiRecapPlaybackState
 import `in`.jphe.storyvox.feature.api.UiSleepTimerMode
+import `in`.jphe.storyvox.feature.api.UiSpeakOutcome
 import `in`.jphe.storyvox.feature.api.VoiceProviderUi
 import `in`.jphe.storyvox.feature.browse.RealBrowsePaginator
 import `in`.jphe.storyvox.feature.browse.toUiFiction
+import `in`.jphe.storyvox.playback.PendingUtteranceGate
 import `in`.jphe.storyvox.playback.PlaybackController
 import `in`.jphe.storyvox.playback.PlaybackState
 import `in`.jphe.storyvox.playback.PlaybackUiEvent
+import `in`.jphe.storyvox.playback.SpeakOutcome
 import `in`.jphe.storyvox.playback.tts.RecapPlaybackState
 import `in`.jphe.storyvox.playback.SPEED_BASELINE_CHARS_PER_SECOND
 import `in`.jphe.storyvox.playback.SleepTimerMode
@@ -1420,7 +1423,37 @@ internal class RealPlaybackControllerUi(
         controller.waitReason
 
     override suspend fun speakText(text: String) {
-        controller.speakText(text)
+        speakTextForOutcome(text)
+    }
+
+    /**
+     * Issue #1776 — read-aloud on a cold process. Nothing binds an
+     * EnginePlayer until [StoryvoxPlaybackService] starts, and only
+     * [startListening] used to start it, so "Read aloud" on a fresh launch
+     * was a silent no-op. Start the service here when no engine is bound
+     * (the tap that got us here means the app is foregrounded, which
+     * Android 12+ requires for a foreground-service start), then let the
+     * controller queue the utterance until the bind lands.
+     */
+    override suspend fun speakTextForOutcome(text: String): UiSpeakOutcome {
+        if (text.isBlank()) return UiSpeakOutcome.Cancelled
+        if (PendingUtteranceGate.needsServiceStart(controller.isEngineBound)) {
+            val started = runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, StoryvoxPlaybackService::class.java),
+                )
+            }
+            if (started.isFailure) {
+                android.util.Log.w(
+                    "PlaybackBindings",
+                    "#1776 speakText: couldn't start the playback service",
+                    started.exceptionOrNull(),
+                )
+                return UiSpeakOutcome.Unavailable
+            }
+        }
+        return controller.speakTextAwaitingEngine(text).toUiSpeakOutcome()
     }
 
     override fun stopSpeaking() {
@@ -1611,4 +1644,12 @@ internal class RealPlaybackControllerUi(
             isLiveAudioChapter = isLiveAudioChapter,
         )
     }
+}
+
+/** Issue #1776 — core-playback's read-aloud outcome → the feature contract's. */
+internal fun SpeakOutcome.toUiSpeakOutcome(): UiSpeakOutcome = when (this) {
+    SpeakOutcome.Started -> UiSpeakOutcome.Started
+    SpeakOutcome.NoVoice -> UiSpeakOutcome.NoVoice
+    SpeakOutcome.EngineUnavailable -> UiSpeakOutcome.Unavailable
+    SpeakOutcome.Superseded, SpeakOutcome.Blank -> UiSpeakOutcome.Cancelled
 }

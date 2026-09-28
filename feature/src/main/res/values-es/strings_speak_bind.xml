@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Issue #1776 — read-aloud couldn't bring the playback engine up in time. -->
+    <string name="readaloud_engine_unavailable">La lectura en voz alta no pudo iniciar la voz. Vuelve a intentarlo.</string>
+</resources>
