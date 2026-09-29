@@ -7,7 +7,9 @@ the `versionName` in `app/build.gradle.kts` and the `v*` git tag.
 Entries before v0.5.12 are reconstructed from the git log — see
 `git log --oneline` for the exhaustive record.
 
-## [Unreleased]
+## [1.16.0] -- 2026-09-29
+
+**Valiant Beacon.** Candela goes local-only: cloud sync is gone, and nothing is uploaded to Candela.
 
 ### Removed
 - **Cloud sync and sign-in are gone: Candela is local-only.** InstantDB,
@@ -33,7 +35,15 @@ Entries before v0.5.12 are reconstructed from the git log — see
   the update deletes its stored sign-in token, passphrase and sync state
   from your device, so no unused credential lingers (#1821).
 
+### Fixed
+- **The Discord link opens #welcome.** The TechEMPOWER screen's peer-support
+  Discord link pointed at a private channel; it now lands in #welcome (#1820).
+- **Shared Voice Notes follow the app's language.** "Untitled", "Transcript"
+  and "Summary" in shared note text were always English (#1818).
+
 ### Under the hood
+- The Gradle wrapper pins the distribution's sha256, so a tampered download
+  is refused (#1816).
 - Removed the `:core-sync` module (InstantDB client, coordinator, syncers),
   the `INSTANTDB_APP_ID` CI secret handling, and the sync strings in every
   locale. A new `NoCloudSyncGuardTest` fails if any of it comes back (#1821).
