@@ -183,7 +183,10 @@ jobs:
           # — baked into BuildConfig when the secrets exist; the features stay
           # hidden / "not configured" otherwise.
           for k in NOTION_OAUTH_CLIENT_ID NOTION_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET TWO11_API_KEY GOOGLE_PICKER_API_KEY GOOGLE_CLOUD_PROJECT_NUMBER; do
-            v="${!k:-}"; [ -n "$v" ] && echo "$k=$v" >> ./local.properties
+            v="${!k:-}"
+            # Explicit if: with `[ -n "$v" ] && echo …` an empty LAST secret leaves the
+            # loop (and so this step, now that it's the last command) exiting 1 (#1821).
+            if [ -n "$v" ]; then echo "$k=$v" >> ./local.properties; fi
           done
           # No release keystore here on purpose: CI builds only the two sideload APKs
           # (debug-signed for upgrade continuity, #952). The Play AAB is built and
