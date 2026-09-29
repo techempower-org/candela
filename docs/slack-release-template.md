@@ -30,7 +30,7 @@ the wording before broadcasting.
 
 > {{POETIC_LINE}}
 
-_TechEMPOWER — Technology for All. Access Made Easy._ ([techempower.org](https://techempower.org) · [Discord](https://discord.gg/j3SVttxw7k) · [Donate](https://techempower.org/donate))
+_TechEMPOWER — Technology for All. Access Made Easy._ ([techempower.org](https://techempower.org) · [Discord](https://discord.gg/7wDhAG3vYS) · [Donate](https://techempower.org/donate))
 
 *What's new*
 {{FEATURES_BLOCK}}
@@ -122,7 +122,7 @@ on 2026-05-13. Reproduce by passing the rendered text below to
 
 > Cloud-bound at last, with the right places to put a book and the right way to find it again.
 
-_TechEMPOWER — Technology for All. Access Made Easy._ (techempower.org · discord.gg/j3SVttxw7k · techempower.org/donate)
+_TechEMPOWER — Technology for All. Access Made Easy._ (techempower.org · discord.gg/7wDhAG3vYS · techempower.org/donate)
 
 *What's new*
 :cloud: *InstantDB cloud sync foundation* (#360) — new `core-sync` module syncing library, follows, playback positions, bookmarks, pronunciation dictionary, and secrets. Magic-code sign-in, per-syncer conflict policies, 24h tombstone TTL so re-adds propagate.

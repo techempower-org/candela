@@ -80,11 +80,12 @@ object TechEmpowerLinks {
     const val PARTNERSHIPS_EMAIL: String = "partnerships@techempower.org"
 
     /**
-     * Peer-support Discord invite URL — confirmed by JP 2026-05-15
-     * during PR development. HTTPS form (browser fallback for users
+     * Peer-support Discord invite URL. Lands in #welcome (permanent
+     * invite, the same one techempower.org uses). The earlier
+     * j3SVttxw7k targeted #board-of-directors. HTTPS form (browser fallback for users
      * without the Discord app installed).
      */
-    const val DISCORD_INVITE_URL: String = "https://discord.gg/j3SVttxw7k"
+    const val DISCORD_INVITE_URL: String = "https://discord.gg/7wDhAG3vYS"
 
     /**
      * Discord deep-link form of the same invite — tried FIRST by the
@@ -98,7 +99,7 @@ object TechEmpowerLinks {
      * same value; pulled out as a separate constant so the two
      * URL shapes stay in sync — change one, change both.
      */
-    const val DISCORD_INVITE_DEEPLINK: String = "discord://invite/j3SVttxw7k"
+    const val DISCORD_INVITE_DEEPLINK: String = "discord://invite/7wDhAG3vYS"
 
     /**
      * Primary helpline surfaced in the top-app-bar phone icon and on

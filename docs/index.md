@@ -154,7 +154,7 @@ image: /screenshots/03-reader.png
       <h3>Peer support, on-tap</h3>
       <p>
         Tap once to open the TechEMPOWER
-        <a href="https://discord.gg/j3SVttxw7k">peer-support Discord</a> — real volunteers,
+        <a href="https://discord.gg/7wDhAG3vYS">peer-support Discord</a> — real volunteers,
         no chatbot. Tap to dial <strong>211</strong> for local United Way services. Both routes
         live alongside the library, never buried under a Settings menu.
       </p>
