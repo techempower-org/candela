@@ -1,5 +1,8 @@
 package `in`.jphe.storyvox.feature.reader.script
 
+import androidx.compose.ui.res.stringResource
+import `in`.jphe.storyvox.feature.R
+import androidx.compose.ui.platform.LocalContext
 import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -87,6 +90,13 @@ fun ScriptListScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val untitled = stringResource(R.string.scripts_untitled)
+    val undoLabel = stringResource(R.string.scripts_undo)
+    val copyLabels = ScriptCopyLabels(
+        untitled = untitled,
+        copyFormat = stringResource(R.string.scripts_copy_format),
+    )
 
     // Delete + "Undo" snackbar, shared by the swipe gesture and the long-press
     // context menu so both paths behave identically.
@@ -94,8 +104,8 @@ fun ScriptListScreen(
         viewModel.deleteWithUndo(script)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "Deleted \"${script.title.ifBlank { "Untitled" }}\"",
-                actionLabel = "Undo",
+                message = context.getString(R.string.scripts_deleted, script.title.ifBlank { untitled }),
+                actionLabel = undoLabel,
                 withDismissAction = true,
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -108,10 +118,10 @@ fun ScriptListScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Scripts") },
+                title = { Text(stringResource(R.string.scripts_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.scripts_back))
                     }
                 },
                 actions = {
@@ -120,7 +130,7 @@ fun ScriptListScreen(
                     IconButton(onClick = onOpenTeleprompterSettings) {
                         Icon(
                             Icons.Outlined.Settings,
-                            contentDescription = "Teleprompter settings",
+                            contentDescription = stringResource(R.string.scripts_teleprompter_settings),
                         )
                     }
                 },
@@ -128,7 +138,7 @@ fun ScriptListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { onOpenScript(UUID.randomUUID().toString()) }) {
-                Icon(Icons.Outlined.Add, contentDescription = "New script")
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.scripts_new))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -149,11 +159,11 @@ fun ScriptListScreen(
                 trailingIcon = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onQueryChange("") }) {
-                            Icon(Icons.Outlined.Close, contentDescription = "Clear search")
+                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.scripts_clear_search))
                         }
                     }
                 },
-                placeholder = { Text("Search scripts") },
+                placeholder = { Text(stringResource(R.string.scripts_search)) },
             )
 
             if (scripts.isEmpty()) {
@@ -192,7 +202,7 @@ fun ScriptListScreen(
                             ScriptRow(
                                 script = script,
                                 onOpen = { onOpenScript(script.id) },
-                                onDuplicate = { viewModel.duplicate(script) },
+                                onDuplicate = { viewModel.duplicate(script, copyLabels) },
                                 onDelete = { deleteWithUndo(script) },
                                 onLoadIntoTeleprompter = {
                                     viewModel.loadIntoTeleprompter(script)
@@ -236,7 +246,7 @@ private fun ScriptRow(
         Box {
             Column(modifier = Modifier.padding(spacing.md)) {
                 Text(
-                    text = script.title.ifBlank { "Untitled" },
+                    text = script.title.ifBlank { stringResource(R.string.scripts_untitled) },
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -299,7 +309,7 @@ private fun ScriptRow(
 
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
-                    text = { Text("Load into Teleprompter") },
+                    text = { Text(stringResource(R.string.scripts_load_into_teleprompter)) },
                     leadingIcon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -307,7 +317,7 @@ private fun ScriptRow(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Duplicate") },
+                    text = { Text(stringResource(R.string.scripts_duplicate)) },
                     leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -315,7 +325,7 @@ private fun ScriptRow(
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete") },
+                    text = { Text(stringResource(R.string.scripts_delete)) },
                     leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
                     onClick = {
                         menuOpen = false
@@ -367,9 +377,9 @@ private fun ScriptsEmptyState(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Text(
             text = if (isSearching) {
-                "No scripts match \"$query\"."
+                stringResource(R.string.scripts_empty_no_match, query)
             } else {
-                "No scripts yet.\nTap + to write one, or generate one with AI."
+                stringResource(R.string.scripts_empty)
             },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

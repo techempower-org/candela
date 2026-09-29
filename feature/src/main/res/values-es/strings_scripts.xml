@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1819 Guiones del teleprompter — lista, editor y generador con IA (#1369). -->
+<resources>
+    <string name="scripts_title">Guiones</string>
+    <string name="scripts_untitled">Sin título</string>
+    <string name="scripts_copy_format">%1$s (copia)</string>
+    <string name="scripts_back">Atrás</string>
+    <string name="scripts_load_into_teleprompter">Cargar en el teleprompter</string>
+    <string name="scripts_new">Nuevo guion</string>
+
+    <string name="scripts_deleted">Se eliminó «%1$s»</string>
+    <string name="scripts_undo">Deshacer</string>
+    <string name="scripts_teleprompter_settings">Ajustes del teleprompter</string>
+    <string name="scripts_search">Buscar guiones</string>
+    <string name="scripts_clear_search">Borrar búsqueda</string>
+    <string name="scripts_duplicate">Duplicar</string>
+    <string name="scripts_delete">Eliminar</string>
+    <string name="scripts_empty_no_match">Ningún guion coincide con «%1$s».</string>
+    <string name="scripts_empty">Aún no hay guiones.\nToca + para escribir uno o genera uno con IA.</string>
+
+    <string name="scripts_saved">Guardado</string>
+    <string name="scripts_edit">Editar guion</string>
+    <string name="scripts_save">Guardar</string>
+    <string name="scripts_more_options">Más opciones</string>
+    <string name="scripts_import_clipboard">Importar del portapapeles</string>
+    <string name="scripts_field_title">Título</string>
+    <string name="scripts_field_tags">Etiquetas (separadas por comas)</string>
+    <string name="scripts_remove_tag">Quitar etiqueta</string>
+    <string name="scripts_field_body">Guion</string>
+    <string name="scripts_body_placeholder">Escribe o pega tu guion aquí…</string>
+    <string name="scripts_format_freeform">Libre</string>
+    <string name="scripts_format_short">YouTube Short</string>
+    <string name="scripts_format_full_show">Programa completo</string>
+
+    <string name="scripts_gen_title">Escribir un guion</string>
+    <string name="scripts_gen_subtitle">Genera un guion listo para el teleprompter: nombres de quien habla, líneas cortas y marcas de pausa.</string>
+    <string name="scripts_gen_topic">Tema</string>
+    <string name="scripts_gen_topic_hint">p. ej., Por qué importa la accesibilidad, en 60 segundos</string>
+    <string name="scripts_gen_length">Duración</string>
+    <string name="scripts_gen_generate">Generar</string>
+    <string name="scripts_gen_regenerate">Volver a generar</string>
+    <string name="scripts_gen_generating">Generando…</string>
+    <string name="scripts_gen_writing">Escribiendo…</string>
+    <string name="scripts_gen_stop">Detener</string>
+    <string name="scripts_gen_edit">Editar</string>
+    <string name="scripts_gen_done_editing">Terminar de editar</string>
+    <string name="scripts_gen_open_ai_settings">Abrir ajustes de IA</string>
+    <string name="scripts_gen_err_not_configured">La IA aún no está configurada. Elige un proveedor en Ajustes → IA.</string>
+    <string name="scripts_gen_err_auth">La clave de %1$s no es válida: revisa Ajustes → IA.</string>
+    <string name="scripts_gen_err_transport">No se pudo conectar con la IA: revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="scripts_gen_err_provider">Error del servicio de IA (%1$d). Inténtalo de nuevo en un momento.</string>
+    <string name="scripts_gen_err_generic">No se pudo generar.</string>
+</resources>

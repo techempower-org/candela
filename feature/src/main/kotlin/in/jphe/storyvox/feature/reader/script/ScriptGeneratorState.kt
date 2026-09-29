@@ -33,11 +33,22 @@ sealed interface ScriptGeneratorState {
      * Generation failed. [routeToSettings] is true when the cause was an
      * unconfigured / disabled / mis-keyed provider, so the sheet offers an
      * "Open AI settings" CTA instead of a bare retry — mirroring the recap
-     * surface's NotConfigured handling (#152).
+     * surface's NotConfigured handling (#152). The sheet turns [failure]
+     * into localized text (#1819); the ViewModel carries no English.
      */
     @Immutable
     data class Error(
-        val message: String,
+        val failure: ScriptGenerationFailure,
         val routeToSettings: Boolean = false,
     ) : ScriptGeneratorState
+}
+
+/** Why a generation failed — resolved to a string resource by the sheet (#1819). */
+sealed interface ScriptGenerationFailure {
+    data object NotConfigured : ScriptGenerationFailure
+    data class AuthFailed(val provider: String) : ScriptGenerationFailure
+    data object Transport : ScriptGenerationFailure
+    data class Provider(val status: Int) : ScriptGenerationFailure
+    /** Unexpected error; [detail] is the raw exception message, if any. */
+    data class Other(val detail: String?) : ScriptGenerationFailure
 }

@@ -2,6 +2,8 @@ package `in`.jphe.storyvox.feature.reader.script
 
 import `in`.jphe.storyvox.playback.PendingTeleprompterScript
 import `in`.jphe.storyvox.playback.TeleprompterScriptStore
+import `in`.jphe.storyvox.llm.LlmError
+import `in`.jphe.storyvox.llm.ProviderId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -19,6 +21,33 @@ import org.junit.Test
  * so these compile under Test Compile, not just Build APK.
  */
 class ScriptGeneratorLogicTest {
+
+    // ===== scriptGeneratorError (#1819: typed, no English in the ViewModel) =====
+
+    @Test
+    fun `generator errors carry a typed failure, not English text`() {
+        assertEquals(
+            ScriptGeneratorState.Error(ScriptGenerationFailure.NotConfigured, routeToSettings = true),
+            scriptGeneratorError(LlmError.NotConfigured(ProviderId.Claude)),
+        )
+        assertEquals(
+            ScriptGeneratorState.Error(ScriptGenerationFailure.AuthFailed("OpenAi"), routeToSettings = true),
+            scriptGeneratorError(LlmError.AuthFailed(ProviderId.OpenAi, "401")),
+        )
+        assertEquals(
+            ScriptGeneratorState.Error(ScriptGenerationFailure.Transport),
+            scriptGeneratorError(LlmError.Transport(ProviderId.Ollama, RuntimeException("down"))),
+        )
+        assertEquals(
+            ScriptGeneratorState.Error(ScriptGenerationFailure.Provider(429)),
+            scriptGeneratorError(LlmError.ProviderError(ProviderId.Claude, 429, "quota")),
+        )
+        assertEquals(
+            ScriptGeneratorState.Error(ScriptGenerationFailure.Other("boom")),
+            scriptGeneratorError(IllegalStateException("boom")),
+        )
+    }
+
 
     // ===== targetWordCount =====
 

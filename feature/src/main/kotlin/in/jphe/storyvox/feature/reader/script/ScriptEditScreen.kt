@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.feature.reader.script
 
+import androidx.compose.ui.res.stringResource
+import `in`.jphe.storyvox.feature.R
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
@@ -70,12 +72,13 @@ fun ScriptEditScreen(
     val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val savedMessage = stringResource(R.string.scripts_saved)
     var menuOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                ScriptEditEvent.Saved -> snackbarHostState.showSnackbar("Saved")
+                ScriptEditEvent.Saved -> snackbarHostState.showSnackbar(savedMessage)
             }
         }
     }
@@ -84,22 +87,22 @@ fun ScriptEditScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isNewDraft) "New script" else "Edit script") },
+                title = { Text(stringResource(if (state.isNewDraft) R.string.scripts_new else R.string.scripts_edit)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.scripts_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = viewModel::save, enabled = state.isDirty) {
-                        Icon(Icons.Outlined.Check, contentDescription = "Save")
+                        Icon(Icons.Outlined.Check, contentDescription = stringResource(R.string.scripts_save))
                     }
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = "More options")
+                        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.scripts_more_options))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
-                            text = { Text("Load into Teleprompter") },
+                            text = { Text(stringResource(R.string.scripts_load_into_teleprompter)) },
                             leadingIcon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
@@ -108,7 +111,7 @@ fun ScriptEditScreen(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Import from clipboard") },
+                            text = { Text(stringResource(R.string.scripts_import_clipboard)) },
                             leadingIcon = { Icon(Icons.Outlined.ContentPaste, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
@@ -133,7 +136,7 @@ fun ScriptEditScreen(
                 onValueChange = viewModel::onTitleChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.scripts_field_title)) },
             )
 
             FlowRow(
@@ -144,7 +147,7 @@ fun ScriptEditScreen(
                     FilterChip(
                         selected = state.format == fmt.name,
                         onClick = { viewModel.onFormatChange(fmt) },
-                        label = { Text(fmt.label) },
+                        label = { Text(stringResource(fmt.labelRes())) },
                     )
                 }
             }
@@ -154,7 +157,7 @@ fun ScriptEditScreen(
                 onValueChange = viewModel::onTagsChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Tags (comma-separated)") },
+                label = { Text(stringResource(R.string.scripts_field_tags)) },
             )
 
             val tagList = remember(state.tags) {
@@ -176,7 +179,7 @@ fun ScriptEditScreen(
                             },
                             label = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             trailingIcon = {
-                                Icon(Icons.Outlined.Close, contentDescription = "Remove tag")
+                                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.scripts_remove_tag))
                             },
                         )
                     }
@@ -189,8 +192,8 @@ fun ScriptEditScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                label = { Text("Script") },
-                placeholder = { Text("Write or paste your script here…") },
+                label = { Text(stringResource(R.string.scripts_field_body)) },
+                placeholder = { Text(stringResource(R.string.scripts_body_placeholder)) },
             )
 
             ScriptMetricsFooter(
@@ -242,4 +245,12 @@ private fun readClipboardText(context: Context): String? {
     val clip = cm.primaryClip ?: return null
     if (clip.itemCount == 0) return null
     return clip.getItemAt(0)?.text?.toString()?.takeIf { it.isNotBlank() }
+}
+
+/** Localized label for a [ScriptFormat] chip (#1819); the enum's own
+ *  `label` stays as the English fallback for non-UI callers. */
+internal fun ScriptFormat.labelRes(): Int = when (this) {
+    ScriptFormat.FREEFORM -> R.string.scripts_format_freeform
+    ScriptFormat.SHORT -> R.string.scripts_format_short
+    ScriptFormat.FULL_SHOW -> R.string.scripts_format_full_show
 }

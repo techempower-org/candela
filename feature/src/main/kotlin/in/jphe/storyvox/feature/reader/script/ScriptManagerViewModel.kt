@@ -80,14 +80,15 @@ class ScriptManagerViewModel @Inject constructor(
     }
 
     /** Long-press → Duplicate: a fresh row with a new id, a "(copy)" title,
-     *  and refreshed timestamps; sorts to the top of the feed. */
-    fun duplicate(script: TeleprompterScript) {
+     *  and refreshed timestamps; sorts to the top of the feed. [labels] come
+     *  from the screen's string resources so the new title is localized. */
+    fun duplicate(script: TeleprompterScript, labels: ScriptCopyLabels = ScriptCopyLabels.ENGLISH) {
         val now = System.currentTimeMillis()
         viewModelScope.launch {
             dao.upsert(
                 script.copy(
                     id = UUID.randomUUID().toString(),
-                    title = duplicateTitle(script.title),
+                    title = duplicateTitle(script.title, labels),
                     createdAt = now,
                     updatedAt = now,
                 ),
@@ -108,9 +109,24 @@ class ScriptManagerViewModel @Inject constructor(
     }
 }
 
+/**
+ * Localized labels for [duplicateTitle], resolved by the screen from string
+ * resources (#1819) so the ViewModel never hard-codes English. [copyFormat]
+ * is a whole format string (`%1$s (copy)`), not a suffix, so a language can
+ * put the marker before the title.
+ */
+data class ScriptCopyLabels(
+    val untitled: String,
+    val copyFormat: String,
+) {
+    companion object {
+        val ENGLISH = ScriptCopyLabels(untitled = "Untitled", copyFormat = "%1\$s (copy)")
+    }
+}
+
 /** "Talk" → "Talk (copy)"; blank/untitled → "Untitled (copy)". */
-internal fun duplicateTitle(title: String): String =
-    (title.ifBlank { "Untitled" }) + " (copy)"
+internal fun duplicateTitle(title: String, labels: ScriptCopyLabels = ScriptCopyLabels.ENGLISH): String =
+    labels.copyFormat.format(title.ifBlank { labels.untitled })
 
 @Immutable
 data class ScriptEditUiState(
