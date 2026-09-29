@@ -1,5 +1,21 @@
 # Data Safety declaration — verification + Play Console checklist (#1139)
 
+> ## ⚠️ Superseded 2026-09-29 by #1821: no account, no cloud sync
+> Candela removed InstantDB cloud sync. There is **no account** and **no
+> Candela server**, so the answers below the line are historical. **Current
+> Play Console answers:**
+> - _Does your app collect or share any of the required user data types?_ → **No**
+>   (every data type = **Not collected**; nothing is shared).
+>   BYOK keys, third-party sign-ins, the calendar agenda, OCR, Voice Notes and
+>   the documents wallet stay on-device or go *user → their own service*, as
+>   already argued in Sections B/C, so they remain **Not collected / Not shared**.
+> - With "No", Play skips the encryption / deletion questions, and the
+>   account-deletion URL requirement no longer applies (users can't create an
+>   account). [delete-account.md](delete-account.md) still explains on-device
+>   deletion and the email path for **old** sync records from earlier versions.
+> - **Action (Play Console):** App content → Data safety → edit → answer **No**
+>   → save → submit with the next release. Mirror it in play-store-walkthrough §IV.
+
 _Verified by Reverie against the candela code (main) — not taken on faith from the doc._
 
 ## TL;DR / verdict
@@ -49,14 +65,14 @@ Work top-to-bottom through the Console wizard. **Bold = the option to pick.**
 
 **Personal info → Email addresses**
 - Collected **Yes** · Shared **Yes** · Processed ephemerally **No**
-- Required or optional → **Optional** (only if the user turns on sync)
+- Required or optional → **Optional** (only if the user turned on sync) — _#1821: removed; now **Not collected**_
 - Purposes → **App functionality** + **Account management**
 
-**Personal info → User IDs** (the InstantDB record id)
+**Personal info → User IDs** (the InstantDB record id) — _#1821: now **Not collected**_
 - Collected **Yes** · Shared **Yes** · Processed ephemerally **No**
 - **Optional** · Purpose → **App functionality**
 
-**App activity → Other user-generated content / Other actions** (library state: fiction IDs, reading positions, voice prefs)
+**App activity → Other user-generated content / Other actions** (library state: fiction IDs, reading positions, voice prefs) — _#1821: now **Not collected** (stays on-device)_
 - Collected **Yes** · Shared **Yes** · Processed ephemerally **No**
 - **Optional** · Purpose → **App functionality**
 - ⚠️ _Mapping note:_ Play's taxonomy has no "library state" type. "App activity → Other user-generated content" is the best fit for synced reading state. JP — confirm this bucket; the alternative is "Other actions." Either is defensible; pick one and keep it consistent with the privacy policy.
@@ -82,7 +98,7 @@ Location (approx/precise) · Financial info · Health & fitness · Messages (SMS
 
 ### Section C — Data sharing
 Declare **one** sharing relationship:
-- **Email address + library state + User ID → shared with InstantDB** (sync backend), purpose **App functionality**, when sync is enabled.
+- ~~**Email address + library state + User ID → shared with InstantDB** (sync backend), purpose **App functionality**, when sync is enabled.~~ _#1821: sync removed — declare **no** sharing._
 - **Do NOT declare as "shared":** BYOK Azure/Anthropic/OpenAI keys, and third-party sign-ins (Discord/Notion/Royal Road/etc.). Per Play's definition these are *the user transmitting their own data directly to that service*, not the app sharing it.
   - ⚠️ _#1507 note:_ Notion now also supports an **OAuth "Connect"** flow (in addition to the pasted Integration Token). The classification is unchanged: the OAuth access + refresh tokens are the *user's own* credentials, stored encrypted in `storyvox.secrets` (and, only if cloud sync is on, E2E-encrypted behind the user's passphrase — Candela's servers never see plaintext). Content still flows **user → Notion directly** via those tokens; Candela does not share Notion data with anyone. So Notion stays **Not "shared"** and Files/Messages stay **No**.
   - ⚠️ _#1496 note:_ **Google Drive** adds an **OAuth "Connect"** flow (`drive.file` scope only) so the user can browse their authorized Drive folders. Same classification and reasoning as the Notion OAuth note above: the access + refresh tokens are the *user's own* Google credentials, stored encrypted in `storyvox.secrets` (E2E-encrypted behind the passphrase when sync is on). Drive content flows **user → Google directly** via those tokens; Candela shares nothing. The `drive.file` scope means the app only ever sees files the user explicitly grants — never the whole Drive. Google Drive stays **Not "shared"** and Files/Messages stay **No**. (Opening a single Drive file via the system picker/SAF, unchanged, involves no account credential at all.)
@@ -114,7 +130,7 @@ user's own account.
 
 ### Section D — Security practices
 - Encrypted in transit → **Yes** (HTTPS enforced by `network_security_config.xml`)
-- Users can request deletion → **Yes** → provide the in-app **Delete cloud data** path + the deletion-request email (see Task 1 corrections; **not** sign-out)
+- Users can request deletion → _#1821: not asked once nothing is collected; old sync records are deleted via the email in delete-account.md_
 - Independent security review → **No** (see Task 3)
 - Committed to Play Families Policy → **No / N/A** (13+ app with a UGC advisory, not a Families app)
 

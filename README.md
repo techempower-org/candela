@@ -175,13 +175,13 @@ The CI workflow (`.github/workflows/android.yml`) shows the canonical build step
       │               │  Supertonic)   │
       ▼               │                ▼
 ┌─────────────────────────────┐  ┌──────────────────────┐
-│ Fiction sources (34)        │  │ :core-sync           │
-│ ─────────────────────────── │  │ InstantDB sync —     │
-│ :source-royalroad           │  │ library / follows /  │
-│ :source-github              │  │ positions / book-    │
-│ :source-rss                 │  │ marks / pronuncia-   │
-│ :source-epub                │  │ tion / secrets       │
-│ :source-outline             │  │ (#360 v0.5.12)       │
+│ Fiction sources (34)        │  │ Local-only (#1821)   │
+│ ─────────────────────────── │  │ no account, no       │
+│ :source-royalroad           │  │ cloud sync —         │
+│ :source-github              │  │ library, positions,  │
+│ :source-rss                 │  │ bookmarks, notes     │
+│ :source-epub                │  │ stay in on-device    │
+│ :source-outline             │  │ Room storage         │
 │ :source-mempalace           │  └──────────────────────┘
 │ :source-gutenberg           │
 │ :source-ao3                 │  ┌──────────────────────┐
@@ -229,7 +229,7 @@ The CI workflow (`.github/workflows/android.yml`) shows the canonical build step
                    (audio out)
 ```
 
-48 Gradle modules now (was 13 at v0.4.x; 29 at v0.5.38). Fiction sources implement `FictionSource` from `:core-data` and self-register via the `@SourcePlugin` annotation; the `:core-plugin-ksp` KSP processor emits a Hilt `@IntoSet` factory per annotated class, so `SourcePluginRegistry` discovers them at startup. Adding a new backend is ~4 touchpoints today (was ~17 pre-Phase-2). The playback layer is independent of the UI; the local engine library is a single transitive dep on `:core-playback`. AI chat lives in its own `:core-llm` module — the seven-provider matrix shares one `ChatStreamEvent` flow type that carries text deltas + tool-call events + tool-result events end-to-end. Cross-device sync lives in `:core-sync` against InstantDB. A `:baselineprofile` producer module (UI Automator hot-path walk) emits `baseline-prof.txt` for the AndroidX Baseline Profile plugin — cold launch dropped 6.7 s → 0.8 s on Tab A7 Lite (v0.5.46).
+48 Gradle modules now (was 13 at v0.4.x; 29 at v0.5.38). Fiction sources implement `FictionSource` from `:core-data` and self-register via the `@SourcePlugin` annotation; the `:core-plugin-ksp` KSP processor emits a Hilt `@IntoSet` factory per annotated class, so `SourcePluginRegistry` discovers them at startup. Adding a new backend is ~4 touchpoints today (was ~17 pre-Phase-2). The playback layer is independent of the UI; the local engine library is a single transitive dep on `:core-playback`. AI chat lives in its own `:core-llm` module — the seven-provider matrix shares one `ChatStreamEvent` flow type that carries text deltas + tool-call events + tool-result events end-to-end. Candela is local-only: there is no account and no cloud sync (#1821). A `:baselineprofile` producer module (UI Automator hot-path walk) emits `baseline-prof.txt` for the AndroidX Baseline Profile plugin — cold launch dropped 6.7 s → 0.8 s on Tab A7 Lite (v0.5.46).
 
 Design specs (each shipped or in flight) read as a thread:
 
@@ -265,7 +265,7 @@ Adding a fiction source or a TTS voice engine is a one-unit, scaffold-driven tas
 
 ## Roadmap
 
-The v0.4 and v0.5 lines are shipped history now — the neural engine, the source plugin seam, AI chat, GitHub OAuth, the Settings hub, Azure HD, the Tier 3 perf lane, InstantDB cross-device sync, a twelve-finding accessibility pass, and the TechEMPOWER repositioning all landed there. Candela is on the **v1.x line** today (current release **v1.13.0**), which has since carried the app through the AGP 9 migration, the Supertonic voice family, listening statistics, tap-to-define, on-device language auto-switch, Voice Notes, and a top-to-bottom Settings overhaul.
+The v0.4 and v0.5 lines are shipped history now — the neural engine, the source plugin seam, AI chat, GitHub OAuth, the Settings hub, Azure HD, the Tier 3 perf lane, InstantDB cross-device sync (since removed, #1821), a twelve-finding accessibility pass, and the TechEMPOWER repositioning all landed there. Candela is on the **v1.x line** today (current release **v1.13.0**), which has since carried the app through the AGP 9 migration, the Supertonic voice family, listening statistics, tap-to-define, on-device language auto-switch, Voice Notes, and a top-to-bottom Settings overhaul.
 
 The living record is split by purpose — this README's feature list stays current, and:
 

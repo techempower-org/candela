@@ -10,7 +10,7 @@ The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlig
 
 Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Optional cloud sync keeps your library, follows, reading positions, bookmarks, highlights and notes, pronunciation dictionary, and settings across devices, encrypted in transit, with saved API keys end-to-end encrypted behind your passphrase. Delete synced data any time from inside the app. Or stay fully offline; your call.
+Your library, reading positions, bookmarks, highlights, notes and settings stay on your device. There is no Candela account and no Candela server, so none of your library data leaves your phone.
 
 FEATURES
 • 37 fiction & reference sources: enable only the ones you want
@@ -24,7 +24,7 @@ FEATURES
 • Android Auto, lock-screen controls, sleep timer, home-screen widget
 • Make-your-own-audiobook (M4B) and EPUB export
 • Gapless chapter auto-advance
-• Optional end-to-end-encrypted cross-device sync, or fully offline
+• Private by design: no account, no cloud copy, works fully offline
 • Wear OS companion (playback + teleprompter remote)
 • Dark & light themes; OpenDyslexic & Atkinson fonts; TalkBack-friendly; WCAG AA contrast
 • Free, GPL-3.0, ad-free, no tracking, no account required
