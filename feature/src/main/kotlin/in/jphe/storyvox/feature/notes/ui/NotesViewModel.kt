@@ -321,15 +321,31 @@ internal fun formatNoteDuration(durationMs: Long): String {
 }
 
 /**
- * Assemble a note into shareable plain text. Title first (or "Untitled"), then
+ * Assemble a note into shareable plain text. Title first (or [NoteExportLabels.untitled]), then
  * the user body, then the transcript, then the summary — each present section
  * separated by a blank line. Used by the detail screen's Export → share sheet.
  */
+/**
+ * The words the shared text is built from, localized by the caller (the detail
+ * screen reads them with `stringResource`). [ENGLISH] is the default so pure
+ * tests and previews don't need resources.
+ */
+data class NoteExportLabels(
+    val untitled: String,
+    val transcript: String,
+    val summary: String,
+) {
+    companion object {
+        val ENGLISH = NoteExportLabels(untitled = "Untitled", transcript = "Transcript", summary = "Summary")
+    }
+}
+
 internal fun buildNoteExportText(
     title: String,
     body: String,
     transcript: String?,
     summary: String?,
+    @Suppress("UNUSED_PARAMETER") labels: NoteExportLabels = NoteExportLabels.ENGLISH, // RED-FIRST STUB: ignored
 ): String {
     val sections = buildList {
         add(title.ifBlank { "Untitled" })

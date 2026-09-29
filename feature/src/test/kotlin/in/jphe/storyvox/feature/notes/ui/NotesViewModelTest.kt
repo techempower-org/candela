@@ -249,6 +249,16 @@ class NotesViewModelTest {
     }
 
     @Test
+    fun `buildNoteExportText uses the caller's localized labels`() {
+        val es = NoteExportLabels(untitled = "Sin título", transcript = "Transcripción", summary = "Resumen")
+        assertEquals("Sin título", buildNoteExportText("", "", null, null, es))
+        assertEquals(
+            "T\n\nTranscripción\nX\n\nResumen\nY",
+            buildNoteExportText("T", "", "X", "Y", es),
+        )
+    }
+
+    @Test
     fun `buildNoteExportText assembles present sections`() {
         assertEquals(
             "T\n\nB\n\nTranscript\nX\n\nSummary\nY",
