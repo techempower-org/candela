@@ -236,9 +236,9 @@ class NoteDetailViewModel @Inject constructor(
     }
 
     /** Share the note as plain text via the system chooser (title + body + transcript + summary). */
-    fun export() {
+    fun export(labels: NoteExportLabels = NoteExportLabels.ENGLISH) {
         val s = _uiState.value
-        val text = buildNoteExportText(s.title, s.body, s.transcript, s.summary)
+        val text = buildNoteExportText(s.title, s.body, s.transcript, s.summary, labels)
         viewModelScope.launch { _events.send(NoteDetailEvent.Share(text)) }
     }
 
@@ -321,21 +321,37 @@ internal fun formatNoteDuration(durationMs: Long): String {
 }
 
 /**
- * Assemble a note into shareable plain text. Title first (or "Untitled"), then
+ * Assemble a note into shareable plain text. Title first (or [NoteExportLabels.untitled]), then
  * the user body, then the transcript, then the summary — each present section
  * separated by a blank line. Used by the detail screen's Export → share sheet.
  */
+/**
+ * The words the shared text is built from, localized by the caller (the detail
+ * screen reads them with `stringResource`). [ENGLISH] is the default so pure
+ * tests and previews don't need resources.
+ */
+data class NoteExportLabels(
+    val untitled: String,
+    val transcript: String,
+    val summary: String,
+) {
+    companion object {
+        val ENGLISH = NoteExportLabels(untitled = "Untitled", transcript = "Transcript", summary = "Summary")
+    }
+}
+
 internal fun buildNoteExportText(
     title: String,
     body: String,
     transcript: String?,
     summary: String?,
+    labels: NoteExportLabels = NoteExportLabels.ENGLISH,
 ): String {
     val sections = buildList {
-        add(title.ifBlank { "Untitled" })
+        add(title.ifBlank { labels.untitled })
         body.takeIf { it.isNotBlank() }?.let { add(it.trim()) }
-        transcript?.takeIf { it.isNotBlank() }?.let { add("Transcript\n${it.trim()}") }
-        summary?.takeIf { it.isNotBlank() }?.let { add("Summary\n${it.trim()}") }
+        transcript?.takeIf { it.isNotBlank() }?.let { add("${labels.transcript}\n${it.trim()}") }
+        summary?.takeIf { it.isNotBlank() }?.let { add("${labels.summary}\n${it.trim()}") }
     }
     return sections.joinToString("\n\n")
 }
