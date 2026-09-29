@@ -14,7 +14,6 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
-import `in`.jphe.storyvox.sync.coordinator.SyncCoordinator
 import `in`.jphe.storyvox.data.auth.SessionHydrator
 import `in`.jphe.storyvox.data.repository.AuthRepository
 import `in`.jphe.storyvox.data.repository.playback.AzureFallbackConfig
@@ -842,15 +841,6 @@ private object Keys {
     // Deliberately ABSENT from the sync allowlist + SyncedType map below.
     val DEADLINE_REMINDERS_ENABLED = booleanPreferencesKey("pref_deadline_reminders_enabled")
 
-    // ── InstantDB magical sign-in onboarding (issue #500) ──────────
-    /** Has the user seen and dismissed (or completed) the first-launch
-     *  InstantDB sync onboarding card mounted after the
-     *  VoicePickerGate? One-way flag — once flipped to true it never
-     *  resets for the life of this install, so the card never re-
-     *  prompts. The issue explicitly requires "Skip is fully respected
-     *  — never re-prompt this flow." */
-    val SYNC_ONBOARDING_DISMISSED = booleanPreferencesKey("pref_sync_onboarding_dismissed")
-
     /**
      * Issue #599 (v1.0 blocker) — has the user completed (or skipped)
      * the three-screen first-launch welcome flow? Once true, the flow
@@ -1146,19 +1136,10 @@ class SettingsRepositoryUiImpl(
      *  [UiSettings.sourceConfigSections] and [setSourceConfigValue]. */
     private val sourceConfigContributors: Set<@JvmSuppressWildcards SourceConfigContributor> =
         emptySet(),
-    /** Issue #977 — push-on-write seam. The action [scheduleSettingsPush]
-     *  fires after the debounce so every synced preference change reaches
-     *  InstantDB without a cold-start/manual sync (and can't be clobbered
-     *  by a pull that precedes the next push).
-     *
-     *  Production wires this to `SyncCoordinator.requestPush("settings")`
-     *  via the [@Inject] constructor below. Defaults to a no-op so the
-     *  test seam's direct primary constructor (named args ending at
-     *  [cacheStats]) keeps compiling — and so sync-agnostic repo tests
-     *  don't drag in a coordinator. Tests for the push path pass a
-     *  recording lambda instead of a real [SyncCoordinator] (which is
-     *  final and would need the whole InstantDB client/session/prefs
-     *  stack). */
+    /** Issue #977 push-on-write seam. #1821: Candela is local-only (the
+     *  InstantDB cloud sync was removed), so production leaves this as the
+     *  no-op default. Kept as a seam so a future sync backend can plug in
+     *  without touching the dozens of [stampSyncedWrite] call sites. */
     private val pushSettings: () -> Unit = {},
     /** Issue #977 — dispatcher backing the debounce scope. Defaults to
      *  [Dispatchers.Default] in production; tests pass a `TestDispatcher`
@@ -1228,13 +1209,6 @@ class SettingsRepositoryUiImpl(
         bookshareConfig: BookshareConfigImpl,
         // Issue #1531 — the @IntoSet config-field contributors.
         sourceConfigContributors: Set<@JvmSuppressWildcards SourceConfigContributor>,
-        // Issue #977 — ⚠️ [dagger.Lazy] is load-bearing: the DI graph has
-        // a cycle — SyncCoordinator → Set<Syncer> → SettingsSyncer →
-        // SettingsSnapshotSource (this class) → SyncCoordinator. Lazy
-        // defers instantiation past construction so Hilt builds clean.
-        // `get()` is only called from the debounced push, never at
-        // construction.
-        coordinator: dagger.Lazy<SyncCoordinator>,
         // Issue #1534 — Lazy so construction doesn't pull the OAuth manager
         // into the graph early; `get().beginConnect()` runs only when the user
         // taps "Connect Google Drive". #1588 — beginConnect() is now suspend
@@ -1253,7 +1227,6 @@ class SettingsRepositoryUiImpl(
         pcmCache, pcmCacheConfig, cacheStats,
         bookshareConfig = bookshareConfig,
         sourceConfigContributors = sourceConfigContributors,
-        pushSettings = { coordinator.get().requestPush(SETTINGS_PUSH_DOMAIN) },
         googleDriveOAuthBegin = { googleDriveOAuth.get().beginConnect() },
     )
 
@@ -3267,25 +3240,6 @@ class SettingsRepositoryUiImpl(
         store.edit { it[Keys.DEADLINE_REMINDERS_ENABLED] = enabled }
     }
 
-    // ── Issue #500 — magical InstantDB sign-in onboarding ──────────
-    /** Read the dismissed flag. False until the user explicitly
-     *  dismisses or completes the first-launch sync onboarding card,
-     *  then true forever (for the life of this install — uninstall /
-     *  data-clear resets along with everything else). */
-    override val syncOnboardingDismissed: Flow<Boolean> =
-        store.data.map { it[Keys.SYNC_ONBOARDING_DISMISSED] ?: false }
-
-    /** Flip the flag. Synced as of #916. Sync only runs after sign-in,
-     *  so the dismissed flag can only pull down onto a device that has
-     *  already signed in — at which point re-showing the "sign in to
-     *  sync!" card would be pointless. Syncing it means a user who
-     *  dismissed the card on their phone isn't re-prompted after signing
-     *  in on their tablet. */
-    override suspend fun markSyncOnboardingDismissed() {
-        store.edit { it[Keys.SYNC_ONBOARDING_DISMISSED] = true }
-        stampSyncedWrite()
-    }
-
     // ── Issue #599 — v1.0 first-launch onboarding flow ─────────────
     /** Default false until the user finishes the welcome flow or taps
      *  "I've used storyvox before". Once true, stays true for the life
@@ -3624,11 +3578,6 @@ class SettingsRepositoryUiImpl(
         }
         private val STAMP_MAP_SERIALIZER = MapSerializer(String.serializer(), Long.serializer())
         private val STRING_MAP_SERIALIZER = MapSerializer(String.serializer(), String.serializer())
-
-        /** Issue #977 — domain name for the push-on-write seam. Must match
-         *  `SettingsSyncer.DOMAIN`; [SyncCoordinator.requestPush] no-ops if
-         *  no syncer registers under this name. */
-        internal const val SETTINGS_PUSH_DOMAIN: String = "settings"
 
         /** Issue #977 — debounce window. A burst of synced writes (drag to
          *  reorder sources, rapid toggle flips) coalesces into ONE push

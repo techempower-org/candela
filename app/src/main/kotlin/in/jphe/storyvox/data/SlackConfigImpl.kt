@@ -44,9 +44,7 @@ private object SlackKeys {
 /** EncryptedSharedPreferences key for the Slack bot token. Lives
  *  next to the Discord / Telegram tokens in `storyvox.secrets`.
  *  The literal key string is the spec-provided one from issue
- *  #454; matches the entry in
- *  [`in`.jphe.storyvox.sync.domain.SecretsSyncer.SECRET_KEY_NAMES]
- *  so the token syncs cross-device through InstantDB. */
+ *  #454. Device-local: Candela has no cloud sync (#1821). */
 internal const val SLACK_BOT_TOKEN_PREF = "pref_source_slack_token"
 
 /**

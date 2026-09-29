@@ -13,7 +13,7 @@ plugins {
  * the `TWO11_API_KEY` Actions secret). Empty by default so a clean checkout
  * and CI build green WITHOUT a key; the source then reports "not configured"
  * instead of issuing requests, and ships toggled OFF (defaultEnabled = false).
- * Same posture as core-sync's INSTANTDB_APP_ID and :app's OAuth client ids —
+ * Same posture as :app's OAuth client ids —
  * deliberately NOT via `-P` (leaks into shell history / CI logs).
  *
  *   TWO11_API_KEY=<Api-Key from apiportal.211.org>

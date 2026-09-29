@@ -149,7 +149,6 @@ include(":source-calendar")
 // new-source.sh --local mode, #1526): the app's own docs, compiled into bundled
 // assets by scripts/build-handbook-assets.py and narrated like any book.
 include(":source-handbook")
-include(":core-sync")
 include(":feature")
 // Issue #409 — Baseline Profile producer module. Pure test APK
 // (`com.android.test` + `androidx.baselineprofile`) that drives a
