@@ -772,7 +772,7 @@ private object Keys {
      *  [SYNC_ALLOWLIST] for the same reason
      *  `instantdb.settings_synced_at` is excluded — syncing the stamp
      *  itself would loop. */
-    val PRONUNCIATION_DICT_WRITE_AT = longPreferencesKey("instantdb.pronunciation_dict_write_at")
+    val PRONUNCIATION_DICT_WRITE_AT = longPreferencesKey("local_stamp.pronunciation_dict_write_at")
 
     // ── Calliope (v0.5.00) milestone celebration ──────────────────
     /** One-time gate for the brass "thank-you" dialog. Flips to true
@@ -3551,7 +3551,7 @@ class SettingsRepositoryUiImpl(
         /** Synced-keys timestamp — internal to this file, not in
          *  [SYNC_ALLOWLIST] (we never sync the sync timestamp itself
          *  — that'd be a loop). */
-        private val SYNC_LAST_WRITE_KEY = longPreferencesKey("instantdb.settings_synced_at")
+        private val SYNC_LAST_WRITE_KEY = longPreferencesKey("local_stamp.settings_synced_at")
 
         /** Issue #978 — per-key `updatedAt` map (stringified JSON
          *  `Map<String,Long>`) for field-level merge. Same non-synced
@@ -3559,7 +3559,7 @@ class SettingsRepositoryUiImpl(
          *  `instantdb.pronunciation_dict_write_at` — excluded from
          *  [SYNC_ALLOWLIST] so we never sync the sync clock itself. */
         private val SYNC_FIELD_STAMPS_KEY =
-            stringPreferencesKey("instantdb.settings_field_stamps_v1")
+            stringPreferencesKey("local_stamp.settings_field_stamps_v1")
 
         /** Issue #978 — the last snapshot the per-key stamping diffed
          *  against (stringified JSON `Map<String,String>`). Lets
@@ -3567,7 +3567,7 @@ class SettingsRepositoryUiImpl(
          *  changed since the previous synced write, without touching
          *  any `set*` mutator. Non-synced `instantdb.*` key. */
         private val SYNC_SNAPSHOT_BASELINE_KEY =
-            stringPreferencesKey("instantdb.settings_snapshot_baseline_v1")
+            stringPreferencesKey("local_stamp.settings_snapshot_baseline_v1")
 
         /** JSON + serializers for the #978 per-key stamp / baseline
          *  maps. Lenient on read so a corrupt sidecar degrades to

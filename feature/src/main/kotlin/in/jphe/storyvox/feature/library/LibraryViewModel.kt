@@ -751,8 +751,7 @@ class LibraryViewModel @Inject constructor(
  * resolver currently relies on is "this is an HTTP(S) URL we can
  * actually fetch", and that's exactly what we pin.
  *
- * Exposed `internal` so a unit test can pin the spec — same pattern
- * as [isLikelyEmail] in the sync auth module.
+ * Exposed `internal` so a unit test can pin the spec.
  */
 /**
  * Issue #793 — pure sort applied at the Library "All" join site.

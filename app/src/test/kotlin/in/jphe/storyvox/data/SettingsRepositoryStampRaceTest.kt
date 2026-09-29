@@ -99,7 +99,7 @@ class SettingsRepositoryStampRaceTest {
     private class GatedStampWriteDataStore(
         private val delegate: DataStore<Preferences>,
     ) : DataStore<Preferences> {
-        private val stampsKey = stringPreferencesKey("instantdb.settings_field_stamps_v1")
+        private val stampsKey = stringPreferencesKey("local_stamp.settings_field_stamps_v1")
         val firstStampWriteReached = CompletableDeferred<Unit>()
         private val releaseGate = CompletableDeferred<Unit>()
         private val armed = AtomicBoolean(true)
