@@ -11,7 +11,7 @@ Android app that turns text from 37 sources into narrated audiobooks via TTS. Ko
 ./gradlew testDebugUnitTest           # all tests
 ```
 
-CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo — switched 2026-09-06 from the self-hosted katana/familiar/ubox0 pool, which stays registered but idle). Tags build the two sideload APKs (phone + Wear, debug-signed for upgrade continuity #952, then re-signed with v3 key rotation to the private `candela-sideload` key — `scripts/resign-sideload.sh` + `app/candela.lineage`, secrets `CANDELA_SIDELOAD_*`, tag builds fail without them; `docs/sideload-signing.md`, #1756) and publish the GitHub release. CI reads `INSTANTDB_APP_ID` (and optional OAuth client ids) from Actions secrets; **the release keystore is NOT in CI and the Play AAB is never a GitHub asset** — an AAB is not installable by anyone, only Play consumes it. Build it on katana when submitting: `./gradlew :app:bundleRelease` (separate invocation from assembleRelease, #952) → upload in Play Console. A hosted `Build APK` takes ~20 min cold. Never compile locally on katana except that AAB step — push and let CI be the compile gate.
+CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo — switched 2026-09-06 from the self-hosted katana/familiar/ubox0 pool, which stays registered but idle). Tags build the two sideload APKs (phone + Wear, debug-signed for upgrade continuity #952, then re-signed with v3 key rotation to the private `candela-sideload` key — `scripts/resign-sideload.sh` + `app/candela.lineage`, secrets `CANDELA_SIDELOAD_*`, tag builds fail without them; `docs/sideload-signing.md`, #1756) and publish the GitHub release. CI reads the optional OAuth client ids from Actions secrets; **the release keystore is NOT in CI and the Play AAB is never a GitHub asset** — an AAB is not installable by anyone, only Play consumes it. Build it on katana when submitting: `./gradlew :app:bundleRelease` (separate invocation from assembleRelease, #952) → upload in Play Console. A hosted `Build APK` takes ~20 min cold. Never compile locally on katana except that AAB step — push and let CI be the compile gate.
 
 ## Module layout
 
@@ -20,7 +20,6 @@ CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo
 - **core-data** — `FictionSource` interface, `SearchQuery`, `FilterDimension`/`FilterState`, Room DB, models
 - **core-playback** — TTS engine (`EnginePlayer`), voice catalog, audio focus
 - **core-llm** — AI chat, summaries
-- **core-sync** — InstantDB cloud sync
 - **core-ui** — shared theme, spacing, composables
 - **core-plugin-ksp** — `@SourcePlugin` annotation processor → Hilt `@IntoSet` factories
 - **wear** — Wear OS companion app (Library Nocturne on the watch)

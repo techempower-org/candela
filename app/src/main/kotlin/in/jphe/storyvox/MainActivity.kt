@@ -163,10 +163,6 @@ class MainActivity : ComponentActivity() {
      *  re-lists the newly granted Drive files. */
     @Inject lateinit var googleDriveConnector: Lazy<`in`.jphe.storyvox.auth.googledrive.GoogleDriveConnectorImpl>
 
-    /** Issue #1469 — foreground poll of the push-to-Candela inbox. [Lazy] and
-     *  resolved on IO (never during activity injection) — see [onStart]. */
-    @Inject lateinit var syncCoordinator: Lazy<`in`.jphe.storyvox.sync.coordinator.SyncCoordinator>
-
     // testTagsAsResourceId is experimental Compose UI API. We opt in at
     // the function holding setContent {} because that's where the flag is
     // applied to the content root.
@@ -539,30 +535,6 @@ class MainActivity : ComponentActivity() {
         if (!granted) launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    /**
-     * Issue #1469 — each time Candela comes to the foreground, pull the
-     * push-to-Candela inbox so an item sent from the desktop is waiting in
-     * the Library. Throttled process-wide ([InboxLogic.shouldPoll]); the very
-     * first start is skipped because the cold-start `initialize()` pull in
-     * StoryvoxApp already covers the inbox.
-     */
-    override fun onStart() {
-        super.onStart()
-        val now = android.os.SystemClock.elapsedRealtime()
-        val last = lastInboxPollAt
-        if (last == 0L) {
-            lastInboxPollAt = now
-            return
-        }
-        if (!`in`.jphe.storyvox.sync.domain.InboxLogic.shouldPoll(last, now)) return
-        lastInboxPollAt = now
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                syncCoordinator.get().requestPull(`in`.jphe.storyvox.sync.domain.InboxSyncer.DOMAIN)
-            }
-        }
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -642,11 +614,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         private const val TAG = "MainActivity"
-
-        /** Issue #1469 — elapsedRealtime of the last inbox poll (0 = none
-         *  yet this process). Process-wide so a rotation doesn't re-poll. */
-        @Volatile
-        private var lastInboxPollAt: Long = 0L
 
         /** Debug-only ACTION_VIEW boolean extra that triggers
          *  [loadDebugSample]. Fully-qualified to avoid collision with

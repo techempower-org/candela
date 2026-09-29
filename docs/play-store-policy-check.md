@@ -86,8 +86,8 @@ Candela declares three foreground service types:
    - `ChapterRenderJob` (PR-F / #86), the WorkManager job that pre-renders
      a chapter's PCM into the cache while the user is reading the current
      chapter. This is local synthesis work, not a media playback surface.
-   - The tag-sync worker (#520), which sync-merges fiction-tag state with
-     InstantDB.
+   - The tag-sync worker (#520), which merges the user's followed tags with
+     their Royal Road account (only when they signed in to Royal Road).
 3. `FOREGROUND_SERVICE_MICROPHONE` — the Voice Notes recording service
    (#1657), a microphone-typed foreground service so a recording can
    continue if the app is backgrounded (API 34+). Audio is captured and
@@ -107,7 +107,7 @@ requires:
 | --- | --- | --- | --- | --- |
 | Media3 playback session | `mediaPlayback` | Yes — notification with transport buttons, lock-screen controls, audio playing | Yes — tap Pause / clear from recents / clear notification | Standard audiobook player pattern. Aligns with policy. |
 | `ChapterRenderJob` PCM pre-render | `dataSync` | Yes — silent foreground notification "Preparing chapter N" while the worker runs | Yes — user can pause / kill the worker via Settings → Performance | Local synthesis; doesn't fit `mediaPlayback` (no Media3 session), doesn't fit any other type — `dataSync` is the documented closest match per AOSP docs. |
-| Tag-sync worker (#520) | `dataSync` | Yes — silent foreground notification "Syncing library" during the burst | Yes — the worker is short-lived (typically <2s); user can disable sync entirely | Brief; runs only when the user has just changed sync state or returned to the app. |
+| Tag-sync worker (#520) | `dataSync` | Yes — silent foreground notification "Syncing library" during the burst | Yes — the worker is short-lived (typically <2s); user can turn Royal Road tag sync off in Settings → Account | Brief; runs only when the user has just changed their followed tags or returned to the app. |
 | Voice Notes recording (#1657) | `microphone` | Yes — recording notification with elapsed time while audio is captured | Yes — Stop in the recording UI / notification ends the service | Runs only while the user is actively recording a note; audio is on-device only and never leaves the device. |
 
 **Reviewer-facing justification** (copy into the Play Console "Foreground
@@ -120,12 +120,12 @@ services" justification field if asked):
 >
 > Candela uses `dataSync` for two workloads: (1) pre-rendering the next
 > chapter's audio into a local cache so playback is gapless across
-> chapter transitions, and (2) syncing the user's library state with
-> InstantDB when the user has opted into cross-device sync. Both workers
+> chapter transitions, and (2) merging the user's followed tags with their
+> own Royal Road account when they have signed in to Royal Road. Both workers
 > are user-initiated (start when the user navigates / signs in), are
 > visible via a foreground notification, run only as long as the work
 > requires, and can be cancelled by the user via the app's Performance
-> and Sync settings.
+> and Account settings.
 >
 > Candela uses `microphone` for the Voice Notes recording service — the
 > user starts a recording, the foreground service runs while capture is
@@ -206,9 +206,9 @@ submission time.
 
 | Data type | Collected? | Required? | Encrypted in transit? | Deletable? | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| **Email address** | Yes, **only with optional sync** | No | Yes (HTTPS to InstantDB) | Yes — via deletion-request email (`$users` record; not removable by the in-app action) | Account / sync lookup key |
-| **User IDs** | The InstantDB user record ID — internal to InstantDB, not exposed to other users | No | Yes | Yes | Sync record key |
-| **Library state** (fiction IDs, reading positions, voice preferences) | Yes, **only with optional sync** | No | Yes | Yes — in-app **Delete cloud data** (#1248) | App functionality (sync) |
+| **Email address** | **No** — there is no account (#1821 removed InstantDB sync) | — | — | — | Never asked for |
+| **User IDs** | **No** — no account, no server-side record | — | — | — | |
+| **Library state** (fiction IDs, reading positions, voice preferences) | **No** — stored on-device only (#1821) | — | — | — | |
 | Crash / diagnostic data | **No** | — | — | — | We don't collect crash data |
 | Approximate / precise location | **No** | — | — | — | Never requested |
 | Photos / videos / audio | **No** | — | — | — | Camera is used on-device for OCR scan-to-read (#995): images + recognized text are processed by ML Kit on-device and are **never** transmitted, collected, or shared — so "collected" stays **No** even though the CAMERA permission is declared. **Microphone** is used by Voice Notes (#1657), recording mode (#1367), and the voice-paced teleprompter (#1368): audio is recorded and transcribed **entirely on-device** (Whisper / sherpa-onnx) and **never leaves the device**. A Voice Notes note's *transcript text* is sent to the user's own BYOK AI provider **only** on an explicit per-note **Summarize** tap — user-initiated, so "collected/shared" stays **No** (the audio itself is never transmitted). Voice Notes are stored on-device in a separate `notes.db`, excluded from cloud backup + device transfer, and never synced. |
@@ -225,7 +225,7 @@ submission time.
 
 | Sharing case | Disclosed as | Rationale |
 | --- | --- | --- |
-| Email + library state → InstantDB | **Sharing email + library state with InstantDB** when sync is on | InstantDB is Candela's sync backend; this is data sharing under Play's definition. |
+| ~~Email + library state → InstantDB~~ | **Nothing shared** (#1821) | Cloud sync was removed; Candela has no backend of its own. |
 | Sign-in to Discord / Notion / Royal Road / etc. | **Not shared** — user-initiated direct call from their device to that service | Per Play's guidance, when the user enters credentials into a third-party service from the app, that's "the user transmitting data to that service," not the app sharing it. |
 | BYOK Azure / Anthropic / OpenAI etc. | **Not shared** — same reasoning | The user provides their own key; Candela is the conduit, not the data steward. |
 
@@ -233,15 +233,10 @@ submission time.
 
 - Data encrypted in transit: **Yes** (all HTTPS, enforced by
   `network_security_config.xml`)
-- Users can request deletion: **Yes** — the in-app **Delete cloud data**
-  action (`SyncAuthViewModel.purgeRemoteData`, #1248) deletes every synced
-  domain's remote rows (library, positions, follows, bookmarks, annotations,
-  pronunciation, secrets, settings) via `SyncCoordinator.purgeRemoteData` →
-  admin transact delete. The account email/identity (`$users`) record — which
-  the app can't delete via its own auth token — is removed on request via the
-  privacy-policy email channel. Uninstall clears on-device data. (Note: plain
-  **sign-out** only revokes the token + wipes local state; it does NOT delete
-  the cloud copy — that's deliberate, #1248, so other devices keep syncing.)
+- Users can request deletion: the sync data it covered is gone (#1821). If
+  no types are declared (the BYOK rationale holds), Play doesn't ask. On-device data is deleted by uninstalling or clearing
+  storage; old sync records from earlier versions are deleted on request via
+  the email in [delete-account.md](delete-account.md).
 - Independent security review: **Not yet** — JP's call whether to commit
   to this; safe to answer No
 - Follows Families policy guidelines: **No** — we're a 13+ app with a UGC
@@ -257,12 +252,12 @@ declarations in the manifest.)
 
 | Permission | Why | User benefit |
 | --- | --- | --- |
-| `android.permission.INTERNET` | Fetching fiction content from backends; downloading voices; optional sync; BYOK Azure / LLM API calls | Without this, the app is voice-files-only and won't fetch any text — the entire fiction-backend feature set requires it |
+| `android.permission.INTERNET` | Fetching fiction content from backends; downloading voices; BYOK Azure / LLM API calls | Without this, the app is voice-files-only and won't fetch any text — the entire fiction-backend feature set requires it |
 | `android.permission.ACCESS_NETWORK_STATE` | Detecting offline vs online for graceful fallbacks (Azure HD → local voice; "you're offline" banner on browse screens) | Better offline UX; no surprise stalls when the network drops mid-fetch |
 | `android.permission.WAKE_LOCK` | The TTS engine and the Media3 playback session need a partial wake lock to keep the CPU running during audio synthesis + playback with the screen off | Audiobooks have to keep playing with the screen off — non-negotiable for an audiobook player |
 | `android.permission.FOREGROUND_SERVICE` | Required umbrella permission on API 28+ for any foreground service | Required by platform; see specific types below |
 | `android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Media3 session foreground service type (API 34+) | Audiobook playback continues with the screen off / app backgrounded |
-| `android.permission.FOREGROUND_SERVICE_DATA_SYNC` | ChapterRenderJob + tag-sync worker (API 34+) | Gapless chapter transitions (pre-render); cross-device sync |
+| `android.permission.FOREGROUND_SERVICE_DATA_SYNC` | ChapterRenderJob + tag-sync worker (API 34+) | Gapless chapter transitions (pre-render); Royal Road followed-tags merge |
 | `android.permission.FOREGROUND_SERVICE_MICROPHONE` | Voice Notes recording runs under a microphone-typed foreground service (#1657) so a recording can continue if the app is backgrounded (API 34+) | Recording a memo doesn't stop when you switch away; user-visible + stoppable |
 | `android.permission.RECORD_AUDIO` (**optional**, runtime) | Voice Notes capture (#1657), recording mode (#1367), and the voice-paced teleprompter's on-device speech-to-text (#1368). Requested at runtime on first use with a plain-language rationale; audio is recorded + transcribed **on-device** and never leaves the device | Capture and transcribe your own voice; declining leaves only those features unavailable |
 | `android.permission.POST_NOTIFICATIONS` | The playback notification (transport buttons + Continue Listening); also used by the WorkManager foreground notifications | Lock-screen and notification-shade transport controls — primary UX for audiobook playback. Without this on API 33+ the user has no transport surface outside the app itself. |

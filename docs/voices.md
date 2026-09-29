@@ -132,7 +132,7 @@ Originally tracked in [#85](https://github.com/techempower-org/candela/issues/85
 
 Long-press the brass voice-settings icon on the play screen → **Advanced expander**:
 
-- **Per-voice lexicon override** ([#197](https://github.com/techempower-org/candela/issues/197)) — IPA pronunciation dictionaries per voice for the names that always come out wrong. Edit per voice; entries persist across reinstalls when InstantDB sync is on.
+- **Per-voice lexicon override** ([#197](https://github.com/techempower-org/candela/issues/197)) — IPA pronunciation dictionaries per voice for the names that always come out wrong. Edit per voice; entries are stored on this device (Android backup can restore them on a new phone).
 - **Kokoro phonemizer-lang override** — pin Kokoro to a specific language tag when the auto-detected one mispronounces proper nouns. Per-voice setting.
 
 ## Coming soon

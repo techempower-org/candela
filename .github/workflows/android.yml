@@ -166,7 +166,6 @@ jobs:
 
       - name: Materialize local.properties
         env:
-          INSTANTDB_APP_ID: ${{ secrets.INSTANTDB_APP_ID }}
           NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
           NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
@@ -179,30 +178,21 @@ jobs:
           # GitHub-hosted runner: nothing is seeded from a developer machine any more.
           # Everything the build needs beyond the checkout comes from Actions secrets.
           printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
-          if [ -n "${INSTANTDB_APP_ID:-}" ]; then
-            echo "INSTANTDB_APP_ID=$INSTANTDB_APP_ID" >> ./local.properties
-          fi
           # Optional BYO OAuth client ids (Notion, Google Drive + its Picker
           # key/project number, #1677) and the 211 NDP key (Local Help, #1465)
           # — baked into BuildConfig when the secrets exist; the features stay
           # hidden / "not configured" otherwise.
           for k in NOTION_OAUTH_CLIENT_ID NOTION_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET TWO11_API_KEY GOOGLE_PICKER_API_KEY GOOGLE_CLOUD_PROJECT_NUMBER; do
-            v="${!k:-}"; [ -n "$v" ] && echo "$k=$v" >> ./local.properties
+            v="${!k:-}"
+            # Explicit if: with `[ -n "$v" ] && echo …` an empty LAST secret leaves the
+            # loop (and so this step, now that it's the last command) exiting 1 (#1821).
+            if [ -n "$v" ]; then echo "$k=$v" >> ./local.properties; fi
           done
           # No release keystore here on purpose: CI builds only the two sideload APKs
           # (debug-signed for upgrade continuity, #952). The Play AAB is built and
           # release-signed manually on katana and uploaded to Play Console — it is
           # never a GitHub release asset (an AAB is not installable by anyone; only
           # Play consumes it). See docs/release-keystore.md.
-          if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
-            if [ -z "${INSTANTDB_APP_ID:-}" ]; then
-              echo "::warning::INSTANTDB_APP_ID secret is unset — this release APK will ship with cloud sync DISABLED. Set the INSTANTDB_APP_ID Actions secret."
-            elif [ "$INSTANTDB_APP_ID" != "PLACEHOLDER" ] && \
-               ! printf '%s' "$INSTANTDB_APP_ID" | grep -qiE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
-              echo "::error::INSTANTDB_APP_ID secret is not a valid UUID. A malformed app-id ships broken Cloud Sync that surfaces as a false 'email doesn't look right' error (#1452). Fix the Actions secret — no quotes or whitespace."
-              exit 1
-            fi
-          fi
       - name: Assemble release APK
         # Issue #529 — was `:app:assembleDebug` through v0.5.57. Flipped
         # to `:app:assembleRelease` so the shipped artifact carries

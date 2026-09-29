@@ -570,8 +570,8 @@ image: /screenshots/03-reader.png
     plus KSP-generated Hilt registration); <strong>four in-process neural voice families</strong>
     (Piper, Kokoro, KittenTTS, Supertonic 3) plus optional Azure HD cloud voices; a full <strong>PCM cache</strong>
     pipeline for glitch-free playback; a <strong>hybrid reader/audiobook view</strong> that highlights
-    the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>cross-device InstantDB
-    sync</strong>; an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,
+    the spoken sentence in brass; <strong>Wear OS</strong> support; <strong>local-only privacy</strong>
+    (no account, no cloud copy); an accessibility-first design (high-contrast brass-on-near-black, reduced-motion,
     TalkBack pacing); and <strong>AI chat per fiction</strong> — cross-fiction memory, function calling,
     and multi-modal image input; and <strong>on-device Voice Notes</strong> — record a thought, transcribe it on-device, and (only if you tap Summarize) turn it into a consent-gated AI note. A <strong>TechEMPOWER-first</strong> home leads with Guides, Resources,
     peer-support Discord, and dial 211.

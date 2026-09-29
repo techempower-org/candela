@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
  * a default 48dp ripple ring with its own padding semantics that
  * shrinks the visual glyph relative to a plain Box; the Boxes here
  * already provide the same 48dp touch target and align with the
- * other top-bar action visuals (SyncCloudIcon also uses a Box).
+ * other top-bar action visuals.
  *
  * Brass tint comes from `MaterialTheme.colorScheme.primary` — same
  * brass-on-warm-dark palette as every other top-app-bar action in the

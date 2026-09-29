@@ -128,14 +128,6 @@ fun LibraryScreen(
      */
     onOpenFollowsSignIn: () -> Unit = {},
     /**
-     * Issue #500 — InstantDB sync entry point. Default no-op so test /
-     * preview surfaces that don't exercise the sync sheet still
-     * compile. The production wiring in [StoryvoxNavHost] routes this
-     * to [StoryvoxRoutes.SYNC]; the cloud icon in the top app bar
-     * lights up via [SyncCloudIcon] independently of the callback.
-     */
-    onOpenSync: () -> Unit = {},
-    /**
      * Issue #517 — TechEmpower hero card tap. Routes to
      * [StoryvoxRoutes.TECHEMPOWER_HOME]. Default no-op so test /
      * preview surfaces that don't exercise the hero still compile.
@@ -199,14 +191,6 @@ fun LibraryScreen(
     // every recomposition. Logs at warn level when duplicates are dropped
     // so the underlying source can be traced — silent-by-default would
     // hide the upstream bug we're guarding around.
-    // Issue #500 — local sheet visibility for the cloud-icon affordance.
-    // The sheet itself owns its own VM that reads InstantSession +
-    // SyncCoordinator state, so the Library screen only tracks the
-    // open/closed boolean here.
-    var syncSheetOpen by androidx.compose.runtime.remember {
-        androidx.compose.runtime.mutableStateOf(false)
-    }
-
     // Issue #1003 — "Make your own audiobook." The + FAB opens a small
     // chooser (Add by URL / Make your own audiobook); these two flags drive
     // that menu and the create-audiobook sheet respectively.
@@ -313,16 +297,6 @@ fun LibraryScreen(
                     // peer-support invite URL. See
                     // [TechEmpowerHelpIcons] for the design rationale.
                     TechEmpowerHelpIcons()
-                    Spacer(Modifier.width(spacing.xs))
-                    // Issue #500 — brass cloud-icon affordance for the
-                    // InstantDB sync surface. The three icon states
-                    // (signed-in checkmark / spinner / question-mark)
-                    // drive off [SyncStatusViewModel] — see
-                    // [SyncCloudIcon] for the mapping. Tap opens
-                    // [SyncStatusSheet] inline.
-                    `in`.jphe.storyvox.feature.sync.SyncCloudIcon(
-                        onClick = { syncSheetOpen = true },
-                    )
                     Spacer(Modifier.width(spacing.xs))
                     // Voice Notes (epic #1657) — the phone-reachable entry.
                     // Notes is rail-only in the bottom nav (HomeTab.Notes,
@@ -729,17 +703,6 @@ fun LibraryScreen(
         )
     }
 
-    // Issue #500 — InstantDB sync status sheet. Mounted unconditionally
-    // and gated on [syncSheetOpen] to keep the composition stable. The
-    // sheet's two layouts (signed-out CTA / signed-in domain grid) are
-    // driven by its own VM; this surface just controls visibility.
-    if (syncSheetOpen) {
-        `in`.jphe.storyvox.feature.sync.SyncStatusSheet(
-            onDismiss = { syncSheetOpen = false },
-            onOpenSignIn = onOpenSync,
-            onLearnMore = onOpenSync,
-        )
-    }
 }
 
 /**

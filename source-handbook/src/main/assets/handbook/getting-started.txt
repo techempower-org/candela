@@ -78,3 +78,8 @@ The app's signing key has been stable since v0.4.15 (a checked-in debug keystore
 #15). Releases before that used the throwaway
 debug keystore Gradle generates per machine, so an upgrade from those earlier builds may
 require a clean uninstall first. Installs from v0.4.15 forward upgrade in place.
+
+From the release after v1.14.2, the APKs also carry a rotated signing key (APK Signature
+Scheme v3, #1756). The new key is
+vouched for by the old one, so this is still an ordinary in-place upgrade: no uninstall, no
+data loss. Details: sideload-signing.md.

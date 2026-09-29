@@ -97,7 +97,6 @@ dependencies {
     implementation(project(":core-data"))
     implementation(project(":core-llm"))
     implementation(project(":core-playback"))
-    implementation(project(":core-sync"))
     // Issue #117 — EPUB export use case + writer. Pulled in here so the
     // FictionDetail "Export as EPUB" menu can call the use case directly
     // from its ViewModel without routing through the :app module.

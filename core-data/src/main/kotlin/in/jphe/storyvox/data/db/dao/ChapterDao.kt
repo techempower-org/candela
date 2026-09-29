@@ -488,9 +488,8 @@ interface ChapterDao {
     suspend fun getBookmark(id: String): Int?
 
     /**
-     * All chapters that currently carry a bookmark. Used by the sync
-     * layer ([`PronunciationDictSyncer`]'s sibling, `BookmarksSyncer`)
-     * to snapshot the user's bookmarks for upload to InstantDB. The
+     * All chapters that currently carry a bookmark (originally for the
+     * bookmarks sync, removed in #1821; still a useful full snapshot). The
      * shape mirrors the on-disk row — chapter id and char offset, no
      * body text. Cheap enough to read in full (bookmarks are user-
      * authored events, so the row count is small).

@@ -43,9 +43,7 @@ private object MatrixKeys {
 /** EncryptedSharedPreferences key for the Matrix access token. Lives
  *  next to the Discord / Telegram / Notion / Outline tokens in
  *  `storyvox.secrets`. The literal key string is the spec-provided
- *  one from issue #457, and is also registered in
- *  [`in`.jphe.storyvox.sync.domain.SecretsSyncer.Companion.SECRET_KEY_NAMES]
- *  so a configured Matrix backend syncs cross-device. */
+ *  one from issue #457. Device-local: Candela has no cloud sync (#1821). */
 internal const val MATRIX_ACCESS_TOKEN_PREF = "pref_source_matrix_token"
 
 /**

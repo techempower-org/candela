@@ -9,6 +9,37 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+### Removed
+- **Cloud sync and sign-in are gone: Candela is local-only.** InstantDB,
+  the service behind the optional cross-device sync, is shutting down its
+  cloud on 2027-08-31 and has closed new signups
+  ([announcement](https://www.instantdb.com/essays/instant_team_joins_openai)), so
+  Candela no longer has an account, a sign-in screen, the Library cloud icon,
+  the first-launch "sign in to sync" card, or the Cloud Sync / secrets
+  passphrase cards in Settings → Account. Your library, reading positions,
+  bookmarks, highlights, notes and settings were always stored on your
+  device, and they stay there. Nothing changes if you never signed in (#1821).
+- **Push to Candela (desktop → phone) is removed**, because it rode the
+  cloud-sync channel. Share → Candela on the phone still works (#1469).
+
+### Privacy
+- **Nothing is uploaded to Candela.** There is no Candela server. Optional
+  features (Azure cloud voices, AI chat with your own key, sources you
+  connect) still talk directly to the service you choose, as before. The
+  privacy policy, delete-your-data page and Data Safety notes are updated.
+  If you used sync in an older version, email us to delete your old sync
+  record (#1821).
+- **Leftover sync data is wiped on upgrade.** If you had signed in to sync,
+  the update deletes its stored sign-in token, passphrase and sync state
+  from your device, so no unused credential lingers (#1821).
+
+### Under the hood
+- Removed the `:core-sync` module (InstantDB client, coordinator, syncers),
+  the `INSTANTDB_APP_ID` CI secret handling, and the sync strings in every
+  locale. A new `NoCloudSyncGuardTest` fails if any of it comes back (#1821).
+- The in-app Handbook was regenerated from `docs/` (it had drifted since
+  v1.10.0), including the rewritten "Sync & Privacy" page.
+
 ## [1.15.2] -- 2026-09-28
 
 **Luminous Insignia.** Playback controls on older Android, a Morning Briefing that actually plays, and Voice Notes.

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Architecture
-description: Candela's forty-eight Gradle modules, plugin-seam fiction sources via @SourcePlugin + KSP, in-process TTS engine, optional cloud TTS backend, and cross-device InstantDB sync.
+description: Candela's forty-eight Gradle modules, plugin-seam fiction sources via @SourcePlugin + KSP, in-process TTS engine, and optional cloud TTS backend. Candela is local-only: no account, no cloud sync (#1821).
 ---
 
 # Architecture
@@ -48,13 +48,13 @@ Candela is **forty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38).
       │               │  in-process)   │
       ▼               │                ▼
 ┌─────────────────────────────┐  ┌──────────────────────┐
-│ Fiction sources (34)        │  │ :core-sync           │
-│ ─────────────────────────── │  │ InstantDB sync —     │
-│ :source-royalroad           │  │ library / follows /  │
-│ :source-github              │  │ positions / book-    │
-│ :source-rss                 │  │ marks / pronuncia-   │
-│ :source-epub                │  │ tion / secrets       │
-│ :source-outline             │  │ (#360 v0.5.12)       │
+│ Fiction sources (34)        │  │ Local-only (#1821)   │
+│ ─────────────────────────── │  │ no account, no       │
+│ :source-royalroad           │  │ cloud sync —         │
+│ :source-github              │  │ library, positions,  │
+│ :source-rss                 │  │ bookmarks, notes     │
+│ :source-epub                │  │ stay in on-device    │
+│ :source-outline             │  │ Room storage         │
 │ :source-mempalace           │  └──────────────────────┘
 │ :source-gutenberg           │
 │ :source-ao3                 │  ┌──────────────────────┐
@@ -113,7 +113,6 @@ Candela is **forty-eight Gradle modules** (up from 13 at v0.4.x; 29 at v0.5.38).
 | `:core-llm` | Provider matrix for AI chat — Claude direct, Anthropic Teams (OAuth), OpenAI, Vertex, Bedrock, Foundry, Ollama. `ChatStreamEvent` flow type carries text deltas + tool-call + tool-result events; `ToolCatalog` powers function calling; `ImageContentBlock` carries multi-modal images. | `LlmProvider`, `ChatRepository`, `GroundingContext`, `RecapEngine` |
 | `:core-ui` | Library Nocturne theme, shared components. | `LibraryNocturneTheme`, `BrassButton`, `BrassProgressTrack`, spacing/color tokens |
 | `:core-plugin-ksp` | KSP SymbolProcessor — emits a Hilt `@IntoSet` factory per `@SourcePlugin`-annotated `FictionSource`, so `SourcePluginRegistry` discovers backends at startup. Pure Kotlin/JVM module (runs in the Kotlin compiler). | `SourcePluginSymbolProcessor`, `SourcePluginAnnotation` |
-| `:core-sync` | InstantDB cross-device sync — library, follows, positions, bookmarks, pronunciation overrides, encrypted secrets. Magical sign-in surface. | `InstantDbClient`, `SyncRepository`, `SignInController` |
 | `:source-royalroad` | Royal Road implementation of `FictionSource`. | `RoyalRoadSource`, `RoyalRoadFetcher`, `RoyalRoadParsers`, `LoginWebView` |
 | `:source-github` | GitHub-repo implementation of `FictionSource`. | `GithubSource`, `GithubFetcher`, `BookTomlParser`, `CommonmarkRenderer`, `DeviceFlowAuth` |
 | `:source-rss` | RSS / Atom-feed implementation. Pulls suggested-feeds list from [candela-feeds](https://github.com/techempower-org/candela-feeds). | `RssSource`, `RssFetcher`, `RssParser`, `RssFeed` |

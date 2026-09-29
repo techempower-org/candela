@@ -32,12 +32,7 @@ private val Context.telegramDataStore: DataStore<Preferences> by preferencesData
 /** EncryptedSharedPreferences key for the Telegram bot token.
  *  Lives next to the Discord token in `storyvox.secrets`.
  *
- *  **Sync posture (v1)**: NOT registered in
- *  [SecretsSyncer.SECRET_KEY_NAMES] so the token stays device-
- *  local. A future PR can add it (one-line addition) to sync via
- *  InstantDB; deliberately omitted in this PR to avoid colliding
- *  with the parallel accessibility-settings agent's edits to the
- *  same allowlist. */
+ *  Device-local, like every secret (Candela has no cloud sync, #1821). */
 internal const val TELEGRAM_BOT_TOKEN_PREF = "pref_source_telegram_token"
 
 /**
