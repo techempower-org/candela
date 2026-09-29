@@ -8,9 +8,12 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 
 > **TL;DR.** Candela doesn't ship analytics, advertising, or tracking code.
 > Candela has **no account and no cloud sync**: there is no Candela server,
-> and no library data leaves your device. The network is used only when you
-> turn on a feature that needs it (browsing a fiction backend, downloading a
-> voice). Uninstalling the app deletes everything stored locally.
+> and nothing is uploaded to us. The network is used only by features you
+> turn on, and each talks **directly** to the service you chose: browsing a
+> fiction backend, downloading a voice, optional Azure cloud voices (the text
+> being read is sent to Azure), or AI chat with your own key (your messages
+> and the book text you share go to that AI provider). See §2. Uninstalling
+> the app deletes everything stored locally.
 
 **Effective date:** 2026-09-29  
 **App:** Candela (`org.techempower.candela`)  

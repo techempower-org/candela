@@ -15,10 +15,12 @@ people who never signed in: fully offline, on this device.
   stored in the app's own on-device database.
 - **Nothing to lose by not signing in.** There is no sign-in screen any
   more, and no feature is locked behind an account.
-- **Sources you connect still talk to those sources.** If you sign in to
-  Royal Road, AO3 or GitHub, or connect Google Drive or Notion, Candela
-  talks directly to that service to fetch your stories. Those sign-ins are
-  kept on this device, encrypted.
+- **Features you turn on still talk to their service.** If you sign in to
+  Royal Road, AO3 or GitHub, or connect Google Drive, Notion, Slack or
+  Discord, Candela talks directly to that service to fetch your stories, and
+  those sign-ins are kept on this device, encrypted. Optional Azure cloud
+  voices send the text being read to Azure, and AI chat with your own key
+  sends your messages (and any book text you share) to that AI provider.
 
 ## Moving to a new phone or reinstalling
 
@@ -35,8 +37,9 @@ phone restores it for you:
 
 ## Privacy in one line
 
-No Candela account, no Candela server, and no library data leaves your
-device, except what you choose to send to a source you connect, or what
-Android backs up for you under your own account.
+No Candela account and no Candela server: nothing is uploaded to us. Data
+leaves your device only when a feature you turn on sends it **directly** to
+the service you chose (a source you connect, Azure cloud voices, or AI chat
+with your own key), or when Android backs it up under your own account.
 
 See [privacy.md](privacy.md) for the full privacy policy.

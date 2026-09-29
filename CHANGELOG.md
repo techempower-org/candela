@@ -23,9 +23,10 @@ Entries before v0.5.12 are reconstructed from the git log — see
   cloud-sync channel. Share → Candela on the phone still works (#1469).
 
 ### Privacy
-- **No library data leaves your device.** There is no Candela server. The
-  privacy policy, delete-your-data page and Play Data Safety answers now say
-  so. If you used sync in an older version, email us to delete your old sync
+- **Nothing is uploaded to Candela.** There is no Candela server. Optional
+  features (Azure cloud voices, AI chat with your own key, sources you
+  connect) still talk directly to the service you choose, as before. The
+  privacy policy, delete-your-data page and Data Safety notes are updated. If you used sync in an older version, email us to delete your old sync
   record (#1821).
 
 ### Under the hood

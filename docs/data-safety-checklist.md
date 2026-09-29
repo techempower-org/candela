@@ -1,20 +1,24 @@
 # Data Safety declaration — verification + Play Console checklist (#1139)
 
-> ## ⚠️ Superseded 2026-09-29 by #1821: no account, no cloud sync
-> Candela removed InstantDB cloud sync. There is **no account** and **no
-> Candela server**, so the answers below the line are historical. **Current
-> Play Console answers:**
-> - _Does your app collect or share any of the required user data types?_ → **No**
->   (every data type = **Not collected**; nothing is shared).
->   BYOK keys, third-party sign-ins, the calendar agenda, OCR, Voice Notes and
->   the documents wallet stay on-device or go *user → their own service*, as
->   already argued in Sections B/C, so they remain **Not collected / Not shared**.
-> - With "No", Play skips the encryption / deletion questions, and the
->   account-deletion URL requirement no longer applies (users can't create an
->   account). [delete-account.md](delete-account.md) still explains on-device
->   deletion and the email path for **old** sync records from earlier versions.
-> - **Action (Play Console):** App content → Data safety → edit → answer **No**
->   → save → submit with the next release. Mirror it in play-store-walkthrough §IV.
+> ## ⚠️ Updated 2026-09-29 by #1821: no account, no cloud sync
+> Candela removed InstantDB cloud sync, so **only the account/sync rows
+> change**. Every other classification below is unchanged.
+> - **Remove** the sync-derived types: Email address, User IDs, and the synced
+>   App activity / Other user-generated content (library state). They are now
+>   **Not collected** (no account, no server copy), and the InstantDB sharing
+>   entry in §C goes.
+> - **Unchanged:** the user-initiated BYOK flows: AI chat and note summaries
+>   (text → the user's own LLM provider), Azure HD voices (chapter text →
+>   Azure), and source logins/tokens (→ that source). These keep the existing
+>   **Not collected / Not shared** rationale in §B/§C (user transmits directly to
+>   their own account). No crash/analytics SDK exists (build-wide grep, 2026-09-29).
+> - **Overall "collect or share?"**: with the sync types gone, the
+>   collected list is empty *only because of* that unchanged BYOK rationale. If
+>   a reviewer or policy update rejects it, declare those flows instead (don't
+>   answer "No" by default). The Play Console edit ships with the release that
+>   contains #1822 (the lead handles it at release time).
+> - The account-deletion URL requirement is moot (no account creation). Keep
+>   [delete-account.md](delete-account.md) live for old sync records.
 
 _Verified by Reverie against the candela code (main) — not taken on faith from the doc._
 

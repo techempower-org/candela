@@ -10,7 +10,7 @@ The hybrid reader shows the chapter in EB Garamond on a warm dark theme, highlig
 
 Built for accessibility and for slower devices: TalkBack-aware navigation, WCAG AA brass-on-near-black contrast, OpenDyslexic and Atkinson Hyperlegible fonts, adjustable font scale, and reduced-motion options throughout.
 
-Your library, reading positions, bookmarks, highlights, notes and settings stay on your device. There is no Candela account and no Candela server, so none of your library data leaves your phone.
+Your library, reading positions, bookmarks, highlights, notes and settings are stored on your device. There is no Candela account and no Candela server, so nothing is uploaded to us; optional features talk directly to the service you choose.
 
 FEATURES
 • 37 fiction & reference sources: enable only the ones you want

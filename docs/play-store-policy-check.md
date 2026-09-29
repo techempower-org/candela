@@ -233,8 +233,8 @@ submission time.
 
 - Data encrypted in transit: **Yes** (all HTTPS, enforced by
   `network_security_config.xml`)
-- Users can request deletion: **not asked** once every data type is Not
-  collected (#1821). On-device data is deleted by uninstalling or clearing
+- Users can request deletion: the sync data it covered is gone (#1821). If
+  no types are declared (the BYOK rationale holds), Play doesn't ask. On-device data is deleted by uninstalling or clearing
   storage; old sync records from earlier versions are deleted on request via
   the email in [delete-account.md](delete-account.md).
 - Independent security review: **Not yet** — JP's call whether to commit

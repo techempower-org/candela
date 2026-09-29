@@ -73,7 +73,7 @@ consolidated here so it's in one place for the questionnaire.
 | Users interact with each other / in-app messaging | **No** | Discord/Slack/Matrix/Telegram backends are **read-only feeds**; you can't post from inside Candela. |
 | Shares user location | No | No location features/permission. |
 | Digital purchases / IAP / real-money | No | Free, no IAP, no ads. |
-| Shares personal info with third parties | No | No account and no cloud sync (#1821): no library or personal data leaves the device. |
+| Shares personal info with third parties | No | No account and no cloud sync (#1821). Optional BYOK features (Azure voices, AI chat, source logins) go user → their own service directly; see policy-check. |
 
 **Open items needing a human decision before submission:**
 - [ ] **Target audience: 13+** (must match the content rating; NOT child-directed → not eligible for Designed for Families).
@@ -85,8 +85,9 @@ consolidated here so it's in one place for the questionnaire.
 ## Data Safety + permissions (pointers — already drafted)
 
 - **Data Safety form**: see `docs/play-store-policy-check.md`. Summary (#1821):
-  **nothing collected, nothing shared**. There's no account and no cloud sync, and
-  library data never leaves the device. No ads, no ad IDs.
+  the account/sync data types are gone (no account, no cloud sync). The BYOK
+  flows (Azure voices, AI chat, source logins) keep their existing Not collected /
+  Not shared classification. No ads, no ad IDs.
 - **Sensitive permissions to justify** at the Play Console permissions screen
   (from `app/src/main/AndroidManifest.xml`):
   - `CAMERA` → on-device OCR only (scan a page → text); images never leave the device.
