@@ -25,7 +25,7 @@ import org.junit.rules.TemporaryFolder
 /**
  * Issue #978 — diff-based per-key stamping in [SettingsRepositoryUiImpl].
  *
- * The field-level merge in `:core-sync`'s `SettingsSyncer` relies on the
+ * A field-level sync merge (the InstantDB one was removed in #1821) relies on the
  * snapshot source surfacing a correct per-key `updatedAt` via
  * [SettingsRepositoryUiImpl.fieldStamps]. That stamp map is derived
  * WITHOUT touching any `set*` mutator — at the single

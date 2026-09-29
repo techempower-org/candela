@@ -2678,8 +2678,7 @@ interface SettingsRepositoryUi {
     /**
      * Book-cover fallback style — see [UiSettings.coverStyle] and
      * [`CoverStyle`]. Default no-op for test fakes; the DataStore
-     * impl in `:app` persists under `pref_cover_style`, mirrors
-     * through the `:core-sync` allowlist, and triggers a recomposition
+     * impl in `:app` persists under `pref_cover_style` and triggers a recomposition
      * via the [`LocalCoverStyle`] CompositionLocal so the next
      * `FictionCoverThumb` render picks the new tile.
      */

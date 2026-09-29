@@ -129,6 +129,10 @@ class StoryvoxApp : Application(), Configuration.Provider {
      */
     @Inject lateinit var newChapterNotifier: Lazy<NewChapterNotifier>
 
+    /** Issue #1821 — deletes the removed InstantDB sync's on-device state
+     *  (including a stored refresh token) from installs that used sync. */
+    @Inject lateinit var legacySyncCleanup: Lazy<`in`.jphe.storyvox.data.LegacySyncCleanup>
+
     /**
      * Issue #1631 — keeps the on-device deadline alarms in sync with the
      * master `deadlineRemindersEnabled` pref. Reacts to in-session toggle
@@ -246,6 +250,11 @@ class StoryvoxApp : Application(), Configuration.Provider {
         // [seedVoiceEngineFromSettings] kdoc. MainActivity drives the
         // post-first-frame hand-off so the .so dlopen lands well after
         // the splash screen is gone.
+        // Issue #1821 — idempotent cleanup of the removed cloud sync's state
+        // (refresh token, passphrase, stamps, tombstones). No-op once clean.
+        initScope.launch {
+            runCatching { legacySyncCleanup.get().run() }
+        }
         // PR-F (#86) — Mode C flow collector. Started on IO so the
         // PrerenderTriggers + FictionRepository + DataStore graph is
         // materialised off the cold-launch critical path; start()

@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.map
  * string so future modes can be added without a migration — unknown
  * values fall back to [LibrarySortMode.DEFAULT].
  *
- * Not in the `:core-sync` allowlist (yet) — sort preference is
+ * Not in the settings-sync allowlist — sort preference is
  * device-local UX state, not a cross-device user setting. A future PR
  * can add the key to [SettingsRepositoryUiImpl.SYNC_ALLOWLIST] if JP
  * wants tablet/phone parity here; the wire shape is stable

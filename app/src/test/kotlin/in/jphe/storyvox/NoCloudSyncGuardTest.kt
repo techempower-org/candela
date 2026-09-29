@@ -33,6 +33,13 @@ class NoCloudSyncGuardTest {
         Regex("""\b(SyncCoordinator|InstantSession|InstantClient|InstantBackend|SecretsSyncer|InboxSyncer|PassphraseManager|InboxSink)\b"""),
     )
 
+    /** The one deliberate exception: the upgrade cleanup has to NAME the legacy
+     *  InstantDB keys in order to delete them from old installs (#1821). */
+    private val legacyCleanup = setOf(
+        "app/src/main/kotlin/in/jphe/storyvox/data/LegacySyncCleanup.kt",
+        "app/src/test/kotlin/in/jphe/storyvox/data/LegacySyncCleanupTest.kt",
+    )
+
     @Test
     fun `core-sync module is gone`() {
         assertFalse("core-sync/ must not exist (#1821)", File(root, "core-sync").exists())
@@ -66,6 +73,7 @@ class NoCloudSyncGuardTest {
                     (f.extension in setOf("yml", "yaml") && f.path.contains(".github"))
             }
             .filter { it.canonicalFile != self }
+            .filter { it.canonicalPath.removePrefix(root.canonicalPath + File.separator) !in legacyCleanup }
             .toList()
     }
 
@@ -76,10 +84,14 @@ class NoCloudSyncGuardTest {
         return file.readLines().mapIndexedNotNull { i, raw ->
             var line = raw
             if (inBlock) {
-                val end = line.indexOf("*/").takeIf { it >= 0 } ?: line.indexOf("-->").takeIf { it >= 0 }
-                if (end == null) return@mapIndexedNotNull null
+                // Skip past whichever terminator closes the block: "*/" (2 chars) or "-->" (3 chars).
+                val close = listOf("*/", "-->")
+                    .map { it to line.indexOf(it) }
+                    .filter { it.second >= 0 }
+                    .minByOrNull { it.second }
+                    ?: return@mapIndexedNotNull null
                 inBlock = false
-                line = line.substring(end + 2)
+                line = line.substring(close.second + close.first.length)
             }
             listOf("/*" to "*/", "<!--" to "-->").forEach { (open, close) ->
                 val s = line.indexOf(open)

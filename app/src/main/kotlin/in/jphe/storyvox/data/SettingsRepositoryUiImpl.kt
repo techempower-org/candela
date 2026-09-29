@@ -763,14 +763,14 @@ private object Keys {
 
     /** Issue #778 — epoch-ms stamp of the last local edit to
      *  [PRONUNCIATION_DICT]. Persisted alongside the dict in the main
-     *  `storyvox_settings` DataStore so the `PronunciationDictSyncer`'s
-     *  LWW push survives cold starts. Before this key existed, the
+     *  `storyvox_settings` DataStore so the dict's last-write stamp
+     *  survives cold starts (it fed the removed sync merge, #1821). Before this key existed, the
      *  syncer kept an in-memory `var lastLocalWriteAt: Long = 0L` that
      *  reset to 0 on every process restart — `readLocal` then stamped
      *  the dict with `System.currentTimeMillis()` and a stale local
      *  dict won blanket against newer remotes. Excluded from
      *  [SYNC_ALLOWLIST] for the same reason
-     *  `instantdb.settings_synced_at` is excluded — syncing the stamp
+     *  `local_stamp.settings_synced_at` is excluded — syncing the stamp
      *  itself would loop. */
     val PRONUNCIATION_DICT_WRITE_AT = longPreferencesKey("local_stamp.pronunciation_dict_write_at")
 
@@ -865,7 +865,7 @@ private object Keys {
      * opt-in mode, unlike auto-scroll which is on by default). The focus
      * IconButton in the reader controls overlay flips this. Versioned
      * `_v1` per the same convention; device-local — deliberately absent
-     * from [SYNC_ALLOWLIST] so it never rides the InstantDB sync.
+     * from [SYNC_ALLOWLIST] (the sync seam is a no-op since #1821).
      */
     val READER_FOCUS_MODE_ENABLED = booleanPreferencesKey("pref_reader_focus_mode_enabled_v1")
 
@@ -1262,9 +1262,9 @@ class SettingsRepositoryUiImpl(
      *  [SYNC_SNAPSHOT_BASELINE_KEY] can't interleave:
      *  - Path A: a local UI setter → [stampSyncedWrite] → [reconcileFieldStamps],
      *    running on whatever coroutine the setter was called from.
-     *  - Path B: a sync pull → [applyStamped], running inside the
-     *    [SyncCoordinator] per-domain mutex.
-     *  The coordinator mutex only serializes syncers against each other; it
+     *  - Path B: a sync pull → [applyStamped] (dormant since #1821 removed
+     *    the InstantDB sync; kept for a future backend).
+     *  A sync-side lock would only serialize pulls against each other; it
      *  does not touch Path A, which calls this repository directly from the
      *  UI layer. Each individual `store.edit` is atomic, but the compound
      *  read→read→write→write is not, so without this lock a write from one
@@ -1275,8 +1275,8 @@ class SettingsRepositoryUiImpl(
     private val stampMutex = Mutex()
 
     /** Schedule (or reschedule) the debounced settings-domain push.
-     *  Called from [stampSyncedWrite]. [SyncCoordinator.requestPush]
-     *  no-ops when signed out, so this is safe to fire unconditionally. */
+     *  Called from [stampSyncedWrite]. [pushSettings] is a no-op since
+     *  #1821 (no cloud sync), so this is safe to fire unconditionally. */
     private fun scheduleSettingsPush() {
         pushJob?.cancel()
         pushJob = pushScope.launch {
@@ -2536,9 +2536,8 @@ class SettingsRepositoryUiImpl(
      * [stampSyncedWrite] still fires unconditionally so a deliberate
      * "touch" by the user after a sync conflict still pushes their
      * intent forward. The key is in [SYNC_ALLOWLIST] + [SYNC_KEY_TYPES]
-     * so favorites ride the next InstantDB sync round to the user's
-     * other devices — cross-device intent ("AO3 is my main source") is
-     * the kind of preference users want mirrored everywhere.
+     * so a future sync backend would carry favourites (the seam is a
+     * no-op since #1821).
      */
     override suspend fun setSourceFavorite(id: String, favorite: Boolean) {
         store.edit { prefs ->
@@ -2559,9 +2558,8 @@ class SettingsRepositoryUiImpl(
      * Serialized as a JSON array of plugin ids under
      * [Keys.SOURCE_DISPLAY_ORDER_JSON]. An empty list clears the
      * custom order, reverting to the default favourites-first layout.
-     * [stampSyncedWrite] fires so the order syncs across devices via
-     * InstantDB — cross-device intent for carousel arrangement is
-     * the same family as favourites and enabled-plugin toggles.
+     * [stampSyncedWrite] fires, like favourites, so a future sync backend
+     * would carry it (no-op since #1821).
      */
     override suspend fun setSourceDisplayOrder(order: List<String>) {
         store.edit { prefs ->
@@ -2659,10 +2657,8 @@ class SettingsRepositoryUiImpl(
     }
 
     // ── Accessibility scaffold (Phase 1, v0.5.42) ──────────────────
-    // Every setter also stamps a synced-write so the next InstantDB
-    // sync round carries the new value to the user's other devices —
-    // accessibility intent is the kind of preference users want
-    // mirrored everywhere they've signed in.
+    // Every setter also stamps a synced-write (the sync seam is a no-op
+    // since #1821; kept for a future backend).
     override suspend fun setA11yHighContrast(enabled: Boolean) {
         store.edit { it[Keys.A11Y_HIGH_CONTRAST] = enabled }
         stampSyncedWrite()
@@ -2765,10 +2761,8 @@ class SettingsRepositoryUiImpl(
 
     /**
      * Persist the user's book-cover fallback preference. Stamped via
-     * [stampSyncedWrite] so the choice rides the next InstantDB sync
-     * round to the user's other devices — cover preference is the
-     * kind of visual-style intent users want mirrored everywhere
-     * they've signed in (same logic as `pref_theme_override`).
+     * [stampSyncedWrite] (same logic as `pref_theme_override`; the sync
+     * seam is a no-op since #1821).
      */
     override suspend fun setCoverStyle(style: CoverStyle) {
         store.edit { it[Keys.COVER_STYLE] = style.name }
@@ -3095,13 +3089,13 @@ class SettingsRepositoryUiImpl(
 
     /**
      * Issue #778 — persisted across cold starts so the
-     * [PronunciationDictSyncer]'s LWW push carries the dict's true last
+     * dict's last-write stamp carries its true last
      * edit time rather than `System.currentTimeMillis()` on every
      * restart (which would let a stale local dict beat a newer remote).
      * Stored in the main `storyvox_settings` DataStore alongside the
      * dict payload itself — same lifecycle, atomic with the edit that
      * advances it. Mirrors the [SYNC_LAST_WRITE_KEY] pattern used by
-     * the Tier-1 [SettingsSyncer].
+     * the Tier-1 settings sync (removed in #1821).
      */
     override suspend fun lastDictWriteAt(): Long =
         store.data.first()[Keys.PRONUNCIATION_DICT_WRITE_AT] ?: 0L
@@ -3286,9 +3280,10 @@ class SettingsRepositoryUiImpl(
         store.edit { it[Keys.READER_FOCUS_MODE_ENABLED] = enabled }
     }
 
-    // ── InstantDB settings sync (this PR) ──────────────────────────
+    // ── Settings sync seam (dormant since #1821) ───────────────────
     /**
-     * Snapshot/apply seam consumed by `:core-sync`'s `SettingsSyncer`.
+     * Snapshot/apply seam. Its consumer (the InstantDB settings syncer)
+     * was removed in #1821; kept so a future sync backend can plug in.
      * Round-trips every key in [SYNC_ALLOWLIST] through a flat
      * `Map<String, String>` JSON blob plus the per-backend
      * non-secret config keys (Wikipedia / Notion / Discord /
@@ -3480,9 +3475,7 @@ class SettingsRepositoryUiImpl(
      *
      *  Issue #977 — this is the single chokepoint that triggers a
      *  debounced push of the "settings" domain, so a preference change
-     *  reaches InstantDB right away instead of waiting for a cold-start
-     *  or manual "Sync now" (a window in which an intervening pull could
-     *  clobber the un-pushed local change).
+     *  would reach a sync backend right away (no-op since #1821).
      *
      *  Issue #978 — diff-based per-key stamping. Because this is the
      *  single funnel for every synced local write, we can derive
@@ -3555,8 +3548,8 @@ class SettingsRepositoryUiImpl(
 
         /** Issue #978 — per-key `updatedAt` map (stringified JSON
          *  `Map<String,Long>`) for field-level merge. Same non-synced
-         *  `instantdb.*` convention as [SYNC_LAST_WRITE_KEY] /
-         *  `instantdb.pronunciation_dict_write_at` — excluded from
+         *  `local_stamp.*` convention as [SYNC_LAST_WRITE_KEY] /
+         *  `local_stamp.pronunciation_dict_write_at` — excluded from
          *  [SYNC_ALLOWLIST] so we never sync the sync clock itself. */
         private val SYNC_FIELD_STAMPS_KEY =
             stringPreferencesKey("local_stamp.settings_field_stamps_v1")
@@ -3565,7 +3558,7 @@ class SettingsRepositoryUiImpl(
          *  against (stringified JSON `Map<String,String>`). Lets
          *  [reconcileFieldStamps] bump only the keys that actually
          *  changed since the previous synced write, without touching
-         *  any `set*` mutator. Non-synced `instantdb.*` key. */
+         *  any `set*` mutator. Non-synced `local_stamp.*` key. */
         private val SYNC_SNAPSHOT_BASELINE_KEY =
             stringPreferencesKey("local_stamp.settings_snapshot_baseline_v1")
 
@@ -3586,7 +3579,7 @@ class SettingsRepositoryUiImpl(
 
         /**
          * Names of every DataStore key in the main `storyvox_settings`
-         * store that round-trips through InstantDB settings sync.
+         * store that a sync backend would round-trip (none since #1821).
          *
          * Explicit allowlist — adding a key here AND a type entry in
          * [SYNC_KEY_TYPES] is what gates a preference for sync. The
@@ -3600,7 +3593,7 @@ class SettingsRepositoryUiImpl(
          *  - `pref_v0500_milestone_seen`, `pref_v0500_confetti_shown`
          *    — one-time device-local dialog gates
          *  - `pref_pronunciation_dict_v1` — handled by
-         *    `PronunciationDictSyncer`
+         *    its own dict stamp
          */
         internal val SYNC_ALLOWLIST: Set<String> = setOf(
             // Theme / playback knobs.
@@ -3728,8 +3721,8 @@ class SettingsRepositoryUiImpl(
             // is intentionally NOT in this allowlist: it's mirrored
             // through RR's own server-side preference store (the
             // "saved tags" UI on royalroad.com) rather than through
-            // InstantDB. Round-tripping it through both would risk
-            // double-merge collisions (InstantDB-LWW vs RR-LWW with
+            // the settings sync seam. Round-tripping it through both would risk
+            // double-merge collisions (settings-LWW vs RR-LWW with
             // different freshness windows). The two metadata keys
             // ARE synced so a user who flips "sync with RR off" on
             // their phone sees the toggle reflected on their tablet.

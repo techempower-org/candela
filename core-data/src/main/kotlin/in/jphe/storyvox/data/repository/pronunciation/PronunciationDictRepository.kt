@@ -47,8 +47,8 @@ interface PronunciationDictRepository {
 
     /**
      * Epoch-ms timestamp of the last local edit to the dictionary.
-     * Used as the `updatedAt` for [PronunciationDictSyncer]'s LWW blob
-     * push — without persisting this across cold starts, a stale local
+     * Used as the `updatedAt` for a sync backend's LWW blob push
+     * (none since #1821) — without persisting this across cold starts, a stale local
      * dict gets re-stamped "now" on every process restart and wins
      * blanket against newer remotes, silently overwriting cross-device
      * edits (issue #778).
@@ -69,7 +69,7 @@ interface PronunciationDictRepository {
      * Stamp a fresh local write at [at]. Mutators in this contract
      * ([add], [update], [delete], [replaceAll]) must call this on every
      * successful edit so the next sync push carries a strictly-increasing
-     * `updatedAt`. Also called by [PronunciationDictSyncer.writeLocal]
+     * `updatedAt`. Also called by a sync backend's write-local step
      * on a remote-pull so the local stamp adopts the merged blob's
      * `updatedAt` (otherwise a pull → push round-trip would advance the
      * stamp past the remote and break LWW ordering).

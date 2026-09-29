@@ -30,19 +30,14 @@ import kotlinx.serialization.json.longOrNull
  * **Two DataStores, by design:**
  *
  *  - `storyvox_tag_sync` — large per-source JSON payloads (the
- *    followed-tag set + tombstone map). Intentionally NOT
- *    round-tripped through `:core-sync` because the tag set
- *    itself is mirrored via Royal Road's server-side preference
- *    (the canonical source-of-truth for RR-side tags), and double-
- *    merging through both InstantDB LWW and RR LWW would risk
- *    collisions with different freshness windows.
+ *    followed-tag set + tombstone map), mirrored via Royal Road's
+ *    server-side preference (the canonical source of truth for
+ *    RR-side tags). Candela has no cloud sync of its own (#1821).
  *
  *  - `storyvox_settings` — the two metadata keys (`pref_rr_tag_sync_enabled`,
- *    `pref_rr_tag_sync_last_synced_at`). Both ARE in the
- *    `:core-sync` allowlist (see [SettingsRepositoryUiImpl.SYNC_ALLOWLIST])
- *    so a user who flips "sync with RR off" on their phone sees
- *    the toggle reflected on their tablet, and so the "Last
- *    synced" pill shows the freshest stamp across devices.
+ *    `pref_rr_tag_sync_last_synced_at`). Both are in the dormant
+ *    settings-sync allowlist ([SettingsRepositoryUiImpl.SYNC_ALLOWLIST];
+ *    a no-op seam since #1821), so a future sync backend would carry them.
  *
  *    DataStore is a per-name singleton per process — opening
  *    `storyvox_settings` from this file points at the same
@@ -85,7 +80,7 @@ class FollowedTagsStoreImpl @Inject constructor(
      * scoped only to Royal Road; the per-sourceId pattern leaves
      * room for AO3 / Discord without touching the wire schema.
      * The `pref_rr_*` literal name is preserved for RR because
-     * it's already in the `:core-sync` allowlist; future sources
+     * it's already in the settings-sync allowlist; future sources
      * would add their own keyed entries.
      */
     private fun lastSyncedAtKey(sourceId: String) = longPreferencesKey(
@@ -164,9 +159,7 @@ class FollowedTagsStoreImpl @Inject constructor(
 
     override fun lastSyncedAt(sourceId: String): Flow<Long> {
         val key = lastSyncedAtKey(sourceId)
-        // Round-tripped via `:core-sync` so the freshest stamp
-        // across devices wins (issue #178). Reads/writes hit the
-        // main settings DataStore.
+        // Reads/writes hit the main settings DataStore (issue #178).
         return metadataStore.data.map { prefs -> prefs[key] ?: 0L }
     }
 
@@ -180,9 +173,6 @@ class FollowedTagsStoreImpl @Inject constructor(
         // Default true — once a user is signed in to a source
         // we want sync on by default. The Settings UI's toggle
         // writes the explicit false when the user opts out.
-        // Round-tripped via `:core-sync` (issue #178 — "Add to
-        // :core-sync allowlist so the sync state round-trips
-        // across devices.")
         return metadataStore.data.map { prefs -> prefs[key] ?: true }
     }
 

@@ -585,10 +585,9 @@ object AppBindings {
     ): PronunciationDictRepository = impl
 
     /**
-     * Tier 1 settings-sync snapshot/apply seam (this PR — extends #360).
-     * Bridges `:core-sync`'s `SettingsSyncer` to the live DataStore via
-     * the same singleton — one store, every contract, including the
-     * sync-side snapshot/apply pair.
+     * Settings snapshot/apply seam (extends #360). Its InstantDB consumer
+     * was removed in #1821; the binding stays so a future sync backend can
+     * reuse the same singleton — one store, every contract.
      */
     @Provides @Singleton
     fun provideSettingsSnapshotSource(
