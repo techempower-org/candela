@@ -1,5 +1,7 @@
 package `in`.jphe.storyvox.feature.reader.script
 
+import `in`.jphe.storyvox.feature.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -94,12 +96,12 @@ fun ScriptGeneratorSheet(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "Write a script",
+                    stringResource(R.string.scripts_gen_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
             }
             Text(
-                "Generate a teleprompter-ready script — speaker labels, short lines, and cue marks.",
+                stringResource(R.string.scripts_gen_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -107,15 +109,15 @@ fun ScriptGeneratorSheet(
             OutlinedTextField(
                 value = topic,
                 onValueChange = { topic = it },
-                label = { Text("Topic") },
-                placeholder = { Text("e.g., Why accessibility matters in 60 seconds") },
+                label = { Text(stringResource(R.string.scripts_gen_topic)) },
+                placeholder = { Text(stringResource(R.string.scripts_gen_topic_hint)) },
                 enabled = !generating,
                 maxLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Text(
-                "Length",
+                stringResource(R.string.scripts_gen_length),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -135,9 +137,9 @@ fun ScriptGeneratorSheet(
 
             BrassButton(
                 label = when {
-                    generating -> "Generating…"
-                    state is ScriptGeneratorState.Done -> "Regenerate"
-                    else -> "Generate"
+                    generating -> stringResource(R.string.scripts_gen_generating)
+                    state is ScriptGeneratorState.Done -> stringResource(R.string.scripts_gen_regenerate)
+                    else -> stringResource(R.string.scripts_gen_generate)
                 },
                 onClick = {
                     editing = false
@@ -153,13 +155,13 @@ fun ScriptGeneratorSheet(
                 is ScriptGeneratorState.Idle -> Unit
 
                 is ScriptGeneratorState.Generating -> {
-                    ScriptPreview(text = s.partial, placeholder = "Writing…")
+                    ScriptPreview(text = s.partial, placeholder = stringResource(R.string.scripts_gen_writing))
                     StatsRow(text = s.partial, viewModel = viewModel)
                     TextButton(
                         onClick = viewModel::stop,
                         modifier = Modifier.align(Alignment.End),
                     ) {
-                        Text("Stop")
+                        Text(stringResource(R.string.scripts_gen_stop))
                     }
                 }
 
@@ -168,7 +170,7 @@ fun ScriptGeneratorSheet(
                         OutlinedTextField(
                             value = editText,
                             onValueChange = { editText = it },
-                            label = { Text("Edit script") },
+                            label = { Text(stringResource(R.string.scripts_edit)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 120.dp, max = 280.dp),
@@ -184,7 +186,7 @@ fun ScriptGeneratorSheet(
                     ) {
                         if (editing) {
                             BrassButton(
-                                label = "Done editing",
+                                label = stringResource(R.string.scripts_gen_done_editing),
                                 onClick = {
                                     viewModel.setScript(editText.trim())
                                     editing = false
@@ -194,7 +196,7 @@ fun ScriptGeneratorSheet(
                             )
                         } else {
                             BrassButton(
-                                label = "Edit",
+                                label = stringResource(R.string.scripts_gen_edit),
                                 onClick = {
                                     editText = s.script
                                     editing = true
@@ -205,7 +207,7 @@ fun ScriptGeneratorSheet(
                     }
 
                     BrassButton(
-                        label = "Load into Teleprompter",
+                        label = stringResource(R.string.scripts_load_into_teleprompter),
                         onClick = {
                             if (editing) {
                                 viewModel.setScript(editText.trim())
@@ -222,13 +224,13 @@ fun ScriptGeneratorSheet(
 
                 is ScriptGeneratorState.Error -> {
                     Text(
-                        s.message,
+                        scriptGenerationFailureText(s.failure),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
                     if (s.routeToSettings) {
                         BrassButton(
-                            label = "Open AI settings",
+                            label = stringResource(R.string.scripts_gen_open_ai_settings),
                             onClick = onOpenAiSettings,
                             variant = BrassButtonVariant.Secondary,
                         )
@@ -287,4 +289,14 @@ private fun StatsRow(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
+}
+
+/** Localized text for a [ScriptGenerationFailure] (#1819). */
+@Composable
+private fun scriptGenerationFailureText(failure: ScriptGenerationFailure): String = when (failure) {
+    ScriptGenerationFailure.NotConfigured -> stringResource(R.string.scripts_gen_err_not_configured)
+    is ScriptGenerationFailure.AuthFailed -> stringResource(R.string.scripts_gen_err_auth, failure.provider)
+    ScriptGenerationFailure.Transport -> stringResource(R.string.scripts_gen_err_transport)
+    is ScriptGenerationFailure.Provider -> stringResource(R.string.scripts_gen_err_provider, failure.status)
+    is ScriptGenerationFailure.Other -> failure.detail ?: stringResource(R.string.scripts_gen_err_generic)
 }

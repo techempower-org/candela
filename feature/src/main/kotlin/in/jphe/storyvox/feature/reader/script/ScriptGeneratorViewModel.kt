@@ -145,23 +145,10 @@ class ScriptGeneratorViewModel @Inject constructor(
     /** Whitespace-delimited word count of [text]. */
     fun wordCount(text: String): Int = scriptWordCount(text)
 
-    private fun mapError(e: Throwable): ScriptGeneratorState.Error = when (e) {
-        is LlmError.NotConfigured -> notConfiguredError()
-        is LlmError.AuthFailed -> ScriptGeneratorState.Error(
-            "${e.provider} key is invalid — check Settings → AI.",
-            routeToSettings = true,
-        )
-        is LlmError.Transport -> ScriptGeneratorState.Error(
-            "Couldn't reach the AI — check your connection and try again.",
-        )
-        is LlmError.ProviderError -> ScriptGeneratorState.Error(
-            "AI service error (${e.status}). Try again in a moment.",
-        )
-        else -> ScriptGeneratorState.Error(e.message ?: "Generation failed.")
-    }
+    private fun mapError(e: Throwable): ScriptGeneratorState.Error = scriptGeneratorError(e)
 
     private fun notConfiguredError() = ScriptGeneratorState.Error(
-        "AI isn't set up yet. Choose a provider in Settings → AI.",
+        ScriptGenerationFailure.NotConfigured,
         routeToSettings = true,
     )
 
@@ -171,6 +158,18 @@ class ScriptGeneratorViewModel @Inject constructor(
 }
 
 // ── Pure helpers (unit-tested in ScriptGeneratorLogicTest) ──────────────────
+
+/** Map an LLM failure to a typed [ScriptGeneratorState.Error]; the sheet
+ *  localizes it (#1819). Config/auth problems route to AI settings. */
+internal fun scriptGeneratorError(e: Throwable): ScriptGeneratorState.Error = when (e) {
+    is LlmError.NotConfigured ->
+        ScriptGeneratorState.Error(ScriptGenerationFailure.NotConfigured, routeToSettings = true)
+    is LlmError.AuthFailed ->
+        ScriptGeneratorState.Error(ScriptGenerationFailure.AuthFailed(e.provider.name), routeToSettings = true)
+    is LlmError.Transport -> ScriptGeneratorState.Error(ScriptGenerationFailure.Transport)
+    is LlmError.ProviderError -> ScriptGeneratorState.Error(ScriptGenerationFailure.Provider(e.status))
+    else -> ScriptGeneratorState.Error(ScriptGenerationFailure.Other(e.message))
+}
 
 /**
  * Standard short-form speaking pace (words/min). Used for both the generation

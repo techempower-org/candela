@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- #1819 Teleprompter Scripts — list, editor and AI generator sheet (#1369). -->
+<resources>
+    <!-- Shared -->
+    <string name="scripts_title">Scripts</string>
+    <string name="scripts_untitled">Untitled</string>
+    <!-- Title given to a duplicated script. %1$s = the original title. -->
+    <string name="scripts_copy_format">%1$s (copy)</string>
+    <string name="scripts_back">Back</string>
+    <string name="scripts_load_into_teleprompter">Load into Teleprompter</string>
+    <string name="scripts_new">New script</string>
+
+    <!-- List -->
+    <!-- Snackbar after a delete. %1$s = the script title. -->
+    <string name="scripts_deleted">Deleted \"%1$s\"</string>
+    <string name="scripts_undo">Undo</string>
+    <string name="scripts_teleprompter_settings">Teleprompter settings</string>
+    <string name="scripts_search">Search scripts</string>
+    <string name="scripts_clear_search">Clear search</string>
+    <string name="scripts_duplicate">Duplicate</string>
+    <string name="scripts_delete">Delete</string>
+    <!-- %1$s = the search query. -->
+    <string name="scripts_empty_no_match">No scripts match \"%1$s\".</string>
+    <string name="scripts_empty">No scripts yet.\nTap + to write one, or generate one with AI.</string>
+
+    <!-- Editor -->
+    <string name="scripts_saved">Saved</string>
+    <string name="scripts_edit">Edit script</string>
+    <string name="scripts_save">Save</string>
+    <string name="scripts_more_options">More options</string>
+    <string name="scripts_import_clipboard">Import from clipboard</string>
+    <string name="scripts_field_title">Title</string>
+    <string name="scripts_field_tags">Tags (comma-separated)</string>
+    <string name="scripts_remove_tag">Remove tag</string>
+    <string name="scripts_field_body">Script</string>
+    <string name="scripts_body_placeholder">Write or paste your script here…</string>
+    <string name="scripts_format_freeform">Freeform</string>
+    <string name="scripts_format_short">YouTube Short</string>
+    <string name="scripts_format_full_show">Full Show</string>
+
+    <!-- AI generator sheet -->
+    <string name="scripts_gen_title">Write a script</string>
+    <string name="scripts_gen_subtitle">Generate a teleprompter-ready script — speaker labels, short lines, and cue marks.</string>
+    <string name="scripts_gen_topic">Topic</string>
+    <string name="scripts_gen_topic_hint">e.g., Why accessibility matters in 60 seconds</string>
+    <string name="scripts_gen_length">Length</string>
+    <string name="scripts_gen_generate">Generate</string>
+    <string name="scripts_gen_regenerate">Regenerate</string>
+    <string name="scripts_gen_generating">Generating…</string>
+    <string name="scripts_gen_writing">Writing…</string>
+    <string name="scripts_gen_stop">Stop</string>
+    <string name="scripts_gen_edit">Edit</string>
+    <string name="scripts_gen_done_editing">Done editing</string>
+    <string name="scripts_gen_open_ai_settings">Open AI settings</string>
+    <string name="scripts_gen_err_not_configured">AI isn\'t set up yet. Choose a provider in Settings → AI.</string>
+    <!-- %1$s = the AI provider name (Claude, OpenAi, …). -->
+    <string name="scripts_gen_err_auth">%1$s key is invalid — check Settings → AI.</string>
+    <string name="scripts_gen_err_transport">Couldn\'t reach the AI — check your connection and try again.</string>
+    <!-- %1$d = the HTTP status code. -->
+    <string name="scripts_gen_err_provider">AI service error (%1$d). Try again in a moment.</string>
+    <string name="scripts_gen_err_generic">Generation failed.</string>
+</resources>
