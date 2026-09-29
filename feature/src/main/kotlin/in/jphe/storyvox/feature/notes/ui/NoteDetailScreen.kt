@@ -85,6 +85,12 @@ fun NoteDetailScreen(
     val savedMessage = stringResource(R.string.notes_saved)
     val summarizeUnavailableMessage = stringResource(R.string.notes_summarize_unavailable)
     val shareChooserTitle = stringResource(R.string.notes_share_chooser)
+    // The shared text's own words, in the app's language (not always English).
+    val exportLabels = NoteExportLabels(
+        untitled = stringResource(R.string.notes_untitled),
+        transcript = stringResource(R.string.notes_section_transcript),
+        summary = stringResource(R.string.notes_section_summary),
+    )
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -113,7 +119,7 @@ fun NoteDetailScreen(
         onTagsChange = viewModel::onTagsChange,
         onSave = viewModel::save,
         onDelete = viewModel::delete,
-        onExport = viewModel::export,
+        onExport = { viewModel.export(exportLabels) },
         onSummarize = viewModel::summarize,
         modifier = modifier,
         transcriptAction = {

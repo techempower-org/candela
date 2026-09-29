@@ -236,9 +236,9 @@ class NoteDetailViewModel @Inject constructor(
     }
 
     /** Share the note as plain text via the system chooser (title + body + transcript + summary). */
-    fun export() {
+    fun export(labels: NoteExportLabels = NoteExportLabels.ENGLISH) {
         val s = _uiState.value
-        val text = buildNoteExportText(s.title, s.body, s.transcript, s.summary)
+        val text = buildNoteExportText(s.title, s.body, s.transcript, s.summary, labels)
         viewModelScope.launch { _events.send(NoteDetailEvent.Share(text)) }
     }
 
@@ -345,13 +345,13 @@ internal fun buildNoteExportText(
     body: String,
     transcript: String?,
     summary: String?,
-    @Suppress("UNUSED_PARAMETER") labels: NoteExportLabels = NoteExportLabels.ENGLISH, // RED-FIRST STUB: ignored
+    labels: NoteExportLabels = NoteExportLabels.ENGLISH,
 ): String {
     val sections = buildList {
-        add(title.ifBlank { "Untitled" })
+        add(title.ifBlank { labels.untitled })
         body.takeIf { it.isNotBlank() }?.let { add(it.trim()) }
-        transcript?.takeIf { it.isNotBlank() }?.let { add("Transcript\n${it.trim()}") }
-        summary?.takeIf { it.isNotBlank() }?.let { add("Summary\n${it.trim()}") }
+        transcript?.takeIf { it.isNotBlank() }?.let { add("${labels.transcript}\n${it.trim()}") }
+        summary?.takeIf { it.isNotBlank() }?.let { add("${labels.summary}\n${it.trim()}") }
     }
     return sections.joinToString("\n\n")
 }
