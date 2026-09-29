@@ -16,7 +16,7 @@ CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo
 ## Module layout
 
 - **app** — nav graph (`StoryvoxNavHost`), DI wiring (`AppBindings`), `SettingsRepositoryUiImpl`
-- **feature** — all UI: `browse/`, `reader/`, `ocr/`, `library/`, `settings/`, `chat/`, `fiction/`, `voicelibrary/`, `onboarding/`, `follows/`, `techempower/`, `sync/`, `auth/`, `sessions/`, `debug/`, `milestone/`, `engine/`, plus shared `api/`, `components/`, `di/`
+- **feature** — all UI: `browse/`, `reader/`, `ocr/`, `library/`, `settings/`, `chat/`, `fiction/`, `voicelibrary/`, `onboarding/`, `follows/`, `techempower/`, `auth/` (source logins; no Candela account), `notes/`, `briefing/`, `feed/`, `stats/`, `sessions/`, `debug/`, `milestone/`, `engine/`, plus shared `api/`, `components/`, `di/`
 - **core-data** — `FictionSource` interface, `SearchQuery`, `FilterDimension`/`FilterState`, Room DB, models
 - **core-playback** — TTS engine (`EnginePlayer`), voice catalog, audio focus
 - **core-llm** — AI chat, summaries
