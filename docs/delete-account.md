@@ -28,12 +28,15 @@ lives **only on your device**. To delete all of it, either:
 ## Used cloud sync in an older version?
 
 Before 2026-09-29, Candela offered optional cloud sync through InstantDB
-(email + magic code). That feature has been **removed**. The app no longer
-sends anything to InstantDB and there is no in-app deletion button any more.
+(email + magic code). That feature has been **removed**, and InstantDB is
+shutting down its cloud service on 2027-08-31. The app no longer sends
+anything to InstantDB and there is no in-app deletion button any more.
 
 If you signed in to sync in an earlier version and want your old sync record
 deleted, email **jp@techempower.org** from the address you signed in with. We
 complete deletion requests within **30 days** (usually much sooner).
+InstantDB states that it keeps backups of its cloud apps until 2028-08-31;
+those are held by InstantDB, not by us.
 
 ## What's deleted vs. kept
 

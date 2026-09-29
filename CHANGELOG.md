@@ -11,7 +11,9 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ### Removed
 - **Cloud sync and sign-in are gone: Candela is local-only.** InstantDB,
-  the service behind the optional cross-device sync, is going away, so
+  the service behind the optional cross-device sync, is shutting down its
+  cloud on 2027-08-31 and has closed new signups
+  ([announcement](https://www.instantdb.com/essays/instant_team_joins_openai)), so
   Candela no longer has an account, a sign-in screen, the Library cloud icon,
   the first-launch "sign in to sync" card, or the Cloud Sync / secrets
   passphrase cards in Settings → Account. Your library, reading positions,

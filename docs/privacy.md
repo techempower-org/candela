@@ -49,10 +49,13 @@ in the app's on-device storage.
 *Before 2026-09-29* Candela offered optional cross-device sync through
 [InstantDB](https://instantdb.com) (email + magic code), including the
 desktop "push to Candela" inbox. That feature has been **removed** (issue
-#1821). The app no longer sends anything to InstantDB. If you used sync in
-an earlier version and want your old sync record deleted, email
-`jp@jphein.com` from the address you signed in with and we will delete it
-(see [delete-account.md](delete-account.md)).
+#1821); InstantDB is shutting down its cloud service on 2027-08-31. The app
+no longer sends anything to InstantDB. If you used sync in an earlier version
+and want your old sync record deleted, email `jp@jphein.com` from the address
+you signed in with and we will delete it (see
+[delete-account.md](delete-account.md)). InstantDB states that it keeps
+backups of its cloud apps until 2028-08-31; those are held by InstantDB, not
+by us.
 
 Android's own device backup (Settings → System → Backup, under **your**
 Google account) may back up and restore Candela's library and settings on a
