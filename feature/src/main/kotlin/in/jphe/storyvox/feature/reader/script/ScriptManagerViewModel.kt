@@ -108,8 +108,24 @@ class ScriptManagerViewModel @Inject constructor(
     }
 }
 
+/**
+ * Localized labels for [duplicateTitle], resolved by the screen from string
+ * resources (#1819) so the ViewModel never hard-codes English. [copyFormat]
+ * is a whole format string (`%1$s (copy)`), not a suffix, so a language can
+ * put the marker before the title.
+ */
+data class ScriptCopyLabels(
+    val untitled: String,
+    val copyFormat: String,
+) {
+    companion object {
+        val ENGLISH = ScriptCopyLabels(untitled = "Untitled", copyFormat = "%1\$s (copy)")
+    }
+}
+
 /** "Talk" → "Talk (copy)"; blank/untitled → "Untitled (copy)". */
-internal fun duplicateTitle(title: String): String =
+@Suppress("UNUSED_PARAMETER") // #1819 red-first stub — labels not yet applied
+internal fun duplicateTitle(title: String, labels: ScriptCopyLabels = ScriptCopyLabels.ENGLISH): String =
     (title.ifBlank { "Untitled" }) + " (copy)"
 
 @Immutable
