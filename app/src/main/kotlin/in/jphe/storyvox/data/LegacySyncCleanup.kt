@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -52,11 +53,32 @@ class LegacySyncCleanup @Inject constructor(
     }
 
     companion object {
-        // RED-FIRST STUB (#1821): real deletion lands in the next commit.
-        fun cleanSecrets(prefs: SharedPreferences): Int = 0
+        /** Removes every legacy sync key from the encrypted secrets prefs. */
+        fun cleanSecrets(prefs: SharedPreferences): Int {
+            val legacy = prefs.all.keys.filter(LegacySyncKeys::isLegacySecret)
+            if (legacy.isEmpty()) return 0
+            // commit(), not apply(): this removes a credential; make it durable now.
+            val editor = prefs.edit()
+            legacy.forEach { editor.remove(it) }
+            editor.commit()
+            return legacy.size
+        }
 
-        suspend fun cleanSettings(store: DataStore<Preferences>): Int = 0
+        /** Removes legacy sync keys from the settings DataStore in one atomic edit. */
+        suspend fun cleanSettings(store: DataStore<Preferences>): Int {
+            var removed = 0
+            store.edit { prefs ->
+                val legacy = prefs.asMap().keys.filter { LegacySyncKeys.isLegacySetting(it.name) }
+                legacy.forEach { prefs.remove(it) }
+                removed = legacy.size
+            }
+            return removed
+        }
 
-        fun deleteTombstones(filesDir: File): Int = 0
+        /** Deletes the removed sync's tombstones DataStore file, if present. */
+        fun deleteTombstones(filesDir: File): Int {
+            val f = File(filesDir, LegacySyncKeys.TOMBSTONES_FILE)
+            return if (f.exists() && f.delete()) 1 else 0
+        }
     }
 }

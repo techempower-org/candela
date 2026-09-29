@@ -26,8 +26,12 @@ Entries before v0.5.12 are reconstructed from the git log — see
 - **Nothing is uploaded to Candela.** There is no Candela server. Optional
   features (Azure cloud voices, AI chat with your own key, sources you
   connect) still talk directly to the service you choose, as before. The
-  privacy policy, delete-your-data page and Data Safety notes are updated. If you used sync in an older version, email us to delete your old sync
+  privacy policy, delete-your-data page and Data Safety notes are updated.
+  If you used sync in an older version, email us to delete your old sync
   record (#1821).
+- **Leftover sync data is wiped on upgrade.** If you had signed in to sync,
+  the update deletes its stored sign-in token, passphrase and sync state
+  from your device, so no unused credential lingers (#1821).
 
 ### Under the hood
 - Removed the `:core-sync` module (InstantDB client, coordinator, syncers),

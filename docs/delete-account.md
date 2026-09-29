@@ -32,8 +32,10 @@ Before 2026-09-29, Candela offered optional cloud sync through InstantDB
 shutting down its cloud service on 2027-08-31. The app no longer sends
 anything to InstantDB and there is no in-app deletion button any more.
 
-If you signed in to sync in an earlier version and want your old sync record
-deleted, email **jp@techempower.org** from the address you signed in with. We
+Updating Candela automatically deletes the old sync sign-in token,
+passphrase and sync state **from your device**. The copy on InstantDB's
+servers is separate: if you signed in to sync in an earlier version and want
+that old sync record deleted, email **jp@techempower.org** from the address you signed in with. We
 complete deletion requests within **30 days** (usually much sooner).
 InstantDB states that it keeps backups of its cloud apps until 2028-08-31;
 those are held by InstantDB, not by us.
