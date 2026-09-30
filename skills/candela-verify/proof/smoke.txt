@@ -1,0 +1,13 @@
+2026-09-30 09:23 PDT
+$ verify.sh install v1.16.0 (already installed; dumpsys):
+    versionCode=279 minSdk=26 targetSdk=36
+    versionName=1.16.0
+$ verify.sh smoke proof
+Status: ok
+LaunchState: COLD
+TotalTime: 129
+pid:     9007
+fatal:   0
+resumed: org.techempower.candela/in.jphe.storyvox.MainActivity
+proof/home.png
+rc=0
