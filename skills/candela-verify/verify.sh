@@ -80,14 +80,16 @@ find_node() {
     shift
   done
   nodes | awk -F'\t' -v l="$label" -v c="$contains" -v nth="$nth" '
-    ($1 == l || $2 == l) && ++e == nth { print $3, $4; found = 1; exit }
-    c && (index($1, l) || index($2, l)) && ++k == nth { sub_xy = $3 " " $4 }
-    END { if (!found && sub_xy != "") print sub_xy }'
+    # No early `exit`: under pipefail, a producer killed by SIGPIPE would fail the call.
+    !found && ($1 == l || $2 == l) && ++e == nth { exact_xy = $3 " " $4; found = 1 }
+    c && sub_xy == "" && (index($1, l) || index($2, l)) && ++k == nth { sub_xy = $3 " " $4 }
+    END { if (found) print exact_xy; else if (sub_xy != "") print sub_xy }'
 }
 
 cmd_scroll() {
   local dir="${1:-down}" size w h
-  size=$(A shell wm size | awk -F'[ x]' '/Physical/ {print $3, $4}' | tr -d '\r')
+  # Input coordinates follow the effective size: an Override line wins over Physical.
+  size=$(A shell wm size | tr -d '\r' | awk -F'[ x]' '/Physical/ { p = $3 " " $4 } /Override/ { o = $3 " " $4 } END { print (o != "" ? o : p) }')
   read -r w h <<<"$size"
   local x=$((w / 2)) lo=$((h * 3 / 4)) hi=$((h / 4))
   case "$dir" in
@@ -237,20 +239,25 @@ cmd_install() {
     [ -s "$apk" ] || gh release download "$tag" --repo "$REPO" --pattern "candela-$tag.apk" --output "$apk" --clobber
   fi
   A install -r "$apk"
-  A shell dumpsys package "$PKG" | grep -m1 versionName | tr -d ' \r'
+  # Capture first: `grep -m1` exiting early would SIGPIPE dumpsys and trip pipefail.
+  local pkg; pkg=$(A shell dumpsys package "$PKG")
+  grep -m1 versionName <<<"$pkg" | tr -d ' \r'
 }
 
 cmd_emu_boot() {
-  if adb devices | grep -q "^emulator-$EMU_PORT"; then echo "emulator-$EMU_PORT already up"; return 0; fi
-  local emu="${ANDROID_HOME:-$HOME/Android/Sdk}/emulator/emulator"
-  [ -x "$emu" ] || die "emu-boot: no emulator at $emu"
-  nohup "$emu" -avd "$AVD" -port "$EMU_PORT" -no-window -no-audio -gpu swiftshader_indirect \
-    -no-snapshot-save -no-boot-anim >"$STATE/emu.log" 2>&1 &
-  echo $! >"$STATE/emu.pid"
   SERIAL="emulator-$EMU_PORT"
+  # An already-listed emulator may be offline or still booting: poll it below either way.
+  local listed; listed=$(adb devices)
+  if ! grep -q "^emulator-$EMU_PORT" <<<"$listed"; then
+    local emu="${ANDROID_HOME:-$HOME/Android/Sdk}/emulator/emulator"
+    [ -x "$emu" ] || die "emu-boot: no emulator at $emu"
+    nohup "$emu" -avd "$AVD" -port "$EMU_PORT" -no-window -no-audio -gpu swiftshader_indirect \
+      -no-snapshot-save -no-boot-anim >"$STATE/emu.log" 2>&1 &
+    echo $! >"$STATE/emu.pid"
+  fi
   local _
   for _ in $(seq 1 60); do
-    [ "$(A shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { echo "booted (pid $(cat "$STATE/emu.pid"))"; return 0; }
+    [ "$(A shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = 1 ] && { echo "booted (pid $(cat "$STATE/emu.pid" 2>/dev/null || echo "?"))"; return 0; }
     sleep 3
   done
   die "emu-boot: not booted after 180 s (see $STATE/emu.log)"
@@ -259,8 +266,15 @@ cmd_emu_boot() {
 cmd_emu_kill() {
   [ -f "$STATE/emu.pid" ] || die "emu-kill: no PID file (not started by emu-boot)"
   local pid; pid=$(cat "$STATE/emu.pid")
-  # Kill by PID only. A pattern kill (pkill -f emulator) matches the calling shell too.
-  if kill -0 "$pid" 2>/dev/null; then kill "$pid"; fi
+  # Kill by PID only (a pattern kill such as `pkill -f emulator` matches the calling shell
+  # too), and only if that PID is still OUR emulator: a stale file after a crash may name a
+  # reused PID.
+  local cmdline; cmdline=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)
+  if ! grep -q -- "-avd $AVD -port $EMU_PORT" <<<"$cmdline"; then
+    rm -f "$STATE/emu.pid"
+    die "emu-kill: pid $pid is not the $AVD emulator (stale PID file removed; nothing killed)"
+  fi
+  kill "$pid"
   local _
   for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
   kill -0 "$pid" 2>/dev/null && kill -9 "$pid"
