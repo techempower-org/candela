@@ -19,7 +19,7 @@ import javax.inject.Singleton
  *
  * The app's own user guide, shipped as a bundled, narrated book. There is
  * exactly ONE fiction — "The Candela Handbook" — whose chapters are the sections
- * of the manual (Getting Started, Voices, the Reader, Sync & Privacy, the
+ * of the manual (Getting Started, Voices, the Reader, Privacy, the
  * per-source setup walk-throughs, and the FAQ). Content is compiled from `docs/`
  * into `assets/handbook/` by `scripts/build-handbook-assets.py`, so the docs
  * stay canonical and the handbook can't drift silently; the snapshot version is
