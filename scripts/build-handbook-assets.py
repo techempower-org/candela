@@ -141,9 +141,10 @@ def same_content(name: str, committed: str, built: str) -> bool:
     """Committed asset == fresh build, byte for byte. The one exception
     (#1830): manifest.tsv's FIRST line, the `version<TAB>…` stamp, is
     ignored. Nothing reads it, and a release bump of versionName alone must
-    not fail CI's staleness check. Only that first line is dropped, so a
-    chapter whose id happens to be `version`, and any line-ending or
-    trailing-newline drift, still count as stale."""
+    not fail CI's staleness check. Only the first-line stamp's VALUE is
+    ignored; its line terminator stays significant, so a chapter whose id
+    happens to be `version`, a missing stamp, and any line-ending or
+    trailing-newline drift all still count as stale."""
     if name != "manifest.tsv":
         return committed == built
 
