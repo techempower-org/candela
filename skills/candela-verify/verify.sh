@@ -47,11 +47,17 @@ serial() {
 A() { adb -s "$SERIAL" "$@"; }
 
 # uiautomator dump → "text<TAB>desc<TAB>cx<TAB>cy" per labelled node (centre of bounds).
-nodes() {
+dump_xml() {
   local xml
   A shell uiautomator dump /sdcard/candela-verify-ui.xml >/dev/null 2>&1 || die "uiautomator dump failed"
   xml=$(A exec-out cat /sdcard/candela-verify-ui.xml)
   grep -q '<hierarchy' <<<"$xml" || die "uiautomator dump is empty (Waydroid's is broken; use a real device or the emulator)"
+  printf '%s' "$xml"
+}
+
+nodes() {
+  local xml
+  xml=$(dump_xml)
   python3 -c '
 import sys, re, xml.etree.ElementTree as E
 root = E.fromstring(sys.stdin.read())
@@ -86,11 +92,20 @@ find_node() {
     END { if (found) print exact_xy; else if (sub_xy != "") print sub_xy }'
 }
 
+# Current screen size in INPUT coordinates, from the uiautomator root node's bounds:
+# they follow rotation, unlike `wm size` (physical/override, always portrait-native),
+# and they are the same coordinate space taps use.
+screen_size() {
+  dump_xml | python3 -c '
+import sys, re, xml.etree.ElementTree as E
+n = E.fromstring(sys.stdin.read()).find("node")
+x1, y1, x2, y2 = map(int, re.findall(r"\d+", n.get("bounds")))
+print(x2, y2)'
+}
+
 cmd_scroll() {
-  local dir="${1:-down}" size w h
-  # Input coordinates follow the effective size: an Override line wins over Physical.
-  size=$(A shell wm size | tr -d '\r' | awk -F'[ x]' '/Physical/ { p = $3 " " $4 } /Override/ { o = $3 " " $4 } END { print (o != "" ? o : p) }')
-  read -r w h <<<"$size"
+  local dir="${1:-down}" w h
+  read -r w h <<<"$(screen_size)"
   local x=$((w / 2)) lo=$((h * 3 / 4)) hi=$((h / 4))
   case "$dir" in
     down) A shell input swipe "$x" "$lo" "$x" "$hi" 300 ;;  # reveal content below
@@ -101,10 +116,10 @@ cmd_scroll() {
 }
 
 # tap <label> [--contains] [--nth N]: if the label is off-screen, scrolls down up to
-# CANDELA_VERIFY_SCROLLS (4) times, then back up twice as far (screens restore their
+# CANDELA_VERIFY_SCROLLS (8) times, then back up twice as far (screens restore their
 # old scroll position, so the label can be above as well as below).
 cmd_tap() {
-  local label="${1:?tap <label>}" xy n max="${CANDELA_VERIFY_SCROLLS:-4}"
+  local label="${1:?tap <label>}" xy n max="${CANDELA_VERIFY_SCROLLS:-8}"
   shift
   xy=$(find_node "$label" "$@")
   for ((n = 0; n < max && ${#xy} == 0; n++)); do

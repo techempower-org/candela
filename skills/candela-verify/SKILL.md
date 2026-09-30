@@ -55,6 +55,7 @@ $V emu-kill                # kills by PID, never by pattern
 - **TTS on the emulator:** on v1.16.0 the API29 AVD showed "Couldn't start this chapter. The voice engine is taking longer than expected" for the Guides book, with the Piper Lessac voice installed and active. Verify audio on the tablet.
 - **`GooglePlayServicesUtil … Play Store missing`** warnings are emulator-image noise (the image has no Play Store), not a Candela bug.
 - **Waydroid's uiautomator is broken:** `text` there fails with an empty dump. Use the emulator or the tablet.
+- **Landscape swaps the bottom bar for a nav rail** that adds a **Notes** entry, and its labels wrap mid-word (#1828). `nav` still works. `scroll` takes its size from the live uiautomator root, so swipes follow rotation, which `wm size` wouldn't.
 - **The resumed activity is always `MainActivity`** (single activity plus Compose navigation). It proves Candela is in front, not which screen is showing. Use `text` for that.
 
 ## Proof
