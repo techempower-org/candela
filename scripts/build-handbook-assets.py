@@ -148,10 +148,9 @@ def same_content(name: str, committed: str, built: str) -> bool:
         return committed == built
 
     def split_stamp(text: str) -> tuple[bool, str]:
-        if not text.startswith("version\t"):
-            return False, text
-        nl = text.find("\n")
-        return True, "" if nl == -1 else text[nl + 1:]
+        # Exempt only the stamp's VALUE; its line ending stays in the compare.
+        m = re.match(r"version\t[^\r\n]*", text)
+        return (False, text) if m is None else (True, text[m.end():])
 
     # A missing stamp is drift too: both sides must carry one.
     return split_stamp(committed) == split_stamp(built)
