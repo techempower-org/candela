@@ -130,18 +130,31 @@ def build(root: Path) -> dict[str, str]:
     return files
 
 
+def read_exact(path: Path) -> str:
+    """Read without newline translation (Path.read_text turns CRLF into LF),
+    so line-ending drift in a committed asset is caught."""
+    with open(path, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
 def same_content(name: str, committed: str, built: str) -> bool:
-    """Committed asset == fresh build. For manifest.tsv the `version` line is
-    ignored (#1830): it is a snapshot stamp nothing reads, and a release bump
-    of versionName alone must not make CI's staleness check fail. Titles, ids
-    and chapter bodies are still compared exactly."""
+    """Committed asset == fresh build, byte for byte. The one exception
+    (#1830): manifest.tsv's FIRST line, the `version<TAB>…` stamp, is
+    ignored. Nothing reads it, and a release bump of versionName alone must
+    not fail CI's staleness check. Only that first line is dropped, so a
+    chapter whose id happens to be `version`, and any line-ending or
+    trailing-newline drift, still count as stale."""
     if name != "manifest.tsv":
         return committed == built
 
-    def strip_version(text: str) -> list[str]:
-        return [ln for ln in text.splitlines() if not ln.startswith("version\t")]
+    def split_stamp(text: str) -> tuple[bool, str]:
+        if not text.startswith("version\t"):
+            return False, text
+        nl = text.find("\n")
+        return True, "" if nl == -1 else text[nl + 1:]
 
-    return strip_version(committed) == strip_version(built)
+    # A missing stamp is drift too: both sides must carry one.
+    return split_stamp(committed) == split_stamp(built)
 
 
 def main(argv: list[str]) -> int:
@@ -154,7 +167,7 @@ def main(argv: list[str]) -> int:
         stale: list[str] = []
         for name, content in files.items():
             path = asset_dir / name
-            if not path.exists() or not same_content(name, path.read_text(encoding="utf-8"), content):
+            if not path.exists() or not same_content(name, read_exact(path), content):
                 stale.append(name)
         # Also flag orphaned committed assets not in the current build.
         if asset_dir.exists():
