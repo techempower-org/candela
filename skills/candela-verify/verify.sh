@@ -35,7 +35,9 @@ die() { echo "verify: $*" >&2; exit 1; }
 
 serial() {
   if [ -n "${CANDELA_SERIAL:-}" ]; then echo "$CANDELA_SERIAL"; return; fi
-  local devs; devs=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+  local listed devs
+  listed=$(timeout 20 adb devices) || die "adb devices failed or timed out (adb server stuck? try: adb kill-server)"
+  devs=$(awk 'NR>1 && $2=="device" {print $1}' <<<"$listed")
   if grep -qx "emulator-$EMU_PORT" <<<"$devs"; then echo "emulator-$EMU_PORT"; return; fi
   if grep -qx "R83W80CAFZB" <<<"$devs"; then echo "R83W80CAFZB"; return; fi
   # The tablet over Wireless debugging shows up as adb-R83W80CAFZB-…._adb-tls-connect._tcp or ip:port.
@@ -272,7 +274,7 @@ cmd_install() {
 cmd_emu_boot() {
   SERIAL="emulator-$EMU_PORT"
   # An already-listed emulator may be offline or still booting: poll it below either way.
-  local listed; listed=$(adb devices)
+  local listed; listed=$(timeout 20 adb devices) || die "emu-boot: adb devices failed or timed out"
   if ! grep -q "^emulator-$EMU_PORT" <<<"$listed"; then
     local emu="${ANDROID_HOME:-$HOME/Android/Sdk}/emulator/emulator"
     [ -x "$emu" ] || die "emu-boot: no emulator at $emu"
