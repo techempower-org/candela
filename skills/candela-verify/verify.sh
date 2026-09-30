@@ -44,7 +44,9 @@ serial() {
   die "no device: boot the emulator (verify.sh emu-boot) or set CANDELA_SERIAL"
 }
 
-A() { adb -s "$SERIAL" "$@"; }
+# Every device call is time-boxed: some adb subcommands (logcat, wait-for) block forever
+# on a serial that is absent or offline instead of failing.
+A() { timeout "${CANDELA_VERIFY_ADB_TIMEOUT:-90}" adb -s "$SERIAL" "$@"; }
 
 # uiautomator dump → "text<TAB>desc<TAB>cx<TAB>cy" per labelled node (centre of bounds).
 dump_xml() {
@@ -233,15 +235,21 @@ cmd_start() {
 cmd_health() {
   local pid fatal resumed ok=0
   pid=$(A shell pidof "$PKG" | tr -d '\r' || true)
-  # The crash buffer holds only crashes (no library noise); start clears it.
-  fatal=$(A logcat -b crash -d | grep -c "FATAL EXCEPTION" || true)
+  # The crash buffer holds only crashes (no library noise); start clears it. Read it with a
+  # checked status first: a failed read must FAIL health, not count as "0 FATAL".
+  local crash
+  if ! crash=$(A logcat -b crash -d); then
+    echo "FAIL: could not read the crash buffer" >&2
+    return 1
+  fi
+  fatal=$(grep -c "FATAL EXCEPTION" <<<"$crash" || true)
   resumed=$(resumed_activity)
   echo "pid:     ${pid:-NONE}"
   echo "fatal:   $fatal"
   resumed=$(sed -E 's/.* u0 //; s/ t[0-9]+\}?$//' <<<"$resumed")
   echo "resumed: ${resumed:-NONE}"
   [ -n "$pid" ] || { echo "FAIL: no process" >&2; ok=1; }
-  [ "$fatal" -eq 0 ] || { A logcat -b crash -d | head -20 >&2; echo "FAIL: $fatal FATAL" >&2; ok=1; }
+  [ "$fatal" -eq 0 ] || { head -20 <<<"$crash" >&2; echo "FAIL: $fatal FATAL" >&2; ok=1; }
   grep -q "$PKG/" <<<"$resumed" || { echo "FAIL: Candela is not the resumed activity" >&2; ok=1; }
   return $ok
 }
@@ -255,7 +263,7 @@ cmd_install() {
     apk="$STATE/candela-$tag.apk"
     [ -s "$apk" ] || gh release download "$tag" --repo "$REPO" --pattern "candela-$tag.apk" --output "$apk" --clobber
   fi
-  A install -r "$apk"
+  CANDELA_VERIFY_ADB_TIMEOUT=600 A install -r "$apk"   # ~190 MB; slow over Wi-Fi
   # Capture first: `grep -m1` exiting early would SIGPIPE dumpsys and trip pipefail.
   local pkg; pkg=$(A shell dumpsys package "$PKG")
   grep -m1 versionName <<<"$pkg" | tr -d ' \r'
@@ -274,7 +282,7 @@ cmd_emu_boot() {
   fi
   local _
   for _ in $(seq 1 60); do
-    [ "$(A shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = 1 ] && { echo "booted (pid $(cat "$STATE/emu.pid" 2>/dev/null || echo "?"))"; return 0; }
+    [ "$(CANDELA_VERIFY_ADB_TIMEOUT=10 A shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = 1 ] && { echo "booted (pid $(cat "$STATE/emu.pid" 2>/dev/null || echo "?"))"; return 0; }
     sleep 3
   done
   die "emu-boot: not booted after 180 s (see $STATE/emu.log)"
