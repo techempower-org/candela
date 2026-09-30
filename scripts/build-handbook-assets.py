@@ -13,7 +13,9 @@ Output:
 Usage:
   scripts/build-handbook-assets.py           # regenerate the committed assets
   scripts/build-handbook-assets.py --check   # fail (exit 1) if committed assets
-                                             # are stale vs docs/ — the drift guard
+                                             # are stale vs docs/ — the drift guard.
+                                             # CI runs it in Build APK (#1830); the
+                                             # manifest's version stamp is ignored.
 
 Pure-stdlib (no deps), matching the repo convention. The markdown→text pass is
 deliberately conservative: it strips syntax that narrates badly (code fences,
@@ -128,6 +130,20 @@ def build(root: Path) -> dict[str, str]:
     return files
 
 
+def same_content(name: str, committed: str, built: str) -> bool:
+    """Committed asset == fresh build. For manifest.tsv the `version` line is
+    ignored (#1830): it is a snapshot stamp nothing reads, and a release bump
+    of versionName alone must not make CI's staleness check fail. Titles, ids
+    and chapter bodies are still compared exactly."""
+    if name != "manifest.tsv":
+        return committed == built
+
+    def strip_version(text: str) -> list[str]:
+        return [ln for ln in text.splitlines() if not ln.startswith("version\t")]
+
+    return strip_version(committed) == strip_version(built)
+
+
 def main(argv: list[str]) -> int:
     check = "--check" in argv[1:]
     root = repo_root()
@@ -138,7 +154,7 @@ def main(argv: list[str]) -> int:
         stale: list[str] = []
         for name, content in files.items():
             path = asset_dir / name
-            if not path.exists() or path.read_text(encoding="utf-8") != content:
+            if not path.exists() or not same_content(name, path.read_text(encoding="utf-8"), content):
                 stale.append(name)
         # Also flag orphaned committed assets not in the current build.
         if asset_dir.exists():
