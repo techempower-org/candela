@@ -17,8 +17,8 @@
 #   verify.sh stop                             force-stop the app
 #   verify.sh smoke [dir]                      start + health + a Home screenshot into dir
 #
-# Device: $CANDELA_SERIAL, else emulator-5580, else the tablet (R83W80CAFZB, or its
-# mDNS adb-wifi serial). A bare ip:port serial can't be recognised: set CANDELA_SERIAL. Never runs `adb usb` / `adb tcpip`: toggling modes turns the
+# Device: $CANDELA_SERIAL, else emulator-5580, else the tablet R83W80CAFZB (USB serial,
+# mDNS adb-wifi name, or a connected ip:port whose ro.serialno is R83W80CAFZB). Never runs `adb usb` / `adb tcpip`: toggling modes turns the
 # tablet's Wireless debugging off. Builds nothing: unreleased changes come from CI
 # artifacts, not a local gradle run.
 set -euo pipefail
@@ -40,9 +40,16 @@ serial() {
   devs=$(awk 'NR>1 && $2=="device" {print $1}' <<<"$listed")
   if grep -qx "emulator-$EMU_PORT" <<<"$devs"; then echo "emulator-$EMU_PORT"; return; fi
   if grep -qx "R83W80CAFZB" <<<"$devs"; then echo "R83W80CAFZB"; return; fi
-  # The tablet over Wireless debugging shows up as adb-R83W80CAFZB-…._adb-tls-connect._tcp or ip:port.
-  local wifi; wifi=$(grep -m1 "R83W80CAFZB" <<<"$devs" || true)
+  # The tablet over Wireless debugging shows up as adb-R83W80CAFZB-…._adb-tls-connect._tcp
+  # (mDNS) or as a bare ip:port. The mDNS name carries the serial; for ip:port, ask the
+  # device itself (ro.serialno) — read-only, and never `adb connect`/`pair`/`tcpip`.
+  local d wifi; wifi=$(grep -m1 "R83W80CAFZB" <<<"$devs" || true)
   [ -n "$wifi" ] && { echo "$wifi"; return; }
+  for d in $(grep -E '^[0-9.]+:[0-9]+$' <<<"$devs" || true); do
+    if [ "$(timeout 10 adb -s "$d" shell getprop ro.serialno 2>/dev/null | tr -d '\r' || true)" = R83W80CAFZB ]; then
+      echo "$d"; return
+    fi
+  done
   die "no device: boot the emulator (verify.sh emu-boot) or set CANDELA_SERIAL"
 }
 
