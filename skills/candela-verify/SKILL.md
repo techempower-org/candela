@@ -39,7 +39,7 @@ $V emu-kill                # kills by PID, never by pattern
 
 ## Rules
 
-- **Device choice:** `$CANDELA_SERIAL` wins, then `emulator-5580`, then the tablet `R83W80CAFZB`. If the tablet is on Wi-Fi debugging with a bare `ip:port` serial, set `CANDELA_SERIAL`.
+- **Device choice:** `$CANDELA_SERIAL` wins, then `emulator-5580`, then the tablet `R83W80CAFZB`. The tablet is found by its USB serial, its mDNS Wi-Fi name, or a connected `ip:port` whose `ro.serialno` is `R83W80CAFZB`. The script never runs `adb connect` or `adb pair`: if the tablet isn't listed in `adb devices`, a person has to read the current port (it changes on every Wireless-debugging toggle) and connect.
 - **Never** run `adb usb` or `adb tcpip`, and never toggle Wireless debugging: it turns off on the tablet, and only a person can turn it back on.
 - **Never build on katana.** Install a release (`install vX.Y.Z`) or a CI artifact APK (`install path.apk`). An unreleased change goes through CI, not a local gradle run.
 - **Kill the emulator by PID** (`emu-kill`). A `pkill -f emulator` also matches the calling shell.
