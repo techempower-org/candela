@@ -104,8 +104,10 @@ print(x2, y2)'
 }
 
 cmd_scroll() {
-  local dir="${1:-down}" w h
-  read -r w h <<<"$(screen_size)"
+  local dir="${1:-down}" w h size
+  size=$(screen_size) || die "scroll: could not read the screen bounds"
+  read -r w h <<<"$size"
+  [[ "$w" =~ ^[1-9][0-9]*$ && "$h" =~ ^[1-9][0-9]*$ ]] || die "scroll: invalid screen bounds \"$size\""
   local x=$((w / 2)) lo=$((h * 3 / 4)) hi=$((h / 4))
   case "$dir" in
     down) A shell input swipe "$x" "$lo" "$x" "$hi" 300 ;;  # reveal content below
