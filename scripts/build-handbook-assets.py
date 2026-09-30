@@ -13,7 +13,9 @@ Output:
 Usage:
   scripts/build-handbook-assets.py           # regenerate the committed assets
   scripts/build-handbook-assets.py --check   # fail (exit 1) if committed assets
-                                             # are stale vs docs/ — the drift guard
+                                             # are stale vs docs/ — the drift guard.
+                                             # CI runs it in Build APK (#1830); the
+                                             # manifest's version stamp is ignored.
 
 Pure-stdlib (no deps), matching the repo convention. The markdown→text pass is
 deliberately conservative: it strips syntax that narrates badly (code fences,
@@ -128,6 +130,33 @@ def build(root: Path) -> dict[str, str]:
     return files
 
 
+def read_exact(path: Path) -> str:
+    """Read without newline translation (Path.read_text turns CRLF into LF),
+    so line-ending drift in a committed asset is caught."""
+    with open(path, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def same_content(name: str, committed: str, built: str) -> bool:
+    """Committed asset == fresh build, byte for byte. The one exception
+    (#1830): manifest.tsv's FIRST line, the `version<TAB>…` stamp, is
+    ignored. Nothing reads it, and a release bump of versionName alone must
+    not fail CI's staleness check. Only the first-line stamp's VALUE is
+    ignored; its line terminator stays significant, so a chapter whose id
+    happens to be `version`, a missing stamp, and any line-ending or
+    trailing-newline drift all still count as stale."""
+    if name != "manifest.tsv":
+        return committed == built
+
+    def split_stamp(text: str) -> tuple[bool, str]:
+        # Exempt only the stamp's VALUE; its line ending stays in the compare.
+        m = re.match(r"version\t[^\r\n]*", text)
+        return (False, text) if m is None else (True, text[m.end():])
+
+    # A missing stamp is drift too: both sides must carry one.
+    return split_stamp(committed) == split_stamp(built)
+
+
 def main(argv: list[str]) -> int:
     check = "--check" in argv[1:]
     root = repo_root()
@@ -138,7 +167,7 @@ def main(argv: list[str]) -> int:
         stale: list[str] = []
         for name, content in files.items():
             path = asset_dir / name
-            if not path.exists() or path.read_text(encoding="utf-8") != content:
+            if not path.exists() or not same_content(name, read_exact(path), content):
                 stale.append(name)
         # Also flag orphaned committed assets not in the current build.
         if asset_dir.exists():

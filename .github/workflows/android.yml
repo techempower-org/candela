@@ -154,6 +154,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # #1830 — the in-app Handbook is compiled from docs/ into committed assets.
+      # Fail fast (before the ~20 min build) when a chapter's doc or title changed
+      # without regenerating them. No Gradle and no secrets; the manifest's
+      # version stamp is ignored so a release bump alone stays green.
+      - name: Handbook assets are current
+        run: python3 scripts/build-handbook-assets.py --check
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       - name: Set up JDK 17
