@@ -52,6 +52,10 @@ jobs:
           set -euo pipefail
           # GitHub-hosted runner: the Android SDK ships preinstalled at $ANDROID_HOME.
           printf 'sdk.dir=%s\n' "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" > ./local.properties
+      - name: candela-push tests (Python, stdlib only)
+        # tools/candela-push writes the Push to Candela inbox row; its tests
+        # pin the owner stamp and the attrs the Instant perms require.
+        run: python3 tools/test_candela_push.py
       - name: Run JVM unit tests
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew testDebugUnitTest --continue --no-daemon --stacktrace
       # GitHub shows at most 10 annotations per step, so the first real run
