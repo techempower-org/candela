@@ -154,7 +154,7 @@ class InstantClient(
         fun resolveApiUri(raw: String?): String {
             val v = raw?.trim().orEmpty()
             if (v.isEmpty()) return DEFAULT_API_URI
-            require(v.startsWith("https://") && v.length > "https://".length) {
+            require(v.startsWith("https://") && v.trimEnd('/').length > "https://".length) {
                 "INSTANTDB_API_URI must be an https:// URL"
             }
             return v.trimEnd('/')

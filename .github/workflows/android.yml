@@ -202,8 +202,8 @@ jobs:
             if [ -n "$v" ]; then echo "$k=$v" >> ./local.properties; fi
           done
           # No release keystore here on purpose: CI builds only the two sideload APKs
-          # (debug-signed for upgrade continuity, #952). The Play AAB is built and
-          # built on familiar, jarsigned on katana with the upload key, and uploaded to Play Console — it is
+          # (debug-signed for upgrade continuity, #952). The Play AAB is built on
+          # familiar, jarsigned on katana with the upload key, and uploaded to Play Console — it is
           # never a GitHub release asset (an AAB is not installable by anyone; only
           # Play consumes it). See docs/release-keystore.md.
           if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
@@ -345,7 +345,7 @@ jobs:
             - `candela-${{ github.ref_name }}.apk` — phone / tablet (sideload)
             - `candela-wear-${{ github.ref_name }}.apk` — Wear OS companion ("Library Nocturne"), sideload to the watch
 
-            > Both APKs share one signing identity so the watch ↔ phone Data Layer bridge pairs — sideload distribution. They carry APK Signature Scheme v3 key rotation (#1756): the original checked-in key (v2, Android 8.x) plus a private TechEMPOWER sideload key (v3 + lineage, Android 9+), so existing installs upgrade in place with no data loss. There is no AAB here: it is not installable by anyone; it is built and release-signed on katana and submitted straight to Play Console (docs/release-keystore.md, #1456).
+            > Both APKs share one signing identity so the watch ↔ phone Data Layer bridge pairs — sideload distribution. They carry APK Signature Scheme v3 key rotation (#1756): the original checked-in key (v2, Android 8.x) plus a private TechEMPOWER sideload key (v3 + lineage, Android 9+), so existing installs upgrade in place with no data loss. There is no AAB here: it is not installable by anyone; it is built on familiar, signed on katana with the upload key, and submitted straight to Play Console (docs/release-keystore.md, #1456).
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk

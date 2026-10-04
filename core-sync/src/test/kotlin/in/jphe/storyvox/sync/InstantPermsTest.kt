@@ -36,9 +36,16 @@ class InstantPermsTest {
             assertTrue("$entity has an allow block", allow != null)
             for (op in ops) {
                 val rule = allow!![op]?.jsonPrimitive?.content.orEmpty()
-                assertTrue("$entity.$op checks the owner: '$rule'", "auth.id" in rule && "userId" in rule)
-                assertTrue("$entity.$op is never open: '$rule'", rule.trim() != "true")
+                // Exact owner predicate, not substrings: a rule like
+                // "auth.id != null || data.userId" mentions both and is open.
+                assertTrue("$entity.$op has no OR branch: '$rule'", "||" !in rule)
+                assertTrue(
+                    "$entity.$op requires auth.id == data.userId: '$rule'",
+                    rule.startsWith("auth.id != null && auth.id == data.userId"),
+                )
             }
+            val update = allow!!["update"]?.jsonPrimitive?.content.orEmpty()
+            assertTrue("$entity.update also pins the new owner: '$update'", "auth.id == newData.userId" in update)
         }
     }
 }

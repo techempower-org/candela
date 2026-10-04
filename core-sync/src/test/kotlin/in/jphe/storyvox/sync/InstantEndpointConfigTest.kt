@@ -38,6 +38,9 @@ class InstantEndpointConfigTest {
         assertThrows(IllegalArgumentException::class.java) {
             InstantClient.resolveApiUri("instant.example.org")
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            InstantClient.resolveApiUri("https://")
+        }
     }
 
     @Test fun `the client sends auth calls to the configured base`() = runTest {

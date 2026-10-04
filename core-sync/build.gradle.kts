@@ -35,7 +35,7 @@ val instantApiUri: String = run {
     if (!propsFile.exists()) return@run ""
     val props = Properties().apply { propsFile.inputStream().use(::load) }
     val v = (props.getProperty("INSTANTDB_API_URI") ?: "").trim()
-    if (v.isNotEmpty() && !v.startsWith("https://")) {
+    if (v.isNotEmpty() && (!v.startsWith("https://") || v.trimEnd('/').length <= "https://".length)) {
         throw GradleException("INSTANTDB_API_URI must be an https:// URL")
     }
     v
