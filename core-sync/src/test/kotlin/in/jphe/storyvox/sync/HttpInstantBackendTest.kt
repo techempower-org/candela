@@ -183,6 +183,19 @@ class HttpInstantBackendTest {
         assertTrue("body includes updatedAt", call.body.contains("\"updatedAt\":99"))
     }
 
+    @Test fun `upsert stamps the owner's user id so permission rules can check it`() = runTest {
+        val transport = FakeTransport(mapOf(
+            "/admin/transact" to TransportResult(200, """{"tx-id":42}"""),
+        ))
+        val backend = HttpInstantBackend("test-app", transport)
+        backend.upsert(user, "positions", "0e9a6111-40d8-3ef1-9fd1-fadfe3240618", "p", 7L)
+        // instant.perms.json allows a row only when auth.id == data.userId.
+        assertTrue(
+            "body carries the owner",
+            transport.calls.single().body.contains("\"userId\":\"u-1\""),
+        )
+    }
+
     @Test fun `upsert surfaces server error on transact failure`() = runTest {
         val transport = FakeTransport(mapOf(
             "/admin/transact" to TransportResult(
