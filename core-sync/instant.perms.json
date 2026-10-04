@@ -1,4 +1,9 @@
 {
+  "$default": {
+    "allow": {
+      "$default": "false"
+    }
+  },
   "blobs": {
     "allow": {
       "view": "auth.id != null && auth.id == data.userId",

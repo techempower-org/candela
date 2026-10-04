@@ -20,6 +20,13 @@ class InstantPermsTest {
     private val entities = listOf("blobs", "positions", "sets")
     private val ops = listOf("view", "create", "update", "delete")
 
+    @Test fun `entities not listed are denied, so the rules never fail open`() {
+        val perms = Json.parseToJsonElement(File("instant.perms.json").readText()).jsonObject
+        val default = (perms["\$default"] as? JsonObject)?.get("allow")?.jsonObject
+            ?.get("\$default")?.jsonPrimitive?.content
+        assertTrue("\$default denies everything, got '$default'", default == "false")
+    }
+
     @Test fun `every synced entity is owner-only for every operation`() {
         val file = File("instant.perms.json")
         assertTrue("core-sync/instant.perms.json exists", file.isFile)

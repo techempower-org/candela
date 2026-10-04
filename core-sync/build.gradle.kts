@@ -124,3 +124,9 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp)
 }
+
+// InstantPermsTest reads instant.perms.json directly; declare it so a rules
+// edit re-runs the test instead of being skipped as up-to-date.
+tasks.withType<Test>().configureEach {
+    inputs.file("instant.perms.json").withPropertyName("instantPerms")
+}

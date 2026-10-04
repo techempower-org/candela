@@ -199,6 +199,13 @@ One-time, in [the InstantDB dashboard](https://www.instantdb.com):
    could read or overwrite another user's rows. Apply them to a FRESH app:
    rows written before the `userId` stamp existed have no owner and become
    unreadable under these rules.
+   A `$default` rule denies every entity the file doesn't name, so the rules
+   never fail open. Known limits: (a) old rows without a `userId` can't be read
+   or deleted by their owner, which is why the rules are for a fresh app;
+   (b) row ids are derived from the user's Instant id, so someone who learned a
+   victim's internal user id could create that row first and block the
+   victim's sync. User ids aren't shown to other users, and owner-only `view`
+   stops enumeration.
 
 ## Wire format
 
