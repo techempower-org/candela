@@ -17,6 +17,10 @@ Entries before v0.5.12 are reconstructed from the git log — see
   build configuration (`INSTANTDB_API_URI`, https only; unset means Instant
   Cloud), so moving to the self-hosted server needs no code change. Builds
   without an app id stay local-only, exactly as before.
+- **Sync data is owner-only.** Every synced row now carries its owner, and
+  `core-sync/instant.perms.json` restricts each user to their own rows. Before
+  this, a modified client could read or overwrite other users' rows (the gap
+  documented in docs/sync.md).
 - If you used sync before v1.16.0: updating to v1.16.0 deleted the stored
   sign-in on your device, so sign in again to resume syncing. Your library
   stayed on the device throughout.

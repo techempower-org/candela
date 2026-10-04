@@ -174,6 +174,11 @@ class HttpInstantBackend(
                         add(buildJsonObject {
                             put("payload", JsonPrimitive(payload))
                             put("updatedAt", JsonPrimitive(updatedAt))
+                            // Owner stamp: instant.perms.json allows a row only
+                            // when auth.id == data.userId. Without it, row ids
+                            // (derived from "domain:userId") would let any
+                            // signed-in client read or overwrite another user's rows.
+                            put("userId", JsonPrimitive(user.userId))
                         })
                     })
                 })

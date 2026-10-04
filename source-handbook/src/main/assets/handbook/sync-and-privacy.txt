@@ -140,15 +140,17 @@ Without that property the build still succeeds — INSTANTDBAPPID
    graph resolves to DisabledBackend. The app builds, the sign-in
    screen shows a "Sync isn't configured for this build" message,
    nothing crashes.
-Permissions / schema: InstantDB's schema is dynamic — the first
-   transact creates the entity shapes implicitly. No DB migration
-   script is needed. If you want to lock down write permissions to
-   "only the signed-in user owns their own rows," add a rule in the
-   dashboard like:
-   For v1 we ship without permission rules — the row IDs already embed
-   the user id, so a careful client only writes to its own row, but a
-   malicious client could overwrite another user's. Rule hardening is
-   tracked as a follow-up issue.
+Permissions / schema: InstantDB's schema is dynamic, so the first
+   transact creates the entity shapes and no migration script is needed.
+   Permissions are required. Apply core-sync/instant.perms.json to the
+   app (Instant dashboard → Permissions, or the self-hosted instance's
+   permission API). Every synced entity (blobs, positions, sets) is
+   owner-only for view, create, update and delete: auth.id == data.userId.
+   Every row Candela writes carries a userId stamp for this. Without the
+   rules, row ids are derivable from domain:userId, so any signed-in client
+   could read or overwrite another user's rows. Apply them to a FRESH app:
+   rows written before the userId stamp existed have no owner and become
+   unreadable under these rules.
 
 Wire format
 
@@ -194,7 +196,7 @@ No real-time pull. v1 talks to /admin/query and /admin/transact
 Settings sync is stubbed. The seam exists; per-preference
   wiring lands in a follow-up.
 LLM session sync is deferred. Same story as settings.
-No permission rules on the InstantDB app. See setup step 6.
+Permission rules live in core-sync/instant.perms.json and must be applied to the Instant app (setup step 6).
 Voice-blob inventory not synced. Future work.
 
 Testing
