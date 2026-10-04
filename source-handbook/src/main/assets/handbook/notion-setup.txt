@@ -33,9 +33,9 @@ OAuth client ID and an OAuth client secret. You need both.
 
 2 · Wire the credentials
 
-Add two lines to local.properties (gitignored; lives only on JP's
-machine + the self-hosted CI runner — never committed, never passed via
--P):
+Add two lines to local.properties (gitignored; lives only on JP's machine — never committed, never passed via
+-P; CI reads the same two values from the NOTIONOAUTHCLIENT_ID /
+NOTIONOAUTHCLIENT_SECRET GitHub Actions secrets):
 
 That's it. app/build.gradle.kts reads them at configure time into
 BuildConfig.NOTIONOAUTHCLIENTID / CLIENT_SECRET. Rebuild → the
