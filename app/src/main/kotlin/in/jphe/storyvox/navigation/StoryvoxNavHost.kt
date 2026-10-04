@@ -272,6 +272,12 @@ object StoryvoxRoutes {
     const val GITHUB_SIGN_IN = "auth/github/signin"
     /** Issue #181 — Anthropic Teams OAuth sign-in modal. */
     const val TEAMS_SIGN_IN = "auth/anthropic-teams/signin"
+    /** Issue #500 — InstantDB cross-device sync sign-in surface.
+     *  Email + magic-code flow. Opened by the magical first-launch
+     *  onboarding card (post-VoicePickerGate) AND by the cloud-icon
+     *  affordance in the Library top app bar. Lives at /auth/sync so
+     *  it sits alongside the other auth destinations. */
+    const val SYNC = "auth/sync"
 
     /**
      * Issue #517 — TechEmpower-as-default-use-case landing screen.
@@ -504,6 +510,19 @@ fun StoryvoxNavHost(
         // emits false-forever after first dismissal, so this composable
         // is a no-op on every launch after the first qualifying one.
         MilestoneDialogHost()
+        // Issue #500 — magical InstantDB sign-in onboarding card.
+        // Same mount-and-gate pattern as MilestoneDialogHost: the VM
+        // returns false-forever after the user dismisses or completes
+        // the flow, so the card is a no-op on every launch after the
+        // first one. Sits alongside MilestoneDialogHost (not nested in
+        // it) so the two compete for screen time on equal terms —
+        // first-launch v0.5.39+ users see Calliope first (one-shot
+        // graduation moment) and the sync card on the launch after.
+        // Routes its "Sign in" tap to the SYNC destination via the
+        // shared navController.
+        `in`.jphe.storyvox.feature.sync.SyncOnboardingHost(
+            onOpenSignIn = { navController.navigate(StoryvoxRoutes.SYNC) },
+        )
     }
     }
 }
@@ -896,6 +915,11 @@ private fun StoryvoxNavHostContent(
                     // sign-in deep-links. Follows is still embedded
                     // here, so its sign-in CTA still threads through.
                     onOpenFollowsSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
+                    // Issue #500 — cloud-icon tap on the Library top
+                    // app bar routes to the InstantDB sign-in surface
+                    // (the same SyncAuthScreen the onboarding card
+                    // opens). One destination, one mental model.
+                    onOpenSync = { navController.navigate(StoryvoxRoutes.SYNC) },
                     // Issue #517 — TechEmpower hero card tap. Routes
                     // to the dedicated TechEmpower Home drill-down.
                     onOpenTechEmpower = {
@@ -1684,6 +1708,7 @@ private fun StoryvoxNavHostContent(
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 AccountSettingsScreen(
                     onBack = { navController.popBackStack() },
+                    onOpenSyncSignIn = { navController.navigate(StoryvoxRoutes.SYNC) },
                     onOpenRoyalRoadSignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.ROYAL_ROAD)) },
                     onOpenAo3SignIn = { navController.navigate(StoryvoxRoutes.authWebView(SourceIds.AO3)) },
                     onOpenGitHubSignIn = { navController.navigate(StoryvoxRoutes.GITHUB_SIGN_IN) },
@@ -1846,6 +1871,23 @@ private fun StoryvoxNavHostContent(
                 AnthropicTeamsSignInScreen(
                     onSignedIn = { navController.popBackStack() },
                     onCancelled = { navController.popBackStack() },
+                )
+            }
+            // Issue #500 — InstantDB email + magic-code sign-in.
+            // Same push/pop transition family as the other auth
+            // surfaces (RR WebView, GitHub, Teams) so the navigation
+            // motion vocabulary stays consistent. The SyncAuthScreen
+            // owns its own brass-themed scaffold and routes back via
+            // [onClose] when the user finishes or aborts.
+            composable(
+                StoryvoxRoutes.SYNC,
+                enterTransition = pushEnter,
+                exitTransition = pushExit,
+                popEnterTransition = popEnter,
+                popExitTransition = popExit,
+            ) {
+                `in`.jphe.storyvox.feature.sync.SyncAuthScreen(
+                    onClose = { navController.popBackStack() },
                 )
             }
             // Issue #517 — TechEmpower as default use case. Two new

@@ -37,7 +37,7 @@ These steps are **inherently manual** — they require browser interaction with 
    - **Target audience** → 13+ (matches content rating). NOT primarily child-directed.
    - **News apps** → No.
    - **COVID-19 contact tracing** → No.
-   - **Data safety** → declare that Candela collects and shares **nothing** (no account, no cloud sync since #1821; no advertising IDs; no personal data sold). See `docs/data-safety-checklist.md`.
+   - **Data safety** → declare what Candela collects (audiobook listening progress synced via InstantDB; no advertising IDs; no personal data sold).
    - **Government apps** → No.
    - **Financial features** → No.
    - **Health** → No.

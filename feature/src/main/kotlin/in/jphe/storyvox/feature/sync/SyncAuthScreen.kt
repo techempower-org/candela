@@ -1,0 +1,419 @@
+package `in`.jphe.storyvox.feature.sync
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import `in`.jphe.storyvox.feature.R
+import `in`.jphe.storyvox.ui.component.MagicCircularProgress
+
+/**
+ * Brass-themed sign-in screen for the InstantDB sync layer.
+ *
+ * One screen, three field configurations:
+ *  - Email entry → "Send code"
+ *  - Code entry → "Verify"
+ *  - Signed in → status + "Purge cloud data" / "Sign out"
+ *
+ * Why one screen rather than a multi-step navigation graph: the user
+ * journey is linear and short, and a Compose `when (state)` keeps the
+ * transitions trivially testable and lossless under config changes.
+ * The headline copy is intentionally explanatory ("syncs your
+ * library, settings, and AI keys across devices") so a first-time
+ * user understands the value before tapping an unfamiliar text field.
+ */
+@Composable
+fun SyncAuthScreen(
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SyncAuthViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(title = { Text(stringResource(R.string.sync_title)) })
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CloudSync,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(56.dp),
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Keep your library safe",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Sync your library, follows, reading positions, " +
+                    "bookmarks, pronunciation dictionary, and (with a passphrase) " +
+                    "your AI keys across devices. If you uninstall, sign in again " +
+                    "and everything comes back.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(24.dp))
+
+            when (val current = state) {
+                is SignInState.SignedOut -> SignedOutForm(
+                    email = current.email,
+                    error = current.error,
+                    onEmailChange = viewModel::updateEmail,
+                    onSubmit = viewModel::sendCode,
+                )
+                is SignInState.SendingCode -> InProgress("Sending code to ${current.email}…")
+                is SignInState.CodePrompt -> CodePromptForm(
+                    email = current.email,
+                    code = current.code,
+                    error = current.error,
+                    onCodeChange = viewModel::updateCode,
+                    onSubmit = viewModel::verifyCode,
+                    onReset = viewModel::reset,
+                )
+                is SignInState.Verifying -> InProgress("Verifying…")
+                is SignInState.SignedIn -> SignedInPanel(
+                    email = current.user.email ?: "(no email on file)",
+                    purge = current.purge,
+                    onSignOut = viewModel::signOut,
+                    onPurge = viewModel::purgeRemoteData,
+                    onClose = onClose,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SignedOutForm(
+    email: String,
+    error: String?,
+    onEmailChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    OutlinedTextField(
+        value = email,
+        onValueChange = onEmailChange,
+        label = { Text(stringResource(R.string.sync_email_label)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        modifier = Modifier.fillMaxWidth(),
+        isError = error != null,
+        supportingText = error?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+    )
+    Spacer(Modifier.height(16.dp))
+    Button(
+        onClick = onSubmit,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(),
+    ) { Text(stringResource(R.string.sync_send_code)) }
+}
+
+@Composable
+private fun CodePromptForm(
+    email: String,
+    code: String,
+    error: String?,
+    onCodeChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onReset: () -> Unit,
+) {
+    Text(
+        text = "Code sent to $email. Check your inbox.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Spacer(Modifier.height(12.dp))
+    OutlinedTextField(
+        value = code,
+        onValueChange = onCodeChange,
+        label = { Text(stringResource(R.string.sync_code_label)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        modifier = Modifier.fillMaxWidth(),
+        isError = error != null,
+        supportingText = error?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+    )
+    Spacer(Modifier.height(16.dp))
+    Button(
+        onClick = onSubmit,
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(stringResource(R.string.sync_verify)) }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = onReset,
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(stringResource(R.string.sync_different_email)) }
+}
+
+@Composable
+private fun InProgress(label: String) {
+    // a11y (#484): give the spinner a contentDescription so TalkBack
+    // announces "Loading, <label>" instead of staying silent during a
+    // multi-second OAuth handshake. Marked as a live region so the
+    // announcement is re-spoken when the label flips between states.
+    // v1.0 polish (2026-05-16) — JP audit flagged the Material
+    // CircularProgressIndicator as the "weird arc spinning around"
+    // visible across the app's loading surfaces. Swap to
+    // MagicCircularProgress so OAuth handoff (sign-in → e-mail magic
+    // link → token exchange) shows the same brass sigil family as
+    // every other Library Nocturne loading state. The semantics live
+    // region stays identical so TalkBack's "Loading, <label>"
+    // announcement is preserved.
+    MagicCircularProgress(
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .size(48.dp)
+            .semantics {
+                contentDescription = "Loading: $label"
+                liveRegion = LiveRegionMode.Polite
+            },
+    )
+    Spacer(Modifier.height(12.dp))
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun SignedInPanel(
+    email: String,
+    purge: PurgeState,
+    onSignOut: () -> Unit,
+    onPurge: () -> Unit,
+    onClose: () -> Unit,
+) {
+    // #1248 — sign-out and "purge cloud data" are now distinct actions.
+    // Sign-out only clears the LOCAL session (cloud data survives, so it's
+    // a light, reversible confirmation), while purging permanently deletes
+    // the cloud record and is gated behind its own destructive, undismiss-
+    // able confirmation. The purge button is only ever rendered here, i.e.
+    // when the user is signed in.
+    var showSignOutConfirm by remember { mutableStateOf(false) }
+    var showPurgeConfirm by remember { mutableStateOf(false) }
+    val purging = purge == PurgeState.Running
+
+    Text(
+        text = "Signed in",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = email,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+    Spacer(Modifier.height(24.dp))
+    Button(
+        onClick = onClose,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !purging,
+    ) { Text(stringResource(R.string.sync_done)) }
+    Spacer(Modifier.height(8.dp))
+    // Destructive: delete the cloud record. Placed ABOVE sign-out and
+    // tinted with the error colour so it reads as the dangerous action —
+    // sign-out is now safe/reversible since cloud data survives it.
+    OutlinedButton(
+        onClick = { showPurgeConfirm = true },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !purging,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.error,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+    ) { Text(stringResource(R.string.sync_purge)) }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(
+        onClick = { showSignOutConfirm = true },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !purging,
+    ) { Text(stringResource(R.string.sync_sign_out)) }
+
+    // Purge progress / outcome (#1248). The coordinator makes network
+    // calls, so surface a spinner while in flight and a success/error line
+    // afterward. The result line is a polite live region so TalkBack
+    // announces the outcome.
+    when (purge) {
+        PurgeState.Running -> {
+            Spacer(Modifier.height(20.dp))
+            MagicCircularProgress(
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .size(36.dp)
+                    .semantics {
+                        contentDescription = "Loading: deleting your cloud data"
+                        liveRegion = LiveRegionMode.Polite
+                    },
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.sync_purge_running),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        PurgeState.Success -> {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.sync_purge_success),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        PurgeState.Error -> {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.sync_purge_error),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        PurgeState.Idle -> Unit
+    }
+
+    if (showSignOutConfirm) {
+        SignOutConfirmDialog(
+            onConfirm = {
+                showSignOutConfirm = false
+                onSignOut()
+            },
+            onDismiss = { showSignOutConfirm = false },
+        )
+    }
+
+    if (showPurgeConfirm) {
+        PurgeConfirmDialog(
+            onConfirm = {
+                showPurgeConfirm = false
+                onPurge()
+            },
+            onDismiss = { showPurgeConfirm = false },
+        )
+    }
+}
+
+/**
+ * Light confirmation for sync sign-out (#1197, revised #1248).
+ *
+ * Sign-out now only clears the LOCAL session — cloud data is preserved, so
+ * this is a reversible action (the user can sign back in to resume
+ * syncing). Deleting cloud data is the separate, destructive
+ * [PurgeConfirmDialog]. Accordingly this is a light speed-bump rather than
+ * a hard gate: it stays dismissable (default [DialogProperties]) and the
+ * confirm button uses the default tint rather than the error colour.
+ */
+@Composable
+private fun SignOutConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sync_sign_out_confirm_title)) },
+        text = { Text(stringResource(R.string.sync_sign_out_confirm_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.sync_sign_out_confirm_button))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.sync_sign_out_confirm_dismiss))
+            }
+        },
+    )
+}
+
+/**
+ * Destructive-action confirmation for purging cloud data (#1248).
+ *
+ * Purging permanently deletes the user's InstantDB record, so the dialog
+ * forces an explicit choice: [DialogProperties] disables both back-press
+ * and outside-tap dismissal, and the confirm button is tinted with
+ * [MaterialTheme.colorScheme.error] to signal that it destroys data. The
+ * local session is untouched — the user stays signed in afterward.
+ */
+@Composable
+private fun PurgeConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sync_purge_confirm_title)) },
+        text = { Text(stringResource(R.string.sync_purge_confirm_body)) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text(stringResource(R.string.sync_purge_confirm_button)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.sync_purge_confirm_dismiss))
+            }
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+        ),
+    )
+}

@@ -28,8 +28,8 @@ import org.junit.rules.TemporaryFolder
 
 /**
  * Real-DataStore tests for the `SettingsSnapshotSource` impl on
- * [SettingsRepositoryUiImpl]: the (dormant since #1821) bridge from a
- * sync backend to the live DataStore.
+ * [SettingsRepositoryUiImpl] — the bridge from `:core-sync`'s
+ * `SettingsSyncer` to the live DataStore.
  *
  * These tests exercise:
  *  - `snapshot()` returns ONLY allowlisted keys.

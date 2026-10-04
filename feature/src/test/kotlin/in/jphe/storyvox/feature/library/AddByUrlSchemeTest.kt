@@ -15,7 +15,8 @@ import org.junit.Test
  *
  * The helper [isLikelyAddByUrl] is the single guard that prevents
  * those from reaching the resolver. Exercised directly rather than
- * through the VM coroutine harness.
+ * through the VM coroutine harness — same pattern as
+ * [in.jphe.storyvox.feature.sync.isLikelyEmail].
  */
 class AddByUrlSchemeTest {
 

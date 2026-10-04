@@ -13,17 +13,14 @@ Yes — two ways, and the first needs zero setup.
    through the OS, Candela never talks to Google. This is the simplest path
    and covers the everyday "read this book off my Drive" case.
 
-**Connect Google Drive as a Browse source
-   (#1496,
-   #1677).** For a
-   browsable library, connect your Google account from the Google Drive
-   chip in Browse, then tap Choose from Google Drive and pick Google
-   Docs, PDFs, EPUBs or text files in Google's own picker. **Google Docs are
-   read natively**, which the system picker can't do (a native Doc has no
-   downloadable file, only an export). EPUBs and PDFs get real chapters.
-   Candela uses the narrow drive.file scope, so it only sees the files
-   you pick, never the rest of your Drive. Setup and the scope rationale are
-   in docs/google-drive-setup.md.
+**Connect Google Drive as a folder-as-library source
+   (#1496).** For a
+   browsable library — whole authorized folders, with **Google Docs read
+   natively** (the one thing the system picker can't do: a native Doc has no
+   downloadable file, only an export) — connect your Google account in
+   Browse. Candela uses the narrow drive.file scope, so it only ever
+   sees the folders/files you explicitly grant through Google's own picker —
+   never your whole Drive. Setup + the scope rationale: docs/google-drive-setup.md.
 
 What about Google Keep?
 
