@@ -82,9 +82,11 @@ id:     java.util.UUID.nameUUIDFromBytes("inbox:<instant-user-id>")   (UUID v3, 
 attrs:  { payload: "<JSON string>", updatedAt: <epoch ms> }
 ```
 
-The `blobs` entity and its `payload` / `updatedAt` attributes already exist
-for the settings, pronunciation, bookmarks and secrets domains, so **no
-InstantDB schema or permission change is needed**. Python's `uuid.uuid3`
+The `blobs` entity and its `payload` / `updatedAt` / `userId` attributes are
+the same ones the phone's settings, pronunciation, bookmarks and secrets
+domains use (`core-sync/instant.attrs.json`), so the pusher needs no schema
+change of its own. Every write carries the `userId` owner stamp, which the
+app's permissions (`core-sync/instant.perms.json`) require. Python's `uuid.uuid3`
 prepends a namespace and gives a different id, so the script carries its
 own port of the Java function. Both test suites pin the same test vector.
 
@@ -150,7 +152,7 @@ same four steps as `tools/candela-push`:
    and `as-token: <refresh token>`.
 3. Append your item, prune, and write the row with
    `POST /admin/transact?app_id=…`, using the step
-   `["update","blobs",<row id>,{"payload":…,"updatedAt":…}]`.
+   `["update","blobs",<row id>,{"payload":…,"updatedAt":…,"userId":<your user id>}]`. The `userId` owner stamp is required: the app's permissions only allow a row whose `userId` matches the signed-in user.
 4. Optionally read the row back to confirm your item survived.
 
 ## Privacy

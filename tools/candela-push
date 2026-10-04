@@ -18,7 +18,7 @@ Requires Python 3.8+, standard library only. Docs: docs/push-to-candela.md.
 
 Wire contract (must match core-sync InboxSyncer / InboxLogic):
   entity "blobs", id = Java UUID.nameUUIDFromBytes("inbox:<userId>")
-  row attrs {payload: <JSON string>, updatedAt: <epoch ms>}
+  row attrs {payload: <JSON string>, updatedAt: <epoch ms>, userId: <owner>}
   payload  {"v":1,"items":[{id,kind,url?,text?,title?,createdAt,from?}],"updatedAt":ms}
 """
 
@@ -299,11 +299,14 @@ def fetch_payload(app_id: str, token: str, row_id: str) -> Dict[str, Any]:
     return decode_payload(raw if isinstance(raw, str) else None)
 
 
-def write_payload(app_id: str, token: str, row_id: str, payload: Dict[str, Any]) -> None:
+def write_payload(app_id: str, token: str, user_id: str, row_id: str, payload: Dict[str, Any]) -> None:
+    # userId is the owner stamp: core-sync/instant.perms.json allows the row
+    # only when auth.id == data.userId (the same field the phone writes).
+    attrs = {"payload": encode_payload(payload), "updatedAt": payload["updatedAt"], "userId": user_id}
     post(
         f"/admin/transact?app_id={app_id}",
         {
-            "steps": [["update", ENTITY, row_id, {"payload": encode_payload(payload), "updatedAt": payload["updatedAt"]}]],
+            "steps": [["update", ENTITY, row_id, attrs]],
             "throw-on-missing-attrs?": False,
         },
         admin_headers(app_id, token),
@@ -382,7 +385,7 @@ def cmd_push(args: argparse.Namespace) -> int:
     # overwrote our append; retry a few times if we lost the race.
     for _ in range(WRITE_ATTEMPTS):
         payload = append_item(fetch_payload(app_id, token, row), item, now_ms())
-        write_payload(app_id, token, row, payload)
+        write_payload(app_id, token, user_id, row, payload)
         if any(i.get("id") == item["id"] for i in fetch_payload(app_id, token, row)["items"]):
             what = item.get("url") or f"text ({len(item['text']):,} chars)"
             print(f"Pushed to Candela: {what}")
@@ -413,7 +416,7 @@ def _rewrite(keep) -> int:
     payload["items"] = [i for i in payload["items"] if keep(i)]
     payload["updatedAt"] = now_ms()
     payload["v"] = max(int(payload.get("v") or PAYLOAD_VERSION), PAYLOAD_VERSION)
-    write_payload(app_id, token, row, payload)
+    write_payload(app_id, token, user_id, row, payload)
     return before - len(payload["items"])
 
 
