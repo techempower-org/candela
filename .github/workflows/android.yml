@@ -174,6 +174,7 @@ jobs:
       - name: Materialize local.properties
         env:
           INSTANTDB_APP_ID: ${{ secrets.INSTANTDB_APP_ID }}
+          INSTANTDB_API_URI: ${{ secrets.INSTANTDB_API_URI }}
           NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
           NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
@@ -189,16 +190,20 @@ jobs:
           if [ -n "${INSTANTDB_APP_ID:-}" ]; then
             echo "INSTANTDB_APP_ID=$INSTANTDB_APP_ID" >> ./local.properties
           fi
-          # Optional BYO OAuth client ids (Notion, Google Drive + its Picker
-          # key/project number, #1677) and the 211 NDP key (Local Help, #1465)
-          # — baked into BuildConfig when the secrets exist; the features stay
-          # hidden / "not configured" otherwise.
-          for k in NOTION_OAUTH_CLIENT_ID NOTION_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET TWO11_API_KEY GOOGLE_PICKER_API_KEY GOOGLE_CLOUD_PROJECT_NUMBER; do
-            v="${!k:-}"; [ -n "$v" ] && echo "$k=$v" >> ./local.properties
+          # Optional: INSTANTDB_API_URI points sync at a self-hosted Instant
+          # (unset = Instant Cloud). BYO OAuth client ids (Notion, Google Drive
+          # + its Picker key/project number, #1677) and the 211 NDP key (Local
+          # Help, #1465) are baked into BuildConfig when the secrets exist; the
+          # features stay hidden / "not configured" otherwise.
+          # `if … fi`, not `[ -n ] && echo`: the latter returns 1 for an empty
+          # last key and fails the step under set -e (#1822 review).
+          for k in INSTANTDB_API_URI NOTION_OAUTH_CLIENT_ID NOTION_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET TWO11_API_KEY GOOGLE_PICKER_API_KEY GOOGLE_CLOUD_PROJECT_NUMBER; do
+            v="${!k:-}"
+            if [ -n "$v" ]; then echo "$k=$v" >> ./local.properties; fi
           done
           # No release keystore here on purpose: CI builds only the two sideload APKs
           # (debug-signed for upgrade continuity, #952). The Play AAB is built and
-          # release-signed manually on katana and uploaded to Play Console — it is
+          # built on familiar, jarsigned on katana with the upload key, and uploaded to Play Console — it is
           # never a GitHub release asset (an AAB is not installable by anyone; only
           # Play consumes it). See docs/release-keystore.md.
           if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then

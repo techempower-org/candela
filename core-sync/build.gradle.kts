@@ -25,6 +25,22 @@ val instantAppId: String = run {
     (props.getProperty("INSTANTDB_APP_ID") ?: "PLACEHOLDER").trim().ifBlank { "PLACEHOLDER" }
 }
 
+/**
+ * Optional Instant API base (`INSTANTDB_API_URI` in local.properties), so a
+ * build can talk to a self-hosted Instant instead of Instant Cloud (which
+ * shuts down 2027-08-31). Blank → Instant Cloud. Must be https.
+ */
+val instantApiUri: String = run {
+    val propsFile = rootProject.file("local.properties")
+    if (!propsFile.exists()) return@run ""
+    val props = Properties().apply { propsFile.inputStream().use(::load) }
+    val v = (props.getProperty("INSTANTDB_API_URI") ?: "").trim()
+    if (v.isNotEmpty() && !v.startsWith("https://")) {
+        throw GradleException("INSTANTDB_API_URI must be an https:// URL")
+    }
+    v
+}
+
 android {
     namespace = "in.jphe.storyvox.sync"
     compileSdk = 37
@@ -35,6 +51,7 @@ android {
         consumerProguardFiles("consumer-rules.pro")
 
         buildConfigField("String", "INSTANTDB_APP_ID", "\"$instantAppId\"")
+        buildConfigField("String", "INSTANTDB_API_URI", "\"$instantApiUri\"")
     }
 
     buildTypes {

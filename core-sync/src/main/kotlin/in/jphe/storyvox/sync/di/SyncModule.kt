@@ -77,7 +77,11 @@ object SyncModule {
     @Provides
     @Singleton
     fun provideInstantClient(transport: InstantHttpTransport): InstantClient =
-        InstantClient(appId = BuildConfig.INSTANTDB_APP_ID, transport = transport)
+        InstantClient(
+            appId = BuildConfig.INSTANTDB_APP_ID,
+            apiUri = InstantClient.resolveApiUri(BuildConfig.INSTANTDB_API_URI),
+            transport = transport,
+        )
 
     @Provides
     @Singleton
@@ -99,7 +103,11 @@ object SyncModule {
             // (`/admin/query`, `/admin/transact`) accepts as-token
             // impersonation (no admin token shipped) and returns rows keyed
             // by entity name — exactly the shape our syncers consume.
-            HttpInstantBackend(appId = appId, transport = transport)
+            HttpInstantBackend(
+                appId = appId,
+                transport = transport,
+                apiUri = InstantClient.resolveApiUri(BuildConfig.INSTANTDB_API_URI),
+            )
         }
     }
 

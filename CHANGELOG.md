@@ -7,6 +7,20 @@ the `versionName` in `app/build.gradle.kts` and the `v*` git tag.
 Entries before v0.5.12 are reconstructed from the git log — see
 `git log --oneline` for the exhaustive record.
 
+## [Unreleased]
+
+### Added
+- **Cloud sync is back, and can point at a self-hosted Instant.** v1.16.0
+  removed InstantDB sync because Instant Cloud shuts down on 2027-08-31.
+  Instant is open source (Apache-2.0), so TechEMPOWER will self-host it
+  instead. Sync is restored as it was before #1822. The Instant server is now
+  build configuration (`INSTANTDB_API_URI`, https only; unset means Instant
+  Cloud), so moving to the self-hosted server needs no code change. Builds
+  without an app id stay local-only, exactly as before.
+- If you used sync before v1.16.0: updating to v1.16.0 deleted the stored
+  sign-in on your device, so sign in again to resume syncing. Your library
+  stayed on the device throughout.
+
 ## [1.16.0] -- 2026-09-29
 
 **Valiant Beacon.** Candela goes local-only: cloud sync is gone, and nothing is uploaded to Candela.

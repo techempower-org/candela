@@ -146,8 +146,19 @@ class InstantClient(
         const val DEFAULT_API_URI: String = "https://api.instantdb.com"
 
         /** Resolve the build-configured API base (`BuildConfig.INSTANTDB_API_URI`).
-         *  RED-FIRST STUB: always Instant Cloud. */
-        fun resolveApiUri(raw: String?): String = DEFAULT_API_URI
+         *  Unset or blank → Instant Cloud. Otherwise it must be https: a
+         *  non-https base is refused rather than silently used, because the
+         *  auth calls carry refresh tokens. Trailing slashes are dropped so
+         *  `"$base/runtime/…"` never doubles them. (core-sync's Gradle script
+         *  rejects a non-https value at build time too.) */
+        fun resolveApiUri(raw: String?): String {
+            val v = raw?.trim().orEmpty()
+            if (v.isEmpty()) return DEFAULT_API_URI
+            require(v.startsWith("https://") && v.length > "https://".length) {
+                "INSTANTDB_API_URI must be an https:// URL"
+            }
+            return v.trimEnd('/')
+        }
 
         private val MESSAGE_REGEX = """"message"\s*:\s*"([^"]*)"""".toRegex()
 

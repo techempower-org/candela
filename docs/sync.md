@@ -263,3 +263,13 @@ These are documented gaps, not bugs:
 - `SetSyncerTest` — first-time push, tombstone propagation, union of
   concurrent adds.
 - `LwwBlobSyncerTest` — newer-side-wins on both directions.
+
+
+## Self-hosted Instant
+
+Instant Cloud shuts down on 2027-08-31, and Instant is open source (Apache-2.0), so Candela can sync with a self-hosted Instant instead. The server is build configuration, not code:
+
+- `INSTANTDB_APP_ID`: the app id on whichever Instant server the build talks to.
+- `INSTANTDB_API_URI` (optional): the server's base URL, for example `https://instant.example.org`. It must be https. Leave it unset to use Instant Cloud.
+
+Both come from `local.properties` locally, or the Actions secrets of the same names in CI. Moving to a new server is a new build with new values. The data on the old server doesn't move with it: each device pushes its local library to the new server the next time the user signs in.
