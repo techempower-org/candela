@@ -1,0 +1,5 @@
+{
+  "blobs": ["payload", "updatedAt", "userId"],
+  "positions": ["payload", "updatedAt", "userId"],
+  "sets": ["payload", "updatedAt", "userId"]
+}

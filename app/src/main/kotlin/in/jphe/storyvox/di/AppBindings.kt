@@ -327,6 +327,11 @@ object AppBindings {
     @Provides @Singleton
     fun provideOcrDocumentStore(impl: `in`.jphe.storyvox.data.OcrConfigImpl): `in`.jphe.storyvox.source.ocr.config.OcrDocumentStore = impl
 
+    /** Issue #1469 — the Library-import side of the push-to-Candela inbox;
+     *  consumed by `:core-sync`'s InboxSyncer. */
+    @Provides @Singleton
+    fun provideInboxSink(impl: `in`.jphe.storyvox.data.InboxSinkImpl): `in`.jphe.storyvox.sync.domain.InboxSink = impl
+
     /** Issue #995 — bridges the :core-data [OcrTextRecognizer] seam to
      *  the bundled, offline ML Kit Latin recognizer. Shared by the
      *  camera/gallery capture flow (#995) and #996's scanned-PDF import. */
@@ -411,8 +416,9 @@ object AppBindings {
     /** Bridges source-slack SlackConfig (#454) to the app-side
      *  DataStore + EncryptedSharedPreferences impl. Bot token
      *  encrypted under `pref_source_slack_token` in the shared
-     *  `storyvox.secrets` store (device-local; no cloud sync, #1821).
-     *  Workspace name +
+     *  `storyvox.secrets` store (also listed in
+     *  [`in`.jphe.storyvox.sync.domain.SecretsSyncer.SECRET_KEY_NAMES]
+     *  so it syncs cross-device via InstantDB). Workspace name +
      *  URL cached in plaintext DataStore for empty-state copy
      *  without an extra `auth.test` round-trip. */
     @Provides @Singleton
@@ -585,9 +591,10 @@ object AppBindings {
     ): PronunciationDictRepository = impl
 
     /**
-     * Settings snapshot/apply seam (extends #360). Its InstantDB consumer
-     * was removed in #1821; the binding stays so a future sync backend can
-     * reuse the same singleton — one store, every contract.
+     * Tier 1 settings-sync snapshot/apply seam (this PR — extends #360).
+     * Bridges `:core-sync`'s `SettingsSyncer` to the live DataStore via
+     * the same singleton — one store, every contract, including the
+     * sync-side snapshot/apply pair.
      */
     @Provides @Singleton
     fun provideSettingsSnapshotSource(
@@ -616,6 +623,31 @@ object AppBindings {
     fun provideRoyalRoadTagSyncUi(
         impl: RealRoyalRoadTagSyncUi,
     ): `in`.jphe.storyvox.feature.api.RoyalRoadTagSyncUi = impl
+
+    // Tier 2 secrets sync (this PR — extends #360): all three tokens
+    // (Notion / Discord / Outline) actually live in
+    // EncryptedSharedPreferences already (Notion: `notion.api_token`,
+    // Outline: `outline.api_key`, Discord: `pref_source_discord_token`).
+    // No additional binding needed — `SecretsSyncer` picks them up via
+    // the extended `SECRET_KEY_PREFIXES` (`notion.`) and
+    // `SECRET_KEY_NAMES` (Discord's flat-named token).
+
+    /**
+     * Real passphrase provider — replaces the no-op default that
+     * was in `:core-sync`'s SyncModule. [PassphraseStore] reads from
+     * EncryptedSharedPreferences under `sync.passphrase`.
+     */
+    @Provides
+    @Singleton
+    @Named(`in`.jphe.storyvox.sync.domain.SecretsSyncer.PASSPHRASE_PROVIDER)
+    fun providePassphraseProvider(
+        impl: `in`.jphe.storyvox.data.PassphraseStore,
+    ): `in`.jphe.storyvox.sync.domain.PassphraseProvider = impl
+
+    @Provides @Singleton
+    fun providePassphraseManager(
+        impl: `in`.jphe.storyvox.data.PassphraseStore,
+    ): `in`.jphe.storyvox.sync.domain.PassphraseManager = impl
 
     /**
      * Issue #203 — narrow [GitHubScopePreferences] surface for the

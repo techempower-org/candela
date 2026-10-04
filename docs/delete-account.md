@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Candela · Delete Your Data
-description: How to delete your Candela data. Candela has no account and no cloud sync; everything lives on your device.
+description: How to delete your Candela account and synced data — step by step, what's removed, what's kept, and retention.
 permalink: /delete-account/
 ---
 
@@ -11,47 +11,49 @@ permalink: /delete-account/
 **Developer:** TechEMPOWER (501(c)(3) nonprofit)
 **Contact:** jp@techempower.org
 
-**Candela has no account and no cloud sync.** There is nothing to sign up
-for and no Candela server holds your data, so deleting your data means
-deleting it from your device.
+Candela is offline-first — by default nothing leaves your device, so for most
+people "deletion" is just uninstalling the app. If you turned on **optional
+cloud sync**, here's how to remove that data too.
 
-## Delete everything on your device
+## Delete your synced data (and keep your account)
 
-Everything Candela stores (library, reading positions, bookmarks, highlights,
-notes, settings, cache, downloaded voices, Voice Notes recordings and their
-transcripts, the encrypted documents wallet, WebView cookies and BYOK tokens)
-lives **only on your device**. To delete all of it, either:
+If you enabled cloud sync, your library and reading data are stored on our sync
+backend (InstantDB). To erase all of it while keeping your account:
 
-- **Uninstall Candela**, or
-- open **Android Settings → Apps → Candela → Storage → Clear data**.
+1. Open **Candela**.
+2. Go to the **sync / account settings** screen.
+3. Tap **"Delete cloud data."**
 
-## Used cloud sync in an older version?
+This **immediately** purges everything you've synced — library, reading
+positions, follows, bookmarks, highlights, reading notes, pronunciation
+dictionary, settings, and your end-to-end-encrypted API keys — from the sync
+backend. Your email sign-in remains, so you can keep using sync afterward.
 
-Before 2026-09-29, Candela offered optional cloud sync through InstantDB
-(email + magic code). That feature has been **removed**, and InstantDB is
-shutting down its cloud service on 2027-08-31. The app no longer sends
-anything to InstantDB and there is no in-app deletion button any more.
+## Delete your account entirely
 
-Updating Candela automatically deletes the old sync sign-in token,
-passphrase and sync state **from your device**. The copy on InstantDB's
-servers is separate: if you signed in to sync in an earlier version and want
-that old sync record deleted, email **jp@techempower.org** from the address you signed in with. We
-complete deletion requests within **30 days** (usually much sooner).
-InstantDB states that it keeps backups of its cloud apps until 2028-08-31;
-those are held by InstantDB, not by us.
+1. Tap **"Delete cloud data"** (above) to purge your synced data.
+2. **Sign out of sync** — this revokes your auth token and wipes the local
+   session. (Signing out alone does *not* delete the account record.)
+3. To delete your account **record** as well, email **jp@techempower.org** from
+   your account address. We complete deletion requests within **30 days**
+   (usually much sooner).
+
+## Delete on-device data
+
+Everything Candela stores locally — cache, downloaded voices, Voice Notes
+recordings and their transcripts (`notes.db`), the encrypted documents wallet,
+WebView cookies, and BYOK tokens — lives **only on your device**. Uninstalling
+Candela deletes all of it. You can also clear it via **Android Settings → Apps
+→ Candela → Storage → Clear data**.
 
 ## What's deleted vs. kept
 
-| Data | On uninstall / Clear data | Retention |
-|---|---|---|
-| Library, reading state, annotations, notes, settings | Deleted | Device-local only; never uploaded |
-| API keys / tokens, documents wallet, Voice Notes | Deleted | Device-local only; never uploaded |
-| Old sync record (earlier versions only) | — | Deleted on request, within 30 days |
+| Data | On "Delete cloud data" | On uninstall | Retention |
+|---|---|---|---|
+| Synced library, reading state, annotations, settings | Deleted immediately from the backend | Local copy removed | None kept after deletion |
+| End-to-end-encrypted API keys / tokens | Deleted immediately | Removed | None kept |
+| Email / account record | Kept until you sign out **and** request deletion | Kept | Removed on request, within 30 days |
+| On-device cache, voices, Voice Notes, documents wallet | — | Deleted | Device-local only; never uploaded |
 
-Android's own device backup (under **your** Google account, controlled in
-Android Settings) may keep a copy of Candela's library and settings for
-restoring onto a new phone. Remove it from Android's backup settings if you
-wish; it never includes Candela's keys, documents wallet or Voice Notes.
-
-Candela keeps **no** analytics, advertising, or tracking data; it ships none.
+Candela keeps **no** analytics, advertising, or tracking data — it ships none.
 Full detail is in our [Privacy Policy](/privacy/).

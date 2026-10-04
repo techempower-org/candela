@@ -96,10 +96,10 @@
 # decode time. Without these keeps, R8 obfuscates JsonObject → "t8.e" and
 # the runtime polymorphic dispatch fails with
 #     "element class t8.e is not available"
-# (first surfaced by the since-removed InstantDB sync client, #661/#1821).
-# Still load-bearing: ~30 non-sync files build or dispatch JsonElement trees
-# (LLM tool specs, Matrix/LibriVox/Royal Road parsers, …). Keep the public
-# json package AND its `.internal.` siblings — the descriptor lookup walks both.
+# on the first sync transaction (#661). Surfaced because :core-sync's
+# WsInstantBackend builds raw JsonObject/JsonArray envelopes via
+# Json.encodeToString(JsonObject.serializer(), msg). Keep the public json
+# package AND its `.internal.` siblings — the descriptor lookup walks both.
 -keep class kotlinx.serialization.json.** { *; }
 -keep class kotlinx.serialization.json.internal.** { *; }
 -keep class kotlinx.serialization.descriptors.** { *; }
@@ -261,11 +261,11 @@
 # AND its argument expressions (string concatenation, the message lambdas
 # that DebugLog inlines), is removed from the release DEX entirely. The
 # audit found ~132 raw Log.v/d/i call sites shipping in the release APK
-# (heaviest in EnginePlayer) plus DebugLog.
+# (heaviest in EnginePlayer + the core-sync syncers) plus DebugLog.
 #
 # Scope rationale:
 #  - v / d / i are stripped. In this codebase `i` is a trace-breadcrumb
-#    level (DebugLog.i and step-trace logs), not ship-worthy
+#    level (SyncCoordinator's sync-step logs, DebugLog.i), not ship-worthy
 #    info, so it goes too.
 #  - w / e are deliberately NOT listed — warnings and errors must survive
 #    so `adb logcat` and Play Console crash/ANR diagnostics still work.

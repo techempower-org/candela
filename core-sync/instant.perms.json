@@ -1,0 +1,31 @@
+{
+  "$default": {
+    "allow": {
+      "$default": "false"
+    }
+  },
+  "blobs": {
+    "allow": {
+      "view": "auth.id != null && auth.id == data.userId",
+      "create": "auth.id != null && auth.id == data.userId",
+      "update": "auth.id != null && auth.id == data.userId && auth.id == newData.userId",
+      "delete": "auth.id != null && auth.id == data.userId"
+    }
+  },
+  "positions": {
+    "allow": {
+      "view": "auth.id != null && auth.id == data.userId",
+      "create": "auth.id != null && auth.id == data.userId",
+      "update": "auth.id != null && auth.id == data.userId && auth.id == newData.userId",
+      "delete": "auth.id != null && auth.id == data.userId"
+    }
+  },
+  "sets": {
+    "allow": {
+      "view": "auth.id != null && auth.id == data.userId",
+      "create": "auth.id != null && auth.id == data.userId",
+      "update": "auth.id != null && auth.id == data.userId && auth.id == newData.userId",
+      "delete": "auth.id != null && auth.id == data.userId"
+    }
+  }
+}

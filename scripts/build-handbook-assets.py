@@ -35,8 +35,8 @@ CHAPTERS: list[tuple[str, str, str]] = [
     ("getting-started", "Getting Started", "docs/install.md"),
     ("voices", "Voices", "docs/voices.md"),
     ("reader-accessibility", "The Reader & Accessibility", "docs/accessibility.md"),
-    # id stays "sync-and-privacy" so saved reading positions still resolve (#1827).
-    ("sync-and-privacy", "Privacy", "docs/sync.md"),
+    # id "sync-and-privacy" is stable so saved reading positions resolve (#1827); title follows the feature.
+    ("sync-and-privacy", "Sync & Privacy", "docs/sync.md"),
     ("reddit-setup", "Connecting reddit", "docs/reddit-setup.md"),
     ("google-drive-setup", "Connecting Google Drive", "docs/google-drive-setup.md"),
     ("notion-setup", "Connecting Notion", "docs/notion-oauth-setup.md"),

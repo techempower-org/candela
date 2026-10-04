@@ -24,7 +24,7 @@ wiki or the microsite output — you'll be overwritten.
 - [`faq.md`](faq.md) — Google Drive (two ways), Google Keep (`wontfix`), and more.
 - [`accessibility.md`](accessibility.md) — TalkBack, contrast, dyslexia fonts, reduced motion.
 - [`voices.md`](voices.md) — the neural voice catalog and refresh workflow.
-- [`sync.md`](sync.md) — your data stays on this device (no account, no cloud sync since #1821).
+- [`sync.md`](sync.md) — optional InstantDB cloud sync (what syncs, encryption, deletion).
 - [`privacy.md`](privacy.md) — the privacy policy. **Serialization point — coordinate edits.**
 
 ### Per-source setup guides (BYOK / OAuth)
@@ -51,7 +51,7 @@ wiki or the microsite output — you'll be overwritten.
 - [`data-safety-checklist.md`](data-safety-checklist.md) — Data Safety declaration + Play Console checklist (#1139). **Serialization point.**
 - [`play-store-screenshots.md`](play-store-screenshots.md) / [`screenshots.md`](screenshots.md) — screenshot capture plan + inventory.
 - [`slack-release-template.md`](slack-release-template.md) — the #candela release-announcement template.
-- `play-store-walkthrough.html`, `play-store/feature-graphic.html` — generated/asset HTML.
+- `play-store-walkthrough.html`, `play-store/feature-graphic.html`, `instantdb-email-template.html` — generated/asset HTML.
 
 ## Testing & reference
 

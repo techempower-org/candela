@@ -1,17 +1,17 @@
 package `in`.jphe.storyvox.data.repository.sync
 
 /**
- * Snapshot/apply contract for the non-sensitive preferences a sync
- * backend would round-trip. **Dormant since #1821**: the InstantDB sync
- * that consumed it was removed; kept as a seam for a future backend.
+ * Snapshot/apply contract for the non-sensitive preferences that the
+ * `:core-sync` layer round-trips through InstantDB.
  *
  * **Why an interface in `:core-data`** — the actual DataStore lives in
  * `:app`'s [SettingsRepositoryUiImpl] (file-private extension on
  * Context, by design — that file is the single owner of the
  * `"storyvox_settings"` preferences store). The sync layer needs to
- * read/write it, but pulling DataStore into a sync module directly would
+ * read/write it, but pulling DataStore into `:core-sync` directly would
  * pull a circular dep on `:app`. So `:app` implements this thin
- * interface and a sync module would consume the abstraction. Same pattern as [`PronunciationDictRepository`].
+ * interface and `:core-sync`'s `SettingsSyncer` consumes the
+ * abstraction. Same pattern as [`PronunciationDictRepository`].
  *
  * **Why a map<String,String>** — the synced preference set is
  * heterogeneous (booleans, ints, floats, strings, JSON-encoded
@@ -54,13 +54,16 @@ package `in`.jphe.storyvox.data.repository.sync
  *
  * **Explicitly excluded** (would cause confusing UX if synced):
  *  - `SIGNED_IN`, `LAST_WAS_PLAYING` — device-local auth/playback
- *    state.
+ *    state (the InstantDB session + per-fiction positions carry the
+ *    real cross-device resume; see `PlaybackPositionSyncer`).
  *  - `V0500_MILESTONE_SEEN`, `V0500_CONFETTI_SHOWN` — one-time
  *    celebration easter-egg gates; a once-per-device moment is fine.
  *  - Cache quota — genuinely device-specific (storage capacity varies
  *    between a 32 GB phone and a 256 GB tablet).
  *  - `PRONUNCIATION_DICT` — handled by its own
- *    [PronunciationDictRepository].
+ *    [PronunciationDictRepository] + [PronunciationDictSyncer].
+ *
+ * See `SettingsSyncer.kt` in `:core-sync` for the wire path.
  */
 interface SettingsSnapshotSource {
 

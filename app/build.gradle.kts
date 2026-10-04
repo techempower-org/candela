@@ -103,8 +103,8 @@ val localProperties = Properties().apply {
  * checkout (CI, new contributor, secrets-rotated dev machine) still
  * builds and CI is green WITHOUT the creds — the Connect-Notion button
  * hides when the id/secret are empty (NotionOAuthConfig.isAvailable),
- * leaving only the paste-token path. Materialized from local.properties,
- * deliberately NOT via `-P` on the CLI
+ * leaving only the paste-token path. Pattern mirrors core-sync's
+ * INSTANTDB_APP_ID materialization; deliberately NOT via `-P` on the CLI
  * (that leaks secrets into shell history / CI logs). Notion is a
  * *confidential* OAuth client — the token endpoint wants client_secret
  * via HTTP Basic — so this secret ships in the APK; see the security
@@ -833,6 +833,7 @@ dependencies {
     // bundled assets). First dogfood of new-source.sh --local (#1526).
     implementation(project(":source-handbook"))
     implementation(project(":source-azure"))
+    implementation(project(":core-sync"))
     implementation(project(":feature"))
 
     implementation(libs.androidx.core.ktx)

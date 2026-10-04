@@ -7,15 +7,13 @@ description: Candela's privacy policy. Plain-language summary: nothing leaves yo
 # Privacy Policy
 
 > **TL;DR.** Candela doesn't ship analytics, advertising, or tracking code.
-> Candela has **no account and no cloud sync**: there is no Candela server,
-> and nothing is uploaded to us. The network is used only by features you
-> turn on, and each talks **directly** to the service you chose: browsing a
-> fiction backend, downloading a voice, optional Azure cloud voices (the text
-> being read is sent to Azure), or AI chat with your own key (your messages
-> and the book text you share go to that AI provider). See §2. Uninstalling
-> the app deletes everything stored locally.
+> Nothing leaves your device unless you explicitly turn on a feature that
+> requires the network (signing in for sync, browsing a fiction backend,
+> downloading a voice). Uninstalling the app deletes everything stored
+> locally; you can delete cloud-synced data via the in-app "Delete cloud
+> data" action.
 
-**Effective date:** 2026-09-29  
+**Effective date:** 2026-07-10  
 **App:** Candela (`org.techempower.candela`)  
 **Publisher:** TechEMPOWER (501(c)(3) nonprofit, operating Candela)  
 **Maintainer:** JP Hein (`jp@jphein.com`)  
@@ -42,29 +40,26 @@ already-downloaded voices) and nothing about your usage leaves the device.
 
 A few features collect or transmit data **only when you turn them on**:
 
-### 2.1 No account, no cloud sync
+### 2.1 Sync (optional)
 
-Candela has **no account and no cloud sync**. There is no sign-in for
-Candela itself, and no Candela server stores your library, reading
-positions, bookmarks, highlights, notes, settings or keys. All of it stays
-in the app's on-device storage.
+If you opt into cross-device sync (Settings → Sync), Candela prompts you
+for an email address and sends you a magic sign-in code. The address and
+your synced library state — what fictions you've added, current reading
+position, voice preferences, settings — are stored in
+[InstantDB](https://instantdb.com), the third-party real-time database
+Candela uses for sync. Your email is the lookup key for your record. The
+content of fictions themselves is **not** synced — only the references
+(URLs / IDs) and the metadata (position, voice choice).
 
-*Before 2026-09-29* Candela offered optional cross-device sync through
-[InstantDB](https://instantdb.com) (email + magic code), including the
-desktop "push to Candela" inbox. That feature has been **removed** (issue
-#1821); InstantDB is shutting down its cloud service on 2027-08-31. The app
-no longer sends anything to InstantDB. If you used sync in an earlier version
-and want your old sync record deleted, email `jp@jphein.com` from the address
-you signed in with and we will delete it (see
-[delete-account.md](delete-account.md)). InstantDB states that it keeps
-backups of its cloud apps until 2028-08-31; those are held by InstantDB, not
-by us.
+If you use the optional desktop "push to Candela" tool
+([push-to-candela.md](push-to-candela.md)), the URLs and text you push are
+held in the same InstantDB record until the phone has had 30 days to pick
+them up, you clear them, or you sign out of sync.
 
-Android's own device backup (Settings → System → Backup, under **your**
-Google account) may back up and restore Candela's library and settings on a
-new phone. That is an Android feature you control, not a Candela service; it
-never includes Candela's encrypted secrets, the document wallet, Voice Notes
-or deadline reminders.
+You can disable sync at any time and your record is deleted from InstantDB
+on next sync-off. Uninstalling the app also deletes the local cache; the
+InstantDB record remains until you sign out from another device or contact
+us to delete it (see _Your rights_ below).
 
 ### 2.2 Fiction backends (your choice, per backend)
 
@@ -81,14 +76,15 @@ that backend's servers exactly the way a web browser would. **Candela does
 not act as an intermediary** — your requests go directly to (for example)
 royalroad.com from your device. The backend operator sees a normal browser
 request, with an IP address and possibly a User-Agent header. Candela does
-not send any identifying token from Candela along with these requests.
+not send your email, your sync state, or any identifying token from
+Candela along with these requests.
 
 For backends that require sign-in (Royal Road follows, AO3 marked-for-later,
 GitHub OAuth Device Flow, Discord/Slack/Matrix/Telegram bot tokens, Notion
 integration or OAuth tokens, Google Drive OAuth tokens, Reddit installed-app
 client id, Azure HD speech key), credentials live on-device and are sent only
-to that backend's own API. **There are no Candela servers, so nobody but
-that backend ever sees your fiction-backend credentials.**
+to that backend's own API. **Candela servers (there aren't any beyond the sync
+database) never see your fiction-backend credentials.**
 
 For **Google Drive**, Candela requests only the narrow `drive.file` OAuth
 scope, which grants access **only to files and folders you explicitly pick** —
@@ -281,8 +277,8 @@ the app:
   no transmission.
 - **Excluded from backup and transfer.** The wallet directory is explicitly
   excluded from Android cloud backup **and** device-to-device transfer, and
-  Candela has no cloud sync. Your documents do not ride along to another
-  device or to any cloud.
+  is **never** part of Candela's optional cloud sync. Your documents do not
+  ride along to another device or to any cloud.
 - **You control deletion.** Delete any document in the app; deleting removes
   its encrypted files immediately. Clearing app data or uninstalling erases
   the whole wallet.
@@ -328,8 +324,8 @@ permission as §2.14, requested only when you start recording), and it is
 - **Stored on-device, excluded from backup and transfer.** The recording, its
   transcript, and the resulting note live in a separate on-device database
   (`notes.db`). It is **excluded from cloud backup and device-to-device
-  transfer** (and Candela has no cloud sync), so Voice Notes stay only on
-  the device that made them.
+  transfer**, and it is **never** part of Candela's optional cloud sync — Voice
+  Notes stay only on the device that made them.
 - **The AI summary is opt-in, per note.** A note's *transcript text* is sent to
   **your own** configured cloud AI provider (BYOK — Anthropic, OpenAI, or your
   local Ollama; see §2.5) **only** when you explicitly tap **Summarize** on that
@@ -382,6 +378,7 @@ with their servers from your device, the same way a web browser would.
 
 | Service | When | What's sent | Their privacy policy |
 | --- | --- | --- | --- |
+| InstantDB | Sync enabled | Your email, your library state | [instantdb.com/privacy](https://instantdb.com/privacy) |
 | GitHub | Voice download, GitHub source, voice catalog fetch | HTTP request (IP visible) | [GitHub privacy](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) |
 | Royal Road / AO3 / etc. | When you browse those backends | Your browser-like request | Their respective policies |
 | Microsoft Azure | Only if you add an Azure key | Text-to-speak + your key | [Microsoft Privacy Statement](https://privacy.microsoft.com/en-us/privacystatement) |
@@ -411,9 +408,10 @@ it's on your device.
   tokens, AI chat history) lives in Candela's private app storage. It
   persists until you uninstall the app or clear app data from Android
   Settings. Uninstalling deletes everything.
-- **No cloud copy.** Candela keeps no server-side copy of anything. Old
-  InstantDB sync records from versions before 2026-09-29 are deleted on
-  request (email `jp@jphein.com`; see [delete-account.md](delete-account.md)).
+- **Synced data** (only if sync is enabled) lives in InstantDB until you
+  explicitly delete it. Use the in-app **"Delete cloud data"** action to
+  purge synced data from InstantDB. Signing out of sync revokes your auth
+  token and wipes local session data, but does not delete the cloud record.
 - **Voice downloads** stay in Candela's cache until you delete them
   (Settings → Voices → Manage → Delete).
 
@@ -427,16 +425,17 @@ including older children. We do **not** knowingly collect any personal
 information from children under 13.
 
 - The default install collects nothing, period.
-- There is no account or sign-up, so Candela never asks for an email
-  address.
+- The sync feature requires an email address; we don't verify age, but
+  children under 13 in the US (and under the analogous local age elsewhere)
+  should not enable sync without parental consent per applicable law.
 - Fiction backends may surface content not suitable for children. Candela
   does not filter or moderate backend content — that's up to the backend
   operator. Parents managing the app for a child user should disable
   backends with unfiltered user-generated content (Royal Road, AO3,
   Discord, Slack, the magic-link Readability catch-all).
 
-If you believe a child under 13 provided an email address through the
-cloud sync of an earlier version, contact us (see _Your rights_) and we'll
+If you believe a child under 13 has provided Candela with personal
+information via the sync feature, contact us (see _Your rights_) and we'll
 delete the record.
 
 ---
@@ -470,13 +469,13 @@ delete the record.
 You have the right to:
 
 - **Know what's stored.** Everything is either on your device (you can
-  inspect via Android's Settings → Apps → Candela → Storage). There is no
-  Candela account or server copy.
-- **Delete your data.** Uninstall the app (or clear its storage) to delete
-  everything. If you used cloud sync in an earlier version, email us to
-  delete your old sync record.
+  inspect via Android's Settings → Apps → Candela → Storage) or in your
+  InstantDB sync record (you can view via the sync settings screen).
+- **Delete your data.** Uninstall the app to delete on-device data; sign
+  out of sync to delete the InstantDB record.
 - **Export your data.** Per-fiction EPUB and chaptered `.m4b` audiobook
-  export shipped in the v1.x line.
+  export shipped in the v1.x line; contact us if you need a full export
+  of your account data.
 - **Contact us with privacy questions** at the contact address listed at
   the top of this document.
 
