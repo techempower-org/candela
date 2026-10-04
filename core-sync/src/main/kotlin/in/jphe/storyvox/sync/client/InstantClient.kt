@@ -18,7 +18,7 @@ import kotlinx.serialization.json.Json
  * makes the migration UX (sign in → start sync) trivially testable without
  * mocking the WS protocol.
  */
-class InstantClient internal constructor(
+class InstantClient(
     private val appId: String,
     private val apiUri: String,
     private val transport: InstantHttpTransport,
@@ -140,11 +140,14 @@ class InstantClient internal constructor(
     }
 
     companion object {
-        /** Production InstantDB runtime URL. Pinned in code rather than
-         *  exposed as a build config — there's no realistic self-hosted
-         *  InstantDB deployment for end users today, and bumping requires
-         *  a binary release anyway. */
+        /** Instant Cloud's runtime URL: the default when a build doesn't
+         *  set `INSTANTDB_API_URI`. Instant Cloud shuts down 2027-08-31, so
+         *  builds can point at a self-hosted Instant instead (Apache-2.0). */
         const val DEFAULT_API_URI: String = "https://api.instantdb.com"
+
+        /** Resolve the build-configured API base (`BuildConfig.INSTANTDB_API_URI`).
+         *  RED-FIRST STUB: always Instant Cloud. */
+        fun resolveApiUri(raw: String?): String = DEFAULT_API_URI
 
         private val MESSAGE_REGEX = """"message"\s*:\s*"([^"]*)"""".toRegex()
 
