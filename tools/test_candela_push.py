@@ -166,6 +166,13 @@ class PushFlowTest(unittest.TestCase):
         payload = json.loads(row["payload"])
         self.assertEqual([i["kind"] for i in payload["items"]], ["url", "text"])
         self.assertEqual(row["updatedAt"], payload["updatedAt"])
+        # core-sync/instant.perms.json allows a row only when auth.id ==
+        # data.userId, and core-sync/instant.attrs.json lists the only
+        # attrs a fresh app has. The pusher must write exactly those.
+        self.assertEqual(row["userId"], "u-1")
+        attrs_file = Path(__file__).resolve().parent.parent / "core-sync" / "instant.attrs.json"
+        allowed = set(json.loads(attrs_file.read_text())["blobs"])
+        self.assertEqual(set(row), allowed)
 
 
 if __name__ == "__main__":
