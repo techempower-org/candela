@@ -140,8 +140,16 @@ Without that property the build still succeeds — INSTANTDBAPPID
    graph resolves to DisabledBackend. The app builds, the sign-in
    screen shows a "Sync isn't configured for this build" message,
    nothing crashes.
-Permissions / schema: InstantDB's schema is dynamic, so the first
-   transact creates the entity shapes and no migration script is needed.
+Permissions / schema: **pre-create the attributes, then apply the
+   permissions.** The $default deny in the permissions also stops clients
+   from creating attributes, so on a fresh app the first transact would fail
+   with 400 permission-denied (hint ["attrs","attr"]). An admin must create
+   every field listed in core-sync/instant.attrs.json (blobs, positions
+   and sets × payload, updatedAt, userId) before devices sync.
+   InstantAttrsTest fails if a write starts carrying a field missing from
+   that file. When it does, add the field there and pre-create it on every
+   Instant app before shipping. Verified on the self-hosted staging app,
+   2026-10-04.
    Permissions are required. Apply core-sync/instant.perms.json to the
    app (Instant dashboard → Permissions, or the self-hosted instance's
    permission API). Every synced entity (blobs, positions, sets) is

@@ -131,5 +131,5 @@ tasks.withType<Test>().configureEach {
     inputs.file("instant.perms.json").withPropertyName("instantPerms")
 }
 tasks.withType<Test>().configureEach {
-    inputs.file("instant.attrs.json").withPropertyName("instantAttrs").optional()
+    inputs.file("instant.attrs.json").withPropertyName("instantAttrs")
 }
