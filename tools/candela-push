@@ -39,7 +39,23 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-API = os.environ.get("CANDELA_INSTANT_API", "https://api.instantdb.com")
+DEFAULT_API = "https://api.instantdb.com"
+
+
+def resolve_api(raw: Optional[str]) -> str:
+    """Instant API base from CANDELA_INSTANT_API (#1836). Blank means Instant
+    Cloud. Otherwise it must be https: every call carries the refresh token
+    as `as-token`, so a plain-http base would send it in cleartext. This
+    mirrors the app's InstantClient.resolveApiUri."""
+    v = (raw or "").strip()
+    if not v:
+        return DEFAULT_API
+    host = v[len("https://"):].strip("/") if v.startswith("https://") else ""
+    if not host:
+        raise PushError("CANDELA_INSTANT_API must be an https:// URL")
+    return v.rstrip("/")
+
+
 ENTITY = "blobs"
 DOMAIN = "inbox"
 PAYLOAD_VERSION = 1
@@ -262,7 +278,8 @@ def resolve_app_id(flag: Optional[str], cfg: Dict[str, Any]) -> str:
 
 def post(path: str, body: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(API + path, data=data, method="POST")
+    api = resolve_api(os.environ.get("CANDELA_INSTANT_API"))
+    req = urllib.request.Request(api + path, data=data, method="POST")
     req.add_header("content-type", "application/json")
     for k, v in (headers or {}).items():
         req.add_header(k, v)
@@ -279,7 +296,7 @@ def post(path: str, body: Dict[str, Any], headers: Optional[Dict[str, str]] = No
             raise PushError(f"InstantDB refused the request ({e.code}: {detail}). Run `candela-push login` again.")
         raise PushError(f"InstantDB {path} failed ({e.code}): {str(detail)[:300]}")
     except urllib.error.URLError as e:
-        raise PushError(f"could not reach {API}: {e.reason}")
+        raise PushError(f"could not reach {api}: {e.reason}")
     return json.loads(raw) if raw.strip() else {}
 
 
