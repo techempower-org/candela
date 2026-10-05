@@ -3,6 +3,7 @@ package `in`.jphe.storyvox.sync
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
@@ -15,13 +16,16 @@ import java.io.File
  */
 class InstantEntityCoverageTest {
 
-    private val entityConst = Regex("""\bENTITY\s*=\s*"([A-Za-z_]+)"""")
+    // Both styles: `ENTITY = "x"` and the typed `ENTITY: String = "x"`
+    // (InboxSyncer, SettingsSyncer). Missing the typed form false-greened (Oracle, #1837).
+    private val entityConst = Regex("""\bENTITY\s*(?::\s*String\s*)?=\s*"([A-Za-z_]+)"""")
 
     @Test fun `attrs, perms and the syncers name the same entities`() {
         val fromCode = File("src/main").walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
             .flatMap { f -> entityConst.findAll(f.readText()).map { it.groupValues[1] } }
             .toSet()
+        assertTrue("found the ENTITY constants (scan works)", fromCode.isNotEmpty())
         val attrs = Json.parseToJsonElement(File("instant.attrs.json").readText()).jsonObject.keys
         val perms = Json.parseToJsonElement(File("instant.perms.json").readText()).jsonObject.keys - "\$default"
         assertEquals("entities in syncers vs instant.attrs.json", fromCode, attrs)

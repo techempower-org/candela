@@ -154,6 +154,15 @@ class ApiUrlTest(unittest.TestCase):
                 cp.resolve_api(bad)
 
 
+class NoRedirectTest(unittest.TestCase):
+    """A redirect must not carry as-token to another URL (#1837)."""
+
+    def test_redirects_are_refused(self):
+        h = cp._NoRedirect()
+        with self.assertRaises(cp.PushError):
+            h.redirect_request(None, None, 302, "Found", {}, "http://evil.example/steal")
+
+
 class PushFlowTest(unittest.TestCase):
     """End-to-end cmd_push against a fake InstantDB (no network)."""
 

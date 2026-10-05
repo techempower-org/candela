@@ -70,6 +70,14 @@ MAX_ROW_BYTES = 1_000_000
 WRITE_ATTEMPTS = 3
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never follow redirects: urllib would resend headers, as-token
+    included, to whatever URL a server names (Oracle nit, #1837)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise PushError(f"refusing to follow a {code} redirect to {newurl}")
+
+
 class PushError(Exception):
     """User-facing failure; message is printed without a traceback."""
 
@@ -284,7 +292,7 @@ def post(path: str, body: Dict[str, Any], headers: Optional[Dict[str, str]] = No
     for k, v in (headers or {}).items():
         req.add_header(k, v)
     try:
-        with urllib.request.urlopen(req, timeout=30) as res:
+        with urllib.request.build_opener(_NoRedirect).open(req, timeout=30) as res:
             raw = res.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")
