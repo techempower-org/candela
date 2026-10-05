@@ -138,6 +138,22 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(cp.resolve_app_id(None, {"appId": "cfg"}), "env")
 
 
+class ApiUrlTest(unittest.TestCase):
+    """#1836: the refresh token travels as as-token, so the base must be https."""
+
+    def test_blank_is_instant_cloud(self):
+        self.assertEqual(cp.resolve_api(None), "https://api.instantdb.com")
+        self.assertEqual(cp.resolve_api("  "), "https://api.instantdb.com")
+
+    def test_https_is_trimmed(self):
+        self.assertEqual(cp.resolve_api(" https://sync.example.org/ "), "https://sync.example.org")
+
+    def test_non_https_is_refused(self):
+        for bad in ("http://sync.example.org", "sync.example.org", "https://", "https:///"):
+            with self.assertRaises(cp.PushError, msg=bad):
+                cp.resolve_api(bad)
+
+
 class PushFlowTest(unittest.TestCase):
     """End-to-end cmd_push against a fake InstantDB (no network)."""
 
