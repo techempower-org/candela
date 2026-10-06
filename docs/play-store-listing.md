@@ -58,7 +58,7 @@ Three drafts, ranked. JP picks final:
 Three drafts, ranked:
 
 1. **`Free books, tech guides, and accessible help — read aloud by TechEMPOWER.`** (74 ch) ✅ recommended — concrete benefit, mentions TechEMPOWER, no jargon.
-2. `Neural-voice audiobook player. 25 sources. Free, ad-free, on-device.` (68 ch) — leads with the audiobook angle.
+2. `Neural-voice audiobook player. 37 sources. Free, ad-free, on-device.` (68 ch) — leads with the audiobook angle.
 3. `Listen to anything text — tech guides, fiction, wiki, RSS — all on-device.` (74 ch) — leans into "anything text" but loses the TechEMPOWER hook.
 
 ### Full description (4000 char max)

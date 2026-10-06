@@ -25,7 +25,7 @@ CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo
 - **core-plugin-ksp** — `@SourcePlugin` annotation processor → Hilt `@IntoSet` factories
 - **wear** — Wear OS companion app (Library Nocturne on the watch)
 - **baselineprofile** — Macrobenchmark module that generates the R8 baseline profile
-- **source-*** — 37 source modules; 34 implement `FictionSource` (37 registered sources — `source-notion` registers PAT + TechEMPOWER, and `source-slack` and `source-telegram` each register two). The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
+- **source-*** — 38 source modules; 35 implement `FictionSource` (37 registered sources — `source-notion` registers PAT + TechEMPOWER, and `source-github` registers repos + the notifications inbox). The other 3 reuse the module pattern without it: `source-azure` (Azure HD cloud-voice backend), `source-epub-writer` and `source-audiobook-writer` (export writers)
 
 ## Key patterns
 
