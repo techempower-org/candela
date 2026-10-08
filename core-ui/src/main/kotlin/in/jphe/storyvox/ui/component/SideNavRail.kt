@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -127,6 +129,11 @@ fun SideNavRail(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(RAIL_WIDTH)
+                    // #1828: 6 cells x 72 dp is taller than a landscape
+                    // phone, so the rail scrolls. drawBehind comes AFTER
+                    // verticalScroll, so the indicator pill is drawn in
+                    // content space and scrolls with its cell.
+                    .verticalScroll(rememberScrollState())
                     .drawBehind {
                         drawRoundRect(
                             color = indicatorColor,
