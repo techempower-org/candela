@@ -73,6 +73,9 @@ fun SideNavRail(
     selected: HomeTab,
     onSelect: (HomeTab) -> Unit,
     modifier: Modifier = Modifier,
+    /** System-bar insets the rail pads around. A parameter so tests can
+     *  simulate a landscape phone's side nav bar or cutout (#1828). */
+    insets: WindowInsets = WindowInsets.systemBars,
 ) {
     val tabs = HomeTab.entries
     val selectedIndex = tabs.indexOf(selected).coerceAtLeast(0)
@@ -92,7 +95,7 @@ fun SideNavRail(
                 // the topmost cell doesn't render under the camera
                 // notch on landscape foldables. `systemBars` covers
                 // both status and navigation bars on a side rail.
-                .windowInsetsPadding(WindowInsets.systemBars)
+                .windowInsetsPadding(insets)
                 .width(RAIL_WIDTH),
         ) {
             val density = LocalDensity.current
