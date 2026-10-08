@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -73,15 +74,20 @@ fun SideNavRail(
     selected: HomeTab,
     onSelect: (HomeTab) -> Unit,
     modifier: Modifier = Modifier,
+    /** System-bar insets the rail pads around. A parameter so tests can
+     *  simulate a landscape phone's side nav bar or cutout (#1828). */
+    insets: WindowInsets = WindowInsets.systemBars,
 ) {
     val tabs = HomeTab.entries
     val selectedIndex = tabs.indexOf(selected).coerceAtLeast(0)
     val indicatorColor = MaterialTheme.colorScheme.primaryContainer
 
+    // #1828: no fixed width here. The Surface wraps the Box below, so a
+    // side system-bar/cutout inset is ADDED to the rail (inset + 80 dp)
+    // instead of being eaten inside 80 dp, which wrapped labels mid-word.
     Surface(
         modifier = modifier
-            .fillMaxHeight()
-            .width(RAIL_WIDTH),
+            .fillMaxHeight(),
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -92,7 +98,7 @@ fun SideNavRail(
                 // the topmost cell doesn't render under the camera
                 // notch on landscape foldables. `systemBars` covers
                 // both status and navigation bars on a side rail.
-                .windowInsetsPadding(WindowInsets.systemBars)
+                .windowInsetsPadding(insets)
                 .width(RAIL_WIDTH),
         ) {
             val density = LocalDensity.current
@@ -193,6 +199,10 @@ private fun RailCell(
         Text(
             text = tab.label,
             style = MaterialTheme.typography.labelMedium,
+            // Never break a label mid-word; ellipsize instead (#1828).
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
             color = if (isSelected) {
                 MaterialTheme.colorScheme.primary
             } else {
