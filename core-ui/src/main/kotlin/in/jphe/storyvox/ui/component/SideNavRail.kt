@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -81,10 +82,12 @@ fun SideNavRail(
     val selectedIndex = tabs.indexOf(selected).coerceAtLeast(0)
     val indicatorColor = MaterialTheme.colorScheme.primaryContainer
 
+    // #1828: no fixed width here. The Surface wraps the Box below, so a
+    // side system-bar/cutout inset is ADDED to the rail (inset + 80 dp)
+    // instead of being eaten inside 80 dp, which wrapped labels mid-word.
     Surface(
         modifier = modifier
-            .fillMaxHeight()
-            .width(RAIL_WIDTH),
+            .fillMaxHeight(),
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -196,6 +199,10 @@ private fun RailCell(
         Text(
             text = tab.label,
             style = MaterialTheme.typography.labelMedium,
+            // Never break a label mid-word; ellipsize instead (#1828).
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
             color = if (isSelected) {
                 MaterialTheme.colorScheme.primary
             } else {
