@@ -19,27 +19,44 @@ internal object InboxNarration {
     /** Per-comment cap; bot reports (coverage tables, review digests) run to pages. */
     const val MAX_COMMENT_CHARS: Int = 1500
 
-    /** Stable id of a PR / issue thread: `owner/repo/pull/12` or `owner/repo/issues/12`. */
-    data class ThreadRef(val owner: String, val repo: String, val isPull: Boolean, val number: Int) {
+    /**
+     * Stable id of an inbox thread: `owner/repo/pull/12`, `owner/repo/issues/12`
+     * or (#1841) `owner/repo/releases/<id>`. [localId] is part of stored
+     * library fiction ids, so the issue/PR shapes must never change.
+     */
+    data class ThreadRef(val owner: String, val repo: String, val kind: Kind, val number: Int) {
+        /** Issue/PR constructor kept for existing callers. */
+        constructor(owner: String, repo: String, isPull: Boolean, number: Int) :
+            this(owner, repo, if (isPull) Kind.Pull else Kind.Issue, number)
+
+        enum class Kind(val localSegment: String, val apiSegment: String) {
+            Issue("issues", "issues"),
+            Pull("pull", "pulls"),
+            Release("releases", "releases"),
+        }
+
+        val isPull: Boolean get() = kind == Kind.Pull
         val repoFullName: String get() = "$owner/$repo"
-        val localId: String get() = "$owner/$repo/${if (isPull) "pull" else "issues"}/$number"
+        val localId: String get() = "$owner/$repo/${kind.localSegment}/$number"
     }
 
-    private val LOCAL_ID = Regex("""^([^/\s]+)/([^/\s]+)/(pull|issues)/(\d+)$""")
-    private val API_URL = Regex("""/repos/([^/\s]+)/([^/\s]+)/(pulls|issues)/(\d+)$""")
+    private val LOCAL_ID = Regex("""^([^/\s]+)/([^/\s]+)/(pull|issues|releases)/(\d+)$""")
+    private val API_URL = Regex("""/repos/([^/\s]+)/([^/\s]+)/(pulls|issues|releases)/(\d+)$""")
     private val REPO_URL = Regex("""/repos/([^/\s]+)/([^/\s]+)$""")
 
     fun parseLocalId(localId: String): ThreadRef? {
         val m = LOCAL_ID.matchEntire(localId.trim()) ?: return null
-        val (owner, repo, kind, n) = m.destructured
-        return ThreadRef(owner, repo, kind == "pull", n.toIntOrNull() ?: return null)
+        val (owner, repo, seg, n) = m.destructured
+        val kind = ThreadRef.Kind.entries.first { it.localSegment == seg }
+        return ThreadRef(owner, repo, kind, n.toIntOrNull() ?: return null)
     }
 
     /** From a notification's `subject.url` (`…/repos/o/r/pulls/12`). */
     fun parseApiUrl(url: String?): ThreadRef? {
         val m = API_URL.find(url?.trim().orEmpty()) ?: return null
-        val (owner, repo, kind, n) = m.destructured
-        return ThreadRef(owner, repo, kind == "pulls", n.toIntOrNull() ?: return null)
+        val (owner, repo, seg, n) = m.destructured
+        val kind = ThreadRef.Kind.entries.first { it.apiSegment == seg }
+        return ThreadRef(owner, repo, kind, n.toIntOrNull() ?: return null)
     }
 
     /** From a search item's `repository_url` + number + pull marker. */
