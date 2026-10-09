@@ -339,8 +339,11 @@ internal class GitHubInboxSource @Inject constructor(
         companionSourceUrl = htmlUrl ?: "https://github.com/${ref.localId}",
     )
 
+    /** Release threads parse (#1841) but aren't narrated yet, so they're
+     *  treated as unknown here rather than mis-fetched as issue numbers. */
     private fun refOf(fictionId: String): ThreadRef? =
         InboxNarration.parseLocalId(fictionId.removePrefix("$SOURCE_ID:"))
+            ?.takeIf { it.kind != ThreadRef.Kind.Release }
 
     private fun malformed(fictionId: String) =
         FictionResult.NotFound("Not a GitHub inbox thread id: $fictionId")

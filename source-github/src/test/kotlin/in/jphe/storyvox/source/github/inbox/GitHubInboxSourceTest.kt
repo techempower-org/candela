@@ -129,6 +129,15 @@ class GitHubInboxSourceTest {
         assertTrue("got $result", result is FictionResult.NotFound)
     }
 
+    @Test fun `a release thread id is NotFound until releases are narrated, with no fetch`() {
+        // #1841 slice 1: release ids parse, but the source must not mis-fetch
+        // them as issue numbers before the release narration lands.
+        val before = server.requestCount
+        val result = runBlocking { source().fictionDetail("github-inbox:o/r/releases/42") }
+        assertTrue("got $result", result is FictionResult.NotFound)
+        assertEquals("no network call", before, server.requestCount)
+    }
+
     @Test fun `lastPage jumps to the newest comments`() {
         assertEquals(1, GitHubInboxSource.lastPage(0))
         assertEquals(1, GitHubInboxSource.lastPage(100))
