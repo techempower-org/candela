@@ -35,6 +35,8 @@ class GitHubInboxSourceTest {
                 paths += path
                 val body = when {
                     path.startsWith("/search/issues") -> SEARCH
+                    path.startsWith("/notifications") -> NOTIFICATIONS
+                    path.startsWith("/repos/o/r/releases/42") -> RELEASE
                     path.startsWith("/repos/o/r/issues/7/comments") -> ISSUE_COMMENTS
                     path.startsWith("/repos/o/r/issues/7") -> ISSUE
                     path.startsWith("/repos/o/r/pulls/7/reviews") -> REVIEWS
@@ -129,13 +131,26 @@ class GitHubInboxSourceTest {
         assertTrue("got $result", result is FictionResult.NotFound)
     }
 
-    @Test fun `a release thread id is NotFound until releases are narrated, with no fetch`() {
-        // #1841 slice 1: release ids parse, but the source must not mis-fetch
-        // them as issue numbers before the release narration lands.
-        val before = server.requestCount
-        val result = runBlocking { source().fictionDetail("github-inbox:o/r/releases/42") }
-        assertTrue("got $result", result is FictionResult.NotFound)
-        assertEquals("no network call", before, server.requestCount)
+    @Test fun `a Release notification is listed as a release thread`() {
+        val page = (runBlocking { source().popular(1) } as FictionResult.Success).value
+        val release = page.items.single { it.id == "github-inbox:o/r/releases/42" }
+        assertTrue(release.tags.toString(), "Release" in release.tags)
+        assertEquals("v2.0: Big one", release.title)
+    }
+
+    @Test fun `a release thread has one Release notes chapter narrating the notes`() {
+        val detail = (runBlocking { source().fictionDetail("github-inbox:o/r/releases/42") }
+            as FictionResult.Success).value
+        assertEquals(listOf("Release notes"), detail.chapters.map { it.title })
+        val chapter = (runBlocking {
+            source().chapter("github-inbox:o/r/releases/42", detail.chapters.single().id)
+        } as FictionResult.Success).value
+        val text = chapter.plainBody
+        assertTrue(text, text.contains("v2.0"))
+        assertTrue(text, text.contains("dana"))
+        assertTrue(text, text.contains("Faster startup"))
+        assertTrue("fetched the release, not an issue: $paths", paths.any { it.startsWith("/repos/o/r/releases/42") })
+        assertTrue("never fetched an issue: $paths", paths.none { it.contains("/issues/") })
     }
 
     @Test fun `lastPage jumps to the newest comments`() {
@@ -145,6 +160,12 @@ class GitHubInboxSourceTest {
     }
 
     private companion object {
+        const val NOTIFICATIONS = """[{"id":"1","unread":true,"reason":"subscribed",
+            "subject":{"title":"v2.0: Big one","url":"https://api.github.com/repos/o/r/releases/42","type":"Release"},
+            "repository":{"full_name":"o/r"}}]"""
+        const val RELEASE = """{"id":42,"name":"v2.0: Big one","tag_name":"v2.0",
+            "html_url":"https://github.com/o/r/releases/tag/v2.0","author":{"login":"dana"},
+            "published_at":"2026-10-01T12:00:00Z","body":"## Highlights\n\n- Faster startup\n- Fewer bugs"}"""
         const val SEARCH = """{"total_count":1,"items":[{"number":7,"title":"Fix the flaky test",
             "user":{"login":"alice"},"state":"open","repository_url":"https://api.github.com/repos/o/r",
             "html_url":"https://github.com/o/r/pull/7","comments":1,"pull_request":{"url":"x"}}]}"""
