@@ -130,3 +130,15 @@ internal data class GhCheckRunsResponse(
     @SerialName("total_count") val totalCount: Int = 0,
     @SerialName("check_runs") val checkRuns: List<GhCheckRun> = emptyList(),
 )
+
+/** `GET /repos/{o}/{r}/releases/{id}` (#1841). */
+@Serializable
+internal data class GhRelease(
+    @SerialName("id") val id: Long = 0,
+    @SerialName("name") val name: String? = null,
+    @SerialName("tag_name") val tagName: String = "",
+    @SerialName("html_url") val htmlUrl: String? = null,
+    @SerialName("author") val author: GhUser? = null,
+    @SerialName("published_at") val publishedAt: String? = null,
+    @SerialName("body") val body: String? = null,
+)
