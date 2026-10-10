@@ -52,6 +52,10 @@ internal open class GitHubInboxApi @Inject constructor(
     suspend fun pull(owner: String, repo: String, number: Int): FictionResult<GhPull> =
         get("/repos/$owner/$repo/pulls/$number")
 
+    /** A release, for Release notifications (#1841). */
+    suspend fun release(owner: String, repo: String, id: Int): FictionResult<GhRelease> =
+        get("/repos/$owner/$repo/releases/$id")
+
     /** Issue-timeline comments, one page of up to 100 (oldest first). */
     suspend fun issueComments(owner: String, repo: String, number: Int, page: Int): FictionResult<List<GhComment>> =
         get("/repos/$owner/$repo/issues/$number/comments?per_page=$COMMENT_PAGE&page=$page")

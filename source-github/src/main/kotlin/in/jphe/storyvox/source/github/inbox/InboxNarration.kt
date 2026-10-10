@@ -85,6 +85,24 @@ internal object InboxNarration {
 
     fun kindLabel(isPull: Boolean): String = if (isPull) "Pull request" else "Issue"
 
+    fun kindLabel(kind: ThreadRef.Kind): String = when (kind) {
+        ThreadRef.Kind.Pull -> "Pull request"
+        ThreadRef.Kind.Issue -> "Issue"
+        ThreadRef.Kind.Release -> "Release"
+    }
+
+    /** The one chapter of a release thread (#1841): name, tag and who
+     *  published it, then the release notes as written. */
+    fun releaseMarkdown(ref: ThreadRef, release: GhRelease): String = buildString {
+        val title = release.name?.takeIf { it.isNotBlank() } ?: release.tagName
+        append("# ").append(title).append("\n\n")
+        append("Release ").append(release.tagName).append(" of ").append(ref.repoFullName)
+        release.author?.login?.takeIf { it.isNotBlank() }?.let { append(", published by ").append(it) }
+        release.publishedAt?.take(10)?.takeIf { it.length == 10 }?.let { append(" on ").append(it) }
+        append(".\n\n")
+        append(release.body?.takeIf { it.isNotBlank() } ?: "This release has no notes.")
+    }
+
     /**
      * Strip what reads badly aloud: HTML comments (PR templates, bot
      * markers), raw HTML tags (`<details>`, `<img>`), and runs of blank

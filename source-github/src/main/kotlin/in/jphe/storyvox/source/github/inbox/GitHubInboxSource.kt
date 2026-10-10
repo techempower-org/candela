@@ -153,6 +153,7 @@ internal class GitHubInboxSource @Inject constructor(
     override suspend fun fictionDetail(fictionId: String): FictionResult<FictionDetail> {
         requireSignedIn()?.let { return it }
         val ref = refOf(fictionId) ?: return malformed(fictionId)
+        if (ref.kind == ThreadRef.Kind.Release) return releaseDetail(ref, fictionId)
         val issue = when (val r = api.issue(ref.owner, ref.repo, ref.number)) {
             is FictionResult.Success -> r.value
             is FictionResult.Failure -> return r
@@ -189,6 +190,8 @@ internal class GitHubInboxSource @Inject constructor(
         requireSignedIn()?.let { return it }
         val ref = refOf(fictionId) ?: return malformed(fictionId)
         return when (chapterId.substringAfterLast(':')) {
+            CH_RELEASE_NOTES -> if (ref.kind == ThreadRef.Kind.Release) releaseNotes(ref, fictionId)
+                else FictionResult.NotFound("Unknown chapter: $chapterId")
             CH_OVERVIEW -> overview(ref, fictionId)
             CH_CONVERSATION -> conversation(ref, fictionId)
             else -> FictionResult.NotFound("Unknown chapter: $chapterId")
@@ -264,10 +267,68 @@ internal class GitHubInboxSource @Inject constructor(
     override suspend fun latestRevisionToken(fictionId: String): FictionResult<String?> {
         requireSignedIn()?.let { return it }
         val ref = refOf(fictionId) ?: return malformed(fictionId)
+        if (ref.kind == ThreadRef.Kind.Release) {
+            return when (val r = api.release(ref.owner, ref.repo, ref.number)) {
+                is FictionResult.Success -> FictionResult.Success(r.value.publishedAt)
+                is FictionResult.Failure -> r
+            }
+        }
         return when (val r = api.issue(ref.owner, ref.repo, ref.number)) {
             is FictionResult.Success -> FictionResult.Success(r.value.updatedAt)
             is FictionResult.Failure -> r
         }
+    }
+
+    // ─── releases (#1841) ──────────────────────────────────────────────
+
+    private fun releaseNotesInfo(fictionId: String, release: GhRelease) = ChapterInfo(
+        id = "$fictionId:$CH_RELEASE_NOTES",
+        sourceChapterId = CH_RELEASE_NOTES,
+        index = 0,
+        title = "Release notes",
+        publishedAt = release.publishedAt.epochMillis(),
+    )
+
+    private suspend fun releaseDetail(ref: ThreadRef, fictionId: String): FictionResult<FictionDetail> {
+        val release = when (val r = api.release(ref.owner, ref.repo, ref.number)) {
+            is FictionResult.Success -> r.value
+            is FictionResult.Failure -> return r
+        }
+        val title = release.name?.takeIf { it.isNotBlank() } ?: release.tagName
+        val chapters = listOf(releaseNotesInfo(fictionId, release))
+        val summary = summaryFor(
+            ref = ref,
+            title = title,
+            author = release.author?.login,
+            htmlUrl = release.htmlUrl,
+            tags = listOf("Release"),
+            description = "Release ${release.tagName} in ${ref.repoFullName}",
+            status = FictionStatus.COMPLETED,
+        )
+        return FictionResult.Success(
+            FictionDetail(
+                summary = summary.copy(chapterCount = chapters.size),
+                chapters = chapters,
+                genres = emptyList(),
+                lastUpdatedAt = release.publishedAt.epochMillis(),
+                authorId = release.author?.login,
+            ),
+        )
+    }
+
+    private suspend fun releaseNotes(ref: ThreadRef, fictionId: String): FictionResult<ChapterContent> {
+        val release = when (val r = api.release(ref.owner, ref.repo, ref.number)) {
+            is FictionResult.Success -> r.value
+            is FictionResult.Failure -> return r
+        }
+        // The chapter is titled "Release notes", so the release name leads.
+        return FictionResult.Success(
+            renderer.render(
+                releaseNotesInfo(fictionId, release),
+                InboxNarration.releaseMarkdown(ref, release),
+                stripLeadingTitle = false,
+            ),
+        )
     }
 
     // ─── follow (not supported — Library add is the "follow") ─────────
@@ -281,13 +342,13 @@ internal class GitHubInboxSource @Inject constructor(
     // ─── mapping ───────────────────────────────────────────────────────
 
     private fun notificationSummary(n: GhNotification): FictionSummary? {
-        // Release / CheckSuite / Discussion / Commit threads have no
-        // PR-or-issue body to narrate — skipped for now (#1470 follow-up).
-        if (n.subject.type != "PullRequest" && n.subject.type != "Issue") return null
+        // CheckSuite / Discussion / Commit threads have nothing to narrate
+        // yet; Releases narrate their notes (#1841).
+        if (n.subject.type !in NARRATED_SUBJECT_TYPES) return null
         val ref = InboxNarration.parseApiUrl(n.subject.url) ?: return null
         val tags = buildList {
             add(InboxNarration.reasonLabel(n.reason))
-            add(InboxNarration.kindLabel(ref.isPull))
+            add(InboxNarration.kindLabel(ref.kind))
             if (n.unread) add("Unread")
         }
         return summaryFor(
@@ -297,7 +358,8 @@ internal class GitHubInboxSource @Inject constructor(
             htmlUrl = null,
             tags = tags,
             description = "${InboxNarration.reasonLabel(n.reason)} · " +
-                "${InboxNarration.kindLabel(ref.isPull).lowercase()} ${ref.number} in ${ref.repoFullName}",
+                if (ref.kind == ThreadRef.Kind.Release) "release in ${ref.repoFullName}"
+                else "${InboxNarration.kindLabel(ref.kind).lowercase()} ${ref.number} in ${ref.repoFullName}",
         )
     }
 
@@ -328,7 +390,7 @@ internal class GitHubInboxSource @Inject constructor(
     ) = FictionSummary(
         id = "$SOURCE_ID:${ref.localId}",
         sourceId = SOURCE_ID,
-        title = title.ifBlank { "${InboxNarration.kindLabel(ref.isPull)} ${ref.number}" },
+        title = title.ifBlank { "${InboxNarration.kindLabel(ref.kind)} ${ref.number}" },
         // The repo reads as the "author" in Library rows — it's what the
         // listener needs to place the thread; the opener is in the description.
         author = ref.repoFullName.ifBlank { author.orEmpty() },
@@ -339,11 +401,8 @@ internal class GitHubInboxSource @Inject constructor(
         companionSourceUrl = htmlUrl ?: "https://github.com/${ref.localId}",
     )
 
-    /** Release threads parse (#1841) but aren't narrated yet, so they're
-     *  treated as unknown here rather than mis-fetched as issue numbers. */
     private fun refOf(fictionId: String): ThreadRef? =
         InboxNarration.parseLocalId(fictionId.removePrefix("$SOURCE_ID:"))
-            ?.takeIf { it.kind != ThreadRef.Kind.Release }
 
     private fun malformed(fictionId: String) =
         FictionResult.NotFound("Not a GitHub inbox thread id: $fictionId")
@@ -374,6 +433,10 @@ internal class GitHubInboxSource @Inject constructor(
 
         const val CH_OVERVIEW: String = "overview"
         const val CH_CONVERSATION: String = "conversation"
+        const val CH_RELEASE_NOTES: String = "notes"
+
+        /** Notification subject types the inbox narrates (#1841 adds Release). */
+        private val NARRATED_SUBJECT_TYPES = setOf("PullRequest", "Issue", "Release")
 
         internal const val FILTER_VIEW = "view"
         internal const val FILTER_INCLUDE_CLOSED = "includeClosed"
