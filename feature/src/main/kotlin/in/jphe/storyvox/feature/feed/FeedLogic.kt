@@ -20,6 +20,8 @@ data class FeedRow(
     val sourceId: String,
     /** Human label for [sourceId] ("RSS", "Hacker News"); falls back to the id. */
     val sourceLabel: String,
+    /** #1808 — a line or two of the item's text, or null when there's none to show. */
+    val preview: String? = null,
 )
 
 /**
@@ -30,6 +32,24 @@ internal object FeedLogic {
 
     /** How many unread items the feed pulls from Room. */
     const val FEED_LIMIT = 100
+
+    /** Longest card preview, in characters, before the ellipsis (#1808). */
+    const val PREVIEW_CHARS = 160
+
+    /**
+     * A card's preview line: the start of the item's text with whitespace
+     * collapsed, cut at a word boundary with an ellipsis. Null when there is no
+     * text yet (the body isn't fetched) or when it only repeats the title.
+     */
+    fun preview(body: String?, title: String): String? {
+        val text = body?.trim()?.replace(WHITESPACE, " ")?.takeIf { it.isNotEmpty() } ?: return null
+        if (text.equals(title.trim(), ignoreCase = true)) return null
+        if (text.length <= PREVIEW_CHARS) return text
+        val cut = text.lastIndexOf(' ', PREVIEW_CHARS).takeIf { it > PREVIEW_CHARS / 2 } ?: PREVIEW_CHARS
+        return text.substring(0, cut).trimEnd(' ', ',', ';', ':', '.', '-') + "…"
+    }
+
+    private val WHITESPACE = Regex("\\s+")
 
     /**
      * Turn the reverse-chronological unread list into feed rows. Order is kept
@@ -58,6 +78,7 @@ internal object FeedLogic {
                 coverUrl = u.coverUrl,
                 sourceId = sourceId,
                 sourceLabel = labelOf(sourceId)?.takeIf { it.isNotBlank() } ?: sourceId,
+                preview = preview(u.bodyPreview, title = u.chapterTitle),
             )
         }
     }

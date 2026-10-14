@@ -60,4 +60,33 @@ class FeedLogicTest {
         assertEquals(-1, FeedLogic.playingIndex(rows, listOf("c2", "zz"), "c2"))
         assertEquals(-1, FeedLogic.playingIndex(rows, null, null))
     }
+
+    @Test
+    fun `preview collapses whitespace and cuts at a word boundary`() {
+        val body = "The  council met\n\non Tuesday to discuss the new library hours, and " + "word ".repeat(60)
+        val p = FeedLogic.preview(body, title = "Council news")!!
+        assertEquals(true, p.startsWith("The council met on Tuesday"))
+        assertEquals(true, p.length <= FeedLogic.PREVIEW_CHARS + 1)
+        assertEquals(true, p.endsWith("…"))
+        assertEquals(false, p.contains("  "))
+    }
+
+    @Test
+    fun `preview is null when blank or just the title again`() {
+        assertEquals(null, FeedLogic.preview(null, title = "T"))
+        assertEquals(null, FeedLogic.preview("   \n ", title = "T"))
+        assertEquals(null, FeedLogic.preview("Council news", title = "Council news"))
+    }
+
+    @Test
+    fun `short preview is kept whole`() {
+        assertEquals("A short post.", FeedLogic.preview("A short post.", title = "T"))
+    }
+
+    @Test
+    fun `rows carry the preview`() {
+        val u = unread("rss:a", "c1", chapter = "Headline").copy(bodyPreview = "Body text here.")
+        val rows = FeedLogic.rows(listOf(u), sourceOf, labels::get)
+        assertEquals("Body text here.", rows.single().preview)
+    }
 }
