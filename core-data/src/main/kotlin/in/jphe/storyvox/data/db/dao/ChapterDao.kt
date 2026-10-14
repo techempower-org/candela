@@ -159,7 +159,8 @@ interface ChapterDao {
                c.fictionId     AS fictionId,
                c.title         AS chapterTitle,
                f.title         AS bookTitle,
-               f.coverUrl      AS coverUrl
+               f.coverUrl      AS coverUrl,
+               substr(c.plainBody, 1, $PREVIEW_SOURCE_CHARS) AS bodyPreview
           FROM chapter c
           JOIN fiction f ON f.id = c.fictionId
          WHERE f.inLibrary = 1
@@ -666,4 +667,9 @@ data class UnreadChapterRow(
     val chapterTitle: String,
     val bookTitle: String,
     val coverUrl: String?,
+    /** #1808 — the first [PREVIEW_SOURCE_CHARS] chars of the stored body, if fetched. */
+    val bodyPreview: String? = null,
 )
+
+/** How much body text [ChapterDao.unreadChapters] reads per row for a card preview (#1808). */
+const val PREVIEW_SOURCE_CHARS = 400

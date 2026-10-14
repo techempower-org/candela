@@ -189,6 +189,15 @@ private fun FeedCard(row: FeedRow, isPlaying: Boolean, onClick: () -> Unit) {
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
+                row.preview?.let { preview ->
+                    Text(
+                        text = preview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (isPlaying) {
                     Text(
                         text = stringResource(R.string.feed_now_playing),

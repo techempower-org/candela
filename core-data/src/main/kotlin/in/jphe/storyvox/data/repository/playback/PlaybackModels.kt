@@ -71,4 +71,6 @@ data class UnreadChapter(
     val bookTitle: String,
     val chapterTitle: String,
     val coverUrl: String?,
+    /** #1808 — start of the stored body text, or null when the body isn't fetched yet. */
+    val bodyPreview: String? = null,
 )

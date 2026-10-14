@@ -49,4 +49,5 @@ private fun UnreadChapterRow.toUnreadChapter(): UnreadChapter = UnreadChapter(
     bookTitle = bookTitle,
     chapterTitle = chapterTitle,
     coverUrl = coverUrl,
+    bodyPreview = bodyPreview,
 )

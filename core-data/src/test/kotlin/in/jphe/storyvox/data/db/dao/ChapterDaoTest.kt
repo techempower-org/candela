@@ -669,6 +669,21 @@ class ChapterDaoTest {
     }
 
     @Test
+    fun unreadChapters_carriesABoundedBodyPreview() = runTest {
+        fictionDao.upsert(fiction)
+        dao.upsertAll(
+            listOf(
+                chapter("c1", index = 0, publishedAt = 20L, plainBody = "x".repeat(5_000)),
+                chapter("c2", index = 1, publishedAt = 10L),
+            ),
+        )
+
+        val rows = dao.unreadChapters(limit = 10)
+        assertEquals(PREVIEW_SOURCE_CHARS, rows.first { it.chapterId == "c1" }.bodyPreview?.length)
+        assertEquals(null, rows.first { it.chapterId == "c2" }.bodyPreview)
+    }
+
+    @Test
     fun observePlayedChapterIds_returnsOnlyMarkedRead() = runTest {
         fictionDao.upsert(fiction)
         dao.upsertAll(
