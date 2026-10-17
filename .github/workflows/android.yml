@@ -13,12 +13,18 @@ on:
       - '**.md'
   pull_request:
     branches: [main]
+  # Manual "test APK" builds (#1848 D5): a release-variant, sideload-signed phone
+  # APK uploaded as a short-lived Actions artifact, never a GitHub release. It
+  # installs over an existing sideload install, so a device round trip can test
+  # sync config (CI secrets) without a tag while a RELEASE HOLD is on.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.ref }}
+  # event_name keeps a manual dispatch on main from cancelling main's push CI (and vice versa).
+  group: android-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -295,6 +301,19 @@ jobs:
         # parser is caught at PR time even though the threshold check
         # itself is skipped without a device.
         run: ./scripts/check-cold-launch.sh
+
+      - name: Upload test APK (manual dispatch only)
+        # #1848: the installable phone APK from a workflow_dispatch run, for a
+        # pre-release device check. Artifacts on this public repo can be
+        # downloaded by any signed-in GitHub user, so keep it short-lived; it
+        # is the same app main would ship, not a release.
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: candela-test-apk-${{ github.sha }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Rename release artifacts with tag
         # Only runs on tag builds — for PR / main pushes we just
