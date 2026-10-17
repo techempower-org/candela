@@ -13,12 +13,19 @@ on:
       - '**.md'
   pull_request:
     branches: [main]
+  # Manual "test APK" builds (#1848 D5): dispatched on main, a release-variant,
+  # sideload-signed phone APK uploaded as a 1-day Actions artifact, never a
+  # GitHub release (the release steps are push-only). It
+  # installs over an existing sideload install, so a device round trip can test
+  # sync config (CI secrets) without a tag while a RELEASE HOLD is on.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.ref }}
+  # event_name keeps a manual dispatch on main from cancelling main's push CI (and vice versa).
+  group: android-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -296,6 +303,20 @@ jobs:
         # itself is skipped without a device.
         run: ./scripts/check-cold-launch.sh
 
+      - name: Upload test APK (manual dispatch only)
+        # #1848: the installable phone APK from a workflow_dispatch run on main
+        # (reviewed code only), for a pre-release device check. Delete it once
+        # the devices have it. Artifacts on this public repo can be
+        # downloaded by any signed-in GitHub user, so keep it short-lived; it
+        # is the same app main would ship, not a release.
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: candela-test-apk-${{ github.sha }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Rename release artifacts with tag
         # Only runs on tag builds — for PR / main pushes we just
         # verify the build compiles and stop. The local-build path
@@ -305,7 +326,8 @@ jobs:
         # so the published asset uses the GIT TAG (which may diverge
         # from versionName in pathological cases — historical sanity
         # check from v0.4.x tagging mishaps).
-        if: startsWith(github.ref, 'refs/tags/v')
+        # push only: a workflow_dispatch on a tag ref must never publish (#1851 review).
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -337,7 +359,8 @@ jobs:
         # so attaching directly via softprops/action-gh-release stays
         # within budget. Since both halves now share a GitHub-hosted
         # runner, the APK is just on disk; no transfer needed.
-        if: startsWith(github.ref, 'refs/tags/v')
+        # push only: a workflow_dispatch on a tag ref must never publish (#1851 review).
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
