@@ -307,7 +307,7 @@ jobs:
         # pre-release device check. Artifacts on this public repo can be
         # downloaded by any signed-in GitHub user, so keep it short-lived; it
         # is the same app main would ship, not a release.
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'pull_request'  # PERTURBATION: revert before merge
         uses: actions/upload-artifact@v4
         with:
           name: candela-test-apk-${{ github.sha }}
