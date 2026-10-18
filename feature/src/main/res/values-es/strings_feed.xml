@@ -11,4 +11,7 @@
     <string name="feed_play_item">Reproducir %1$s</string>
     <string name="settings_hub_feed_title">Feed Para ti</string>
     <string name="settings_hub_feed_subtitle">Publicaciones nuevas de todo lo que sigues, leídas en voz alta una tras otra.</string>
+    <!-- #1808 — entry card at the top of the Library grid. -->
+    <string name="library_for_you_title">Para ti</string>
+    <string name="library_for_you_subtitle">Lo nuevo de todo lo que sigues. Toca para escuchar.</string>
 </resources>

@@ -4,7 +4,7 @@
 - **Morning Briefing** (`morning_briefing`): one continuous narrated episode built from sources you pick (Google News headlines, Hacker News, arXiv papers, your RSS feeds). Each source has **Fewer/More items** steppers (default 3). **Build & play my briefing** starts it, and it plays top to bottom.
 - **For you** (`feed`, #1675): a feed of new posts from everything you follow, newest first. Tapping an item starts playback that continues down the feed (**Stop auto-play**), and there is a **Refresh feed** button.
 
-**(b) How a user reaches it.** **Settings → Morning Briefing** and **Settings → For you feed**.
+**(b) How a user reaches it.** **Settings → Morning Briefing**. For you: the **For you** card at the top of the **Library** tab (#1808; All view, hidden on a shelf filter or during a search), or **Settings → For you feed**.
 
 **(c) How to drive it.**
 ```bash

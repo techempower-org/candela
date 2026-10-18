@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -175,6 +176,13 @@ fun LibraryScreen(
      * test / preview surfaces that don't exercise it still compile.
      */
     onOpenNotes: () -> Unit = {},
+    /**
+     * #1808 — the "For you" listening feed. Until this card it was reachable
+     * only from Settings hub → Tools; the card at the top of the Library grid
+     * is the quicker entry. Production wiring routes it to
+     * [StoryvoxRoutes.FEED]; default no-op for tests and previews.
+     */
+    onOpenFeed: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -639,6 +647,7 @@ fun LibraryScreen(
                             onTapFiction = viewModel::openFiction,
                             onLongPress = viewModel::openManageShelves,
                             onOpenTechEmpower = onOpenTechEmpower,
+                            onOpenFeed = onOpenFeed,
                         )
                     }
 
@@ -816,6 +825,52 @@ private fun TechEmpowerHeroCard(onClick: () -> Unit) {
                 )
                 Text(
                     "Tap to see TechEMPOWER's free guides →",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * #1808 — one-line entry to the "For you" listening feed. Deliberately
+ * compact (one row, not a hero) so it doesn't push the user's books below
+ * the fold on a phone. One merged TalkBack stop: "For you, New from …, button".
+ */
+@Composable
+private fun ForYouEntryCard(onClick: () -> Unit) {
+    val spacing = LocalSpacing.current
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(TestTags.LibraryOpenForYou)
+            .clickable(role = Role.Button, onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.DynamicFeed,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.library_for_you_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                )
+                Text(
+                    stringResource(R.string.library_for_you_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -1166,7 +1221,7 @@ internal const val libraryGridExpandedMinSizeDp: Int = 180
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun LibraryGridBody(
+internal fun LibraryGridBody(
     state: LibraryUiState,
     dedupedFictions: List<FictionSummary>,
     onResume: () -> Unit,
@@ -1180,6 +1235,7 @@ private fun LibraryGridBody(
     onTapFiction: (String) -> Unit,
     onLongPress: (FictionSummary) -> Unit,
     onOpenTechEmpower: () -> Unit,
+    onOpenFeed: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     val isEmpty = !state.isLoading && dedupedFictions.isEmpty() && state.resume == null
@@ -1204,6 +1260,11 @@ private fun LibraryGridBody(
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.padding(spacing.md)) {
                         TechEmpowerHeroCard(onClick = onOpenTechEmpower)
+                    }
+                    // #1808 — follows aren't library books, so the feed can
+                    // have items even when the library is empty.
+                    Box(modifier = Modifier.padding(horizontal = spacing.md)) {
+                        ForYouEntryCard(onClick = onOpenFeed)
                     }
                     Box(modifier = Modifier.weight(1f)) {
                         EmptyLibrary()
@@ -1242,6 +1303,15 @@ private fun LibraryGridBody(
         if (state.filter is ShelfFilter.All) {
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                 TechEmpowerHeroCard(onClick = onOpenTechEmpower)
+            }
+        }
+        // #1808 — the quicker entry to the "For you" feed (it was Settings hub
+        // → Tools only): a compact row under the hero, so the discovery
+        // surfaces sit together above the user's own Resume card and grid.
+        // Hidden while searching: it isn't a search result.
+        if (state.filter is ShelfFilter.All && state.searchQuery.isBlank()) {
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                ForYouEntryCard(onClick = onOpenFeed)
             }
         }
         // Hide the Resume card on shelf-filtered views — it's a
