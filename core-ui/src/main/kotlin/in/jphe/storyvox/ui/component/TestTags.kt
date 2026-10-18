@@ -50,6 +50,9 @@ object TestTags {
      *  the bottom nav, so phones have no dock pill for it). */
     const val LibraryOpenNotes = "library-open-notes"
 
+    /** #1808 — the "For you" entry card at the top of the Library grid (All filter). */
+    const val LibraryOpenForYou = "library-open-for-you"
+
     // ── Browse ───────────────────────────────────────────────────────────
     const val BrowseSearchField = "browse-search-field"
     const val BrowseSourceList = "browse-source-list"

@@ -11,4 +11,7 @@
     <string name="feed_play_item">Play %1$s</string>
     <string name="settings_hub_feed_title">For you feed</string>
     <string name="settings_hub_feed_subtitle">New posts from everything you follow, read aloud in a row.</string>
+    <!-- #1808 — entry card at the top of the Library grid. -->
+    <string name="library_for_you_title">For you</string>
+    <string name="library_for_you_subtitle">New from everything you follow. Tap to listen.</string>
 </resources>

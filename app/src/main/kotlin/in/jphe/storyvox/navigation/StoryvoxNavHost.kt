@@ -898,6 +898,8 @@ private fun StoryvoxNavHostContent(
                     // HOME_ROUTES so the rail (and phone bottom bar) stay
                     // visible on the Notes surface.
                     onOpenNotes = { navController.navigate(StoryvoxRoutes.NOTES) },
+                    // #1808 — Library's "For you" card opens the listening feed.
+                    onOpenFeed = { navController.navigate(StoryvoxRoutes.FEED) },
                     // Issue #995 — "Scan a page" add-flow entry routes to
                     // the OCR capture surface.
                     onScanPage = { navController.navigate(StoryvoxRoutes.OCR_CAPTURE) },
