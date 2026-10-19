@@ -845,6 +845,9 @@ dependencies {
     implementation(project(":source-spacebattles"))
     implementation(project(":source-sufficientvelocity"))
     implementation(project(":source-fimfiction"))
+    implementation(project(":source-tapas"))
+    implementation(project(":source-inkitt"))
+    implementation(project(":source-quotev"))
     // 18+ sources are NOT linked by default, so the Play AAB and the default
     // sideload APK never contain them (Google Play's sexual-content policy):
     // Adult-FanFiction.org, Literotica, and the 18+-tolerant Questionable

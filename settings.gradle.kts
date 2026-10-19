@@ -162,6 +162,10 @@ include(":source-spacebattles")
 include(":source-sufficientvelocity")
 include(":source-questionablequesting")
 include(":source-fimfiction")
+include(":source-tapas")
+include(":source-inkitt")
+// Behind its own JS wall (mapped to the Cloudflare result, FFN posture).
+include(":source-quotev")
 // 18+ archives (aff, literotica) and the 18+-tolerant QQ board. Always part
 // of the build (so CI compiles + tests them), but only linked into :app when
 // -Pcandela.adultSources=true — see app/build.gradle.kts.
