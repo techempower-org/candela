@@ -9,8 +9,24 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.17.0] -- 2026-10-19
+
+**Infernal Beacon.** Fifteen new places to read from, sync is back on TechEMPOWER's own server, and a quicker way into the For you feed.
+
 ### Added
-- **Cloud sync is back, and can point at a self-hosted Instant.** v1.16.0
+- **Fifteen new sources**, all off by default (turn them on in Settings →
+  Plugins): FanFiction.net, FictionPress, Wattpad, Scribble Hub, Foxaholic,
+  LiveJournal, SpaceBattles, Sufficient Velocity, FimFiction, Tapas, Inkitt
+  and Quotev. Some start from search or a pasted story link rather than a
+  browse list (LiveJournal, the XenForo forums, Tapas, Inkitt). Quotev sits
+  behind a site-wide browser check and may not load yet. Three adult archives
+  (AFF, Questionable Questing, Literotica) are built and tested but are NOT in
+  this APK or the Play build; they ship only in an opt-in build (#1856).
+- **For you is one tap from the Library.** A "For you" card at the top of the
+  Library tab opens the listening feed, which used to be only in Settings →
+  Tools (#1852). Feed cards now show a short text preview (#1846).
+- **GitHub inbox reads Release notifications aloud** (#1843).
+- **Cloud sync is back, on TechEMPOWER's own server.** v1.16.0
   removed InstantDB sync because Instant Cloud shuts down on 2027-08-31.
   Instant is open source (Apache-2.0), so TechEMPOWER will self-host it
   instead. Sync is restored as it was before #1822. The Instant server is now
@@ -24,6 +40,23 @@ Entries before v0.5.12 are reconstructed from the git log — see
 - If you used sync before v1.16.0: updating to v1.16.0 deleted the stored
   sign-in on your device, so sign in again to resume syncing. Your library
   stayed on the device throughout.
+- Sign-in codes are rate-limited on the server (a few per address every 15
+  minutes), so a burst of "send me a code" taps gets a "try again later".
+
+### Fixed
+- **The side navigation rail fits on short landscape screens**: labels no
+  longer wrap mid-word beside a camera cutout, and the rail scrolls when it's
+  taller than the screen (#1839, #1840).
+- The teleprompter Scripts screens are translated (#1824), and Handbook
+  chapter 4 is titled "Privacy" (#1827).
+- Push to Candela from a desktop works with the owner-only server rules, and
+  only over https (#1835, #1837).
+
+### Under the hood
+- CI builds a test APK on demand (#1851) and fails early when the Handbook
+  assets are stale (#1832); sync entity coverage is tested across attrs,
+  perms and syncers (#1837); the Morning Briefing spoken-intro builder lands
+  ahead of its wiring (#1853).
 
 ## [1.16.0] -- 2026-09-29
 
