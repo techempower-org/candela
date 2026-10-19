@@ -841,12 +841,19 @@ dependencies {
     implementation(project(":source-scribblehub"))
     implementation(project(":source-foxaholic"))
     implementation(project(":source-livejournal"))
-    // Adult-FanFiction.org is an 18+-only archive. It is NOT linked by default,
-    // so the Play AAB and the default sideload APK never contain it (Google
-    // Play's sexual-content policy). Opt in for a personal build with
+    // XenForo threadmark boards; :source-spacebattles carries the shared engine.
+    implementation(project(":source-spacebattles"))
+    implementation(project(":source-sufficientvelocity"))
+    implementation(project(":source-fimfiction"))
+    // 18+ sources are NOT linked by default, so the Play AAB and the default
+    // sideload APK never contain them (Google Play's sexual-content policy):
+    // Adult-FanFiction.org, Literotica, and the 18+-tolerant Questionable
+    // Questing board. Opt in for a personal build with
     //   ./gradlew :app:assembleDebug -Pcandela.adultSources=true
     if (providers.gradleProperty("candela.adultSources").orNull == "true") {
         implementation(project(":source-aff"))
+        implementation(project(":source-literotica"))
+        implementation(project(":source-questionablequesting"))
     }
     implementation(project(":core-sync"))
     implementation(project(":feature"))

@@ -156,9 +156,17 @@ include(":source-wattpad")
 include(":source-scribblehub")
 include(":source-foxaholic")
 include(":source-livejournal")
-// 18+ archive. Always part of the build (so CI compiles + tests it), but
-// only linked into :app when -Pcandela.adultSources=true — see app/build.gradle.kts.
+// XenForo threadmark boards. :source-spacebattles carries the shared engine;
+// SV and QQ reuse it (same precedent as fanfictionnet → fictionpress).
+include(":source-spacebattles")
+include(":source-sufficientvelocity")
+include(":source-questionablequesting")
+include(":source-fimfiction")
+// 18+ archives (aff, literotica) and the 18+-tolerant QQ board. Always part
+// of the build (so CI compiles + tests them), but only linked into :app when
+// -Pcandela.adultSources=true — see app/build.gradle.kts.
 include(":source-aff")
+include(":source-literotica")
 include(":core-sync")
 include(":feature")
 // Issue #409 — Baseline Profile producer module. Pure test APK
