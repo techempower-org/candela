@@ -53,7 +53,7 @@ CI runs on **GitHub-hosted runners** (`ubuntu-latest`; free for this public repo
 
 ## Ship pipeline
 
-commit → push → PR → CI green → merge → version bump on main → tag → CI builds APK → download → install on R83W80CAFZB + R5CRB0W66MK → phone check → Slack
+commit → push → PR → CI green → merge → version bump on main → tag → CI builds APK → download → install on R83W80CAFZB + R5CRB0W66MK → phone check → Slack → Discord
 
 **CI wait**: Use ONE `run_in_background` call, never poll manually:
 ```bash
@@ -77,3 +77,5 @@ _Installed on ... · clean launch._
 :hammer_and_wrench:  realm `fantasy`  ·  built `$time`  ·  commit `$hash`
 ```
 Sigil: `python3 -c "..."` with realm-sigil word lists from `~/Projects/realm-sigil/words/realms.json`.
+
+**Discord** (since v1.17.0, JP 2026-10-19): post the same announcement to the TechEMPOWER server's read-only **#candela-releases** (`1561728097412186152`) as a bot card. Use Discord markdown: unicode emoji, not `:shortcodes:`, and `[text](url)` links. `~/Projects/techempower-discord-bot/bin/discord-say 1561728097412186152 - --title "Candela $VERSION is here: $tagline" --color celebrate --thumb candela < card.md`. Keep the card text in `scratch/release-$VERSION/discord.md`; v1.17.0's is the model.
