@@ -833,6 +833,21 @@ dependencies {
     // bundled assets). First dogfood of new-source.sh --local (#1526).
     implementation(project(":source-handbook"))
     implementation(project(":source-azure"))
+    // Fan-fiction & web-fiction backends (all default-off in Settings → Plugins).
+    // :source-fictionpress reuses the FanFiction.net engine from :source-fanfictionnet.
+    implementation(project(":source-fanfictionnet"))
+    implementation(project(":source-fictionpress"))
+    implementation(project(":source-wattpad"))
+    implementation(project(":source-scribblehub"))
+    implementation(project(":source-foxaholic"))
+    implementation(project(":source-livejournal"))
+    // Adult-FanFiction.org is an 18+-only archive. It is NOT linked by default,
+    // so the Play AAB and the default sideload APK never contain it (Google
+    // Play's sexual-content policy). Opt in for a personal build with
+    //   ./gradlew :app:assembleDebug -Pcandela.adultSources=true
+    if (providers.gradleProperty("candela.adultSources").orNull == "true") {
+        implementation(project(":source-aff"))
+    }
     implementation(project(":core-sync"))
     implementation(project(":feature"))
 

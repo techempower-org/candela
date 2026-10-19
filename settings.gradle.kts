@@ -149,6 +149,16 @@ include(":source-calendar")
 // new-source.sh --local mode, #1526): the app's own docs, compiled into bundled
 // assets by scripts/build-handbook-assets.py and narrated like any book.
 include(":source-handbook")
+// Fan-fiction & web-fiction backends.
+include(":source-fanfictionnet")
+include(":source-fictionpress")
+include(":source-wattpad")
+include(":source-scribblehub")
+include(":source-foxaholic")
+include(":source-livejournal")
+// 18+ archive. Always part of the build (so CI compiles + tests it), but
+// only linked into :app when -Pcandela.adultSources=true — see app/build.gradle.kts.
+include(":source-aff")
 include(":core-sync")
 include(":feature")
 // Issue #409 — Baseline Profile producer module. Pure test APK
