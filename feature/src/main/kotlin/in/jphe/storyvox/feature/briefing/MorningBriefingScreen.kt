@@ -211,6 +211,16 @@ fun MorningBriefingScreen(
                     }
                 }
             }
+
+            // #1847 — spoken per-item intros ("Next, from Hacker News: …").
+            item { SectionHeader(R.string.briefing_intros_header, R.string.briefing_intros_hint) }
+            item {
+                ToggleRow(
+                    label = stringResource(R.string.briefing_intros_toggle),
+                    checked = settings.spokenIntros,
+                    onToggle = viewModel::setSpokenIntros,
+                )
+            }
         }
     }
 
