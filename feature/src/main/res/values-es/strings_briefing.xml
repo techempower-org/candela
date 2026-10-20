@@ -34,4 +34,8 @@
     <string name="briefing_schedule_pick_time">Elegir hora</string>
     <string name="briefing_ok">Aceptar</string>
     <string name="briefing_cancel">Cancelar</string>
+    <!-- #1847 — spoken per-item intros. -->
+    <string name="briefing_intros_header">Entre elementos</string>
+    <string name="briefing_intros_toggle">Decir de dónde viene cada elemento</string>
+    <string name="briefing_intros_hint">Antes de cada elemento, una breve introducción con tu voz, como «A continuación, de Hacker News: …».</string>
 </resources>

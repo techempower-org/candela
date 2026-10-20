@@ -92,6 +92,9 @@ class BriefingViewModel @Inject constructor(
 
     fun setScheduleTime(hour: Int, minute: Int) = updateSchedule { it.copy(hour = hour, minute = minute) }
 
+    /** #1847 — the "say a short intro before each item" toggle. */
+    fun setSpokenIntros(on: Boolean) = updateConfig { it.copy(spokenIntros = on) }
+
     private fun updateConfig(transform: (BriefingSettings) -> BriefingSettings) {
         viewModelScope.launch { store.update(transform) }
     }

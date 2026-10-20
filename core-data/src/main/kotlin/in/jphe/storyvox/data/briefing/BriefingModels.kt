@@ -113,6 +113,12 @@ data class BriefingSchedule(
 data class BriefingSettings(
     val config: BriefingConfig = BriefingPlanner.normalize(BriefingConfig.DEFAULT),
     val schedule: BriefingSchedule = BriefingSchedule(),
+    /**
+     * #1847 — speak a short "From …" / "Next, from …" intro before each item
+     * ([briefingIntroFor]), so the queue plays as one episode. On by default;
+     * a blob saved before this field existed decodes to the default.
+     */
+    val spokenIntros: Boolean = true,
 )
 
 /**

@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -109,5 +110,25 @@ class BriefingSettingsStoreTest {
     @Test fun `a corrupt session blob reads as no session`() = runTest {
         data.edit { it[stringPreferencesKey("briefing_session_json")] = "{not json" }
         assertEquals(null, store.loadSession())
+    }
+
+    // #1847 — the spoken-intro toggle: on by default, persists, and a blob saved before the field existed reads as on.
+    @Test fun `spoken intros are on by default`() = runTest {
+        assertTrue(store.current().spokenIntros)
+    }
+
+    @Test fun `turning spoken intros off persists`() = runTest {
+        store.update { it.copy(spokenIntros = false) }
+        assertFalse(store.current().spokenIntros)
+        store.update { it.copy(spokenIntros = true) }
+        assertTrue(store.current().spokenIntros)
+    }
+
+    @Test fun `settings saved before the toggle existed read as spoken intros on`() = runTest {
+        val legacy = """{"schedule":{"enabled":true,"hour":6,"minute":30}}"""
+        data.edit { it[stringPreferencesKey("briefing_settings_json")] = legacy }
+        val s = store.current()
+        assertTrue("schedule from the old blob survives", s.schedule.enabled)
+        assertTrue("missing field defaults to on", s.spokenIntros)
     }
 }
