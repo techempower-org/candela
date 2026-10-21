@@ -63,6 +63,9 @@ jobs:
         # tools/candela-push writes the Push to Candela inbox row; its tests
         # pin the owner stamp and the attrs the Instant perms require.
         run: python3 tools/test_candela_push.py
+      - name: play-upload tests (Python, stdlib only)
+        # tools/play-upload sends the release AAB to Play's closed-testing track (#1456).
+        run: python3 tools/test_play_upload.py
       - name: Run JVM unit tests
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew testDebugUnitTest --continue --no-daemon --stacktrace
       # GitHub shows at most 10 annotations per step, so the first real run
@@ -376,3 +379,116 @@ jobs:
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
+
+  play-upload:
+    # #1456 — every v* tag uploads its AAB, signed with the Play UPLOAD key, to the
+    # closed-testing track "alpha" as a DRAFT release, so a human still clicks Roll
+    # out in Play Console. Inert until JP decides the upload key may live in CI (ask
+    # candela:play-upload-key-in-ci; the rule until then is "the keystore never
+    # leaves katana") and the four PLAY_* secrets exist: the job logs a notice and
+    # passes. Separate job + separate gradle invocation from assembleRelease (#952).
+    name: Play upload (draft)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      HAS_PLAY_SECRETS: ${{ secrets.PLAY_UPLOAD_KEYSTORE_B64 != '' && secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD != '' && secrets.PLAY_UPLOAD_KEY_PASSWORD != '' && secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+      # The Play upload certificate (docs/release-keystore.md). A bundle signed with anything else is refused here.
+      UPLOAD_CERT_SHA256: "38:9F:BD:AA:4A:11:48:3B:57:8A:0C:85:A4:3A:47:05:FF:31:E9:BD:7B:A7:4C:EC:F2:47:F5:3E:AC:85:E0:16"
+      NDK: 29.0.14206865
+    steps:
+      - name: Skip (Play secrets not set)
+        if: env.HAS_PLAY_SECRETS != 'true'
+        run: echo "::notice::PLAY_* secrets are not set, so no Play upload. The AAB stays a manual step (docs/release-keystore.md)."
+
+      - name: Checkout
+        if: env.HAS_PLAY_SECRETS == 'true'
+        uses: actions/checkout@v5
+      - name: Set up JDK 21
+        if: env.HAS_PLAY_SECRETS == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Gradle
+        if: env.HAS_PLAY_SECRETS == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true  # this job holds signing secrets: it never writes a cache (#1862 Oracle)
+
+      - name: Install the pinned NDK (#1691 debug symbols), before any secret is in the environment
+        if: env.HAS_PLAY_SECRETS == 'true'
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          [ -d "$SDK/ndk/$NDK" ] || "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" < /dev/null > /dev/null
+
+      - name: Materialize local.properties (upload key + the same BuildConfig keys as the sideload build)
+        if: env.HAS_PLAY_SECRETS == 'true'
+        env:
+          KS_B64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          INSTANTDB_APP_ID: ${{ secrets.INSTANTDB_APP_ID }}
+          INSTANTDB_API_URI: ${{ secrets.INSTANTDB_API_URI }}
+          NOTION_OAUTH_CLIENT_ID: ${{ secrets.NOTION_OAUTH_CLIENT_ID }}
+          NOTION_OAUTH_CLIENT_SECRET: ${{ secrets.NOTION_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          TWO11_API_KEY: ${{ secrets.TWO11_API_KEY }}
+          GOOGLE_PICKER_API_KEY: ${{ secrets.GOOGLE_PICKER_API_KEY }}
+          GOOGLE_CLOUD_PROJECT_NUMBER: ${{ secrets.GOOGLE_CLOUD_PROJECT_NUMBER }}
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          rm -f ./local.properties  # umask only protects new files, so never truncate an existing one
+          ( umask 077; printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"; : > ./local.properties )
+          {
+            printf 'sdk.dir=%s\n' "$SDK"
+            printf 'storyvox.releaseStoreFile=%s\n' "$RUNNER_TEMP/upload.keystore"
+            printf 'storyvox.releaseStorePassword=%s\n' "$KS_PASS"
+            printf 'storyvox.releaseKeyAlias=storyvox\n'
+            printf 'storyvox.releaseKeyPassword=%s\n' "$KEY_PASS"
+            for k in INSTANTDB_APP_ID INSTANTDB_API_URI NOTION_OAUTH_CLIENT_ID NOTION_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET TWO11_API_KEY GOOGLE_PICKER_API_KEY GOOGLE_CLOUD_PROJECT_NUMBER; do
+              v="${!k:-}"
+              if [ -n "$v" ]; then echo "$k=$v"; fi
+            done
+          } >> ./local.properties
+
+      - name: Build the signed AAB
+        if: env.HAS_PLAY_SECRETS == 'true'
+        # --no-configuration-cache: the cache entry would hold the signing passwords in the workspace (#1862 Oracle).
+        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:bundleRelease --no-daemon --no-configuration-cache --stacktrace
+
+      - name: Refuse a bundle not signed with the upload key
+        if: env.HAS_PLAY_SECRETS == 'true'
+        run: |
+          set -euo pipefail
+          AAB=$(ls app/build/outputs/bundle/release/*.aab)
+          got=$(keytool -printcert -jarfile "$AAB" | awk '/SHA256:/{print $2; exit}')
+          if [ "$got" != "$UPLOAD_CERT_SHA256" ]; then
+            echo "::error::AAB signer $got is not the Play upload key $UPLOAD_CERT_SHA256"
+            exit 1
+          fi
+          echo "AAB=$AAB" >> "$GITHUB_ENV"
+
+      - name: Upload to Play (closed testing "alpha", draft)
+        if: env.HAS_PLAY_SECRETS == 'true'
+        env:
+          SA_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          ( umask 077; printf '%s' "$SA_JSON" > "$RUNNER_TEMP/play-sa.json" )
+          VERSION="${GITHUB_REF_NAME#v}"
+          CODE=$(sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          NAME=$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
+          if [ "$NAME" != "$VERSION" ]; then echo "::error::tag $GITHUB_REF_NAME but versionName is $NAME"; exit 1; fi
+          python3 tools/play-upload --aab "$AAB" --version-name "$VERSION" --version-code "$CODE" \
+            --credentials-file "$RUNNER_TEMP/play-sa.json" --notes-from CHANGELOG.md \
+            --track alpha --status draft --commit
+
+      - name: Remove key material
+        if: always() && env.HAS_PLAY_SECRETS == 'true'
+        run: rm -rf "$RUNNER_TEMP/upload.keystore" "$RUNNER_TEMP/play-sa.json" ./local.properties ./.gradle/configuration-cache
