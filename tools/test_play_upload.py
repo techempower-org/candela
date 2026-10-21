@@ -182,7 +182,7 @@ class TokenTest(unittest.TestCase):
             seen["url"], seen["body"] = url, body
             return 200, {"access_token": "AT", "expires_in": 3600}
 
-        sa = {"client_email": "svc@p.iam.gserviceaccount.com", "private_key": "-----BEGIN PRIVATE KEY-----\nX\n-----END PRIVATE KEY-----\n",
+        sa = {"client_email": "svc@p.iam.gserviceaccount.com", "private_key": "placeholder-not-a-key",
               "token_uri": "https://oauth2.googleapis.com/token"}
         tok = pu.mint_token(sa, now=1000, sign=sign, http=http)
         self.assertEqual(tok, "AT")
