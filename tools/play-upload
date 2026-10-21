@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+"""Upload a signed Candela AAB to a Google Play testing track (#1456). Stdlib only, plus the `openssl` CLI.
+
+    play-upload --aab app-release.aab --version-name 1.17.0 --version-code 280 \\
+                --credentials-file sa.json [--track alpha] [--status draft|completed] \\
+                [--notes-from CHANGELOG.md | --notes "…"] [--commit [--not-sent-for-review]]
+
+Without --commit it is a DRY RUN: the edit (upload + track update) is built, checked with edits.validate, and
+then DELETED, so nothing reaches Play. With --commit the edit is committed. The new release goes in as `draft`
+by default, so a human still clicks Roll out in Play Console.
+
+The track update keeps every release already on the track except an older one with the same status, which the
+new release replaces. Without that, a draft upload would silently drop the live tester release.
+
+Credentials: a Google Cloud service-account JSON with Play Console "Release manager" rights on this app only.
+Read from --credentials-file (CI writes the secret to a 0600 temp file) and never printed. The private key goes
+to `openssl` on stdin, never on argv.
+"""
+import argparse
+import base64
+import json
+import re
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+API = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
+UPLOAD = "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications"
+SCOPE = "https://www.googleapis.com/auth/androidpublisher"
+PACKAGE = "org.techempower.candela"
+NOTES_MAX = 500  # Play's limit per language
+
+
+class PlayError(Exception):
+    pass
+
+
+def _b64(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _b64d(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def http_json(method, url, headers=None, body=None, timeout=600):
+    """Default transport: urllib. Returns (status, parsed JSON or {})."""
+    req = urllib.request.Request(url, data=body, method=method, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = r.read()
+            return r.status, (json.loads(raw) if raw else {})
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw)
+        except ValueError:
+            return e.code, {"error": {"message": raw[:300].decode(errors="replace")}}
+
+
+def openssl_sign(data: bytes, key_pem: str, run=subprocess.run) -> bytes:
+    """RS256 signature of `data` by `openssl dgst`. The private key goes in on stdin; the data goes in through
+    an inherited pipe fd. Nothing secret is ever on argv or on disk."""
+    import os
+    rfd, wfd = os.pipe()
+    try:
+        os.write(wfd, data)  # the JWT signing input is a few hundred bytes: far below the pipe buffer
+        os.close(wfd)
+        r = run(["openssl", "dgst", "-sha256", "-sign", "/dev/stdin", "-binary", f"/dev/fd/{rfd}"],
+                input=key_pem.encode(), capture_output=True, check=True, pass_fds=(rfd,))
+        return r.stdout
+    finally:
+        os.close(rfd)
+
+
+def mint_token(sa: dict, now=None, sign=openssl_sign, http=http_json) -> str:
+    """OAuth2 JWT-bearer grant for a service account (RFC 7523)."""
+    now = int(now if now is not None else time.time())
+    token_uri = sa.get("token_uri") or "https://oauth2.googleapis.com/token"
+    head = _b64(json.dumps({"alg": "RS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    claims = _b64(json.dumps({"iss": sa["client_email"], "scope": SCOPE, "aud": token_uri,
+                              "iat": now, "exp": now + 3600}, separators=(",", ":")).encode())
+    signing_input = f"{head}.{claims}".encode()
+    jwt = signing_input.decode() + "." + _b64(sign(signing_input, sa["private_key"]))
+    body = urllib.parse.urlencode({"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                                   "assertion": jwt}).encode()
+    status, out = http("POST", token_uri, {"Content-Type": "application/x-www-form-urlencoded"}, body)
+    if status != 200 or "access_token" not in out:
+        raise PlayError(f"token: HTTP {status}: {(out.get('error_description') or out.get('error') or '')}")
+    return out["access_token"]
+
+
+def release_notes(changelog: str, version: str) -> str:
+    """The CHANGELOG section for `version` as plain text that fits Play's 500 characters."""
+    m = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)", changelog, re.S | re.M)
+    if not m:
+        raise PlayError(f"no CHANGELOG section for {version}")
+    lines, item = [], None
+    for raw in m.group(1).splitlines():
+        line = raw.strip()
+        if not line or line.startswith("### "):
+            if item:
+                lines.append(item)
+                item = None
+            continue
+        if line.startswith("- "):
+            if item:
+                lines.append(item)
+            item = "• " + line[2:]
+        elif item:
+            item += " " + line
+        else:
+            lines.append(line)
+    if item:
+        lines.append(item)
+    # A bullet becomes its bold headline ("**Fifteen new sources**, all off…" -> "Fifteen new sources"), or its
+    # first sentence when it has none, so a whole release fits in Play's 500 characters.
+    def headline(item):
+        body = item[2:]
+        b = re.match(r"\*\*(.+?)\*\*", body)
+        if b:
+            return "• " + b.group(1).rstrip(".")
+        first = re.split(r"(?<=[.!?])\s", re.sub(r"\s*\((?:#\d+(?:,\s*)?)+\)", "", body), maxsplit=1)[0]
+        return "• " + first
+    lines = [headline(x) if x.startswith("• ") else x for x in lines]
+    text = "\n".join(lines)
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)      # [label](url) -> label
+    text = text.replace("**", "").replace("`", "")
+    text = re.sub(r"\s*\((?:#\d+(?:,\s*)?)+\)", "", text)       # "(#1856)" / "(#1839, #1840)"
+    text = re.sub(r"\s*\bSee\s*$", "", text, flags=re.M)
+    text = re.sub(r"[ \t]+", " ", text).strip()
+    if len(text) > NOTES_MAX:
+        cut = text[:NOTES_MAX - 1]
+        cut = cut[:cut.rfind(" ")] if " " in cut else cut
+        text = cut.rstrip(" ,;:.") + "…"
+    return text
+
+
+def _check(status, out, what):
+    if status >= 300:
+        msg = (out.get("error") or {}).get("message") if isinstance(out, dict) else ""
+        raise PlayError(f"{what}: HTTP {status}: {msg}")
+    return out
+
+
+def publish(http, token, package, aab, version_code, version_name, track, status, notes,
+            dry_run=True, not_sent_for_review=False):
+    if status not in ("draft", "completed"):
+        raise ValueError("status must be draft or completed")
+    auth = {"Authorization": f"Bearer {token}"}
+    base = f"{API}/{package}"
+    edit = _check(*http("POST", f"{base}/edits", {**auth, "Content-Type": "application/json"}, b"{}"),
+                  "edits.insert")["id"]
+    try:
+        up = _check(*http("POST", f"{UPLOAD}/{package}/edits/{edit}/bundles?uploadType=media",
+                          {**auth, "Content-Type": "application/octet-stream"}, aab), "bundles.upload")
+        got = int(up.get("versionCode", -1))
+        if got != int(version_code):
+            raise PlayError(f"uploaded bundle has versionCode {got}, expected {version_code}")
+        cur = _check(*http("GET", f"{base}/edits/{edit}/tracks/{track}", auth), "tracks.get")
+        keep = [r for r in cur.get("releases", []) if r.get("status") != status]
+        new = {"name": f"{version_code} ({version_name})", "versionCodes": [str(version_code)],
+               "status": status, "releaseNotes": [{"language": "en-US", "text": notes}]}
+        body = json.dumps({"track": track, "releases": keep + [new]}).encode()
+        _check(*http("PUT", f"{base}/edits/{edit}/tracks/{track}", {**auth, "Content-Type": "application/json"},
+                     body), "tracks.update")
+        if dry_run:
+            _check(*http("POST", f"{base}/edits/{edit}:validate", auth, b""), "edits.validate")
+            http("DELETE", f"{base}/edits/{edit}", auth)
+            return {"edit": edit, "versionCode": got, "track": track, "status": status,
+                    "result": "validated (dry run, edit deleted)"}
+        q = "?changesNotSentForReview=true" if not_sent_for_review else ""
+        _check(*http("POST", f"{base}/edits/{edit}:commit{q}", auth, b""), "edits.commit")
+        return {"edit": edit, "versionCode": got, "track": track, "status": status, "result": "committed"}
+    except Exception:
+        http("DELETE", f"{base}/edits/{edit}", auth)
+        raise
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--aab", required=True)
+    ap.add_argument("--version-name", required=True)
+    ap.add_argument("--version-code", required=True, type=int)
+    ap.add_argument("--credentials-file", required=True)
+    ap.add_argument("--package", default=PACKAGE)
+    ap.add_argument("--track", default="alpha")
+    ap.add_argument("--status", default="draft", choices=["draft", "completed"])
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--notes")
+    g.add_argument("--notes-from", help="CHANGELOG.md; the section for --version-name is used")
+    ap.add_argument("--commit", action="store_true", help="commit the edit (default: dry run)")
+    ap.add_argument("--not-sent-for-review", action="store_true")
+    a = ap.parse_args(argv)
+    notes = a.notes if a.notes is not None else release_notes(open(a.notes_from).read(), a.version_name)
+    with open(a.credentials_file) as f:
+        sa = json.load(f)
+    try:
+        token = mint_token(sa)
+        with open(a.aab, "rb") as f:
+            aab = f.read()
+        out = publish(http_json, token, a.package, aab, a.version_code, a.version_name, a.track, a.status,
+                      notes, dry_run=not a.commit, not_sent_for_review=a.not_sent_for_review)
+    except PlayError as e:
+        print(f"play-upload: {e}", file=sys.stderr)
+        return 1
+    print(json.dumps({**out, "notes": notes}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
