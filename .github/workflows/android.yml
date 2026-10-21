@@ -416,6 +416,14 @@ jobs:
       - name: Set up Gradle
         if: env.HAS_PLAY_SECRETS == 'true'
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true  # this job holds signing secrets: it never writes a cache (#1862 Oracle)
+
+      - name: Install the pinned NDK (#1691 debug symbols), before any secret is in the environment
+        if: env.HAS_PLAY_SECRETS == 'true'
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          [ -d "$SDK/ndk/$NDK" ] || "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" < /dev/null > /dev/null
 
       - name: Materialize local.properties (upload key + the same BuildConfig keys as the sideload build)
         if: env.HAS_PLAY_SECRETS == 'true'
@@ -435,7 +443,7 @@ jobs:
         run: |
           set -euo pipefail
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          [ -d "$SDK/ndk/$NDK" ] || "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" < /dev/null > /dev/null
+          rm -f ./local.properties  # umask only protects new files, so never truncate an existing one
           ( umask 077; printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"; : > ./local.properties )
           {
             printf 'sdk.dir=%s\n' "$SDK"
@@ -451,7 +459,8 @@ jobs:
 
       - name: Build the signed AAB
         if: env.HAS_PLAY_SECRETS == 'true'
-        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:bundleRelease --no-daemon --stacktrace
+        # --no-configuration-cache: the cache entry would hold the signing passwords in the workspace (#1862 Oracle).
+        run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:bundleRelease --no-daemon --no-configuration-cache --stacktrace
 
       - name: Refuse a bundle not signed with the upload key
         if: env.HAS_PLAY_SECRETS == 'true'
@@ -474,10 +483,12 @@ jobs:
           ( umask 077; printf '%s' "$SA_JSON" > "$RUNNER_TEMP/play-sa.json" )
           VERSION="${GITHUB_REF_NAME#v}"
           CODE=$(sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          NAME=$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
+          if [ "$NAME" != "$VERSION" ]; then echo "::error::tag $GITHUB_REF_NAME but versionName is $NAME"; exit 1; fi
           python3 tools/play-upload --aab "$AAB" --version-name "$VERSION" --version-code "$CODE" \
             --credentials-file "$RUNNER_TEMP/play-sa.json" --notes-from CHANGELOG.md \
             --track alpha --status draft --commit
 
       - name: Remove key material
         if: always() && env.HAS_PLAY_SECRETS == 'true'
-        run: rm -f "$RUNNER_TEMP/upload.keystore" "$RUNNER_TEMP/play-sa.json" ./local.properties
+        run: rm -rf "$RUNNER_TEMP/upload.keystore" "$RUNNER_TEMP/play-sa.json" ./local.properties ./.gradle/configuration-cache

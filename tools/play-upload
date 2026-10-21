@@ -32,6 +32,7 @@ UPLOAD = "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/app
 SCOPE = "https://www.googleapis.com/auth/androidpublisher"
 PACKAGE = "org.techempower.candela"
 NOTES_MAX = 500  # Play's limit per language
+SIGN_MAX = 16384  # a JWT signing input is a few hundred bytes; well under any pipe buffer
 
 
 class PlayError(Exception):
@@ -63,17 +64,32 @@ def http_json(method, url, headers=None, body=None, timeout=600):
 
 def openssl_sign(data: bytes, key_pem: str, run=subprocess.run) -> bytes:
     """RS256 signature of `data` by `openssl dgst`. The private key goes in on stdin; the data goes in through
-    an inherited pipe fd. Nothing secret is ever on argv or on disk."""
+    an inherited pipe fd. Nothing secret is ever on argv or in a file (#1862 xreview: both fds always closed,
+    the write is bounded and checked, and the read fd is kept clear of stdin/stdout/stderr)."""
+    import fcntl
     import os
+    if len(data) > SIGN_MAX:
+        raise PlayError(f"refusing to sign {len(data)} bytes (JWT signing input is < {SIGN_MAX})")
     rfd, wfd = os.pipe()
     try:
-        os.write(wfd, data)  # the JWT signing input is a few hundred bytes: far below the pipe buffer
+        if rfd < 3:  # a closed stdio fd would be reused, then clobbered by the child's redirections
+            low, rfd = rfd, fcntl.fcntl(rfd, fcntl.F_DUPFD, 3)
+            os.close(low)
+        n = os.write(wfd, data)  # far below the pipe buffer, so this can't block without a reader
+        if n != len(data):
+            raise PlayError(f"short write to openssl ({n} of {len(data)} bytes)")
         os.close(wfd)
-        r = run(["openssl", "dgst", "-sha256", "-sign", "/dev/stdin", "-binary", f"/dev/fd/{rfd}"],
-                input=key_pem.encode(), capture_output=True, check=True, pass_fds=(rfd,))
+        wfd = -1
+        try:
+            r = run(["openssl", "dgst", "-sha256", "-sign", "/dev/stdin", "-binary", f"/dev/fd/{rfd}"],
+                    input=key_pem.encode(), capture_output=True, check=True, pass_fds=(rfd,))
+        except subprocess.CalledProcessError as e:  # openssl's stderr never contains the key
+            raise PlayError(f"openssl sign failed: {(e.stderr or b'').decode(errors='replace').strip()[:300]}")
         return r.stdout
     finally:
-        os.close(rfd)
+        for fd in (rfd, wfd):
+            if fd >= 0:
+                os.close(fd)
 
 
 def mint_token(sa: dict, now=None, sign=openssl_sign, http=http_json) -> str:
@@ -161,6 +177,8 @@ def publish(http, token, package, aab, version_code, version_name, track, status
         if got != int(version_code):
             raise PlayError(f"uploaded bundle has versionCode {got}, expected {version_code}")
         cur = _check(*http("GET", f"{base}/edits/{edit}/tracks/{track}", auth), "tracks.get")
+        before = [{"name": r.get("name"), "versionCodes": r.get("versionCodes"), "status": r.get("status")}
+                  for r in cur.get("releases", [])]
         keep = [r for r in cur.get("releases", []) if r.get("status") != status]
         new = {"name": f"{version_code} ({version_name})", "versionCodes": [str(version_code)],
                "status": status, "releaseNotes": [{"language": "en-US", "text": notes}]}
@@ -170,11 +188,12 @@ def publish(http, token, package, aab, version_code, version_name, track, status
         if dry_run:
             _check(*http("POST", f"{base}/edits/{edit}:validate", auth, b""), "edits.validate")
             http("DELETE", f"{base}/edits/{edit}", auth)
-            return {"edit": edit, "versionCode": got, "track": track, "status": status,
+            return {"edit": edit, "versionCode": got, "track": track, "status": status, "trackBefore": before,
                     "result": "validated (dry run, edit deleted)"}
         q = "?changesNotSentForReview=true" if not_sent_for_review else ""
         _check(*http("POST", f"{base}/edits/{edit}:commit{q}", auth, b""), "edits.commit")
-        return {"edit": edit, "versionCode": got, "track": track, "status": status, "result": "committed"}
+        return {"edit": edit, "versionCode": got, "track": track, "status": status, "trackBefore": before,
+                "result": "committed"}
     except Exception:
         http("DELETE", f"{base}/edits/{edit}", auth)
         raise

@@ -90,6 +90,7 @@ class PublishTest(unittest.TestCase):
             "PUT /edits/E1/tracks/alpha", "POST /edits/E1:validate", "DELETE /edits/E1"])
         self.assertFalse(any(":commit" in u for _, u, _, _ in http.calls))
         self.assertEqual(out["result"], "validated (dry run, edit deleted)")
+        self.assertEqual(out["trackBefore"], [], "the dry run reports what was already on the track")
         self.assertEqual(out["versionCode"], 279)
 
     def test_a_real_run_commits_and_can_skip_sending_for_review(self):
@@ -206,6 +207,38 @@ class TokenTest(unittest.TestCase):
         pu.openssl_sign(b"data", "PEMKEY", run=run)
         self.assertNotIn("PEMKEY", " ".join(captured["argv"]))
         self.assertIn(b"PEMKEY", captured["input"])
+
+    def test_an_openssl_failure_is_a_play_error_with_its_message(self):
+        import subprocess
+
+        def run(argv, **kw):
+            raise subprocess.CalledProcessError(1, argv, stderr=b"unable to load key")
+        with self.assertRaises(pu.PlayError) as e:
+            pu.openssl_sign(b"x", "K", run=run)
+        self.assertIn("unable to load key", str(e.exception))
+
+    def test_openssl_sign_refuses_oversized_input(self):
+        with self.assertRaises(pu.PlayError):
+            pu.openssl_sign(b"x" * (pu.SIGN_MAX + 1), "K", run=lambda *a, **k: None)
+
+    def test_openssl_sign_passes_an_fd_above_stdio_and_closes_it(self):
+        import os
+        seen = {}
+
+        def run(argv, input=None, capture_output=None, check=None, pass_fds=()):
+            seen["fd"] = int(argv[-1].rsplit("/", 1)[1])
+            seen["pass"] = pass_fds
+            seen["data"] = os.read(seen["fd"], 100)
+            class R:
+                stdout = b"SIG"
+            return R()
+
+        pu.openssl_sign(b"hello", "K", run=run)
+        self.assertGreaterEqual(seen["fd"], 3)
+        self.assertEqual(seen["pass"], (seen["fd"],))
+        self.assertEqual(seen["data"], b"hello")
+        with self.assertRaises(OSError):
+            os.fstat(seen["fd"])  # closed afterwards
 
 
 if __name__ == "__main__":
