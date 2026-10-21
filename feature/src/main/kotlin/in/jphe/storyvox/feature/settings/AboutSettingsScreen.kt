@@ -21,6 +21,8 @@ import `in`.jphe.storyvox.ui.theme.LocalSpacing
  *  the app too — surfaced here per #1138. */
 private const val PRIVACY_POLICY_URL = "https://candela.techempower.org/privacy/"
 private const val ACCESSIBILITY_STATEMENT_URL = "https://candela.techempower.org/accessibility/"
+/** TechEMPOWER's newsletter sign-up (JP 2026-10-21: every org surface links it). */
+internal const val NEWSLETTER_URL = "https://techempower.org/newsletter"
 
 /** Content-report mailto (#1140). Play Store IARC content rating expects a
  *  reporting channel for the user-generated content Candela surfaces from
@@ -140,6 +142,7 @@ fun AboutSettingsScreen(
                     onClick = { runCatching { uriHandler.openUri(ACCESSIBILITY_STATEMENT_URL) } },
                 )
             }
+            AboutNewsletterCard()
             // Issue #1463 — findability for the opt-in anonymous impact-sharing
             // feature. Explainer only (no toggle): sharing is a user-triggered
             // action on the Listening Stats screen.
@@ -178,5 +181,21 @@ fun AboutSettingsScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * "Get our newsletter" (JP 2026-10-21: every TechEMPOWER surface links the
+ * sign-up). Opens [NEWSLETTER_URL] in the browser, like the Privacy Policy row.
+ */
+@Composable
+internal fun AboutNewsletterCard() {
+    val uriHandler = LocalUriHandler.current
+    SettingsGroupCard {
+        SettingsLinkRow(
+            title = stringResource(R.string.settings_about_newsletter),
+            subtitle = stringResource(R.string.settings_about_newsletter_subtitle),
+            onClick = { runCatching { uriHandler.openUri(NEWSLETTER_URL) } },
+        )
     }
 }

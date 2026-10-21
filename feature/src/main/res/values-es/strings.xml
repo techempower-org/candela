@@ -172,6 +172,9 @@
     <string name="settings_about_privacy_policy_subtitle">Se abre en tu navegador</string>
     <string name="settings_about_accessibility">Declaración de accesibilidad</string>
     <string name="settings_about_accessibility_subtitle">Cómo Candela apoya la tecnología de asistencia</string>
+    <!-- Settings · About → newsletter sign-up (JP 2026-10-21) -->
+    <string name="settings_about_newsletter">Recibe nuestro boletín</string>
+    <string name="settings_about_newsletter_subtitle">Un correo breve cuando sale un episodio nuevo. Se abre en tu navegador.</string>
     <string name="settings_about_report_content">Reportar contenido inapropiado</string>
     <string name="settings_about_report_content_subtitle">Marca contenido inapropiado de fuentes externas</string>
     <string name="settings_about_handbook">Leer el manual</string>
