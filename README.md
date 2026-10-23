@@ -135,6 +135,10 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 
 The CI workflow (`.github/workflows/android.yml`) shows the canonical build steps.
 
+### Release signing
+
+Sideload APKs are signed in CI with the TechEMPOWER sideload key ([`docs/sideload-signing.md`](docs/sideload-signing.md)). Every `v*` tag also builds the Play bundle, signed with the Play **upload key**, and stages it as a **draft** on the closed-testing track. The key lives only in the tag-only `play-upload` environment. How the key is scoped, and **how to rotate the upload key or the Play service-account key**: [`docs/release-keystore.md` → Rotating the upload key](docs/release-keystore.md#rotating-the-upload-key-or-the-service-account-key).
+
 ## Architecture
 
 ```

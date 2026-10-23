@@ -215,9 +215,9 @@ jobs:
             v="${!k:-}"
             if [ -n "$v" ]; then echo "$k=$v" >> ./local.properties; fi
           done
-          # No release keystore here on purpose: CI builds only the two sideload APKs
-          # (debug-signed for upgrade continuity, #952). The Play AAB is built on
-          # familiar, jarsigned on katana with the upload key, and uploaded to Play Console — it is
+          # No Play upload key in this job on purpose: it builds only the two sideload
+          # APKs (debug-signed for upgrade continuity, #952). The Play AAB is built and
+          # signed only in the `play-upload` job below (tag-only environment), and it is
           # never a GitHub release asset (an AAB is not installable by anyone; only
           # Play consumes it). See docs/release-keystore.md.
           if echo "${GITHUB_REF:-}" | grep -q '^refs/tags/v'; then
@@ -375,7 +375,7 @@ jobs:
             - `candela-${{ github.ref_name }}.apk` — phone / tablet (sideload)
             - `candela-wear-${{ github.ref_name }}.apk` — Wear OS companion ("Library Nocturne"), sideload to the watch
 
-            > Both APKs share one signing identity so the watch ↔ phone Data Layer bridge pairs — sideload distribution. They carry APK Signature Scheme v3 key rotation (#1756): the original checked-in key (v2, Android 8.x) plus a private TechEMPOWER sideload key (v3 + lineage, Android 9+), so existing installs upgrade in place with no data loss. There is no AAB here: it is not installable by anyone; it is built on familiar, signed on katana with the upload key, and submitted straight to Play Console (docs/release-keystore.md, #1456).
+            > Both APKs share one signing identity so the watch ↔ phone Data Layer bridge pairs — sideload distribution. They carry APK Signature Scheme v3 key rotation (#1756): the original checked-in key (v2, Android 8.x) plus a private TechEMPOWER sideload key (v3 + lineage, Android 9+), so existing installs upgrade in place with no data loss. There is no AAB here: it is not installable by anyone. The Play bundle goes straight to Play's closed testing as a draft (docs/release-keystore.md, #1456).
           files: |
             app/build/outputs/apk/release/candela-${{ github.ref_name }}.apk
             wear/build/outputs/apk/release/candela-wear-${{ github.ref_name }}.apk
@@ -383,13 +383,17 @@ jobs:
   play-upload:
     # #1456 — every v* tag uploads its AAB, signed with the Play UPLOAD key, to the
     # closed-testing track "alpha" as a DRAFT release, so a human still clicks Roll
-    # out in Play Console. Inert until JP decides the upload key may live in CI (ask
-    # candela:play-upload-key-in-ci; the rule until then is "the keystore never
-    # leaves katana") and the four PLAY_* secrets exist: the job logs a notice and
-    # passes. Separate job + separate gradle invocation from assembleRelease (#952).
+    # out in Play Console. JP approved the upload key in CI on 2026-10-23 (ask
+    # candela:play-upload-key-in-ci). The PLAY_* secrets live ONLY in the
+    # `play-upload` environment, which only refs/tags/v* may deploy to (a ref gate:
+    # no other job may name it; SecretScopeTest enforces that), and a tag ruleset
+    # lets only repo admins create v* tags. Until all four exist the job logs
+    # a notice and passes. Rotation: docs/release-keystore.md "Rotating the upload key".
+    # Separate job + separate gradle invocation from assembleRelease (#952).
     name: Play upload (draft)
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: build
+    environment: play-upload
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -406,16 +410,16 @@ jobs:
 
       - name: Checkout
         if: env.HAS_PLAY_SECRETS == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
       - name: Set up JDK 21
         if: env.HAS_PLAY_SECRETS == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4.9.1
         with:
           distribution: temurin
           java-version: '21'
       - name: Set up Gradle
         if: env.HAS_PLAY_SECRETS == 'true'
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4.4.3
         with:
           cache-read-only: true  # this job holds signing secrets: it never writes a cache (#1862 Oracle)
 

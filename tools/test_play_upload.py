@@ -3,6 +3,7 @@
 import importlib.machinery
 import importlib.util
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -239,6 +240,78 @@ class TokenTest(unittest.TestCase):
         self.assertEqual(seen["data"], b"hello")
         with self.assertRaises(OSError):
             os.fstat(seen["fd"])  # closed afterwards
+
+
+WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+
+
+def _jobs(text):
+    """Split a workflow into {job id: job text} (stdlib only: jobs are 2-space keys under `jobs:`)."""
+    body = text.split("\njobs:\n", 1)[1]
+    jobs, name, buf = {}, None, []
+    for line in body.splitlines():
+        m = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+        if m:
+            if name:
+                jobs[name] = "\n".join(buf)
+            name, buf = m.group(1), []
+        elif name:
+            buf.append(line)
+    if name:
+        jobs[name] = "\n".join(buf)
+    return jobs
+
+
+class SecretScopeTest(unittest.TestCase):
+    """Regression check for the scoping of the Play upload key in CI (2026-10-23).
+
+    Not the access boundary (that is the tag-only `play-upload` environment). This
+    fails CI if a change starts handing PLAY_* secrets to a job outside it.
+    """
+
+    # Every way a workflow can name a PLAY_* secret, or hand over all secrets at once.
+    PLAY_REF = re.compile(r"secrets\s*(?:\.\s*PLAY_|\[\s*['\"]PLAY_)", re.I)
+    ALL_SECRETS = re.compile(r"toJSON\s*\(\s*secrets\s*\)|secrets\s*:\s*inherit", re.I)
+    # A job-level property sits at exactly four spaces; a `run:` script line is deeper.
+    ENV_PROP = re.compile(r"^    environment:\s*['\"]?play-upload['\"]?\s*$", re.M)
+
+    def test_no_workflow_reads_play_secrets_at_workflow_level(self):
+        for wf in sorted(WORKFLOWS.glob("*.y*ml")):
+            header = wf.read_text().split("\njobs:\n", 1)[0]
+            self.assertFalse(self.PLAY_REF.search(header) or self.ALL_SECRETS.search(header),
+                             f"{wf.name}: secrets referenced above `jobs:`")
+
+    def test_play_secrets_are_read_only_by_jobs_in_the_play_upload_environment(self):
+        seen = 0
+        for wf in sorted(WORKFLOWS.glob("*.y*ml")):
+            for job, text in _jobs(wf.read_text()).items():
+                names_env = bool(self.ENV_PROP.search(text))
+                if self.ALL_SECRETS.search(text):
+                    self.assertFalse(names_env, f"{wf.name}:{job} hands all secrets out inside play-upload")
+                if not self.PLAY_REF.search(text):
+                    continue
+                seen += 1
+                self.assertTrue(names_env,
+                                f"{wf.name}:{job} reads a PLAY_* secret outside the play-upload environment")
+        self.assertGreater(seen, 0, "no job reads the PLAY_* secrets; the guard would be vacuous")
+
+    def test_only_the_play_upload_job_names_the_environment(self):
+        named = [f"{wf.name}:{job}" for wf in sorted(WORKFLOWS.glob("*.y*ml"))
+                 for job, text in _jobs(wf.read_text()).items() if self.ENV_PROP.search(text)]
+        self.assertEqual(named, ["android.yml:play-upload"])
+
+    def test_the_play_upload_job_only_runs_on_version_tag_pushes(self):
+        job = _jobs((WORKFLOWS / "android.yml").read_text())["play-upload"]
+        self.assertRegex(job, r"(?m)^    if: github\.event_name == 'push' && startsWith\(github\.ref, 'refs/tags/v'\)$")
+        self.assertRegex(job, r"(?m)^      contents: read$")
+
+    def test_the_play_upload_job_pins_every_action_to_a_commit(self):
+        # Inside the environment the job's own steps are the trust boundary, so a moved tag must not change them.
+        job = _jobs((WORKFLOWS / "android.yml").read_text())["play-upload"]
+        uses = re.findall(r"(?m)^\s*(?:-\s*)?uses:\s*(\S+)", job)
+        self.assertTrue(uses, "play-upload uses no actions? the guard would be vacuous")
+        for ref in uses:
+            self.assertRegex(ref, r"@[0-9a-f]{40}$", f"play-upload action not pinned to a commit SHA: {ref}")
 
 
 if __name__ == "__main__":
