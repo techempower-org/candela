@@ -82,3 +82,23 @@ updates:
       - dependency-name: "com.android.library"
         update-types:
           - "version-update:semver-major"
+
+  # #1866 — every workflow action is pinned to a commit SHA with a `# vX.Y.Z`
+  # comment (tools/test_workflow_pins.py enforces it). Dependabot bumps the SHA
+  # and the comment together; one grouped PR a week, same rebase policy as above.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "disabled"
+    assignees:
+      - "jphein"
+    labels:
+      - "dependencies"
+      - "area:ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
