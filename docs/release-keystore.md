@@ -185,32 +185,81 @@ $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs \
 
 ---
 
-## CI wiring (GitHub-hosted runners, since 2026-09-06) — and why the key is NOT in CI
+## CI wiring (GitHub-hosted runners, since 2026-09-06), and the upload key in CI (since 2026-10-23)
 
-CI runs on GitHub-hosted `ubuntu-latest` (`.github/workflows/android.yml`) and
-builds **only the two sideload APKs** (`:app:assembleRelease`,
-`:wear:assembleRelease`), both intentionally debug-signed for sideload
-upgrade continuity (#952). The **Materialize local.properties** step writes
-the file from Actions secrets: `INSTANTDB_APP_ID` (a public client id kept
-out of the tree) and, when present, the optional `NOTION_OAUTH_*` /
-`GOOGLE_OAUTH_*` client ids.
+CI runs on GitHub-hosted `ubuntu-latest` (`.github/workflows/android.yml`).
+The **build** job makes **only the two sideload APKs** (`:app:assembleRelease`,
+`:wear:assembleRelease`), both debug-signed for sideload upgrade continuity
+(#952) and then re-signed with the sideload key (#1756). The **Materialize
+local.properties** step writes the file from Actions secrets: `INSTANTDB_APP_ID`
+(a public client id kept out of the tree) and, when present, the optional
+`NOTION_OAUTH_*` / `GOOGLE_OAUTH_*` client ids.
 
-**The release keystore is deliberately not in CI, and the Play AAB is never a
-GitHub release asset.** An AAB cannot be installed by anyone — it is not
-sideloadable; its only consumer is Play Console, which re-signs it and serves
-users APKs. So it is built and release-signed on katana, where the keystore
-file and the `storyvox.release*` lines in `local.properties` live, and
-submitted straight to Play:
+**The Play AAB is never a GitHub release asset.** An AAB cannot be installed by
+anyone (it is not sideloadable); its only consumer is Play Console, which
+re-signs it with the app signing key and serves users APKs.
+
+**The upload key is in CI, scoped to one job (JP approved 2026-10-23, #1456).**
+The **Play upload (draft)** job builds `:app:bundleRelease` on every `v*` tag,
+refuses any bundle whose signer is not the upload certificate
+(`UPLOAD_CERT_SHA256`), and uploads it to the closed-testing track `alpha` as a
+**draft**. A human still clicks Roll out in Play Console. Scope:
+
+- The four secrets (`PLAY_UPLOAD_KEYSTORE_B64`, `PLAY_UPLOAD_KEYSTORE_PASSWORD`,
+  `PLAY_UPLOAD_KEY_PASSWORD`, `PLAY_SERVICE_ACCOUNT_JSON`) are **environment
+  secrets of `play-upload`**, never repo secrets. That environment's deployment
+  policy allows **only `v*` tags**, so no branch or PR run can read them.
+- The tag ruleset **"Release tags: admins only (play-upload key)"** limits
+  creating, moving and deleting `v*` tags to repo admins.
+- The job runs with `contents: read`, a read-only Gradle cache and no
+  configuration cache, and it deletes the key material in an `always()` step.
+- The Play service account gets **only "Release to testing tracks"** for Candela
+  in Play Console, so a leaked JSON can at most stage a draft testing release.
+- Until all four secrets exist, the job logs a notice and passes. Then the
+  manual path still works:
 
 ```bash
 ./gradlew :app:bundleRelease          # SEPARATE invocation from assembleRelease (#952)
 # → app/build/outputs/bundle/release/app-release.aab  → upload in Play Console
-# or, once the GPP service account exists (#1456): ./gradlew :app:publishReleaseBundle
 ```
 
-(2026-09-06: the keystore was briefly copied into Actions secrets and CI had
-been attaching AABs to releases v1.7.0–v1.14.1; both reverted the same day —
-secrets deleted, all 17 assets removed.)
+The vault item `storyvox-release-keystore` stays the record of truth; the
+environment secrets are a copy. History: on 2026-09-06 the keystore was briefly
+copied into repo-level Actions secrets and CI attached AABs to releases
+v1.7.0–v1.14.1. Both were reverted the same day (secrets deleted, all 17 assets
+removed). The 2026-10-23 setup is the scoped replacement.
+
+### Rotating the upload key (or the service account key)
+
+Set every secret through stdin, never on the command line, and never print it.
+
+**Upload key** (planned rotation, or after a suspected leak):
+1. Generate a new upload keystore exactly as in _Generate the keystore_, and
+   store it and its passwords in Vaultwarden (`storyvox-release-keystore`, with
+   the old one kept as `…-retired-<date>` until Google accepts the new one).
+2. Export the certificate (`keytool -export -rfc … -alias storyvox > upload-cert.pem`).
+   Then file **Play Console → App integrity → Upload key reset** with that
+   certificate. Google takes 1–3 business days.
+3. Once Google accepts it, replace the three environment secrets:
+   ```bash
+   base64 -w0 new-upload.keystore | gh secret set PLAY_UPLOAD_KEYSTORE_B64 --env play-upload
+   gh secret set PLAY_UPLOAD_KEYSTORE_PASSWORD --env play-upload   # paste at the prompt, or pipe from bw
+   gh secret set PLAY_UPLOAD_KEY_PASSWORD --env play-upload
+   ```
+4. Update `UPLOAD_CERT_SHA256` in `android.yml` to the new certificate's
+   SHA-256 (the job refuses a bundle signed with anything else), plus the
+   `storyvox.release*` lines in `local.properties` on the build host.
+5. Cut the next tag and check that the job's "Refuse a bundle…" step passes.
+
+**Service account key** (`PLAY_SERVICE_ACCOUNT_JSON`): in Google Cloud →
+IAM → Service accounts, add a new key to the Play service account, set it with
+`gh secret set PLAY_SERVICE_ACCOUNT_JSON --env play-upload < key.json`, delete
+the local `key.json`, then **delete the old key** in Google Cloud.
+
+**Suspected leak, stop everything first:** delete the four secrets
+(`gh secret delete <name> --env play-upload`) so the job goes inert. Then
+rotate as above. Users are never at risk from an upload-key leak: Play App
+Signing means only Google's app signing key reaches devices (see _Recovery_).
 
 ---
 

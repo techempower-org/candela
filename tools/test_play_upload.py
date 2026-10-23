@@ -3,6 +3,7 @@
 import importlib.machinery
 import importlib.util
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -239,6 +240,47 @@ class TokenTest(unittest.TestCase):
         self.assertEqual(seen["data"], b"hello")
         with self.assertRaises(OSError):
             os.fstat(seen["fd"])  # closed afterwards
+
+
+WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+
+
+def _jobs(text):
+    """Split a workflow into {job id: job text} (stdlib only: jobs are 2-space keys under `jobs:`)."""
+    body = text.split("\njobs:\n", 1)[1]
+    jobs, name, buf = {}, None, []
+    for line in body.splitlines():
+        m = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+        if m:
+            if name:
+                jobs[name] = "\n".join(buf)
+            name, buf = m.group(1), []
+        elif name:
+            buf.append(line)
+    if name:
+        jobs[name] = "\n".join(buf)
+    return jobs
+
+
+class SecretScopeTest(unittest.TestCase):
+    """The Play upload key may live in CI only inside the tag-only `play-upload` environment (2026-10-23)."""
+
+    def test_play_secrets_are_read_only_by_jobs_in_the_play_upload_environment(self):
+        seen = 0
+        for wf in sorted(WORKFLOWS.glob("*.y*ml")):
+            for job, text in _jobs(wf.read_text()).items():
+                if "secrets.PLAY_" not in text:
+                    continue
+                seen += 1
+                self.assertTrue(
+                    re.search(r"\n    environment: play-upload\s*\n", text),
+                    f"{wf.name}:{job} reads a PLAY_* secret outside the play-upload environment")
+        self.assertGreater(seen, 0, "no job reads the PLAY_* secrets; the guard would be vacuous")
+
+    def test_the_play_upload_job_only_runs_on_version_tags(self):
+        job = _jobs((WORKFLOWS / "android.yml").read_text())["play-upload"]
+        self.assertIn("if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')", job)
+        self.assertIn("contents: read", job)
 
 
 if __name__ == "__main__":
