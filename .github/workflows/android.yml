@@ -42,17 +42,17 @@ jobs:
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4.9.1
         with:
           distribution: temurin
           java-version: '21'
       - name: Set up Gradle (dependency + build cache)
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4.4.3
 
       - name: Materialize local.properties
         run: |
@@ -66,6 +66,8 @@ jobs:
       - name: play-upload tests (Python, stdlib only)
         # tools/play-upload sends the release AAB to Play's closed-testing track (#1456).
         run: python3 tools/test_play_upload.py
+      - name: Workflow actions are SHA-pinned (#1866)
+        run: python3 tools/test_workflow_pins.py
       - name: Run JVM unit tests
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew testDebugUnitTest --continue --no-daemon --stacktrace
       # GitHub shows at most 10 annotations per step, so the first real run
@@ -95,7 +97,7 @@ jobs:
           EOF
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: unit-test-reports
           path: '**/build/reports/tests/testDebugUnitTest/'
@@ -116,17 +118,17 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4.9.1
         with:
           distribution: temurin
           java-version: '17'
       - name: Set up Gradle (dependency + build cache)
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4.4.3
 
       - name: Materialize local.properties
         run: |
@@ -136,7 +138,7 @@ jobs:
         run: PATH="$JAVA_HOME/bin:$PATH" ./gradlew :app:lintDebug :feature:lintDebug -Pcandela.lint.translationsOnly=true --no-daemon --stacktrace
       - name: Upload lint reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: translation-lint-reports
           path: |
@@ -166,7 +168,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
 
       # #1830 — the in-app Handbook is compiled from docs/ into committed assets.
       # Fail fast (before the ~20 min build) when a chapter's doc or title changed
@@ -178,12 +180,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3  # v4.9.1
         with:
           distribution: temurin
           java-version: '17'
       - name: Set up Gradle (dependency + build cache)
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a  # v4.4.3
 
       - name: Materialize local.properties
         env:
@@ -313,7 +315,7 @@ jobs:
         # downloaded by any signed-in GitHub user, so keep it short-lived; it
         # is the same app main would ship, not a release.
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: candela-test-apk-${{ github.sha }}
           path: app/build/outputs/apk/release/*.apk
@@ -364,7 +366,7 @@ jobs:
         # runner, the APK is just on disk; no transfer needed.
         # push only: a workflow_dispatch on a tag ref must never publish (#1851 review).
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
