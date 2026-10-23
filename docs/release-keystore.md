@@ -199,7 +199,7 @@ local.properties** step writes the file from Actions secrets: `INSTANTDB_APP_ID`
 anyone (it is not sideloadable); its only consumer is Play Console, which
 re-signs it with the app signing key and serves users APKs.
 
-**The upload key is in CI, scoped to one job (JP approved 2026-10-23, #1456).**
+**The upload key is in CI, scoped to the `play-upload` environment (JP approved 2026-10-23, #1456).**
 The **Play upload (draft)** job builds `:app:bundleRelease` on every `v*` tag,
 refuses any bundle whose signer is not the upload certificate
 (`UPLOAD_CERT_SHA256`), and uploads it to the closed-testing track `alpha` as a
@@ -209,12 +209,24 @@ refuses any bundle whose signer is not the upload certificate
   `PLAY_UPLOAD_KEY_PASSWORD`, `PLAY_SERVICE_ACCOUNT_JSON`) are **environment
   secrets of `play-upload`**, never repo secrets. That environment's deployment
   policy allows **only `v*` tags**, so no branch or PR run can read them.
+- The environment is a **ref gate, not a job gate**. Any job that names
+  `environment: play-upload` and runs on a `v*` tag could read them. Only the
+  `play-upload` job names it, and `SecretScopeTest` in `tools/test_play_upload.py`
+  fails CI if another job reads a `PLAY_*` secret. That test is a regression
+  check, not the access boundary: the environment policy is the boundary. A writer
+  could also `workflow_dispatch` a dispatch-enabled workflow on an existing `v*`
+  tag. That is harmless today because no such workflow names the environment;
+  keep it that way, or add required reviewers to the environment.
 - The tag ruleset **"Release tags: admins only (play-upload key)"** limits
   creating, moving and deleting `v*` tags to repo admins.
 - The job runs with `contents: read`, a read-only Gradle cache and no
   configuration cache, and it deletes the key material in an `always()` step.
 - The Play service account gets **only "Release to testing tracks"** for Candela
-  in Play Console, so a leaked JSON can at most stage a draft testing release.
+  in Play Console, never production. The job always stages a **draft**, but the
+  permission itself is not draft-only. Someone holding **both** a leaked
+  service-account JSON **and** the upload key could release a build to the
+  **testers** on a testing track. Either one alone can't: the JSON can't sign a
+  bundle with the upload key, and the upload key has no Play API access.
 - Until all four secrets exist, the job logs a notice and passes. Then the
   manual path still works:
 
@@ -251,15 +263,32 @@ Set every secret through stdin, never on the command line, and never print it.
    `storyvox.release*` lines in `local.properties` on the build host.
 5. Cut the next tag and check that the job's "Refuse a bundle…" step passes.
 
-**Service account key** (`PLAY_SERVICE_ACCOUNT_JSON`): in Google Cloud →
-IAM → Service accounts, add a new key to the Play service account, set it with
+**Service account key** (`PLAY_SERVICE_ACCOUNT_JSON`, planned rotation; for a
+suspected leak, revoke first as below): in Google Cloud → IAM → Service
+accounts, add a new key to the Play service account, set it with
 `gh secret set PLAY_SERVICE_ACCOUNT_JSON --env play-upload < key.json`, delete
 the local `key.json`, then **delete the old key** in Google Cloud.
 
-**Suspected leak, stop everything first:** delete the four secrets
-(`gh secret delete <name> --env play-upload`) so the job goes inert. Then
-rotate as above. Users are never at risk from an upload-key leak: Play App
-Signing means only Google's app signing key reaches devices (see _Recovery_).
+**Suspected leak: contain first, in this order.**
+1. **Stop publishing:** disable the workflow (`gh workflow disable android.yml`)
+   and cancel any running tag build (`gh run cancel <id>`).
+2. **Revoke at Google:** in Google Cloud → IAM → Service accounts, **disable or
+   delete the service-account key** now. If unsure which key leaked, remove the
+   account's access in Play Console → Users and permissions.
+3. **Remove the GitHub copies:** `gh secret delete <name> --env play-upload` for
+   all four. This stops future runs only; it doesn't recall a secret already
+   delivered to a run.
+4. **Start the upload-key reset** (steps 1–2 above) if the upload key may have
+   leaked.
+5. **Inspect Play:** Play Console → Test and release, plus the Play Console
+   activity log. Check every testing track for releases nobody made, and halt or
+   replace any you find.
+6. Only then create new keys and re-enable the workflow.
+
+Production users are not exposed by an upload-key or service-account leak:
+Google's app signing key, which only Google holds, signs what reaches devices,
+and the service account has no production permission. Testers on a testing
+track **can** be exposed if both leak together (see above).
 
 ---
 

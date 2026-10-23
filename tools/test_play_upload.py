@@ -263,24 +263,47 @@ def _jobs(text):
 
 
 class SecretScopeTest(unittest.TestCase):
-    """The Play upload key may live in CI only inside the tag-only `play-upload` environment (2026-10-23)."""
+    """Regression check for the scoping of the Play upload key in CI (2026-10-23).
+
+    Not the access boundary (that is the tag-only `play-upload` environment). This
+    fails CI if a change starts handing PLAY_* secrets to a job outside it.
+    """
+
+    # Every way a workflow can name a PLAY_* secret, or hand over all secrets at once.
+    PLAY_REF = re.compile(r"secrets\s*(?:\.\s*PLAY_|\[\s*['\"]PLAY_)", re.I)
+    ALL_SECRETS = re.compile(r"toJSON\s*\(\s*secrets\s*\)|secrets\s*:\s*inherit", re.I)
+    # A job-level property sits at exactly four spaces; a `run:` script line is deeper.
+    ENV_PROP = re.compile(r"^    environment:\s*['\"]?play-upload['\"]?\s*$", re.M)
+
+    def test_no_workflow_reads_play_secrets_at_workflow_level(self):
+        for wf in sorted(WORKFLOWS.glob("*.y*ml")):
+            header = wf.read_text().split("\njobs:\n", 1)[0]
+            self.assertFalse(self.PLAY_REF.search(header) or self.ALL_SECRETS.search(header),
+                             f"{wf.name}: secrets referenced above `jobs:`")
 
     def test_play_secrets_are_read_only_by_jobs_in_the_play_upload_environment(self):
         seen = 0
         for wf in sorted(WORKFLOWS.glob("*.y*ml")):
             for job, text in _jobs(wf.read_text()).items():
-                if "secrets.PLAY_" not in text:
+                names_env = bool(self.ENV_PROP.search(text))
+                if self.ALL_SECRETS.search(text):
+                    self.assertFalse(names_env, f"{wf.name}:{job} hands all secrets out inside play-upload")
+                if not self.PLAY_REF.search(text):
                     continue
                 seen += 1
-                self.assertTrue(
-                    re.search(r"\n    environment: play-upload\s*\n", text),
-                    f"{wf.name}:{job} reads a PLAY_* secret outside the play-upload environment")
+                self.assertTrue(names_env,
+                                f"{wf.name}:{job} reads a PLAY_* secret outside the play-upload environment")
         self.assertGreater(seen, 0, "no job reads the PLAY_* secrets; the guard would be vacuous")
 
-    def test_the_play_upload_job_only_runs_on_version_tags(self):
+    def test_only_the_play_upload_job_names_the_environment(self):
+        named = [f"{wf.name}:{job}" for wf in sorted(WORKFLOWS.glob("*.y*ml"))
+                 for job, text in _jobs(wf.read_text()).items() if self.ENV_PROP.search(text)]
+        self.assertEqual(named, ["android.yml:play-upload"])
+
+    def test_the_play_upload_job_only_runs_on_version_tag_pushes(self):
         job = _jobs((WORKFLOWS / "android.yml").read_text())["play-upload"]
-        self.assertIn("if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')", job)
-        self.assertIn("contents: read", job)
+        self.assertRegex(job, r"(?m)^    if: github\.event_name == 'push' && startsWith\(github\.ref, 'refs/tags/v'\)$")
+        self.assertRegex(job, r"(?m)^      contents: read$")
 
 
 if __name__ == "__main__":

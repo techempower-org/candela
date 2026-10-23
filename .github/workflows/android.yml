@@ -385,8 +385,9 @@ jobs:
     # closed-testing track "alpha" as a DRAFT release, so a human still clicks Roll
     # out in Play Console. JP approved the upload key in CI on 2026-10-23 (ask
     # candela:play-upload-key-in-ci). The PLAY_* secrets live ONLY in the
-    # `play-upload` environment, which only refs/tags/v* may deploy to, and a tag
-    # ruleset lets only repo admins create v* tags. Until all four exist the job logs
+    # `play-upload` environment, which only refs/tags/v* may deploy to (a ref gate:
+    # no other job may name it; SecretScopeTest enforces that), and a tag ruleset
+    # lets only repo admins create v* tags. Until all four exist the job logs
     # a notice and passes. Rotation: docs/release-keystore.md "Rotating the upload key".
     # Separate job + separate gradle invocation from assembleRelease (#952).
     name: Play upload (draft)
