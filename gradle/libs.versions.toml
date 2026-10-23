@@ -62,7 +62,7 @@ androidx-browser = "1.10.0"
 coroutines = "1.11.0"
 
 # Serialization
-kotlinx-serialization = "1.11.0"
+kotlinx-serialization = "1.12.0"
 
 # Image loading
 coil = "3.6.3"
