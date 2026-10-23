@@ -305,6 +305,14 @@ class SecretScopeTest(unittest.TestCase):
         self.assertRegex(job, r"(?m)^    if: github\.event_name == 'push' && startsWith\(github\.ref, 'refs/tags/v'\)$")
         self.assertRegex(job, r"(?m)^      contents: read$")
 
+    def test_the_play_upload_job_pins_every_action_to_a_commit(self):
+        # Inside the environment the job's own steps are the trust boundary, so a moved tag must not change them.
+        job = _jobs((WORKFLOWS / "android.yml").read_text())["play-upload"]
+        uses = re.findall(r"(?m)^\s*(?:-\s*)?uses:\s*(\S+)", job)
+        self.assertTrue(uses, "play-upload uses no actions? the guard would be vacuous")
+        for ref in uses:
+            self.assertRegex(ref, r"@[0-9a-f]{40}$", f"play-upload action not pinned to a commit SHA: {ref}")
+
 
 if __name__ == "__main__":
     unittest.main()
