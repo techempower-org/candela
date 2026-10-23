@@ -84,7 +84,8 @@ updates:
           - "version-update:semver-major"
 
   # #1866 — every workflow action is pinned to a commit SHA with a `# vX.Y.Z`
-  # comment (tools/test_workflow_pins.py enforces it). Dependabot bumps the SHA
+  # comment (tools/test_workflow_pins.py checks the pin and that the comment exists,
+  # not that it still matches the tag). Dependabot bumps the SHA
   # and the comment together; one grouped PR a week, same rebase policy as above.
   - package-ecosystem: "github-actions"
     directory: "/"
