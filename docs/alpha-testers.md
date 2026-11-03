@@ -8,11 +8,17 @@ description: Help test Candela, TechEMPOWER's free Android app that reads books,
 
 Candela is a free Android app from TechEMPOWER, a nonprofit that closes the digital divide for low-income individuals and families. It reads text aloud like an audiobook. Pick a free book from Project Gutenberg, a public-domain recording from LibriVox, a Wikipedia article, or a PDF on your phone, and Candela reads it to you in a natural voice that runs on the phone itself: no cloud, no API keys, nothing to pay. You don't need to sign in to start listening; sync and the other sign-ins are optional. You need Android 8.0 or newer, and an internet connection to browse and to download a voice the first time. After that, the chapters and voices stay on your phone.
 
-**OPT-IN LINK: `<from Play Console, vale fills>`**
+**Status** (Play Console, read 2026-11-03): closed testing track **Alpha**, release 279 (v1.16.0). The testers list holds 15 people and **4 have opted in**. Goal: **12 opted in**, then 14 days in a row.
+
+**How to join:**
+
+1. **Email us first** (see [Sign up](#sign-up)). Google only lets accounts on our testers list install the alpha, so we add your Google account email to the list.
+2. **Opt in** on the web, signed in with that same Google account: [https://play.google.com/apps/testing/org.techempower.candela](https://play.google.com/apps/testing/org.techempower.candela)
+3. **Install** from Google Play on your phone (this link only opens once you've opted in and are signed in with that account): [https://play.google.com/store/apps/details?id=org.techempower.candela](https://play.google.com/store/apps/details?id=org.techempower.candela)
 
 ## Try it in 30 seconds
 
-1. **Install** Candela from the opt-in link above (Google Play, alpha track).
+1. **Install** Candela from Google Play after you opt in (steps above).
 2. **Open one free source:** Browse → Project Gutenberg (or LibriVox) → pick any book.
 3. **Play a chapter.** On first launch Candela asks you to pick a voice; a Piper voice is a quick download (about 14–30 MB).
 4. **Change the voice:** on the play screen, tap the voice settings icon (the soundwave with a sparkle) and pick another.
@@ -37,34 +43,31 @@ Your email goes on the Play Console testers list and in TechEMPOWER's password v
 
 ## Google's rule for new apps
 
-Google Play requires some developers to run a **closed test with at least 12 testers opted in for 14 days in a row** before the app can go to production. The rule applies to **personal** developer accounts created after November 2023; **organization** accounts are not subject to it. That description is Google's published policy, not something our docs record.
+Google Play requires a **closed test with at least 12 testers opted in for 14 days in a row** before an app from a personal developer account can go to production.
 
-**Does it apply to Candela?** **Unknown.** None of our Play docs says which kind of developer account Candela is published under:
+**It applies to Candela.** The account that publishes `org.techempower.candela` is a **personal** account: the Console home reads "TechEMPOWER.org · Personal account". The Apply for production checklist shows:
 
-- `docs/play-store-readiness.md` doesn't mention testers or the account type.
-- `docs/play-console-prerequisites.md` doesn't either. Lines 51–57 only cover the `applicationId` and creating the Console app.
-- The only test plan is `docs/play-store-listing.md` line 374: "suggest 7-day internal → 14-day closed (JP + a handful of early-access users) → staged rollout starting at 5%".
+- "Publish a closed testing release" — done.
+- "At least 12 testers opted-in" — **4 currently opted in.**
+- "Run the closed test with at least 12 testers for at least 14 days" — not started; the 14 days count once 12 have opted in.
 
-**The question:** is the Play developer account that publishes `org.techempower.candela` an **Organization** account (verified with a D-U-N-S number) or a **Personal** account, and when was it created? Play Console → Settings → Developer account → Account details shows both.
-
-- If it's a personal account created after November 2023, we need 12 testers opted in for 14 continuous days.
-- If it's an organization account, the 12-for-14 gate doesn't apply, but more testers still means better coverage.
+Source: Play Console home and the Apply for production checklist, read 2026-11-03.
 
 ## Posts
 
-Three short versions, each under 80 words. Swap in the opt-in link before posting.
+Three short versions, each under 80 words, ready to post.
 
-**Newsletter (61 words)**
+**Newsletter (64 words)**
 
-> **Help us test Candela.** Candela is TechEMPOWER's free Android app that reads books, articles and PDFs aloud in a natural voice, right on your phone. No account needed to start listening. We're looking for alpha testers with Android 8.0 or newer: install, play one chapter, tell us one thing. Join here: `<OPT-IN LINK>` or email hi@techempower.org with the subject "Alpha tester".
+> **Help us test Candela.** Candela is TechEMPOWER's free Android app that reads books, articles and PDFs aloud in a natural voice, right on your phone. No account needed to start listening. We're looking for alpha testers with Android 8.0 or newer: install, play one chapter, tell us one thing. Email hi@techempower.org with the subject "Alpha tester" and we'll add you, then opt in: https://play.google.com/apps/testing/org.techempower.candela
 
-**Discord (56 words)**
+**Discord (65 words)**
 
-> 🕯️ **Alpha testers wanted for Candela!** Our free Android app reads Project Gutenberg books, LibriVox, Wikipedia and your own PDFs aloud in a natural voice on your phone. Got Android 8.0+? Install from `<OPT-IN LINK>`, play a chapter, try a different voice, and post one thing that worked or broke in this channel. Thank you! 💛
+> 🕯️ **Alpha testers wanted for Candela!** Our free Android app reads Project Gutenberg books, LibriVox, Wikipedia and your own PDFs aloud in a natural voice on your phone. Got Android 8.0+? Email hi@techempower.org (subject "Alpha tester") so we can add you, then opt in at https://play.google.com/apps/testing/org.techempower.candela, play a chapter, try a different voice, and post one thing that worked or broke here. Thank you! 💛
 
-**Facebook (56 words)**
+**Facebook (60 words)**
 
-> Do you like listening more than reading? Help us test Candela, TechEMPOWER's free Android app that reads books, articles and documents aloud in a natural voice, with nothing to pay and no account needed to start. We need alpha testers with Android 8.0 or newer. Join: `<OPT-IN LINK>`, or email hi@techempower.org with the subject "Alpha tester".
+> Do you like listening more than reading? Help us test Candela, TechEMPOWER's free Android app that reads books, articles and documents aloud in a natural voice, with nothing to pay and no account needed to start. We need alpha testers with Android 8.0 or newer. Email hi@techempower.org with the subject "Alpha tester" and we'll add you, then opt in: https://play.google.com/apps/testing/org.techempower.candela
 
 ## Tracker
 
