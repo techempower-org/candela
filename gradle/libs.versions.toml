@@ -43,7 +43,7 @@ datastore = "1.2.1"
 media3 = "1.11.1"
 
 # Networking + parsing
-okhttp = "4.12.0"
+okhttp = "4.12.1"
 jsoup = "1.23.2"
 commonmark = "0.30.1"
 # Readability4J — Mozilla Readability port (#472 :source-readability).
