@@ -65,6 +65,76 @@ class EndlessLitrpgApiTest {
         assertNull(base("http://"))
     }
 
+    // ─── the tailnet ─────────────────────────────────────────────
+
+    @Test fun `a tailnet address is accepted because CGNAT space never leaves the realm`() {
+        // 100.64.0.0/10 is carrier-grade NAT space, which Tailscale assigns to every node;
+        // the phone reaches the daemon over it exactly as it would over the LAN.
+        assertEquals("http://100.80.12.34:8093", base("100.80.12.34:8093"))
+        assertEquals("http://100.98.1.2:8093", base("100.98.1.2:8093"))
+        assertEquals("http://100.64.0.1:8093", base("100.64.0.1:8093"))            // the range's first host
+        assertEquals("http://100.127.255.254:8093", base("100.127.255.254:8093"))  // and its last
+    }
+
+    @Test fun `the addresses either side of the CGNAT range stay refused`() {
+        assertNull(base("100.63.255.255:8093"))
+        assertNull(base("100.128.0.0:8093"))
+    }
+
+    @Test fun `a Tailscale IPv6 address is accepted and a public IPv6 address refused`() {
+        // fd7a:115c:a1e0::/48 is the ULA prefix every tailnet node gets an IPv6 address in.
+        assertEquals("http://[fd7a:115c:a1e0::1]:8093", base("[fd7a:115c:a1e0::1]:8093"))
+        assertEquals("http://[fd7a:115c:a1e0:ab12:4843:cd96:6255:1234]:8093", base("[fd7a:115c:a1e0:ab12:4843:cd96:6255:1234]:8093"))
+        assertNull(base("[2001:4860:4860::8888]:8093"))   // Google's resolver over IPv6
+        assertNull(base("[fd7a:115c:a1e1::1]:8093"))      // a ULA one bit off the prefix
+    }
+
+    @Test fun `an IPv4-mapped IPv6 address is judged by the IPv4 it carries`() {
+        // Built from the 16 mapped bytes through the resolver seam: a dotted "::ffff:a.b.c.d"
+        // literal resolves to a plain 4-byte address and never reaches the 16-byte branch.
+        fun mapped(a: Int, b: Int, c: Int, d: Int) = ByteArray(16).also {
+            it[10] = 0xff.toByte(); it[11] = 0xff.toByte()
+            it[12] = a.toByte(); it[13] = b.toByte(); it[14] = c.toByte(); it[15] = d.toByte()
+        }
+        val tailnet = api("mapped-tailnet.example:8093")
+        tailnet.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(100, 80, 12, 34)) }
+        assertEquals("http://mapped-tailnet.example:8093", tailnet.baseUrlOrNull(EndlessConfigState("mapped-tailnet.example:8093")))
+        val public = api("mapped-public.example:8093")
+        public.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(8, 8, 8, 8)) }
+        assertNull(public.baseUrlOrNull(EndlessConfigState("mapped-public.example:8093")))
+    }
+
+    @Test fun `the tailnet helper is byte-identical in the palace twin so the two cannot drift`() {
+        // The two source modules share no common module; the guard is duplicated on purpose
+        // (xreview #1894 round 2) and this test is the only thing holding the copies together.
+        fun helper(path: String): String {
+            val text = java.io.File(path).readText()
+            val start = text.indexOf("True for an address Tailscale assigns")
+            val end = text.indexOf("private fun isV4Mapped", start).let { text.indexOf("\n\n", it) }
+            require(start >= 0 && end > start) { "helper block not found in $path" }
+            return text.substring(start, end)
+        }
+        // Module tests run with the module directory as the working directory.
+        val endless = helper("src/main/kotlin/in/jphe/storyvox/source/endless/net/EndlessLitrpgApi.kt")
+        val palace = helper("../source-mempalace/src/main/kotlin/in/jphe/storyvox/source/mempalace/net/PalaceDaemonApi.kt")
+        assertEquals(endless, palace)
+    }
+
+    @Test fun `a MagicDNS name that resolves into the tailnet is accepted`() {
+        val api = api("familiar.tail1234.ts.net:8093")
+        api.resolve = { name ->
+            assertEquals("familiar.tail1234.ts.net", name)
+            java.net.InetAddress.getByAddress(name, byteArrayOf(100, 98, 1, 2))
+        }
+        assertEquals("http://familiar.tail1234.ts.net:8093", api.baseUrlOrNull(EndlessConfigState("familiar.tail1234.ts.net:8093")))
+    }
+
+    @Test fun `a name that does not resolve fails closed`() {
+        val api = api("nowhere.tail1234.ts.net:8093")
+        api.resolve = { name -> throw java.net.UnknownHostException(name) }
+        assertNull(api.baseUrlOrNull(EndlessConfigState("nowhere.tail1234.ts.net:8093")))
+    }
+
     @Test fun `a public address is rejected`() {
         // 8.8.8.8 is not site-local, so it must never be dialled with a
         // cleartext, unauthenticated request.

@@ -42,6 +42,42 @@ class PalaceDaemonApiTest {
         assertNotNull(api().baseUrlOrNull(cfg("palace.jphe.in")))
     }
 
+    @Test fun `accepts a tailnet address because CGNAT space never leaves the realm`() {
+        // 100.64.0.0/10 is carrier-grade NAT space, which Tailscale assigns to every node;
+        // the phone reaches the daemon over it exactly as it would over the LAN.
+        assertNotNull(api().baseUrlOrNull(cfg("100.80.12.34:8085")))
+        assertNotNull(api().baseUrlOrNull(cfg("100.127.255.254:8085")))
+        assertNull(api().baseUrlOrNull(cfg("100.128.0.0:8085")))   // one past the range
+    }
+
+    @Test fun `accepts a Tailscale IPv6 address and refuses a public one`() {
+        assertNotNull(api().baseUrlOrNull(cfg("[fd7a:115c:a1e0::1]:8085")))
+        assertNull(api().baseUrlOrNull(cfg("[2001:4860:4860::8888]:8085")))
+    }
+
+    @Test fun `judges an IPv4-mapped IPv6 address by the IPv4 it carries`() {
+        // Built from the 16 mapped bytes through the resolver seam, so the 16-byte branch runs.
+        fun mapped(a: Int, b: Int, c: Int, d: Int) = ByteArray(16).also {
+            it[10] = 0xff.toByte(); it[11] = 0xff.toByte()
+            it[12] = a.toByte(); it[13] = b.toByte(); it[14] = c.toByte(); it[15] = d.toByte()
+        }
+        val tailnet = api()
+        tailnet.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(100, 80, 12, 34)) }
+        assertNotNull(tailnet.baseUrlOrNull(cfg("mapped-tailnet.example:8085")))
+        val public = api()
+        public.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(8, 8, 8, 8)) }
+        assertNull(public.baseUrlOrNull(cfg("mapped-public.example:8085")))
+    }
+
+    @Test fun `accepts a MagicDNS name that resolves into the tailnet and fails closed on an unresolvable one`() {
+        val tailnet = api()
+        tailnet.resolve = { name -> java.net.InetAddress.getByAddress(name, byteArrayOf(100, 98, 1, 2)) }
+        assertNotNull(tailnet.baseUrlOrNull(cfg("familiar.tail1234.ts.net:8085")))
+        val nowhere = api()
+        nowhere.resolve = { name -> throw java.net.UnknownHostException(name) }
+        assertNull(nowhere.baseUrlOrNull(cfg("nowhere.tail1234.ts.net:8085")))
+    }
+
     @Test fun `rejects public IP addresses`() {
         // 8.8.8.8 is Google's resolver — reachable but emphatically
         // not the user's home palace.
