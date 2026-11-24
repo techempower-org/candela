@@ -9,6 +9,13 @@ Entries before v0.5.12 are reconstructed from the git log — see
 
 ## [Unreleased]
 
+## [1.17.1] -- 2026-11-23
+
+**Tailnet Lantern.** The Endless LitRPG and palace daemons answer over Tailscale.
+
+### Fixed
+- The LAN guards on the Endless LitRPG and palace daemon clients accept a tailnet address (IPv4 100.64.0.0/10, IPv6 fd7a:115c:a1e0::/48, and an IPv4-mapped IPv6 address by the IPv4 it carries), so a phone on the tailnet reaches a daemon at home; public addresses stay refused, and a MagicDNS name that resolves into the tailnet passes the same way. The duplicated guard helper is held byte-identical by a test. (#1894)
+
 ## [1.17.0] -- 2026-10-19
 
 **Infernal Beacon.** Fifteen new places to read from, sync is back on TechEMPOWER's own server, and a quicker way into the For you feed.
