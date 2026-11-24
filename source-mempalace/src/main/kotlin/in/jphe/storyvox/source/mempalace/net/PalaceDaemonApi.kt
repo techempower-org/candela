@@ -62,6 +62,13 @@ open class PalaceDaemonApi @Inject constructor(
     private val config: PalaceConfig,
 ) {
 
+    /**
+     * The resolver behind [isLanLikeAuthority]; the default is the system's.
+     * Injected so the name path is testable without the network: a MagicDNS
+     * name that resolves into the tailnet, and an unresolvable name.
+     */
+    internal var resolve: (String) -> InetAddress = InetAddress::getByName
+
     open suspend fun health(): PalaceDaemonResult<PalaceHealth> =
         get("/health")
 
@@ -282,7 +289,7 @@ open class PalaceDaemonApi @Inject constructor(
         if (host.endsWith(".local", ignoreCase = true)) return true
         // For numeric / hostname literals, resolve and inspect.
         val addr = try {
-            InetAddress.getByName(host)
+            resolve(host)
         } catch (_: UnknownHostException) {
             // Unknown host is "not LAN-like" by definition (we can't
             // verify it's safe). The daemon call will surface this
@@ -293,21 +300,43 @@ open class PalaceDaemonApi @Inject constructor(
             addr.isSiteLocalAddress ||
             addr.isAnyLocalAddress ||
             addr.isLinkLocalAddress ||
-            isCgnatAddress(addr)
+            isTailnetAddress(addr)
     }
 
     /**
-     * True for an address inside 100.64.0.0/10, the carrier-grade NAT range
-     * (RFC 6598) that Tailscale assigns to every node on a tailnet. Such an
-     * address is never routed on the open internet, so a daemon reached over
-     * it is as private as one on the LAN; [InetAddress.isSiteLocalAddress]
-     * does not cover it. A MagicDNS name resolves into this range, so it is
-     * accepted the same way.
+     * True for an address Tailscale assigns a tailnet node: IPv4 in
+     * 100.64.0.0/10 (carrier-grade NAT space, RFC 6598), IPv6 in
+     * fd7a:115c:a1e0::/48 (Tailscale's ULA prefix), or an IPv4-mapped IPv6
+     * address whose embedded IPv4 is in the CGNAT range. Neither range is
+     * routed on the open internet, which is what makes the daemon
+     * unreachable from outside; what keeps the tailnet *ours* is its ACL,
+     * not the range, and this guard assumes that ACL is in place.
+     * [InetAddress.isSiteLocalAddress] covers none of these, so they are
+     * checked by bytes. A MagicDNS name resolves into one of the ranges and
+     * is accepted the same way.
      */
-    private fun isCgnatAddress(addr: InetAddress): Boolean {
+    private fun isTailnetAddress(addr: InetAddress): Boolean {
         val b = addr.address
-        return b.size == 4 && (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xc0) == 0x40
+        return when (b.size) {
+            4 -> isCgnatV4(b)
+            16 -> isTailscaleUla(b) || (isV4Mapped(b) && isCgnatV4(b.copyOfRange(12, 16)))
+            else -> false
+        }
     }
+
+    /** 100.64.0.0/10: first octet 100, the second octet's top two bits 01. */
+    private fun isCgnatV4(b: ByteArray): Boolean =
+        (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xc0) == 0x40
+
+    /** fd7a:115c:a1e0::/48, the ULA prefix Tailscale assigns every node an IPv6 address in. */
+    private fun isTailscaleUla(b: ByteArray): Boolean =
+        (b[0].toInt() and 0xff) == 0xfd && (b[1].toInt() and 0xff) == 0x7a &&
+            (b[2].toInt() and 0xff) == 0x11 && (b[3].toInt() and 0xff) == 0x5c &&
+            (b[4].toInt() and 0xff) == 0xa1 && (b[5].toInt() and 0xff) == 0xe0
+
+    /** ::ffff:a.b.c.d — an IPv4 address carried in IPv6 form; judged by the IPv4 it carries. */
+    private fun isV4Mapped(b: ByteArray): Boolean =
+        (0 until 10).all { b[it].toInt() == 0 } && (b[10].toInt() and 0xff) == 0xff && (b[11].toInt() and 0xff) == 0xff
 
     /**
      * MCP responses come back as JSON-RPC envelopes:

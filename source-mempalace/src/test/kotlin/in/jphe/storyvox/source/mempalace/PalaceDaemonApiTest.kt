@@ -50,6 +50,25 @@ class PalaceDaemonApiTest {
         assertNull(api().baseUrlOrNull(cfg("100.128.0.0:8085")))   // one past the range
     }
 
+    @Test fun `accepts a Tailscale IPv6 address and refuses a public one`() {
+        assertNotNull(api().baseUrlOrNull(cfg("[fd7a:115c:a1e0::1]:8085")))
+        assertNull(api().baseUrlOrNull(cfg("[2001:4860:4860::8888]:8085")))
+    }
+
+    @Test fun `judges an IPv4-mapped IPv6 address by the IPv4 it carries`() {
+        assertNotNull(api().baseUrlOrNull(cfg("[::ffff:100.80.12.34]:8085")))
+        assertNull(api().baseUrlOrNull(cfg("[::ffff:8.8.8.8]:8085")))
+    }
+
+    @Test fun `accepts a MagicDNS name that resolves into the tailnet and fails closed on an unresolvable one`() {
+        val tailnet = api()
+        tailnet.resolve = { name -> java.net.InetAddress.getByAddress(name, byteArrayOf(100, 98, 1, 2)) }
+        assertNotNull(tailnet.baseUrlOrNull(cfg("familiar.tail1234.ts.net:8085")))
+        val nowhere = api()
+        nowhere.resolve = { name -> throw java.net.UnknownHostException(name) }
+        assertNull(nowhere.baseUrlOrNull(cfg("nowhere.tail1234.ts.net:8085")))
+    }
+
     @Test fun `rejects public IP addresses`() {
         // 8.8.8.8 is Google's resolver — reachable but emphatically
         // not the user's home palace.

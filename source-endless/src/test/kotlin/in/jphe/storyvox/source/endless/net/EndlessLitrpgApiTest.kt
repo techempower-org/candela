@@ -81,6 +81,34 @@ class EndlessLitrpgApiTest {
         assertNull(base("100.128.0.0:8093"))
     }
 
+    @Test fun `a Tailscale IPv6 address is accepted and a public IPv6 address refused`() {
+        // fd7a:115c:a1e0::/48 is the ULA prefix every tailnet node gets an IPv6 address in.
+        assertEquals("http://[fd7a:115c:a1e0::1]:8093", base("[fd7a:115c:a1e0::1]:8093"))
+        assertEquals("http://[fd7a:115c:a1e0:ab12:4843:cd96:6255:1234]:8093", base("[fd7a:115c:a1e0:ab12:4843:cd96:6255:1234]:8093"))
+        assertNull(base("[2001:4860:4860::8888]:8093"))   // Google's resolver over IPv6
+        assertNull(base("[fd7a:115c:a1e1::1]:8093"))      // a ULA one bit off the prefix
+    }
+
+    @Test fun `an IPv4-mapped IPv6 address is judged by the IPv4 it carries`() {
+        assertEquals("http://[::ffff:100.80.12.34]:8093", base("[::ffff:100.80.12.34]:8093"))
+        assertNull(base("[::ffff:8.8.8.8]:8093"))
+    }
+
+    @Test fun `a MagicDNS name that resolves into the tailnet is accepted`() {
+        val api = api("familiar.tail1234.ts.net:8093")
+        api.resolve = { name ->
+            assertEquals("familiar.tail1234.ts.net", name)
+            java.net.InetAddress.getByAddress(name, byteArrayOf(100, 98, 1, 2))
+        }
+        assertEquals("http://familiar.tail1234.ts.net:8093", api.baseUrlOrNull(EndlessConfigState("familiar.tail1234.ts.net:8093")))
+    }
+
+    @Test fun `a name that does not resolve fails closed`() {
+        val api = api("nowhere.tail1234.ts.net:8093")
+        api.resolve = { name -> throw java.net.UnknownHostException(name) }
+        assertNull(api.baseUrlOrNull(EndlessConfigState("nowhere.tail1234.ts.net:8093")))
+    }
+
     @Test fun `a public address is rejected`() {
         // 8.8.8.8 is not site-local, so it must never be dialled with a
         // cleartext, unauthenticated request.
