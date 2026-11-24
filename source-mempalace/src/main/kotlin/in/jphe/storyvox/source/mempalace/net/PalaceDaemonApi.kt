@@ -292,7 +292,21 @@ open class PalaceDaemonApi @Inject constructor(
         return addr.isLoopbackAddress ||
             addr.isSiteLocalAddress ||
             addr.isAnyLocalAddress ||
-            addr.isLinkLocalAddress
+            addr.isLinkLocalAddress ||
+            isCgnatAddress(addr)
+    }
+
+    /**
+     * True for an address inside 100.64.0.0/10, the carrier-grade NAT range
+     * (RFC 6598) that Tailscale assigns to every node on a tailnet. Such an
+     * address is never routed on the open internet, so a daemon reached over
+     * it is as private as one on the LAN; [InetAddress.isSiteLocalAddress]
+     * does not cover it. A MagicDNS name resolves into this range, so it is
+     * accepted the same way.
+     */
+    private fun isCgnatAddress(addr: InetAddress): Boolean {
+        val b = addr.address
+        return b.size == 4 && (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xc0) == 0x40
     }
 
     /**

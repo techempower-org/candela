@@ -37,7 +37,9 @@ import javax.inject.Singleton
  *
  * **LAN-only enforcement.** [baseUrlOrNull] resolves the configured
  * authority and rejects anything that isn't loopback / link-local /
- * site-local, mirroring `PalaceDaemonApi.isLanLikeAuthority`. This is
+ * site-local / tailnet (the 100.64.0.0/10 CGNAT range Tailscale
+ * assigns, which is private the same way), mirroring
+ * `PalaceDaemonApi.isLanLikeAuthority`. This is
  * defense in depth against a typo: the daemon speaks plain HTTP with no
  * auth, so a mistyped host must fail closed rather than send requests to
  * an arbitrary internet address in cleartext. Note this is an *app-layer*
@@ -214,11 +216,12 @@ internal open class EndlessLitrpgApi @Inject constructor(
     }
 
     /**
-     * True when [host] resolves somewhere that cannot leave the LAN.
+     * True when [host] resolves somewhere that cannot leave the realm: the
+     * LAN, or the tailnet (Tailscale's CGNAT range, see [isCgnatAddress]).
      * `.local` short-circuits because mDNS names never resolve off-link
      * and resolving one can block; everything else is resolved and
-     * inspected. An unresolvable host is "not LAN-like" — we can't prove
-     * it's safe, so it fails closed.
+     * inspected, a MagicDNS name included. An unresolvable host is "not
+     * LAN-like" — we can't prove it's safe, so it fails closed.
      */
     private fun isLanLikeAuthority(host: String): Boolean {
         if (host.endsWith(".local", ignoreCase = true)) return true
@@ -230,7 +233,21 @@ internal open class EndlessLitrpgApi @Inject constructor(
         return addr.isLoopbackAddress ||
             addr.isSiteLocalAddress ||
             addr.isAnyLocalAddress ||
-            addr.isLinkLocalAddress
+            addr.isLinkLocalAddress ||
+            isCgnatAddress(addr)
+    }
+
+    /**
+     * True for an address inside 100.64.0.0/10, the carrier-grade NAT range
+     * (RFC 6598) that Tailscale assigns to every node on a tailnet. Such an
+     * address is never routed on the open internet, so a daemon reached over
+     * it is as private as one on the LAN; [InetAddress.isSiteLocalAddress]
+     * does not cover it. A MagicDNS name resolves into this range, so it is
+     * accepted the same way.
+     */
+    private fun isCgnatAddress(addr: InetAddress): Boolean {
+        val b = addr.address
+        return b.size == 4 && (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xc0) == 0x40
     }
 
     /**
