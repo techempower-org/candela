@@ -37,8 +37,8 @@ import javax.inject.Singleton
  *
  * **LAN-only enforcement.** [baseUrlOrNull] resolves the configured
  * authority and rejects anything that isn't loopback / link-local /
- * site-local / tailnet (the ranges Tailscale assigns; the tailnet's ACL,
- * not the range, is what keeps those ours), mirroring
+ * site-local / tailnet (the ranges Tailscale assigns; reachability there
+ * is the tailnet's ACL, this guard only refuses the plainly public), mirroring
  * `PalaceDaemonApi.isLanLikeAuthority`. This is
  * defense in depth against a typo: the daemon speaks plain HTTP with no
  * auth, so a mistyped host must fail closed rather than send requests to
@@ -225,7 +225,7 @@ internal open class EndlessLitrpgApi @Inject constructor(
     /**
      * True when [host] resolves somewhere that cannot leave the realm: the
      * LAN, or the tailnet (the ranges Tailscale assigns, see
-     * [isTailnetAddress]; the tailnet's ACL is what keeps those ours).
+     * [isTailnetAddress]; reachability there is the tailnet's ACL).
      * `.local` short-circuits because mDNS names never resolve off-link
      * and resolving one can block; everything else is resolved and
      * inspected, a MagicDNS name included. An unresolvable host is "not
@@ -249,13 +249,13 @@ internal open class EndlessLitrpgApi @Inject constructor(
      * True for an address Tailscale assigns a tailnet node: IPv4 in
      * 100.64.0.0/10 (carrier-grade NAT space, RFC 6598), IPv6 in
      * fd7a:115c:a1e0::/48 (Tailscale's ULA prefix), or an IPv4-mapped IPv6
-     * address whose embedded IPv4 is in the CGNAT range. Neither range is
-     * routed on the open internet, which is what makes the daemon
-     * unreachable from outside; what keeps the tailnet *ours* is its ACL,
-     * not the range, and this guard assumes that ACL is in place.
-     * [InetAddress.isSiteLocalAddress] covers none of these, so they are
-     * checked by bytes. A MagicDNS name resolves into one of the ranges and
-     * is accepted the same way.
+     * address whose embedded IPv4 is in the CGNAT range. What makes the
+     * daemon reachable, and by whom, is the tailnet's ACL and the LAN; this
+     * check decides nothing about that. It only refuses an address that is
+     * plainly public, so a typo cannot send cleartext to the open internet.
+     * [InetAddress.isSiteLocalAddress] covers none of these ranges, so they
+     * are checked by bytes. A MagicDNS name resolves into one of them and is
+     * accepted the same way.
      */
     private fun isTailnetAddress(addr: InetAddress): Boolean {
         val b = addr.address

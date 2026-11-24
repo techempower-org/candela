@@ -56,8 +56,17 @@ class PalaceDaemonApiTest {
     }
 
     @Test fun `judges an IPv4-mapped IPv6 address by the IPv4 it carries`() {
-        assertNotNull(api().baseUrlOrNull(cfg("[::ffff:100.80.12.34]:8085")))
-        assertNull(api().baseUrlOrNull(cfg("[::ffff:8.8.8.8]:8085")))
+        // Built from the 16 mapped bytes through the resolver seam, so the 16-byte branch runs.
+        fun mapped(a: Int, b: Int, c: Int, d: Int) = ByteArray(16).also {
+            it[10] = 0xff.toByte(); it[11] = 0xff.toByte()
+            it[12] = a.toByte(); it[13] = b.toByte(); it[14] = c.toByte(); it[15] = d.toByte()
+        }
+        val tailnet = api()
+        tailnet.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(100, 80, 12, 34)) }
+        assertNotNull(tailnet.baseUrlOrNull(cfg("mapped-tailnet.example:8085")))
+        val public = api()
+        public.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(8, 8, 8, 8)) }
+        assertNull(public.baseUrlOrNull(cfg("mapped-public.example:8085")))
     }
 
     @Test fun `accepts a MagicDNS name that resolves into the tailnet and fails closed on an unresolvable one`() {

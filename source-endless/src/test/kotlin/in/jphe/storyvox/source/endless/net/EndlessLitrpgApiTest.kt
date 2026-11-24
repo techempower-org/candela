@@ -90,8 +90,34 @@ class EndlessLitrpgApiTest {
     }
 
     @Test fun `an IPv4-mapped IPv6 address is judged by the IPv4 it carries`() {
-        assertEquals("http://[::ffff:100.80.12.34]:8093", base("[::ffff:100.80.12.34]:8093"))
-        assertNull(base("[::ffff:8.8.8.8]:8093"))
+        // Built from the 16 mapped bytes through the resolver seam: a dotted "::ffff:a.b.c.d"
+        // literal resolves to a plain 4-byte address and never reaches the 16-byte branch.
+        fun mapped(a: Int, b: Int, c: Int, d: Int) = ByteArray(16).also {
+            it[10] = 0xff.toByte(); it[11] = 0xff.toByte()
+            it[12] = a.toByte(); it[13] = b.toByte(); it[14] = c.toByte(); it[15] = d.toByte()
+        }
+        val tailnet = api("mapped-tailnet.example:8093")
+        tailnet.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(100, 80, 12, 34)) }
+        assertEquals("http://mapped-tailnet.example:8093", tailnet.baseUrlOrNull(EndlessConfigState("mapped-tailnet.example:8093")))
+        val public = api("mapped-public.example:8093")
+        public.resolve = { name -> java.net.InetAddress.getByAddress(name, mapped(8, 8, 8, 8)) }
+        assertNull(public.baseUrlOrNull(EndlessConfigState("mapped-public.example:8093")))
+    }
+
+    @Test fun `the tailnet helper is byte-identical in the palace twin so the two cannot drift`() {
+        // The two source modules share no common module; the guard is duplicated on purpose
+        // (xreview #1894 round 2) and this test is the only thing holding the copies together.
+        fun helper(path: String): String {
+            val text = java.io.File(path).readText()
+            val start = text.indexOf("True for an address Tailscale assigns")
+            val end = text.indexOf("private fun isV4Mapped", start).let { text.indexOf("\n\n", it) }
+            require(start >= 0 && end > start) { "helper block not found in $path" }
+            return text.substring(start, end)
+        }
+        // Module tests run with the module directory as the working directory.
+        val endless = helper("src/main/kotlin/in/jphe/storyvox/source/endless/net/EndlessLitrpgApi.kt")
+        val palace = helper("../source-mempalace/src/main/kotlin/in/jphe/storyvox/source/mempalace/net/PalaceDaemonApi.kt")
+        assertEquals(endless, palace)
     }
 
     @Test fun `a MagicDNS name that resolves into the tailnet is accepted`() {

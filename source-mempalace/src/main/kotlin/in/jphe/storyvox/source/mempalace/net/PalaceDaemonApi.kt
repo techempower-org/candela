@@ -307,13 +307,13 @@ open class PalaceDaemonApi @Inject constructor(
      * True for an address Tailscale assigns a tailnet node: IPv4 in
      * 100.64.0.0/10 (carrier-grade NAT space, RFC 6598), IPv6 in
      * fd7a:115c:a1e0::/48 (Tailscale's ULA prefix), or an IPv4-mapped IPv6
-     * address whose embedded IPv4 is in the CGNAT range. Neither range is
-     * routed on the open internet, which is what makes the daemon
-     * unreachable from outside; what keeps the tailnet *ours* is its ACL,
-     * not the range, and this guard assumes that ACL is in place.
-     * [InetAddress.isSiteLocalAddress] covers none of these, so they are
-     * checked by bytes. A MagicDNS name resolves into one of the ranges and
-     * is accepted the same way.
+     * address whose embedded IPv4 is in the CGNAT range. What makes the
+     * daemon reachable, and by whom, is the tailnet's ACL and the LAN; this
+     * check decides nothing about that. It only refuses an address that is
+     * plainly public, so a typo cannot send cleartext to the open internet.
+     * [InetAddress.isSiteLocalAddress] covers none of these ranges, so they
+     * are checked by bytes. A MagicDNS name resolves into one of them and is
+     * accepted the same way.
      */
     private fun isTailnetAddress(addr: InetAddress): Boolean {
         val b = addr.address
