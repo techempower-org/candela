@@ -104,22 +104,27 @@ Once the steps above are done, **every future release** runs through:
 git tag -a v0.5.69 -m "v0.5.69 — ..."
 git push origin main v0.5.69
 
-# 4. CI (GitHub-hosted) builds and attaches the two sideload APKs only. The AAB is
-#    NOT a CI artifact — build it here on katana, where the release keystore lives:
-#    ./gradlew :app:bundleRelease        # separate invocation from assembleRelease (#952)
-#    → app/build/outputs/bundle/release/app-release.aab
-#    Needs the NDK pinned by `ndkVersion` in app/build.gradle.kts (#1691). Without it,
-#    AGP can't strip the native libs, the AAB ships with no debug symbols, and Play
-#    warns about the missing symbols. bundleRelease now fails with the fix in the
-#    message: sdkmanager "ndk;<ndkVersion>".
+# 4. CI (GitHub-hosted, android.yml) does the rest on the tag push:
+#    - "Build APK" builds and attaches the two sideload APKs to the GitHub release.
+#    - "Play upload (draft)" installs the pinned NDK (#1691, so the AAB carries debug
+#      symbols), materializes the upload key from the PLAY_* repository secrets, builds
+#      the signed AAB (`:app:bundleRelease`, a separate invocation from assembleRelease,
+#      #952), refuses a bundle not signed with the upload key, and uploads it with
+#      `tools/play-upload --track alpha --status draft` (the Play Developer API directly,
+#      not the Gradle plugin below) to the closed-testing track "alpha" as a DRAFT. It
+#      skips itself when the PLAY_* secrets are not set. Verified on v1.17.1 (run
+#      45349997271, 2026-11-24: the log reads track alpha, status draft): nothing is
+#      built by hand, and the plugin's `track = "internal"` default does not apply here.
 
-# 5. Upload to Play Console Internal Test:
-./gradlew :app:publishReleaseBundle
-# → uploads AAB, stages as DRAFT, prints the Play Console edit URL
-
-# 6. Open Play Console → Internal Test → click "Release" to publish to Internal Test users
+# 5. Open Play Console → the closed-testing track → click "Release" to publish the draft
+#    to its testers. That click is the one human step per release.
 #    OR promote to Production once you've tested:
-./gradlew :app:promoteArtifact --from-track internal --promote-track production
+./gradlew :app:promoteArtifact --from-track alpha --promote-track production
+
+# Fallback, only when CI cannot upload (the PLAY_* secrets unset or rotated): build and
+# stage the draft from a machine that holds the upload key, never unattended:
+./gradlew :app:bundleRelease          # needs the NDK pinned by `ndkVersion` (#1691)
+./gradlew :app:publishReleaseBundle   # uploads the AAB, stages as DRAFT, prints the edit URL
 ```
 
 If the first run prints `PlayPublisher requires credentials`, double-check `storyvox.playPublisher.credentialsFile` in `local.properties` and that the file exists.
