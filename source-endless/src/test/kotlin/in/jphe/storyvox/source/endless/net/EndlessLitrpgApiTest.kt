@@ -65,6 +65,22 @@ class EndlessLitrpgApiTest {
         assertNull(base("http://"))
     }
 
+    // ─── the tailnet ─────────────────────────────────────────────
+
+    @Test fun `a tailnet address is accepted because CGNAT space never leaves the realm`() {
+        // 100.64.0.0/10 is carrier-grade NAT space, which Tailscale assigns to every node;
+        // the phone reaches the daemon over it exactly as it would over the LAN.
+        assertEquals("http://100.80.12.34:8093", base("100.80.12.34:8093"))
+        assertEquals("http://100.98.1.2:8093", base("100.98.1.2:8093"))
+        assertEquals("http://100.64.0.1:8093", base("100.64.0.1:8093"))            // the range's first host
+        assertEquals("http://100.127.255.254:8093", base("100.127.255.254:8093"))  // and its last
+    }
+
+    @Test fun `the addresses either side of the CGNAT range stay refused`() {
+        assertNull(base("100.63.255.255:8093"))
+        assertNull(base("100.128.0.0:8093"))
+    }
+
     @Test fun `a public address is rejected`() {
         // 8.8.8.8 is not site-local, so it must never be dialled with a
         // cleartext, unauthenticated request.

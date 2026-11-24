@@ -42,6 +42,14 @@ class PalaceDaemonApiTest {
         assertNotNull(api().baseUrlOrNull(cfg("palace.jphe.in")))
     }
 
+    @Test fun `accepts a tailnet address because CGNAT space never leaves the realm`() {
+        // 100.64.0.0/10 is carrier-grade NAT space, which Tailscale assigns to every node;
+        // the phone reaches the daemon over it exactly as it would over the LAN.
+        assertNotNull(api().baseUrlOrNull(cfg("100.80.12.34:8085")))
+        assertNotNull(api().baseUrlOrNull(cfg("100.127.255.254:8085")))
+        assertNull(api().baseUrlOrNull(cfg("100.128.0.0:8085")))   // one past the range
+    }
+
     @Test fun `rejects public IP addresses`() {
         // 8.8.8.8 is Google's resolver — reachable but emphatically
         // not the user's home palace.
